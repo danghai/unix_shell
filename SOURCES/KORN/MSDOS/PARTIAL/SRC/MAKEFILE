@@ -1,0 +1,346 @@
+#
+# MS-DOS SHELL - Makefile
+#
+# MS-DOS SHELL - Copyright (c) 1990,4 Data Logic Limited.
+#
+# Redistribution and use in source and binary forms are permitted
+# provided that the above copyright notice is duplicated in the
+# source form.
+#
+#
+#    $Header: /usr/users/istewart/shell/sh2.3/Release/RCS/makefile,v 2.11 1994/08/28 15:18:03 istewart Exp $
+#
+#    $Log: makefile,v $
+# Revision 2.11  1994/08/28  15:18:03  istewart
+# Fix miss-spelling
+#
+# Revision 2.10  1994/08/25  20:58:47  istewart
+# MS Shell 2.3 Release
+#
+# Revision 2.9  1994/02/01  10:25:20  istewart
+# Release 2.3 Beta 2, including first NT port
+#
+# Revision 2.8  1994/01/20  14:51:43  istewart
+# Release 2.3 Beta 1
+#
+# Revision 2.7  1994/01/11  17:55:25  istewart
+# Release 2.3 Beta 0 patches
+#
+# Revision 2.6  1993/08/25  16:03:57  istewart
+# Beta 225 - see Notes file
+#
+# Revision 2.5  1993/07/02  10:25:53  istewart
+# 224 Beta fixes
+#
+# Revision 2.4  1993/06/16  12:55:32  istewart
+# Expand a bit on the required environment variables
+#
+# Revision 2.3  1993/06/14  10:59:32  istewart
+# More changes for 223 beta
+#
+# Revision 2.0  1992/04/13  17:40:33  Ian_Stewartson
+# MS-Shell 2.0 Baseline release
+#
+#
+# This makefile builds four versions of the shell:
+#
+#  MSDOS - 16 bit
+#  MSDOS - 32 bit (shell does not work).  The extender core dumps.
+#  OS/2 - 16 bit
+#  OS/2 - 32 bit
+#
+# You need to select $(CC) as follows:
+#
+# Set CC to the compiler:
+#
+#	icc    - IBM C Set/2
+#	cl     - Microsoft C 5.1 or C6.0
+#	tcc    - Borland Turbo C
+#	wcc386 - WATCOM C 386 (for the MSDOS 32-bit version).
+#	gcc    - GCC/EMX 2.5.? for OS/2
+#
+# Set up the environment variables for the compiler to find its include and
+# lib directories.  Normally, these variables are INCLUDE and LIB.
+#
+# The makefile assumes you are re-building the shell, using the shell as
+# the primary command line processor.  Hence the OSMODE variable which
+# indicates if you are building on MSDOS or OS/2.
+#
+# I use Microsoft as the main development environment, so I have a
+# variable TFLAG_MSC which tells the makefile whether I want to build the
+# optimised (-Olt) or debug (-Zid) version.  For OS/2 2.x, I've used the
+# IBM C Set/2 and a variable TFLAG_IBM with values -O or -(debug options).
+#
+# BETA is set to the release name (V2xxBeta) or RELEASE.
+#
+# You may need to uncomment one or more following, if the associated environment
+# variable is to something else.
+#
+#SHELL=/bin/sh
+#BETA=RELEASE
+#CC=cl
+#OSMODE=0
+#TFLAG_MSC=-Olt
+#TFLAG_IBM=-O
+#TFLAG_WAT=-olt
+#TFLAG_WAT=-d2
+#ASDEBUG=/Zi /Zd
+
+
+LINK=/BATCH/NOLOGO/FARCALL/NOE/ST:8000
+
+#
+# MSDOS build options
+#
+
+MSC_DOS_16_Options=-AL $(TFLAG_MSC) -Iinclude -W3 -nologo
+TC_DOS_16_Options=-ml -Iinclude -N -Z -G -O -wpro -wuse -w-par -w-pia
+WAT_DOS_32_Options=-mf -Iinclude -zq $(TFLAG_WAT)
+GCC_Options=-Iemxinc $(TFLAG_GCC)
+
+#
+# OS/2 1.x build options using Microsoft C6.0
+#
+
+MSC_OS2_16_Options=-AL $(TFLAG_MSC) -W3 -DOS2 -nologo
+MSC_OS2_16_DOptions=-AL $(TFLAG_MSC) -W3 -DOS2 -nologo -DOS2_DOSALLOC
+#MSC_OS2_16_DOptions=-AL $(TFLAG_MSC) -W3 -DOS2 -nologo
+
+#
+# OS/2 2.x build options using IBM C Set/2 1.0 or WATCOM 9.0
+#
+# Note the WATCOM options for OS/2 and DOS 32-bit mode are the same.
+#
+
+IBM_OS2_32_Options=-Q $(TFLAG_IBM) -Sm -Iinclude
+WAT_OS2_32_Options=-mf -Iinclude -zq $(TFLAG_WAT)
+
+#
+# Objects and sources
+#
+
+OBJS=	sh1.obj sh2.obj sh3.obj sh4.obj sh5.obj sh7.obj sh8.obj	\
+	sh9.obj sh10.obj sh11.obj sh12.obj sh13.obj sh6.obj
+OBJS2=	stdargv.obj glob.obj director.obj
+
+OBJS_U=	sh1.o sh2.o sh3.o sh4.o sh5.o sh6.o sh7.o sh8.o \
+	sh9.o sh10.o sh11.o sh12.o sh13.o 
+
+SRCS=	sh0.asm sh1.c sh2.c sh3.c sh4.c sh5.c sh6.c sh7.c sh8.c	\
+	sh9.c sh10.c sh11.c sh12.c sh13.c
+
+SRCS_U=	sh1.c sh2.c sh3.c sh4.c sh5.c sh6.c sh7.c sh8.c \
+	sh9.c sh10.c sh11.c sh12.c sh13.c
+
+SRCS2=	stdargv.c glob.c director.c
+
+#
+# Targets
+#
+
+all:	sh
+ps:	ps.exe
+system: system.exe
+showkey: showkey.exe
+
+sh6.obj: sh6.c  #$(SRCS)
+	@echo Building sh6.obj 1>&2;					\
+	CFLAGS=-c;							\
+	if [ $(CC) = "icc" ];						\
+	then CFLAGS="-c $(IBM_OS2_32_Options)";				\
+	elif [ $(CC) = "tcc" ];						\
+	then CFLAGS="-c $(TC_DOS_16_Options)";				\
+	elif [ $(CC) = "wcc386" ];					\
+	then CFLAGS="$(WAT_DOS_32_Options)";				\
+	elif [ $(OSMODE) = 0 ];						\
+	then export CL="$(MSC_DOS_16_Options)";				\
+	else export CL="$(MSC_OS2_16_Options)";				\
+	fi;								\
+	$(CC) $$CFLAGS -DRELEASE=$(BETA) sh6.c
+
+sh6.o:: sh6.c  #$(SRCS)
+	$(CC) -c $(GCC_Options) -DRELEASE=$(BETA) sh6.c
+
+#
+# Build sh0.asm
+#
+
+sh0.obj: sh0.asm
+	@if   [ $(OSMODE) = 0 -a $(CC) != "wcc386" ];			\
+	then  echo Building sh0.obj 1>&2;				\
+	      if   [ $(CC) = "tcc" ];					\
+	      then ASFLAGS="/D__TURBOC__=1 /t /Ml";			\
+	      else ASFLAGS="/t /Ml";					\
+	      fi;							\
+	      $(AS) $$ASFLAGS $(ASDEBUG) 'sh0.asm;';			\
+	fi
+
+sh0.all:
+	$(AS) /t /Ml sh0.asm  'sh0_msc;'
+	$(AS) /D__TURBOC__=1 /t /Ml sh0.asm  'sh0_tc;'
+
+#
+# Build sh0.asm
+#
+
+swap.obj: swap.asm
+	@if   [ $(OSMODE) = 0 ];					\
+	then echo Building swap.obj 1>&2;				\
+	     if [ $(CC) = "tcc" ];					\
+	     then ASFLAGS="/D__TURBOC__=1 /t /Ml";			\
+	     else ASFLAGS="/t /Ml";					\
+	     fi;							\
+	     $(AS) $$ASFLAGS 'swap.asm;'				\
+	fi
+
+
+#
+# Any .obj.
+#
+.c.obj:
+	@echo Building $*.obj 1>&2;					\
+	CFLAGS=-c;							\
+	if [ $(CC) = "icc" ];						\
+	then CFLAGS="-c $(IBM_OS2_32_Options)";				\
+	elif [ $(CC) = "tcc" ];						\
+	then CFLAGS="-c $(TC_DOS_16_Options)";				\
+	elif [ $(CC) = "wcc386" ];					\
+	then CFLAGS="$(WAT_DOS_32_Options)";				\
+	elif [ $(OSMODE) = 0 ];						\
+	then export CL="$(MSC_DOS_16_Options)";				\
+	elif [ $(TFLAG_MSC) = "-Olt" ];					\
+	then export CL="$(MSC_OS2_16_Options)";				\
+	else export CL="$(MSC_OS2_16_DOptions)";			\
+	fi;								\
+	$(CC) $$CFLAGS $<
+
+.c.o:
+	$(CC) -c $(GCC_Options) $*.c
+
+#
+# EMX requires emx.a which contains the QProc import thingy
+#
+
+emx.a:	emx.def
+	emximp -o emx.a emx.imp
+
+sh: $(OBJS) sh0.obj
+	@echo Linking 1>&2;						\
+	if   [ $(CC) = "icc" ];						\
+	then $(CC) -Fe shos232.exe -Q $(TFLAG_IBM) -Sm $(OBJS)		\
+		   sh.def -B /BAT;					\
+	     if [ "$(TFLAG_IBM)" = "-O" ];				\
+	     then msgbind sh.bnd;					\
+	     fi;							\
+	elif [ $(CC) = "wcc386" ];					\
+	then if   [ $(TFLAG_WAT) = "-d2" ];				\
+	     then wlink @wsh$(OSMODE)d.lnk;				\
+	     else wlink @wsh$(OSMODE).lnk;				\
+	     fi;							\
+	elif [ $(CC) = "tcc" ];						\
+	then tlink /c/e @tsh.lnk;					\
+	     exehdr shdos16.exe -stack:0x8000;				\
+	     ?=0;							\
+	elif [ "$(TFLAG_MSC)" = "-Olt" ];				\
+	then link /batch @msh$(OSMODE).lnk;				\
+	else link /batch @msh$(OSMODE)d.lnk;				\
+	fi
+
+shemx: $(OBJS_U)
+	$(CC) $(TFLAG_GCC) -o shemx.exe $(OBJS_U) emx.a
+
+all3:	swap.obj system.obj
+	cl -F 8000 -o system swap system
+
+ps.exe: ps.obj $(OBJS2)
+	@if [ $(OSMODE) = 1 ];						\
+	then echo Linking ps 1>&2;					\
+	     if   [ $(CC) = "icc" ];					\
+	     then CFLAGS="-Q $(TFLAG_IBM) -Sm";				\
+	          $(CC) $$CFLAGS -Fe ps.exe ps.obj $(OBJS2) sh.def;	\
+	     elif [ $(CC) = "wcc386" ];					\
+	     then wlink @ps.lnk;					\
+	     elif [ $(CC) = "cl" ];					\
+	     then export CL="$(MSC_DOS_16_Options)";			\
+	          $(CC) -o ps.exe ps.obj $(OBJS2) sh.def -link $(LINK);	\
+	     fi;							\
+	fi
+
+system.obj: system.c
+	@CFLAGS=;							\
+	echo Building system.obj 1>&2;					\
+	if [ $(CC) = "icc" ];						\
+	then CFLAGS="$(IBM_OS2_32_Options)";				\
+	elif [ $(OSMODE) = 0 ];						\
+	then export CL="$(MSC_DOS_16_Options)";				\
+	else export CL="$(MSC_OS2_16_Options)";				\
+	fi;								\
+	$(CC) $$CFLAGS -c -DTEST system.c
+
+system.exe: system.obj director.obj swap.obj
+	@echo Linking system 1>&2;					\
+	if [ $(CC) = "icc" ];						\
+	then $(CC) -Q $(TFLAG_IBM) -Sm -Fe system.exe director.obj	\
+					   system.obj;			\
+	elif [ $(OSMODE) = 0 ];						\
+	then export CL="$(MSC_DOS_16_Options)";				\
+	     $(CC) -o system.exe swap.obj director.obj system.obj	\
+			-link $(LINK);					\
+	else export CL="$(MSC_OS2_16_Options)";				\
+	     $(CC) -o system.exe director.obj system.obj -link $(LINK);	\
+	fi
+
+showkey.exe: showkey.obj
+	@echo Linking showkey 1>&2;					\
+	if [ $(CC) = "icc" ];						\
+	then $(CC) -Q $(TFLAG_IBM) -Sm -Fe showkey.exe showkey.obj;	\
+	elif [ $(CC) = "cl" ];						\
+	then if [ $(OSMODE) = 0 ];					\
+	     then export CL="$(MSC_DOS_16_Options)";			\
+	     else export CL="$(MSC_OS2_16_Options)";			\
+	     fi;							\
+	     $(CC) -o showkey.exe showkey.c -link $(LINK);		\
+	elif [ $(CC) = "wcc386" ];					\
+	then wcl386 $(WAT_OS2_32_Options) showkey.obj;			\
+	fi
+
+director.exe: director.c
+	@echo Linking director 1>&2;					\
+	if [ $(CC) = "icc" ];						\
+	then $(CC) -Q $(TFLAG_IBM) -DTEST -Sm -Fe director.exe		\
+		director.c;						\
+	elif [ $(CC) = "cl" ];						\
+	then if [ $(OSMODE) = 0 ];					\
+	     then export CL="$(MSC_DOS_16_Options)";			\
+	     else export CL="$(MSC_OS2_16_Options)";			\
+	     fi;							\
+	     $(CC) -o director.exe -DTEST director.c -link $(LINK);	\
+	elif [ $(CC) = "wcc386" ];					\
+	then wcl386 $(WAT_OS2_32_Options) -DTEST director.c;		\
+	fi
+
+stdargv.exe: stdargv.c
+	@echo Linking stdargv 1>&2;					\
+	if [ $(CC) = "icc" ];						\
+	then $(CC) -Q $(TFLAG_IBM) -DTEST -Sm -Fe stdargv.exe		\
+		stdargv.c;						\
+	elif [ $(CC) = "cl" ];						\
+	then if [ $(OSMODE) = 0 ];					\
+	     then export CL="$(MSC_DOS_16_Options)";			\
+	     else export CL="$(MSC_OS2_16_Options)";			\
+	     fi;							\
+	     $(CC) -o stdargv.exe -DTEST stdargv.c -link $(LINK);	\
+	elif [ $(CC) = "wcc386" ];					\
+	then wcl386 $(WAT_OS2_32_Options) stdargv.c;			\
+	fi
+
+
+#
+#
+#
+
+unix:		$(OBJS_U) 
+		cc -o sh $(OBJS_U)
+
+sh6.o::		$(SRCS_U)
+#$(OBJS_U)::	sh.h

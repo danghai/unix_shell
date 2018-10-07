@@ -1,0 +1,12 @@
+#!/bin/csh -f
+# Script name: logical
+
+	set x = 1
+	set y = 2
+	set z = 3
+if (( "$x" && "$y" ) ||  ! "$z" ) then   # Note: grouping and paranethses
+	then
+echo TRUE
+	else
+		echo FALSE
+	endif 

@@ -1,0 +1,61 @@
+Korn Shell. Built-in Commands (most used)
+
+ Command             Description
+
+ . file [argument...]Executes commands specified in file and not starting
+                     a subshell
+ alias [name[=value]]Specify a nickname for the command, value
+ bg [job...]         Place the specified job into the background
+
+ cd [directory]      Changes to the specified directory, or to $HOME if
+                     none specified
+ echo [string]       Writes string to standard output
+
+ export [name]       Marks the specified name for export to the
+                     environment of subsequent commands.
+ fg [job...]         Places the job in the foreground
+ jobs [job]          Displays all the active jobs or the specified job
+ kill job            Terminates the execution of the specified job
+ pwd                 Displays the current working directory
+ unalias name        Removes the alias for the nickname name
+
+ unset [name...]     Removes the specified variable, name from the
+                     environment
+
+ whence name         For each name specified, indicate how it would be
+                     used as a command
+
+Vi Editing Mode (command line editing)
+
+        Type ESC to enter vi mode then:
+
+ Key     Brief Description
+ l       Moves forward one character
+ h       Moves back one character
+ ^       Moves to the start of the line
+ $       Moves to the end of the line
+ x       Deletes the current character
+ dw      Deletes the current word
+ db      Deletes the previous word
+ ~       Changes case of current character
+ d$      Deletes from to end of line
+ \       Do filename completion
+ [RETURN]Executes the current line
+ k or -  Fetches the previous command
+ j or +  Fetches the next command line
+ v       Run full vi session on current line
+ A       Inserts text at end of line
+ i       Inserts text before current character
+ w       Moves forward one word
+ b       Moves back one word
+
+                Repeating previously entered commands.
+
+ history   shows the history of commands enter at the command prompt
+ r         rerun the last command
+ r 77      rerun command number 77
+ r i7=j8   rerun the last command substituting j8 for i7
+ r 77 i7=j8rerun command number 77, substituting j8 for i7
+ r ls      rerun the last ls command
+
+Solaris 2.4 commands with SunOS equivalents in ()

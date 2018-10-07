@@ -1,0 +1,13 @@
+Bourne shell sh
+
+This is the original Unix shell written by Steve Bourne of Bell Labs. It is
+available on all UNIX systems.
+
+This shell does not have the interactive facilites provided by modern
+shells such as the C shell and Korn shell. You are advised to to use
+another shell which has these features.
+
+The Bourne shell does provide an easy to use language with which you can
+write shell scripts.
+
+   * Summary of features

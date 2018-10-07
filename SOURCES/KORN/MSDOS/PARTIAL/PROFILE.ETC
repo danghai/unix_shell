@@ -1,0 +1,5 @@
+#!sh
+HISTFILE=c:/etc/history.sh
+EXINIT="set  ai sm dm wm=5 sw=4 terse magic"
+TZ=CET0CET
+export EXINIT PATH TERM TZ HISTFILE

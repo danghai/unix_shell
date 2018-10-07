@@ -1,0 +1,1114 @@
+Subject:  v21i029:  String function to do sed(1)/tr(1) manipulations, Part02/03
+Newsgroups: comp.sources.unix
+Approved: rsalz@uunet.UU.NET
+X-Checksum-Snefru: 81c6c86a 826ca0a9 06506c2c 354caeec
+
+Submitted-by: Terry Jones <terry@pcsbst.pcs.com>
+Posting-number: Volume 21, Issue 29
+Archive-name: strsed/part02
+
+#!/bin/sh
+# this is part 2 of a multipart archive
+# do not concatenate these parts, unpack them in order with /bin/sh
+# file strsed.c continued
+#
+CurArch=2
+if test ! -r s2_seq_.tmp
+then echo "Please unpack part 1 first!"
+     exit 1; fi
+( read Scheck
+  if test "$Scheck" != $CurArch
+  then echo "Please unpack part $Scheck next!"
+       exit 1;
+  else exit 0; fi
+) < s2_seq_.tmp || exit 1
+echo "x - Continuing file strsed.c"
+sed 's/^X//' << 'SHAR_EOF' >> strsed.c
+X                    more_space(1);
+X                    new_str[new_pos++] = *tmp++;
+X                }
+X            }
+X
+X            /*
+X             * Move forward over the matched text.
+X             *
+X             */
+X            str += regs.end[0];
+X            str_len -= regs.end[0];
+X        }
+X    } while (global && match != -1 && *str);
+X
+X    /*
+X     * Copy the final portion of the string. This is the section that
+X     * was not matched (and hence which remains unchanged) by the last
+X     * match. Then we head off home.
+X     *
+X     */
+X    more_space(str_len);
+X    (void) strcpy(new_str + new_pos, str);
+X    RETURN(new_str);
+X}
+X
+X#define DIGIT(x) (isdigit(x) ? (x) - '0' : islower(x) ? (x) + 10 - 'a' : (x) + 10 - 'A')
+X
+Xstatic char *
+Xbackslash_eliminate(str, type, who)
+Xchar *str;
+Xint type;
+Xint who;
+X{
+X    /*
+X     * Remove backslashes from the strings. Turn \040 etc. into a single
+X     * character (we allow eight bit values). Currently NUL is not
+X     * allowed.
+X     *
+X     * Turn "\n" and "\t" into '\n' and '\t' characters. Etc.
+X     *
+X     * The string may grow slightly here. Under normal circumstances
+X     * it will stay the same length or get shorter. It is only in the 
+X     * case where we have to turn {a-z}{A-Z} into \0{a-z}{A-Z} that
+X     * we add two chars. This only happens when we are doing a REPLACEMENT.
+X     * So we can't overwrite str, and we have to 
+X     * malloc. Sad, but the only ways I could find around it (at this
+X     * late stage) were really gross. I allowed an extra 
+X     * 100 bytes which should cover most idiotic behaviour.
+X     * I count the extra space and exit nicely if they do do something
+X     * extremely silly.
+X     *
+X     * 'i' is an index into new_str.
+X     *
+X     * 'type' tells us how to interpret escaped characters.
+X     *
+X     * type = REGEX 
+X     *        if the pattern is a regular expression. If it is then
+X     *        we leave escaped things alone (except for \n and \t and 
+X     *        friends).
+X     *
+X     * type = REPLACEMENT
+X     *        if this is a replacement pattern. In this case we change
+X     *        \( and \) to ( and ), but leave \1 etc alone as they are
+X     *        register references. - becomes a metacharacter between
+X     *        { and }.
+X     *
+X     * type = NORMAL
+X     *        We do \n and \t elimination, as well as \040 etc, plus
+X     *        all other characters that we find quoted we unquote.
+X     *        type = NORMAL when we do a backslash elimination on the
+X     *        string argument to strsed.
+X     *
+X     * who tells us where to tell mem where to stick the new string.
+X     *
+X     * \{m,n\} syntax (see ed(1)) is not supported.
+X     *
+X     */
+X
+X    static char *mem();
+X    char *new_str;
+X    int extra = 100;
+X    int seenlb = 0;
+X    register int i = 0;
+X    register int seenbs = 0;
+X    int first_half = 0;
+X
+X    if (type == REPLACEMENT){
+X	if (!(new_str = mem(who, strlen(str) + 1 + extra))){
+X	    return 0;
+X	}
+X    }
+X    else{
+X	new_str = str;
+X    }
+X
+X    while (*str){
+X        if (seenbs){
+X            seenbs = 0;
+X            switch (*str){
+X                case '\\':{
+X                    new_str[i++] = '\\';
+X                    str++;
+X                    break;
+X                }
+X
+X                case '-':{
+X                    if (seenlb){
+X                        /* Keep it quoted. */
+X                        new_str[i++] = '\\';
+X                    }
+X                    new_str[i++] = '-';
+X                    str++;
+X                    break;
+X                }
+X
+X                case '}':{
+X                    if (seenlb){
+X                        /* Keep it quoted. */
+X                        new_str[i++] = '\\';
+X                    }
+X                    new_str[i++] = '}';
+X                    str++;
+X                    break;
+X                }
+X
+X                case 'n':{
+X                    new_str[i++] = '\n';
+X                    str++;
+X                    break;
+X                }
+X
+X                case 't':{
+X                    new_str[i++] = '\t';
+X                    str++;
+X                    break;
+X                }
+X
+X                case 's':{
+X                    new_str[i++] = ' ';
+X                    str++;
+X                    break;
+X                }
+X
+X                case 'r':{
+X                    new_str[i++] = '\r';
+X                    str++;
+X                    break;
+X                }
+X
+X                case 'f':{
+X                    new_str[i++] = '\f';
+X                    str++;
+X                    break;
+X                }
+X
+X                case 'b':{
+X                    new_str[i++] = '\b';
+X                    str++;
+X                    break;
+X                }
+X
+X                case 'v':{
+X                    new_str[i++] = '\13';
+X                    str++;
+X                    break;
+X                }
+X
+X                case 'z':{
+X                    str++;
+X                    break;
+X                }
+X
+X                case '0': case '1': case '2': case '3': case '4':
+X                case '5': case '6': case '7': case '8': case '9':{
+X
+X                    char val;
+X
+X                    /*
+X                     * Three digit octal constant.
+X                     *
+X                     */
+X                    if (*str >= '0' && *str <= '3' && 
+X                        *(str + 1) >= '0' && *(str + 1) <= '7' &&
+X                        *(str + 2) >= '0' && *(str + 2) <= '7'){
+X
+X                        val = (DIGIT(*str) << 6) + 
+X                              (DIGIT(*(str + 1)) << 3) + 
+X                               DIGIT(*(str + 2));
+X
+X                        if (!val){
+X                            /*
+X                             * NUL is not allowed.
+X                             */
+X                            return 0;
+X                        }
+X
+X                        new_str[i++] = val;
+X                        str += 3;
+X                        break;
+X                    }
+X
+X                    /*
+X                     * One or two digit hex constant.
+X                     * If two are there they will both be taken.
+X                     * Use \z to split them up if this is not wanted.
+X                     *
+X                     */
+X                    if (*str == '0' && (*(str + 1) == 'x' || *(str + 1) == 'X') && isxdigit(*(str + 2))){
+X                        val = DIGIT(*(str + 2));
+X                        if (isxdigit(*(str + 3))){
+X                            val = (val << 4) + DIGIT(*(str + 3));
+X                            str += 4;
+X                        }
+X                        else{
+X                            str += 3;
+X                        }
+X
+X                        if (!val){
+X                            return 0;
+X                        }
+X
+X                        new_str[i++] = val;
+X                        break;
+X                    }
+X
+X                    /*
+X                     * Two or three decimal digits.
+X                     * (One decimal digit is taken as either a register reference
+X                     * or as a decimal digit if NORMAL is true below.)
+X                     *
+X                     */
+X                    if (isdigit(*(str + 1))){
+X                        val = DIGIT(*str) * 10 + DIGIT(*(str + 1));
+X                        if (isdigit(*(str + 2))){
+X                            val = 10 * val + DIGIT(*(str + 2));
+X                            str += 3;
+X                        }
+X                        else{
+X                            str += 2;
+X                        }
+X
+X                        if (!val){
+X                            return 0;
+X                        }
+X
+X                        new_str[i++] = val;
+X                        break;
+X                    }
+X
+X                    /*
+X                     * A register reference or else a single decimal digit if this
+X                     * is a normal string..
+X                     *
+X                     * Emit \4 (etc) if we are not NORMAL (unless the digit is a 0 
+X                     * and we are processing an r.e. This is because \0 makes no 
+X                     * sense in an r.e., only in a replacement. If we do have \0 
+X                     * and it is an r.e. we return.)
+X                     *
+X                     */
+X                    if (*str == '0' && type == REGEX){
+X                        return 0;
+X                    }
+X
+X                    if (type == NORMAL){
+X                        if (!(val = DIGIT(*str))){
+X                            return 0;
+X                        }
+X                        new_str[i++] = val;
+X                        str++;
+X                    }
+X                    else{
+X                        new_str[i++] = '\\';
+X                        new_str[i++] = *str++;
+X                    }
+X                    break;
+X                }
+X
+X                default:{
+X                    if (type == REGEX){
+X                        new_str[i++] = '\\';
+X                    }
+X                    new_str[i++] = *str++;
+X                    break;
+X                }
+X            }
+X        }
+X        else{
+X            if (*str == '\\'){
+X                seenbs = 1;
+X                str++;
+X            }
+X            else if (type == REPLACEMENT && *str == '}'){
+X                if (*(str + 1) == '{' && first_half){
+X                    new_str[i++] = *str++;
+X                    new_str[i++] = *str++;
+X		    first_half = 0;
+X                }
+X                else{
+X                    seenlb = 0;
+X                    new_str[i++] = *str++;
+X                }
+X            }
+X            else if (type == REPLACEMENT && !seenlb && *str == '{'){
+X                /*
+X                 * Within { and }, \- should be left as such. So we can differentiate
+X                 * between s/fred/\-/ and s/fred/{\-a-z}{+A-Z}
+X                 *
+X                 * We stick in a "\0" here in the case that \X has not just been
+X                 * seen. (X = 0..9) Which is to say, {a-z}{A-Z} defaults to 
+X                 * \0{a-z}{A-Z}
+X                 *
+X                 */
+X
+X                seenlb = 1;
+X		first_half = 1;
+X
+X                if (i < 2 || new_str[i - 2] != '\\' || !(new_str[i - 1] >= '0' && new_str[i - 1] <= '9')){
+X                    if ((extra -= 2) < 0){
+X                        /* ran out of extra room. */
+X                        return 0;
+X                    }
+X                    new_str[i++] = '\\';
+X                    new_str[i++] = '0';
+X                }
+X                new_str[i++] = *str++;
+X            }
+X            else{
+X                /* 
+X                 * A normal char.
+X                 *
+X                 */
+X                new_str[i++] = *str++;
+X            }
+X        }
+X    }
+X
+X    if (seenbs){
+X        /*
+X         * The final character was a '\'. Ignore it.
+X         *
+X         */
+X    }
+X
+X    new_str[i] = '\0';
+X    return new_str;
+X}
+X
+Xstatic char *
+Xbuild_map(s, map)
+Xchar *s;
+Xchar *map;
+X{
+X    /*
+X     * Produce a mapping table for the given transliteration.
+X     * We are passed something that looks like "{a-z}{A-Z}"
+X     * Look out for \ chars, these are used to quote } and -.
+X     *
+X     * Return a pointer to the char after the closing }.
+X     * We cannot clobber s.
+X     *
+X     * The building of maps is somewhat optimised.
+X     * If the string is the same as the last one we were 
+X     * called with then we don't do anything. It would be better
+X     * to remember all the transliterations we have seen, in
+X     * order (because in a global substitution we will
+X     * apply them in the same order repeatedly) and then we
+X     * could do the minimum amount of building. This is a 
+X     * compromise because it is a fairly safe bet that there will 
+X     * not be more than one transliteration done.
+X     *
+X     */
+X
+X    char *in;
+X    char *out;
+X    char *str;
+X    char *tmp;
+X    char c;
+X    static char *mem();
+X    static char nextch();
+X    int i = 0;
+X    int range_count = 0;
+X    int seenbs = 0;
+X    static char *last = 0;
+X    static int last_len;
+X
+X    if (!s){
+X        return 0;
+X    }
+X
+X    if (last && !strncmp(s, last, last_len)){
+X        /* Re-use the map. */
+X        return s + last_len;
+X    }
+X    else{
+X	/*
+X	 * Make a copy of s in both 'last' and 'str'
+X	 */
+X	int len = strlen(s) + 1;
+X        if (!(str = mem(MEM_MAP, len)) || !(last = mem(MEM_MAP_SAVE, len))){
+X            return 0;
+X        }
+X	str[0] = last[0] = '\0';
+X	strcat(str, s);
+X	strcat(last, s);
+X    }
+X
+X    tmp = str + 1;
+X    in = str;
+X
+X    while (*tmp){
+X        if (seenbs){
+X            if (*tmp == '-'){
+X                /* 
+X                 * Keep the \ before a - since this is the range
+X                 * separating metacharacter. We don't keep } quoted,
+X                 * we just put it in. Then it is passed as a normal
+X                 * char (no longer a metachar) to nextch().
+X                 *
+X                 */
+X                str[i++] = '\\';
+X            }
+X            str[i++] = *tmp++;
+X            seenbs = 0;
+X        }
+X        else{
+X            if (*tmp == '\\'){
+X                seenbs = 1;
+X                tmp++;
+X            }
+X            else if (*tmp == '}'){
+X                if (!range_count){
+X                    /* seen first range. */
+X                    range_count = 1;
+X                    str[i++] = '\0';
+X                    tmp++;
+X                    while (*tmp == ' ' || *tmp == '\t'){
+X                        tmp++;
+X                    }
+X                    if (*tmp != '{'){
+X                        return 0;
+X                    }
+X                    out = str + i;
+X                    tmp++;
+X                }
+X                else{
+X                    /* seen both ranges. */
+X                    str[i++] = '\0';
+X                    tmp++;
+X                    range_count = 2; 
+X                    break;
+X                }
+X            }
+X            else{
+X                /* A plain defenceless character. */
+X                str[i++] = *tmp++;
+X            }
+X        }
+X    }
+X
+X    if (range_count != 2){
+X        return 0;
+X    }
+X
+X    last_len = tmp - str;
+X
+X    /*
+X     * Now 'out' and 'in' both point to character ranges.
+X     * These will look something like "A-Z" but may be 
+X     * more complicated and have {} and - in them elsewhere.
+X     *
+X     */
+X    
+X    for (i = 0; i < 1 << BYTEWIDTH; i++){
+X        map[i] = i;
+X    }
+X
+X    /*
+X     * Ready the range expanding function.
+X     *
+X     */
+X    (void) nextch(in, 0);
+X    (void) nextch(out, 1);
+X
+X    /*
+X     * For each char in 'in', assign it a value in
+X     * 'map' corresponding to the next char in 'out'.
+X     *
+X     */
+X
+X    while ((c = nextch(0, 0))){
+X        map[c] = nextch(0, 1);
+X    }
+X
+X    return tmp;
+X}
+X
+Xstatic char
+Xnextch(str, who)
+Xchar *str;
+Xint who;
+X{
+X    /*
+X     * Given a range like {a-z0237-9}
+X     * return successive characters from the range on
+X     * successive calls. The first call (when str != 0)
+X     * sets things up.
+X     *
+X     * We must handle strange things like
+X     * {a-b-c-z}            = {a-z}
+X     * and {z-l-a}          = {z-a}
+X     * and {f-f-f-f-h}      = {f-h}
+X     * and {a-z-f-h-y-d-b}  = {a-b}
+X     *
+X     * and so on.
+X     *
+X     * This function will remember two strings and will return
+X     * the next charcter in the range specified by 'who'. This
+X     * makes the building of the transliteration table above
+X     * a trivial loop.
+X     *
+X     * I can't be bothered to comment this as much as it
+X     * deserves right now... 8-)
+X     *
+X     */
+X
+X    static char *what[2] = {0, 0};
+X    static char last[2] = {0, 0};
+X    static int increment[2];
+X    static int pos[2];
+X
+X    if (who < 0 || who > 1){
+X        return 0;
+X    }
+X
+X    if (str){
+X        /* Set up for this string. */
+X        what[who] = str;
+X        pos[who] = 0;
+X        return 1;
+X    }
+X    else if (!what[who]){
+X        return 0;
+X    }
+X
+X    if (!pos[who] && what[who][0] == '-'){
+X        return 0;
+X    }
+X
+X    switch (what[who][pos[who]]){
+X        
+X        case '-':{
+X            /* we're in mid-range. */
+X            last[who] += increment[who];
+X            if (what[who][pos[who] + 1] == last[who]){
+X                pos[who] += 2;
+X            }
+X            return last[who];
+X        }
+X
+X        case '\0':{
+X            /* 
+X             * We've finished. Keep on returning the
+X             * last thing you saw if who = 1.
+X             */
+X            if (who){
+X                return last[1];
+X            }
+X            return 0;
+X        }
+X
+X        /* FALLTHROUGH */
+X        case '\\':{
+X            pos[who]++;
+X        }
+X
+X        default:{
+X            last[who] = what[who][pos[who]++];
+X            /*
+X             * If we have reached a '-' then this is the start of a
+X             * range. Keep on moving forward until we see a sensible 
+X             * end of range character. Then set up increment so that
+X             * we do the right thing next time round. We leave pos
+X             * pointing at the '-' sign.
+X             *
+X             */
+X
+X            while (what[who][pos[who]] == '-'){
+X                int inc = 1;
+X                if (what[who][pos[who] + inc] == '\\'){
+X                    inc++;
+X                }
+X                if (!what[who][pos[who] + inc]){
+X                    return 0;
+X                }
+X                if (what[who][pos[who] + inc + 1] == '-'){
+X                    pos[who] += inc + 1;
+X                    continue;
+X                }
+X                increment[who] = what[who][pos[who] + inc] - last[who];
+X                if (!increment[who]){
+X                    pos[who] += 2;
+X                    continue;
+X                }
+X                if (increment[who] > 0){
+X                    increment[who] = 1;
+X                    break;
+X                }
+X                else if (increment[who] < 0){
+X                    increment[who] = -1;
+X                    break;
+X                }
+X            }
+X            return last[who];
+X        }
+X    }
+X}
+X
+Xstatic char *
+Xmem(who, size)
+Xint who;
+Xint size;
+X{
+X    /*
+X     * Get 'size' bytes of memeory one way or another.
+X     *
+X     * The 'mem_slots' array holds currently allocated hunks.
+X     * If we can use one that's already in use then do so, otherwise
+X     * try and find a hunk not in use somewhere else in the table.
+X     * As a last resort call malloc. All a bit specialised and
+X     * not too clear. Seems to works fine though.
+X     */
+X    
+X    static void mem_save();
+X
+X    if (who < 0 || who >= MEM_SLOTS){
+X	return 0;
+X    }
+X    
+X    if (mem_slots[who].used){
+X	/*
+X	 * There is already something here. Either move/free it or
+X	 * return it if it is already big enough to hold this request.
+X	 */
+X	if (mem_slots[who].size >= size){
+X	    /* It is already big enough. */
+X	    return mem_slots[who].s;
+X	}
+X	else{
+X	    mem_save(who);
+X	}
+X    }
+X    else{
+X	/*
+X	 * The slot was not in use. Check to see if there is space
+X	 * allocated here already that we can use. If there is and
+X	 * we can, use it, if there is and it's not big enough try to
+X	 * save it. if there isn't then try to find it in another free slot,
+X	 * otherwise don't worry, the malloc below will get us some.
+X	 */
+X	if (mem_slots[who].s && mem_slots[who].size >= size){
+X	    /* We'll take it. */
+X	    mem_slots[who].used = 1;
+X	    return mem_slots[who].s;
+X	}
+X	
+X	if (mem_slots[who].s){
+X	    mem_save(who);
+X	}
+X	else{
+X	    static int mem_find();
+X	    int x = mem_find(size);
+X	    if (x != -1){
+X		mem_slots[who].s = mem_slots[x].s;
+X		mem_slots[who].size = mem_slots[x].size;
+X		mem_slots[who].used = 1;
+X		mem_slots[x].s = (char *)0;
+X		return mem_slots[who].s;
+X	    }
+X	}
+X    }
+X    
+X    /*
+X     * Have to use malloc 8-(
+X     */
+X
+X    if (!(mem_slots[who].s = malloc((unsigned)size))){
+X	return 0;
+X    }
+X    mem_slots[who].size = size;
+X    mem_slots[who].used = 1;
+X    
+X    return mem_slots[who].s;
+X}
+X
+Xstatic int
+Xmem_find(size)
+Xint size;
+X{
+X    /*
+X     * See if we can find an unused but allocated slot with 'size' 
+X     * (or more) space available. Return the index, or -1 if not.
+X     */
+X     
+X    register int i;
+X    
+X    for (i = 0; i < MEM_SLOTS; i++){
+X	if (!mem_slots[i].used && mem_slots[i].s && mem_slots[i].size >= size){
+X	    return i;
+X	}
+X    }
+X    return -1;
+X}
+X
+Xstatic void
+Xmem_save(x)
+Xint x;
+X{
+X    /*
+X     * There is some memory in mem_slots[x] and we try to save it rather
+X     * than free it. In order we try to
+X     *
+X     * 1) put it in an unused slot that has no allocation.
+X     * 2) put it in an unused slot that has an allocation smaller than x's
+X     * 3) free it since there are no free slots and all the full ones are bigger.
+X     *
+X     */
+X
+X    register int i;
+X    register int saved = 0;
+X    
+X    /*
+X     * First we try to find somewhere unused and with no present allocation.
+X     */
+X    for (i = 0; i < MEM_SLOTS; i++){
+X	if (!mem_slots[i].used && !mem_slots[i].s){
+X	    saved = 1;
+X	    mem_slots[i].s = mem_slots[x].s;
+X	    mem_slots[i].size = mem_slots[x].size;
+X	    mem_slots[i].used = 0;
+X	    break;
+X	}
+X    }
+X    
+X    /*
+X     * No luck yet. Try for a place that is not being used but which has
+X     * space allocated, and which is smaller than us (and all other such spots). 
+X     * Pick on the smallest, yeah.
+X     */
+X    if (!saved){
+X	register int small = -1;
+X	register int small_val = 1000000;
+X	for (i = 0; i < MEM_SLOTS; i++){
+X	    if (!mem_slots[i].used && mem_slots[i].size < mem_slots[x].size && mem_slots[i].size < small_val){
+X		small_val = mem_slots[i].size;
+X		small = i;
+X	    }
+X	}
+X	
+X	if (small != -1){
+X	    saved = 1;
+X	    /* We got one, now clobber it... */
+X	    free(mem_slots[small].s);
+X	    /* and move on in. */
+X	    mem_slots[small].s = mem_slots[x].s;
+X	    mem_slots[small].size = mem_slots[x].size;
+X	    mem_slots[small].used = 0;
+X	}
+X    }
+X    
+X    if (!saved){
+X	/* Have to toss it away. */
+X	free(mem_slots[x].s);
+X    }
+X}
+X
+Xstatic void
+Xmem_init()
+X{
+X    /*
+X     * Clear all the memory slots.
+X     */
+X
+X    register int i;
+X    
+X    for (i = 0; i < MEM_SLOTS; i++){
+X	mem_slots[i].s = (char *)0;
+X	mem_slots[i].used = 0;
+X    }
+X}
+X
+Xstatic void
+Xmem_free(except)
+Xchar *except;
+X{
+X    /*
+X     * "Clear out" all the memory slots. Actually we do no freeing since
+X     * we may well be called again. We just mark the slots as unused. Next
+X     * time round they might be useful - the addresses and sizes are still there.
+X     *
+X     * For the slot (if any) whose address is 'except', we actually set the
+X     * address to 0. This is done because we are called ONLY from the macro
+X     * RETURN() in strsed() and we intend to return the value in 'except'.
+X     * Once this is done, strsed should (in theory) have no knowledge at all
+X     * of the address it passed back last time. That way we won't clobber it
+X     * and cause all sorts of nasty problems.
+X     */
+X
+X    register int i;
+X    
+X    for (i = 0; i < MEM_SLOTS; i++){
+X	mem_slots[i].used = 0;
+X	if (mem_slots[i].s == except){
+X	    mem_slots[i].s = (char *)0;
+X	    mem_slots[i].size = 0;
+X	}
+X    } 
+X}
+X
+SHAR_EOF
+echo "File strsed.c is complete"
+chmod 0644 strsed.c || echo "restore of strsed.c fails"
+set `wc -c strsed.c`;Sum=$1
+if test "$Sum" != "36532"
+then echo original size 36532, current size $Sum;fi
+echo "x - extracting Makefile (Text)"
+sed 's/^X//' << 'SHAR_EOF' > Makefile &&
+X#
+X# Makefile for strsed
+X#
+X
+X#
+X# Use gcc if you have it...
+X# (The MIPS cc produces a regex.o which dumps core).
+X#
+X
+X#CC = cc
+X
+XCC = gcc
+XCFLAGS = -O
+X
+X
+Xall : check
+X
+Xcheck : check1 check2
+X	cat examples1 | ./check1
+X	cat examples2 | ./check2
+X
+Xcheck1 : strsed.o regex.o check1.o
+X	$(CC) $(CFLAGS) -o check1 strsed.o regex.o check1.o
+X
+Xcheck2 : strsed.o regex.o check2.o
+X	$(CC) $(CFLAGS) -o check2 strsed.o regex.o check2.o
+X
+Xstrsed.o : regex.h
+Xregex.o : regex.h
+X
+Xclean :
+X	rm -f check?.o
+X
+Xclobber : clean
+X	rm -f strsed.o check[12] MANIFEST
+SHAR_EOF
+chmod 0644 Makefile || echo "restore of Makefile fails"
+set `wc -c Makefile`;Sum=$1
+if test "$Sum" != "526"
+then echo original size 526, current size $Sum;fi
+echo "x - extracting check1.c (Text)"
+sed 's/^X//' << 'SHAR_EOF' > check1.c &&
+X#include <stdio.h>
+X
+Xint
+Xmain()
+X{
+X	/*
+X	 * Check simple searching.
+X	 *
+X	 * Input consists of sets of three lines containing
+X	 *
+X	 *      text
+X	 *      pattern
+X	 *      expected new text
+X	 *
+X	 * See the file examples1
+X	 *
+X	 */
+X
+X	extern int strcmp();
+X	extern char *strsed();
+X
+X	char text[1024];
+X	char pat[1024];
+X	char ans[1024];
+X	register char *result;
+X	register int testno = 0;
+X	int error = 0;
+X
+X	while (gets(text) && gets(pat) && gets(ans)){
+X		testno++;
+X		result = strsed(text, pat, 0);
+X		if (strcmp(ans, result)){
+X			error = 1;
+X			printf("WARNING (test %d)... strsed(%s, %s) returns '%s'\nExpected '%s'\n", 
+X				testno, text, pat, result, ans);
+X			fflush(stdout);
+X		}
+X	}
+X
+X	if (!error){
+X		printf("Substitution and transliteration tests passed successfully.\n");
+X	}
+X
+X	return 0;
+X}
+SHAR_EOF
+chmod 0644 check1.c || echo "restore of check1.c fails"
+set `wc -c check1.c`;Sum=$1
+if test "$Sum" != "775"
+then echo original size 775, current size $Sum;fi
+echo "x - extracting check2.c (Text)"
+sed 's/^X//' << 'SHAR_EOF' > check2.c &&
+X#include <stdio.h>
+X
+Xint
+Xmain()
+X{
+X	/*
+X	 * Check simple searching.
+X	 *
+X	 * Input consists of sets of four lines containing
+X	 *
+X	 *      text
+X	 *      pattern
+X	 *      expected start of match
+X	 *      expected end of match
+X	 *
+X	 * See the file examples2
+X	 *
+X	 */
+X
+X	extern int atoi();
+X	extern char *strsed();
+X
+X	char text[1024];
+X	char pat[1024];
+X	char ans1[10];
+X	char ans2[10];
+X	int range[2];
+X	int low;
+X	int high;
+X	register int testno = 0;
+X	int error = 0;
+X
+X	while (gets(text) && gets(pat) && gets(ans1) && gets(ans2)){
+X		testno++;
+X		strsed(text, pat, range);
+X		low = atoi(ans1);
+X		high = atoi(ans2);
+X		if (low != range[0] || high != range[1]){
+X			error = 1;
+X			printf("WARNING (test %d)... strsed(%s, %s) returns range %d-%d (Expected %d-%d)\n", 
+X				testno, text, pat, range[0], range[1], low, high);
+X			fflush(stdout);
+X		}
+X	}
+X
+X	if (!error){
+X		printf("Searching tests passed successfully.\n");
+X	}
+X
+X	return 0;
+X}
+SHAR_EOF
+chmod 0644 check2.c || echo "restore of check2.c fails"
+set `wc -c check2.c`;Sum=$1
+if test "$Sum" != "907"
+then echo original size 907, current size $Sum;fi
+echo "x - extracting examples1 (Text)"
+sed 's/^X//' << 'SHAR_EOF' > examples1 &&
+Xabcdef
+Xs/bx?m?m?m?1?2?3?c/BC/
+XaBCdef
+Xabcdef
+Xs/bx?c/BC/
+XaBCdef
+X/initial/slash
+X/^\///
+Xinitial/slash
+Xfunny ranges
+X/.*/{n-a-\--\040-\0xd-\d-n}{1-\x-\--\--p-7-1}/
+Xfu11y ra1ges
+Xfunny ranges
+X/.*/{n-a-\--\040-\0xd-\d-n}{1-\x-\--\--p-7-4}/
+Xfu11y ra1ges
+Xfunny ranges
+X/.*/{r-a-\--\040-\0xd-\d-u}{1-\x-\--\--p-7-4}/
+Xf4nny 1ange2
+Xfunny ranges
+X/.*/{r-a-\--\d-u}{1-\x-\--\--p-7-4}/
+Xf4nny 1ange2
+Xfunny ranges
+X/.*/{r-a-l-d-u}{1-x-p-7-4}/
+Xf4nny 1ange2
+Xfunny ranges
+X/.*/{a-f-c}{1-9}/
+Xfunny r1nges
+Xhere we go
+X/.*/{e}{\}}/
+Xh}r} w} go
+Xhere we go
+X/.*/{e}{\-}/
+Xh-r- w- go
+Xhere we go
+X/.*/{hre}{{\}\-}/
+X{-}- w- go
+X  this is a line  
+Xg/\([\t\s]*\)\(.\)\([^\t\s]*\)/\1\2{a-z}{A-Z}\3/
+X  This Is A Line  
+Xjooooneees         waaaassss     heeeerrrrrreeeee
+Xg/\([a-z\s]\)\1+/\1/
+Xjones was here
+Xtry an inverse range
+Xg/[^e]/X/
+XXXXXXXXXXXeXXeXXXXXe
+Xtry an inverse range
+Xg/[^a-z]/X/
+XtryXanXinverseXrange
+Xcapitalise    first       letters of    words, preserving whitespace
+Xg/\([\t\s]*\)\(.\)\([a-z]*\)/\1\2{a-z}{A-Z}\3/
+XCapitalise    First       Letters Of    Words, Preserving Whitespace
+Xthis is a test of squeezing
+Xg/\([a-z]\)\1*/\1/
+Xthis is a test of squezing
+Xjooooneees         waaaassss     heeeerrrrrreeeee
+Xg/\([a-z\s]\)\1*/\1/
+Xjones was here
+Xmary had a little lamb
+X/\(.*\) \(h.*\) \(a.*\)/"\0" becomes "\1{a-z}{A-Z} fucked \3{a-z}{A-C-E-XYZ}"/
+X"mary had a little lamb" becomes "MARY fucked A LITTLE LAMB"
+Xmary had a little lamb
+X/\(.*\) \(.*\) \(.*\)/"\0" becomes "\1{a-z}{A-Z} fucked \3{a-z}{A-C-E-XYZ}"/
+X"mary had a little lamb" becomes "MARY HAD A fucked LAMB"
+Xmary had a little lamb
+X/\(mary \(had\).*\)/{a-z}{A-Z}\1{had}{sex}/
+XMARY HAD A LITTLE LAMBmery sex e little lemb
+Xjones
+Xg/ones/{a-c-f-n-qr-v-z}{A-J-Z}/
+XjONES
+Xa string an a another a ay?
+Xg/a/{a-a-a-a-a-a-a-a-a-a-a-a}{X-X-X-X-Z}/
+XX string Xn X Xnother X Xy?
+Xa string an a another a ay?
+X/.*/{a-a-a-a-a-a-a-a-a-a-a-ast}{X-X-X-X-Z}/
+XX YZring Xn X XnoZher X Xy?
+Xfred
+X/\(.*\)/\1\s\1{a-z}{A-Z}\s\1{fred}{0123}\sjoe/
+Xfred FRED 0123 joe
+Xjordan k. hubbard
+Xg/r/{a-z}{R}/
+XjoRdan k. hubbaRd
+Xjordan k. hubbard
+Xg/r/{a-z}{A-Z}/
+XjoRdan k. hubbaRd
+Xjordan k. hubbard
+Xg/r/R/
+XjoRdan k. hubbaRd
+Xterry jones was here
+Xs/.*/{a-z}{A-Z}/
+XTERRY JONES WAS HERE
+Xfred he's dead
+Xs/.* \(.*\) .*/\1{a-z}{1-9}/
+X85'9
+Xthis is a test line
+Xg/\(.\)./{a-z}{A-Z}/
+XTHIS IS A TEST LINe
+Xthis is a test line
+Xg/\(.\)./\1{a-z}{A-Z}/
+XTI SATS Ie
+Xthis is a test line
+Xg/\(.\)\(.\)/\1{a-z}{A-Z}\2/
+XThIs iS A TeSt lIne
+Xthis is a test linex
+Xg/\(.\)\(.\)/\1{a-z}{A-Z}\2/
+SHAR_EOF
+echo "End of part 2"
+echo "File examples1 is continued in part 3"
+echo "3" > s2_seq_.tmp
+exit 0
+

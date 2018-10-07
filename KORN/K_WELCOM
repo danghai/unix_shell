@@ -1,0 +1,98 @@
+#!/bin/ksh
+
+print "\t\tWelcome to the Korn Shell Project \n"
+while true
+do
+        print "\n\t\tSelect one of the following:"
+        cat <<EOF
+    *****************************************************
+ 
+                          MAIN MENU
+    *****************************************************
+                [1] Add sales record                                                          
+                [2] Delete sales record                                                         
+                [3] Change sales record                                                        
+                [4] Report sales data                                                            
+                [5] Exit                                                                           
+EOF
+        read
+        case $REPLY in                                                                         
+         1) autoload addon;addon ;;                                                          
+         2) autoload delete;delete;;                                                            
+         3) autoload change; change;;                                                        
+         4) autoload report; report;;                                                    
+         *) exit;;                                                                                 
+        esac
+done
+
+************************************************************************
+function addon
+{
+        typeset -l name region zip                                                    
+        typeset -i units 
+        true=1
+        while (( true == 1 ))                                                        
+        do                                                                                       
+                read -r name?"Name of the sales person? "                                 
+                read -r region?"What region (NW,NE,SE)? "                                
+                read -r zip?"What zip code? "                                                 
+                while (( ${#zip} != 5  ))                                                         
+                do                                                                                 
+                          read -r zip?"Please re-enter 5 digit zip? "                         
+                done                                                                              
+                read -r units?"How many units sold? "                                     
+                print -r "Is the following data correct? "                                   
+                print "$name $region $units $zip"                                            
+                read -r answer                                                                   
+                case $answer in                                                                
+                        [Nn]*) print "O.K Re-enter data "                                                            
+	           continue;;
+                esac                                                                          
+                print $name:$region:$units:$zip>>datebook                                  
+                read -r answer?"Entry has been added. Add another entry? "             
+                case "$answer" in                                                                                         
+		[Yy]*) continue ;;                                                                       
+	   esac                                                                        
+                true=0                                                                             
+                print "Returning to main menu..."                                        
+                sleep 1                                                                          
+                clear                                                                             
+        done                                                                                   
+}
+function change
+{
+trap 'print "\ntracing for variable name=$name $name on $LINENO "' DEBUG           
+typeset -ft                                                                                       
+typeset -i num                                                                                
+trap "rm tmp$$ 2> /dev/null; exit" 1 2 15                                                    
+while true                                                                                         
+do                                                                                                 
+ 	print -n "For which person do you wish to change the data? "                
+	read -r name
+	if grep "$name" datebook > /dev/null 2>&1                                      	
+	then                                                                    
+		PS3="Please select the type of entry you wish to change: "
+		select choice in "Name" "Region" "Units Sold" "Zip"		
+		do
+			case $choice in
+			Name) read -r newname?"What is the new name? "
+			sed '/'"$name"'/s/'"$name"'/'"$newname"'/' da\ 					tebook
+			read -r ans?"Correct? "
+ 			if [[  "$ans" = [Yy]*  ]];then
+                       sed '/'"$name"'/s/'"$name"'/'"$newname"'/' datebook > tmp$$
+                                              mv tmp$$ datebook
+                               	else
+                      			print "Try again? "
+                     			read
+                     			case "$REPLY" in
+                     			[Yy]*)
+                     			      continue ;;
+                   			*)
+                   			      continue 2 ;;
+                			esac
+            			fi;;
+             Region)
+                read -r region?"What is the new region? "
+                print "Changing region...";
+
+                              < Program is not complete >

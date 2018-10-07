@@ -1,0 +1,17 @@
+#!/bin/ksh
+# Script to test command line arguments
+
+print The name of this script is $0.
+print The arguments are $*.
+print The first argument is $1.
+print The second argument is $2.
+print The number of arguments is $#.
+oldparameters=$*
+set Jake Nicky Scott
+print All the positional parameters are $*.
+print The number of postional parameters is $#.
+print $oldparameters
+set --
+print Good-bye for now, $1.
+set $oldparameters
+print $* 

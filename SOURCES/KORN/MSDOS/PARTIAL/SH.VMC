@@ -1,0 +1,32 @@
+! MS-DOS SHELL - DOS/4GW Extender Control File
+!
+! MS-DOS SHELL - Copyright (c) 1992 Data Logic Limited
+!
+! This code is based on (in part) the shell program written by Charles
+! Forsyth and is subject to the following copyright restrictions:
+!
+! 1.  Redistribution and use in source and binary forms are permitted
+!     provided that the above copyright notice is duplicated in the
+!     source form and the copyright notice in file sh6.c is displayed
+!     on entry to the program.
+!
+! 2.  The sources (or parts thereof) or objects generated from the sources
+!     (or parts of sources) cannot be sold under any circumstances.
+!
+!    $Header: /usr/users/istewart/shell/sh2.3/Release/RCS/sh.vmc,v 1.1 1993/08/25 16:10:01 istewart Exp $
+!
+!    $Log: sh.vmc,v $
+# Revision 1.1  1993/08/25  16:10:01  istewart
+# Initial revision
+#
+!	
+!
+! To use, set in the environment before invoking the shell!
+!
+! set DOS4GVM=@This_File
+!
+minmem = 256			Minimum memory required (256Kb)
+maxmem = 1000			Maximum memory used (1Mb)
+virtualsize = 16384		Swap file size (16Mb)
+!deleteswap			Delete swap on exit (No at moment)
+!swapname = c:\tmp\dos4gvm.swp	Swap file name

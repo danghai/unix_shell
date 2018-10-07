@@ -1,0 +1,1939 @@
+From: Steve Baker (ice@judy.indstate.edu)
+Newsgroups: comp.sources.unix
+Subject: v26i169: ssh - Steve's SHell (a small csh-like shell), V1.7, Part03/04
+Date: 15 Apr 1993 22:51:55 -0700
+Approved: paul@vix.com
+Message-ID: <1qlhhr$kut@gw.home.vix.com>
+
+Submitted-By: Steve Baker (ice@judy.indstate.edu)
+Posting-Number: Volume 26, Issue 169
+Archive-Name: ssh-1.7/part03
+
+#! /bin/sh
+# This is a shell archive.  Remove anything before this line, then unpack
+# it by saving it into a file and typing "sh file".  To overwrite existing
+# files, type "sh file -c".  You can also feed this as standard input via
+# unshar, or by typing "sh <file", e.g..  If this archive is complete, you
+# will see the following message at the end:
+#		"End of archive 3 (of 4)."
+# Contents:  shcmds.c
+# Wrapped by vixie@gw.home.vix.com on Thu Apr 15 22:49:01 1993
+PATH=/bin:/usr/bin:/usr/ucb ; export PATH
+if test -f 'shcmds.c' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'shcmds.c'\"
+else
+echo shar: Extracting \"'shcmds.c'\" \(38412 characters\)
+sed "s/^X//" >'shcmds.c' <<'END_OF_FILE'
+X/* $Copyright:	$
+X * Copyright (c) 1991,1992,1993 by Steve Baker
+X * All rights reserved
+X *  
+X * This software is provided as is without any express or implied
+X * warranties, including, without limitation, the implied warranties
+X * of merchantability and fitness for a particular purpose.
+X */
+X#include <errno.h>
+X#include <ctype.h>
+X#include "shell.h"
+X#include "cmds.h"
+X
+struct Limits {
+X  char *resource;
+X  long val;
+X} limits[6] = {
+X  "cpu",RLIMIT_CPU,
+X  "filesize",RLIMIT_FSIZE,
+X  "datasize",RLIMIT_DATA,
+X  "stacksize",RLIMIT_STACK,
+X  "coredumpsize",RLIMIT_CORE,
+X  "memoryuse",RLIMIT_RSS,
+X};
+X
+char *funcs[] = {
+X  0, "Previous history", "Next history", "Move Left", "Move Right",
+X  "Delete/Backspace", "Toggle insert/overstrike", "Move to beginning of line",
+X  "Delete to the right", "Move to EOL", "Kill to EOL", "Restore line",
+X  "Kill line", "Quoted insert", "Find matching history", "Kill to BOL",
+X  "Filename completion", "Backward one word", "Forward one word",
+X  "Expand line.", "Kill word", "Next character is a control character",
+X  "Bell", 0
+X};
+X
+extern char _restricted;
+extern char *_home, *_statline, _loginshell, _glob, **_cdpath, _nofork;
+extern char ***file, **history, *getenv();
+extern char *_kbuf[MAX_GLVL], _kmax[MAX_GLVL];
+extern char *exit_val[], *_term[11];
+extern int _maxhist, curhist, fptr, _failat;
+extern struct custom_keys **keys[MAX_GLVL];
+extern struct proc_tab *proc;
+extern int max_ent, errno, _pgrp, _string, _status;
+extern int _source, err;
+extern char path[1025], buf[1025];
+extern struct _setvar *setvar, *find_var(), *makenvar();
+extern unsigned long SIGMASK;
+X
+char lif;	/* result of last single line if */
+X
+char *string(), *UPPER(), *grab(), **evalw();
+int setenv();
+void unsetenv(), *malloc();
+X
+int a, b, c, d;
+X
+execute(cmd,arg,in,inf,out,outf,outa,err,errf,erra,forked)
+char cmd,**arg,*inf,*outf,*errf,outa,erra,forked;
+int in,out,err;
+X{
+X  FILE *fin = stdin, *fout = stdout, *ferr = stderr;
+X  int pid,n = nargs(arg), rc = 0;
+X
+X  if (forked) {
+X    if (pid = fork()) return pid;
+X  }
+X  sh_redirect(&in,inf,&out,outf,outa,&err,errf,erra,forked);
+X  if (in > 0) fin = fdopen(in,"r");
+X  if (out > 1) {
+X    if (outa) fout = fdopen(out,"a");
+X    else fout = fdopen(out,"w");
+X  }
+X  if (err > 2 && err != out) {
+X    if (erra) ferr = fdopen(err,"a");
+X    else ferr = fdopen(err,"w");
+X  } else if (err == out) ferr = fout;
+X
+X  switch(cmd) {
+X    case CMD_CD:
+X      rc = cd(n,arg,fin,fout,ferr);
+X      break;
+X    case CMD_HISTORY:
+X      rc = hist(n,arg,fin,fout,ferr);
+X      break;
+X    case CMD_JOBS:
+X      rc = jobs(n,arg,fin,fout,ferr);
+X      break;
+X    case CMD_KEY:
+X      rc = key(n,arg,fin,fout,ferr);
+X      break;
+X    case CMD_ALIAS:
+X      rc = ALIAS(n,arg,fin,fout,ferr);
+X      break;
+X    case CMD_LIMIT:
+X      rc = limit(n,arg,fin,fout,ferr);
+X      break;
+X    case CMD_UNLIMIT:
+X      rc = unlimit(n,arg,fin,fout,ferr);
+X      break;
+X    case CMD_FG:
+X      rc = fg(n,arg,fin,fout,ferr);
+X      break;
+X    case CMD_BG:
+X      rc = bg(n,arg,fin,fout,ferr);
+X      break;
+X    case CMD_STOP:
+X      rc = stop(n,arg,fin,fout,ferr);
+X      break;
+X    case CMD_SOURCE:
+X      rc = SOURCE(n,arg,fin,fout,ferr);
+X      break;
+X    case CMD_SET:
+X      rc = SET(n,arg,fin,fout,ferr);
+X      break;
+X    case CMD_SETENV:
+X      rc = SETENV(n,arg,fin,fout,ferr);
+X      break;
+X    case CMD_UNSETENV:
+X      rc = UNSETENV(n,arg,fin,fout,ferr);
+X      break;
+X    case CMD_UNSET:
+X      rc = UNSET(n,arg,fin,fout,ferr);
+X      break;
+X    case CMD_UNKEY:
+X      rc = unkey(n,arg,fin,fout,ferr);
+X      break;
+X    case CMD_UNALIAS:
+X      rc = UNALIAS(n,arg,fin,fout,ferr);
+X      break;
+X    case CMD_UMASK:
+X      rc = UMASK(n,arg,fin,fout,ferr);
+X      break;
+X    case CMD_EXIT:
+X      rc = EXIT(n,arg);
+X      break;
+X    case CMD_LOGOUT:
+X      rc = logout(n,arg,ferr);
+X      break;
+X    case CMD_VERSION:
+X      rc = version(fout);
+X      break;
+X    case CMD_INPUT:
+X      rc = INPUT(n,arg,fin,fout,ferr);
+X      break;
+X    case CMD_IF:
+X      rc = IF(n,arg,ferr);
+X      break;
+X    case CMD_ELSE:
+X      rc = ELSE(n,arg,ferr);
+X      break;
+X    case CMD_ENDIF:
+X      rc = ENDIF(ferr);
+X      break;
+X    case CMD_LOGIN:
+X      rc = login(n,arg,ferr);
+X      break;
+X    case CMD_SECHO:
+X      rc = secho(n,arg,fin,fout,ferr);
+X      break;
+X    case CMD_WHILE:
+X      rc = WHILE(n,arg,ferr);
+X      break;
+X    case CMD_REPEAT:
+X      rc = REPEAT(n,arg,ferr);
+X      break;
+X    case CMD_BREAK:
+X      rc = BREAK(ferr);
+X      break;
+X    case CMD_CONTINUE:
+X      rc = CONTINUE(ferr);
+X      break;
+X    case CMD_GOTO:
+X      rc = GOTO(n,arg,ferr);
+X      break;
+X    case CMD_FOREACH:
+X      rc = FOREACH(n,arg,ferr);
+X      break;
+X    case CMD_FOR:
+X      rc = FOR(n,arg,ferr);
+X      break;
+X    case CMD_INC:
+X      rc = INC(n,arg,ferr);
+X      break;
+X    case CMD_DEC:
+X      rc = DEC(n,arg,ferr);
+X      break;
+X    case CMD_LABEL:
+X      rc = LABEL(n,arg,ferr);
+X      break;
+X    case CMD_WEND:
+X      rc = WEND(ferr);
+X      break;
+X    case CMD_UNTIL:
+X      rc = UNTIL(ferr);
+X      break;
+X    case CMD_ENDFOR:
+X      rc = ENDFOR(ferr);
+X      break;
+X    case CMD_NEXT:
+X      rc = NEXT(ferr);
+X      break;
+X    case CMD_SWITCH:
+X      rc = SWITCH(n,arg,ferr);
+X      break;
+X    case CMD_ENDSW:
+X      rc = ENDSW(ferr);
+X      break;
+X    case CMD_EVAL:
+X      rc = EVAL(n,arg,ferr);
+X      break;
+X    case CMD_EXEC:
+X      rc = EXECUTE(n,arg,ferr);
+X      break;
+X    case CMD_USAGE:
+X      rc = usage(fout,ferr);
+X      break;
+X    case CMD_INTR:
+X      rc = INTR(n,arg,fout,ferr);
+X      break;
+X    case CMD_TERM:
+X      rc = TERM(n,arg,fout,ferr);
+X      break;
+X    case CMD_PROTECT:
+X      rc = PROTECT(n,arg,ferr);
+X      break;
+X    case CMD_ASSIGN:
+X      rc = ASSIGN(n,arg,fout,ferr);
+X      break;
+X    case CMD_UNASSIGN:
+X      rc = UNASSIGN(n,arg,fout,ferr);
+X      break;
+X    case CMD_SHIFT:
+X      rc = SHIFT(n,arg,ferr);
+X      break;
+X    case CMD_SOPEN:
+X      rc = SOPEN(n,arg,ferr);
+X      break;
+X    case CMD_SCLOSE:
+X      rc = SCLOSE(n,arg,ferr);
+X      break;
+X    case CMD_SREAD:
+X      rc = SREAD(n,arg,ferr);
+X      break;
+X    case CMD_SWRITE:
+X      rc = SWRITE(n,arg,ferr);
+X      break;
+X    case CMD_SSEEK:
+X      rc = SSEEK(n,arg,ferr);
+X      break;
+X  }
+X  _status = rc;
+X  if (forked) exit(rc);
+X  if (in > 0) { fclose(fin); close(in); }
+X  if (out > 1) { fclose(fout); close(out); }
+X  if (err > 2 && err != out) { fclose(ferr); close(err); }
+X  return 0;
+X}
+X
+nargs(arg)
+char **arg;
+X{
+X  int i;
+X
+X  for(i=0;arg[i];i++);
+X  return i;
+X}
+X
+cd(n,arg,in,out,err)
+int n;
+XFILE *in,*out,*err;
+char **arg;
+X{
+X  if (n > 2) fprintf(err,"cd: too many arguments\n");
+X  if (n == 1) {
+X    if (!_home) {
+X      fprintf(err,"cd: no home directory\n");
+X      return 0;
+X    }
+X    if ((a = chdir(_home)) < 0) c = errno;
+X  } else {
+X    if ((a = chdir(arg[1])) < 0) {
+X      c = errno;
+X      if (_cdpath) {
+X	for(b=0;_cdpath[b];b++) {
+X	  sprintf(path,"%s/%s",_cdpath[b],arg[1]);
+X	  if (chdir(path) < 0) continue;
+X	  a = 0;
+X	  break;
+X	}
+X      }
+X    }
+X  }
+X  if (a < 0) {
+X    switch(c) {
+X      case ENOTDIR:
+X	fprintf(err,"%s: Not a directory\n",arg[1]);
+X	break;
+X      case ENOENT:
+X	fprintf(err,"%s: No such file or directory\n",arg[1]);
+X	break;
+X      case ELOOP:
+X	fprintf(err,"%s: Too many symbolic links.\n",arg[1]);
+X	break;
+X      default:
+X	fprintf(err,"%s: Permission denied.\n",arg[1]);
+X	break;
+X    }
+X    return 1;
+X  } else {
+X    getwd(path);
+X    if (_restricted && strncmp(_home,path,strlen(_home))) {
+X      chdir(_home);
+X      getwd(path);
+X    }
+X    makeset("cwd",path);
+X  }
+X  return 0;
+X}
+X
+limit(n,arg,in,out,err)
+int n;
+XFILE *in,*out,*err;
+char **arg;
+X{
+X  struct rlimit rlm;
+X
+X  b = -1;
+X  if (n > 1) {
+X    for(a=0;a<6;a++)
+X      if (!strcmp(arg[1],limits[a].resource)) {
+X	b = a;
+X	break;
+X      }
+X  }
+X  if (n > 1 && b == -1) {
+X    fprintf(err,"limit: undefined limit %s\n",arg[1]);
+X    return 1;
+X  }
+X  if (n < 3) {
+X    if (n == 1) {
+X      for(a=0;a<6;a++) {
+X	getrlimit(limits[a].val,&rlm);
+X	if (rlm.rlim_cur == RLIM_INFINITY) fprintf(out,"%-15s unlimited\n",limits[a].resource);
+X	else fprintf(out,"%-15s %d K\n",limits[a].resource,rlm.rlim_cur/1024);
+X      }
+X    } else {
+X      getrlimit(limits[b].val,&rlm);
+X      if (rlm.rlim_cur == RLIM_INFINITY) fprintf(out,"%-15s unlimited\n",arg[1]);
+X      else fprintf(out,"%-15s %d K\n",arg[1],rlm.rlim_cur/1024);
+X    }
+X  } else if (n == 3) {
+X    if (!strcmp(arg[2],"unlimit") || !strcmp(arg[2],"unlimited")) {
+X      getrlimit(limits[b].val,&rlm);
+X      rlm.rlim_cur = RLIM_INFINITY;
+X      setrlimit(limits[b].val,&rlm);
+X    } else {
+X      if (!isnum(arg[2])) {
+X        fprintf(err,"limit: invalid argument - %s\n",arg[2]);
+X	return 1;
+X      }
+X      getrlimit(limits[b].val,&rlm);
+X      rlm.rlim_cur = atoi(arg[2]) * 1024;
+X      setrlimit(limits[b].val,&rlm);
+X    }
+X  } else {
+X    fprintf(err,"limit: too many arguments\n");
+X    return 1;
+X  }
+X  return 0;
+X}
+X
+unlimit(n,arg,in,out,err)
+int n;
+XFILE *in,*out,*err;
+char **arg;
+X{
+X  struct rlimit rlm;
+X
+X  rlm.rlim_cur = RLIM_INFINITY;
+X  if (n == 1) {
+X    fprintf(err,"unlimit: no limit specified\n");
+X    return 1;
+X  }
+X  if (n > 2) {
+X    fprintf(err,"unlimit: too many aguments\n");
+X    return 1;
+X  }
+X  for(a=1;arg[a];a++) {
+X    for(b=0;b<6;b++)
+X      if (!strcmp(arg[a],limits[b].resource)) {
+X	setrlimit(limits[b].val,&rlm);
+X	break;
+X      }
+X    if (b == 6) {
+X      fprintf(err,"unlimit: invalid limit\n");
+X      return 1;
+X    }
+X  }
+X  return 0;
+X}
+X
+hist(n,arg,in,out,err)
+int n;
+XFILE *in,*out,*err;
+char **arg;
+X{
+X  char inc = 1, nflg = TRUE;
+X
+X  c = -1;
+X  d = 0;
+X  for(a=0;arg[a];a++) {
+X    if (arg[a][0] == '-') {
+X      switch(arg[a][1]) {
+X	case 'r':
+X	  d = curhist - 1;
+X	  inc = -1;
+X	  break;
+X	case 'n':
+X  	  nflg = FALSE;
+X	  break;
+X	default:
+X	  b = atoi(arg[a]+1);
+X	  if (b > 0) c = b;
+X	  break;
+X      }
+X    }
+X  }
+X  for(a=d;a > -1 && a<curhist && c;a+=inc) {
+X    if (nflg) fprintf(out,"%d %s\n",a,history[a]);
+X    else fprintf(out,"%s\n",history[a]);
+X    if (c != -1) c--;
+X  }
+X  return 0;
+X}
+X
+key(n,arg,in,out,err)
+int n;
+XFILE *in,*out,*err;
+char **arg;
+X{
+X  struct custom_keys *key;
+X  char lvl=0;
+X
+X  if (n == 1) {
+X    for(b=0;b<MAX_GLVL;b++) {
+X      if (!keys[b]) continue;
+X      for(a=0;keys[b][a];a++) {
+X	fprt(out,keys[b][a]->key);
+X	fprintf(out,"\t[%d] ",b);
+X	if (keys[b][a]->gold) fprintf(out,"GOLD -> LEVEL %d",keys[b][a]->glvl);
+X	else if (keys[b][a]->func) fprintf(out,"Function %2d: %s",keys[b][a]->func,funcs[(keys[b][a]->func)<21?(keys[b][a]->func):21]);
+X	else {
+X	  fputc('"',out);
+X	  fprt(out,keys[b][a]->cmd);
+X	  fputc('"',out);
+X	  if (keys[b][a]->rtn) fprintf(out,"\t[RETURN]");
+X	  if (keys[b][a]->clr) fprintf(out,"%c[CLEAR]",keys[b][a]->rtn?' ':'\t');
+X	}
+X	fputc('\n',out);
+X      }
+X    }
+X    return 0;
+X  }
+X  key = (struct custom_keys *)malloc(sizeof(struct custom_keys));
+X  bzero(key,sizeof(struct custom_keys));
+X  for(a=1;a<n;a++) {
+X    if (arg[a][0] == '-') {
+X      switch(arg[a][1]) {
+X	case 'r':
+X	  key->rtn = 1;
+X	  break;
+X	case 'c':
+X	  key->clr = 1;
+X	  break;
+X	case 'g':
+X	  key->gold = 1;
+X	  if (arg[a][2] >= '0' && arg[a][2] <= '4' ) key->glvl = arg[a][2] - 48;
+X	  else key->glvl = 0;
+X	  break;
+X	case 'l':
+X	  if (isdigit(arg[a][2]) && arg[a][2] < '5') lvl = arg[a][2] - 48;
+X	  break;
+X	case 'f':
+X	  key->func = atoi(arg[a]+2);
+X	  break;
+X      }
+X    } else break;
+X  }
+X  if ((a+2 > n && (!key->gold && !key->func)) || (a+1 > n && (key->gold || key->func))) {
+X    fprintf(err,"not enough arguments\n");
+X    free(key);
+X    return 1;
+X  }
+X  key->key = (char *)strcpy(malloc(strlen(arg[a])+1),arg[a]);
+X  a++;
+X  if (!key->gold && !key->func) key->cmd = string(arg+a);
+X  if (keys[lvl]) {
+X    for(a=0;keys[lvl][a];a++) {
+X      if (!strcmp(keys[lvl][a]->key,key->key)) {
+X	free(keys[lvl][a]->key);
+X	if (keys[lvl][a]->cmd) free(keys[lvl][a]->cmd);
+X	free(keys[lvl][a]);
+X	keys[lvl][a] = key;
+X	return 0;
+X      }
+X    }
+X  }
+X  if (strlen(key->key) > _kmax[lvl]) _kmax[lvl] = strlen(key->key);
+X  a = strlen(_kbuf[lvl]);
+X  _kbuf[lvl] = (char *)realloc(_kbuf[lvl],a+2);
+X  _kbuf[lvl][a] = key->key[0];
+X  _kbuf[lvl][a+1] = 0;
+X  if (!keys[lvl]) keys[lvl] = (struct custom_keys **)calloc(2,sizeof(struct custom_keys *));
+X  else keys[lvl] = (struct custom_keys **)realloc(keys[lvl], sizeof(struct custom_keys *) * (a+2));
+X  keys[lvl][a++] = key;
+X  keys[lvl][a] = NULL;
+X  return 0;
+X}
+X
+jobs(n,arg,in,out,err)
+int n;
+char **arg;
+XFILE *in,*out,*err;
+X{
+X  unsigned long mask;
+X
+X  mask = sigblock(sigmask(SIGCHLD));
+X  for(a=0;a<max_ent;a++) {
+X    if (proc[a].pid != 0) {
+X      if (proc[a].status) {
+X	fprintf(out," [%d] (%d) %-30s%s %s\n",a,proc[a].pid,exit_val[proc[a].status],(proc[a].bg?" (background)":""),proc[a].cmd);
+X      } else {
+X	if (proc[a].bg) fprintf(out," [%d] (%d) %-30s %s\n",a,proc[a].pid,"Running (background)",proc[a].cmd);
+X	else fprintf(out," [%d] (%d) %-30s %s\n",a,proc[a].pid,"Running",proc[a].cmd);
+X      }
+X    }
+X  }
+X  sigsetmask(mask);
+X  return 0;
+X}
+X
+SETENV(n,arg,in,out,err)
+int n;
+char **arg;
+XFILE *in,*out,*err;
+X{
+X  char *ptr;
+X
+X  if (n < 2) {
+X    fprintf(err,"setenv: not enough arguments\n");
+X  } else if (n > 3) {
+X    fprintf(err,"setenv: too many arguments\n");
+X  } else if (n == 2) {
+X    ptr = getenv(arg[1]);
+X    if (ptr) {
+X      printf("%s=%s\n",arg[1],ptr);
+X      free(ptr);
+X    }
+X  } else {
+X    setenv(arg[1],arg[2],1);
+X  }
+X  return 0;
+X}
+X
+UNSETENV(n,arg,in,out,err)
+int n;
+char **arg;
+XFILE *in,*out,*err;
+X{
+X  if (n < 2) {
+X    fprintf(err,"unsetenv: variable identifier expected.\n");
+X  } else if (n > 2) {
+X    fprintf(err,"unsetenv: too many arguments.\n");
+X  } else {
+X    unsetenv(arg[1]);
+X  }
+X  return 0;
+X}
+X
+fg(n,arg,in,out,err)
+int n;
+char **arg;
+XFILE *in,*out,*err;
+X{
+X  unsigned long mask;
+X
+X  if (n > 2) {
+X    fprintf(err,"%s: too many args\n",arg[0]);
+X    return 1;
+X  }
+X  if (n == 1) {
+X    mask = sigblock(sigmask(SIGCHLD));
+X    for(a=0;a<max_ent;a++) {
+X      if (proc[a].pid != 0 && (proc[a].bg || proc[a].status)) {
+X	if (proc[a].bg) {
+X	  proc[a].bg = 0;
+X	  setpgrp(proc[a].pid,proc[a].pid);
+X	  proc[a].pgrp = proc[a].pid;
+X	}
+X	if (proc[a].pgrp != _pgrp) tcsetpgrp(TTY,proc[a].pgrp);
+X	if (killpg(proc[a].pgrp,SIGCONT) < 0) return 1;
+X	proc[a].status = STAT_RUNNING;
+X	break;
+X      }
+X    }
+X    sigsetmask(mask);
+X    return 0;
+X  } else {
+X    a = atoi(arg[1]);
+X    if (a < 0 || a >= max_ent) {
+X      fprintf(err,"%s: No such job: %d\n",a);
+X      return 1;
+X    }
+X    mask = sigblock(sigmask(SIGCHLD));
+X    if (proc[a].pid != 0 && (proc[a].bg || proc[a].status)) {
+X      if (proc[a].bg) {
+X	proc[a].bg = 0;
+X	setpgrp(proc[a].pid,proc[a].pid);
+X	proc[a].pgrp = proc[a].pid;
+X      }
+X      if (proc[a].pgrp != _pgrp) tcsetpgrp(TTY,proc[a].pgrp);
+X      if (killpg(proc[a].pgrp,SIGCONT) < 0) return 1;
+X      proc[a].status = STAT_RUNNING;
+X    }
+X    sigsetmask(mask);
+X  }
+X  return 0;
+X}
+X
+bg(n,arg,in,out,err)
+int n;
+char **arg;
+XFILE *in,*out,*err;
+X{
+X  unsigned long mask;
+X
+X  if (n > 2) {
+X    fprintf(err,"%s: too many args\n",arg[0]);
+X    return 1;
+X  }
+X  if (n == 1) {
+X    mask = sigblock(sigmask(SIGCHLD));
+X    for(a=0;a<max_ent;a++) {
+X      if (proc[a].pid != 0 && !proc[a].bg) {
+X	proc[a].bg = 1;
+X	setpgrp(proc[a].pid,_pgrp);
+X	proc[a].pgrp = _pgrp;
+X	tcsetpgrp(TTY,_pgrp);
+X	if (killpg(proc[a].pgrp,SIGCONT) < 0) return 1;
+X	proc[a].status = STAT_RUNNING;
+X	break;
+X      }
+X    }
+X    sigsetmask(mask);
+X    return 0;
+X  } else {
+X    a = atoi(arg[1]);
+X    if (a < 0 || a >= max_ent) {
+X      fprintf(err,"%s: No such job: %d\n",a);
+X      return 1;
+X    }
+X    mask = sigblock(sigmask(SIGCHLD));
+X    if (proc[a].pid != 0 && !proc[a].bg) {
+X      proc[a].bg = 1;
+X      setpgrp(proc[a].pid,_pgrp);
+X      proc[a].pgrp = _pgrp;
+X      tcsetpgrp(TTY,_pgrp);
+X      if (killpg(proc[a].pgrp,SIGCONT) < 0) return 1;
+X      proc[a].status = STAT_RUNNING;
+X    }
+X    sigsetmask(mask);
+X  }
+X  return 0;
+X}
+X
+stop(n,arg,in,out,err)
+int n;
+char **arg;
+XFILE *in,*out,*err;
+X{
+X  unsigned long mask;
+X
+X  if (n > 2) {
+X    fprintf(err,"stop: too many args\n");
+X    return 1;
+X  }
+X  mask = sigblock(sigmask(SIGCHLD));
+X  if (n == 1) {
+X    for(a=0;a<max_ent;a++) {
+X      if (proc[a].pid != 0 && proc[a].bg) {
+X	if (killpg(proc[a].pgrp,SIGTSTP) < 0) return 1;
+X	break;
+X      }
+X    }
+X  } else {
+X    a = atoi(arg[1]);
+X    if (proc[a].pid != 0 && proc[a].bg) {
+X      if (killpg(proc[a].pgrp,SIGTSTP) < 0) return 1;
+X    }
+X  }
+X  sigsetmask(mask);
+X  return 0;
+X}
+X
+SOURCE(n,arg,in,out,err)
+int n;
+char **arg;
+XFILE *in,*out,*err;
+X{
+X  int i,j,f;
+X  char ***tfile;
+X
+X  if (n < 2) {
+X    source(NULL);
+X    return 0;
+X  }
+X  for(i=1;arg[i];i++) {
+X    f = fptr;
+X    tfile = file;
+X    j = source(arg[i]);
+X    fptr = f;
+X    file = tfile;
+X    if (j < 0) {
+X      fprintf(err,"source: error opening file %s\n",arg[i]);
+X      return 1;
+X    }
+X  }
+X  return 0;
+X}
+X
+unkey(n,arg,in,out,err)
+int n;
+char **arg;
+XFILE *in,*out,*err;
+X{
+X  c = 0;
+X  if (n < 2) {
+X    fprintf(stderr,"unkey: macro definition expected.\n");
+X    return 1;
+X  }
+X  for(a=1;arg[a];a++) {
+X    if (arg[a][0] == '-') {
+X      if (arg[a][1] == 'l') c = atoi(arg[a]+2);
+X      else {
+X        fprintf(stderr,"unkey: %s invalid argument.\n",arg[a]);
+X	return 1;
+X      }
+X    } else break;
+X  }
+X  for(b=0;keys[c][b];b++) {
+X    if (!strcmp(arg[a],keys[c][b]->key)) {
+X      free(keys[c][b]->cmd);
+X      free(keys[c][b]->key);
+X      free(keys[c][b]);
+X      for(;keys[c][b];b++) {
+X        keys[c][b] = keys[c][b+1];
+X	_kbuf[c][b] = _kbuf[c][b+1];
+X      }
+X      return 0;
+X    }
+X  }
+X  return 0;
+X}
+X
+UMASK(n,arg,in,out,err)
+int n;
+char **arg;
+XFILE *in, *out, *err;
+X{
+X  char *ex;
+X
+X  if (n == 1) {
+X    a = umask(0);    
+X    fprintf(out,"%03o\n",a);
+X    umask(a);
+X    return 0;
+X  }
+X  ex = grab(arg,1,NULL,&a);
+X  if (!ex) {
+X    fprintf(err,"umask: file protection mask expected.\n");
+X    return 1;
+X  }
+X  a = expr(ex);
+X  free(ex);
+X  umask(a);
+X  return 0;
+X}
+X
+XEXIT(n,arg)
+int n;
+char **arg;
+X{
+X  char *ex;
+X
+X  if (n > 1) {
+X    ex = grab(arg,1,NULL,&a);
+X    a = expr(ex);
+X  } else a = 0;
+X  if (_source) {
+X    err = ERR_EXIT;
+X    return a;
+X  }
+X  if (_statline) printf("%s%s%s",_term[TS],_term[CE],_term[FS]);
+X  exit(a);
+X}
+X
+logout(n,arg,err)
+int n;
+char **arg;
+XFILE *err;
+X{
+X  static char f = TRUE;
+X  unsigned long mask;
+X  FILE *fd;
+X
+X  if (f) {
+X    mask = sigblock(sigmask(SIGCHLD));
+X    for(a=0;a<max_ent;a++)
+X      if (proc[a].pid != 0 && (proc[a].bg || proc[a].status)) {
+X	fprintf(err,"You have stopped jobs!\n");
+X	f = FALSE;
+X	break;
+X      }
+X    sigsetmask(mask);
+X    if (!f) return 1;
+X  }
+X  
+X  if (_loginshell) {
+X    for(a=0;a<n;a++) {
+X      sprintf(path,"%d",a);
+X      makeset(path,arg[a]);
+X    }
+X    sprintf(path,"%s/%s",_home,HIST_SAVE);
+X    b = open(path,O_WRONLY | O_CREAT | O_TRUNC,0600);
+X    fd = fdopen(b,"w");
+X    fprintf(fd,"%d\n",_maxhist);
+X    for(a=0;a < curhist;a++) fprintf(fd,"%s\n",history[a]);
+X    fclose(fd);
+X    close(b);
+X    sprintf(path,"%s/%s",_home,SHELL_EXIT);
+X    source(path);
+X  }
+X  if (_statline) printf("%s%s%s",_term[TS],_term[CE],_term[FS]);
+X  exit(0);
+X}
+X
+char *string(wrd)
+char **wrd;
+X{
+X  int i,j;
+X  char *str;
+X
+X  for(i=j=0;wrd[i];i++) j += strlen(wrd[i])+1;
+X  str = (char *)malloc(j);
+X  strcpy(str,wrd[0]);
+X  for(i=1;wrd[i];i++) {
+X    strcat(str," ");
+X    strcat(str,wrd[i]);
+X  }
+X  return str;
+X}
+X
+char *UPPER(wrd)
+char *wrd;
+X{
+X  char *tmp;
+X
+X  tmp = (char *)malloc(strlen(wrd)+1);
+X  for(a=0;*wrd;wrd++) tmp[a++] = (islower(*wrd)? toupper(*wrd) : *wrd);
+X  tmp[a] = 0;
+X  return tmp;
+X}
+X
+fprt(stream,str)
+XFILE *stream;
+char *str;
+X{
+X  char c;
+X
+X  while(*str) {
+X    c = *str++ & 127;
+X    if (c < 32) {
+X      if (_term[SO]) fprintf(stream,"%s%c%s",_term[SO],c+64,_term[SE]);
+X      else fprintf(stream,"^%c",c+64);
+X    } else if (c == 127) {
+X      if (_term[SO]) fprintf(stream,"%s?%s",_term[SO],_term[SE]);
+X      else fprintf(stream,"^?");
+X    } else fputc(c,stream);
+X  }
+X}
+X
+version(out)
+XFILE *out;
+X{
+X  fprintf(out," Ssh V1.7\n Copyright (C) 1991,1992,1993 by Steve Baker and Thomas Moore.\n All rights reserved.\n");
+X  return 0;
+X}
+X
+IF(n,arg,ferr)
+int n;
+char **arg;
+XFILE *ferr;
+X{
+X  long res;
+X  int i,nest;
+X  int start = fptr, stop = fptr+1, end = fptr+1;
+X  char *ex;
+X
+X  ex = grab(arg,1,"then",&i);
+X  if (!ex) {
+X    fprintf(ferr,"if: expression expected.\n");
+X    return err = 1;
+X  }
+X  if (!arg[i++]) {
+X    fprintf(ferr,"if: keyword 'then' expected.\n");
+X    return err = 1;
+X  }
+X  err = 0;
+X  res = expr(ex);
+X  free(ex);
+X  if (err) return 1;
+X
+X  if (!_source && !arg[i]) return 1;  
+X  nest = 0;
+X  if (!arg[i]) {
+X    while(file[stop]) {
+X      if (!nest && (!strcmp(file[stop][0],"else") || !strcmp(file[stop][0],"endif"))) break;
+X      else if (nest && !strcmp(file[stop][0],"endif")) nest--;
+X      else if (!strcmp(file[stop][0],"if")) {
+X	for(i=1;file[stop][i];i++) {
+X	  if (!strcmp(file[stop][i],"then"))
+X	    if (file[stop][i+1]) break;
+X	    else {
+X	      nest++;
+X	      break;
+X	    }
+X	}
+X      }
+X      stop++;
+X    }
+X    end = stop;
+X    while(file[end]) {
+X      if (!nest && !strcmp(file[end][0],"endif")) break;
+X      else if (nest && !strcmp(file[end][0],"endif")) nest--;
+X      else if (!strcmp(file[end][0],"if")) {
+X	for(i=1;file[end][i];i++) {
+X	  if (!strcmp(file[end][i],"then"))
+X	    if (file[end][i+1]) break;
+X	    else {
+X	      nest++;
+X	      break;
+X	    }
+X	}
+X      }
+X      end++;
+X    }
+X    if (!file[stop] || !file[end]) {
+X      fprintf(ferr,"if: unexpected end of file.\n");
+X      return err = 1;
+X    }
+X    if (!res) {
+X      start = stop;
+X      stop = end;
+X    }
+X    if (start == end) {
+X      fptr = end;
+X      return 0;
+X    }
+X    fptr = start+1;
+X    while(fptr < stop) {
+X      run(fptr);
+X      if (err || badstat(_status)) {
+X	fptr = end;
+X	return _status&RET_MASK;
+X      }
+X      fptr++;
+X    }
+X    fptr = end;
+X  } else if (res) {
+X    lif = TRUE;
+X    ex = string(arg+i);
+X    run2(ex);
+X    free(ex);
+X  } else lif = FALSE;
+X  return 0;
+X}
+X
+XELSE(n,arg,err)
+int n;
+char **arg;
+XFILE *err;
+X{
+X  char *cmd;
+X
+X  if (!_source) {
+X    fprintf(err,"else: no previous if-then statement.\n");
+X    return 1;
+X  } else {
+X    if (!fptr || strcmp(file[fptr-1][0],"if")) {
+X      fprintf(err,"else: no previous if-then statement.\n");
+X      return 1;
+X    }
+X    if (n < 2) {
+X      fprintf(err,"else: no command for else condition.\n");
+X      return 1;
+X    }
+X    if (lif) return 0;
+X    cmd = string(arg+1);
+X    run2(cmd);
+X    free(cmd);
+X  }
+X  return 0;
+X}
+X
+XENDIF(err)
+XFILE *err;
+X{
+X  fprintf(err,"else: no previous if-then-else statement.\n");
+X  return 1;
+X}
+X
+INPUT(n,arg,in,out,err)
+int n;
+char **arg;
+XFILE *in, *out, *err;
+X{
+X  char *var = NULL, *prompt = NULL;
+X
+X  c = d = 0;
+X  if (n < 2) {
+X    fprintf(err,"input: not enough arguments\n");
+X    return 1;
+X  }
+X  for(a=1;arg[a];a++) {
+X    if (prompt == arg[a]) continue;
+X    if (arg[a][0] == '-') {
+X      for(b=1;arg[a][b];b++) {
+X	switch(arg[a][b]) {
+X	  case 'n':	/* don't replace var if nothing entered. */
+X	    c = TRUE;
+X	    break;
+X	  case 'c':	/* read a single character immediately. */
+X	    d = 1;
+X	    break;
+X	  case 'w':	/* break line up into words. */
+X	    d = 2;
+X	    break;
+X	  case 'e':	/* read single character, echoing it to screen. */
+X	    d = 3;
+X	    break;
+X	  case 'p':	/* Next word is the prompt */
+X	    if (arg[a+1]) prompt = arg[a+1];
+X	    else {
+X	      fprintf(err,"input: no prompt specified.\n");
+X	      return 1;
+X	    }
+X	    break;
+X	}
+X      }
+X    } else if (!var) var = arg[a];
+X    else {
+X      fprintf(err,"input: too many arguments.\n");
+X      return 1;
+X    }
+X  }
+X  if (prompt) fprintf(out,"%s",prompt);
+X  switch (d) {
+X    case 0:
+X    case 2:
+X      fgets(buf,1024,in);
+X      buf[strlen(buf)-1] = 0;
+X      if (buf[0] == 0 && c) return 0;
+X      makeset(var,buf);
+X      return 0;
+X    case 1:
+X    case 3:
+X      noecho();
+X      buf[0] = getchar();
+X      if (d == 3) outch(buf[0]);
+X      buf[1] = 0;
+X      makeset(var,buf);
+X      echo();
+X      return 0;
+X  }
+X  /*NOTREACHED*/
+X}
+X
+login(n,arg,err)
+int n;
+char **arg;
+XFILE *err;
+X{
+X  execv("/bin/login",arg);
+X  fprintf(err,"login: command not found.\n");
+X  return 1;
+X}
+X
+secho(n,arg,in,out,err)
+int n;
+char **arg;
+XFILE *in, *out, *err;
+X{
+X  char *ex;
+X  char x,z;
+X
+X  x = z = b = d = TRUE;
+X  c = FALSE;
+X
+X  for(a=1;arg[a] && x;a++) {
+X    if (z && arg[a][0] == '-' && (!arg[a][1] || !arg[a][2])) {
+X      switch(arg[a][1]) {
+X	case 'n':
+X	  b = FALSE;
+X	  break;
+X	case 'w':
+X	  c = !c;
+X	  break;
+X	case 'e':
+X	  d = !d;
+X	  break;
+X	case 'x':
+X	  ex = string(arg+(a+1));
+X	  d = expr(ex);
+X	  fprintf(out,"%ld",d);
+X	  free(ex);
+X	  x = c = FALSE;
+X	  break;
+X	case 0:
+X	  z = FALSE;
+X	  break;
+X      }
+X    } else {
+X      if (d) fputs((char *)pline(arg[a],1023,1023),out);
+X      else fputs(arg[a],out);
+X      if (!c && arg[a+1]) fputc(' ',out);
+X      if (c) fputc('\n',out);
+X    }
+X  }
+X  if (b && !c) fputc('\n',out);
+X  return 0;
+X}
+X
+BREAK()
+X{
+X  err = ERR_BREAK;
+X  return 0;
+X}
+X
+CONTINUE()
+X{
+X  err = ERR_CONTINUE;
+X  return 0;
+X}
+X
+WHILE(n,arg,ferr)
+int n;
+char **arg;
+XFILE *ferr;
+X{
+X  int start = fptr+1, end = fptr+1;
+X  char *ex, nest = 0;
+X
+X  if (!_source) return 1;
+X  while(file[end]) {
+X    if (!strcmp(file[end][0],"while")) {
+X      nest++;
+X      end++;
+X      continue;
+X    }
+X    if (!nest && !strcmp(file[end][0],"wend")) break;
+X    if (nest && !strcmp(file[end][0],"wend")) nest--;
+X    end++;
+X  }
+X  if (!file[end]) {
+X    fprintf(ferr,"while: while without matching wend.\n");
+X    return 1;
+X  }
+X  
+X  ex = string(arg+1);
+X  while (expr(ex)) {
+X    fptr = start;
+X    while(fptr < end) {
+X      run(fptr);
+X      if (err == ERR_BREAK) {
+X	fptr = end;
+X	free(ex);
+X        return err = 0;
+X      } else if (err == ERR_CONTINUE) {
+X        err = 0;
+X	break;
+X      }
+X      if (err || badstat(_status)) {
+X	fptr = end;
+X        free(ex);
+X        return _status&RET_MASK;
+X      }
+X      fptr++;
+X    }
+X  }
+X  fptr = end;
+X  free(ex);
+X  return 0;
+X}
+X
+WEND(ferr)
+XFILE *ferr;
+X{
+X  fprintf(ferr,"wend: wend without matching while.\n");
+X  return 1;
+X}
+X
+REPEAT(n,arg,ferr)
+int n;
+char **arg;
+XFILE *ferr;
+X{
+X  int start = fptr+1, end = fptr+1;
+X  char *ex = NULL, nest = 0;
+X
+X  if (!_source) return 1;
+X
+X  while(file[end]) {
+X    if (!strcmp(file[end][0],"repeat")) {
+X      nest++;
+X      end++;
+X      continue;
+X    }
+X    if (!nest && !strcmp(file[end][0],"until")) break;
+X    if (nest && !strcmp(file[end][0],"until")) nest--;
+X    end++;
+X  }
+X  if (!file[end]) {
+X    fprintf(ferr,"repeat: repeat without matching until.\n");
+X    err = 1;
+X    return 1;
+X  }
+X  ex = string(file[end]+1);
+X
+X  do {
+X    fptr = start;
+X    while (fptr < end) {
+X      run(fptr);
+X      if (err == ERR_BREAK) {
+X	fptr = end;
+X	break;
+X      } else if (err == ERR_CONTINUE) {
+X	fptr = end;
+X	err = 0;
+X	break;
+X      }
+X      if (err || badstat(_status)) {
+X	fptr = end;
+X        if (ex) free(ex);
+X        return _status&RET_MASK;
+X      }
+X      fptr++;
+X    }
+X    if (err) break;
+X  } while (!expr(ex));
+X  if (err) err = 0;
+X  free(ex);
+X  return 0;
+X}
+X
+UNTIL(ferr)
+XFILE *ferr;
+X{
+X  fprintf(ferr,"until: until without matching repeat.\n");
+X  return 1;
+X}
+X
+XFOR(n,arg,ferr)
+int n;
+char **arg;
+XFILE *ferr;
+X{
+X  long beg, en, step;
+X  int i,nest = 0, start = fptr+1, end = fptr+1;
+X  char *ex = NULL;
+X  struct _setvar *v;
+X
+X  if (!_source) return 1;
+X
+X  if (arg[1]) v = makenvar(arg[1],0);
+X  else {
+X    fprintf(ferr,"for: missing variable identifier.\n");
+X    return err = 1;
+X  }
+X  if (!arg[2] || arg[2][0] != '=' || arg[2][1] != 0) {
+X    fprintf(ferr,"for: '=' expected.\n");
+X    return err = 1;
+X  }
+X  ex = grab(arg,3,"to", &i);
+X  if (!ex) {
+X    fprintf(ferr,"for: assignment expected.\n");
+X    return err = 1;
+X  }
+X  if (!arg[i]) {
+X    fprintf(ferr,"for: keyword 'to' expected.\n");
+X    return err = 1;
+X  }
+X  beg = expr(ex);
+X  if (err) return 1;
+X  free(ex);
+X  i++;
+X  ex = grab(arg,i,"step",&i);
+X  if (!ex) {
+X    fprintf(ferr,"for: ending value expected.\n");
+X    return err = 1;
+X  }
+X  en = expr(ex);
+X  free(ex);
+X  if (arg[i++]) {
+X    ex = grab(arg,i,NULL,&i);
+X    if (!ex) {
+X      fprintf(ferr,"for: step value expected.\n");
+X      return err = 1;
+X    }
+X    step = expr(ex);
+X    free(ex);
+X  } else step = 1;
+X
+X  while(file[end]) {
+X    if (!nest && !strcmp(file[end][0],"next")) break;
+X    else if (nest && !strcmp(file[end][0],"next")) nest--;
+X    else if (!strcmp(file[end][0],"for")) nest++;
+X    end++;
+X  }
+X  if (!file[end]) {
+X    fprintf(ferr,"for: for without next.\n");
+X    fptr = end-1;
+X    return 1;
+X  }
+X  v->sv.val = beg;
+X
+X  while(1) {
+X    if (step < 0) {
+X      if (v->sv.val < en) break;
+X    } else {
+X      if (v->sv.val > en) break;
+X    }
+X    fptr = start;
+X    while(fptr < end) {
+X      run(fptr);
+X      if (err == ERR_BREAK) {
+X	fptr = end;
+X	return err = 0;
+X      } else if (err == ERR_CONTINUE) {
+X	fptr = end;
+X	err = 0;
+X	break;
+X      }
+X      if (err || badstat(_status)) {
+X	fptr = end;
+X        return _status&RET_MASK;
+X      }
+X      fptr++;
+X    }
+X    if (err == ERR_BREAK) {
+X    }
+X    v->sv.val += step;
+X  }
+X  fptr = end;
+X  return 0;
+X}
+X
+NEXT(ferr)
+XFILE *ferr;
+X{
+X  fprintf(ferr,"next: Next without matching for statement.\n");
+X  return 1;
+X}
+X
+LABEL(n,arg,ferr)
+int n;
+char **arg;
+XFILE *ferr;
+X{
+X  if (n < 2) {
+X    fprintf(ferr,"label: missing label\n");
+X    return 1;
+X  }
+X  if (n > 3) {
+X    fprintf(ferr,"label: too many labels\n");
+X    return 1;
+X  }
+X  return 0;
+X}
+X
+GOTO(n,arg,ferr)
+int n;
+char **arg;
+XFILE *ferr;
+X{
+X  char *lab = NULL;
+X  char dir = 2;
+X  int ptr = fptr;
+X
+X  if (!_source) return 0;
+X  for(a=1;arg[a];a++) {
+X    if (arg[a][0] == '-') {
+X      switch (arg[a][1]) {
+X	case 'f':
+X	  dir = 0;
+X	  break;
+X	case 'r':
+X	  dir = 1;
+X	  break;
+X	case 't':
+X	  dir = 2;
+X	  break;
+X	default:
+X	  fprintf(ferr,"goto: invalid switch %s\n",arg[a]);
+X	  return 1;
+X      }
+X    } else if (!lab) lab = arg[a];
+X      else {
+X	fprintf(ferr,"goto: illegal argument: %s",arg[a]);
+X	return 1;
+X      }
+X  }
+X  if (dir == 2) dir = ptr = 0;
+X  else if (dir) ptr--;
+X  else ptr++;
+X  if (dir) {
+X    for(; ptr >= 0 ; ptr--) {
+X      if (!strcmp(file[ptr][0],"label")) {
+X        if (!strcmp(file[ptr][1],lab)) {
+X	  err = ERR_GOTO;
+X	  fptr = ptr;
+X	  return 0;
+X	}
+X      }
+X    }
+X  } else {
+X    for(; file[ptr] ; ptr++) {
+X      if (!strcmp(file[ptr][0],"label")) {
+X        if (!strcmp(file[ptr][1],lab)) {
+X	  err = ERR_GOTO;
+X	  fptr = ptr;
+X	  return 0;
+X	}
+X      }
+X    }
+X  }
+X  fprintf(ferr,"goto: label '%s' not found.\n",lab);
+X  return 1;
+X}
+X
+XFOREACH(n,arg,ferr)
+int n;
+char **arg;
+XFILE *ferr;
+X{
+X  int start = fptr+1, end = fptr+1, p = 2;
+X  char *ex = arg[1], nest = 0;
+X
+X  if (!_source) return 1;
+X
+X  while(file[end]) {
+X    if (!strcmp(file[end][0],"foreach")) {
+X      nest++;
+X      end++;
+X      continue;
+X    }
+X    if (!nest && !strcmp(file[end][0],"endfor")) break;
+X    if (nest && !strcmp(file[end][0],"endfor")) nest--;
+X    end++;
+X  }
+X  if (!file[end]) {
+X    fprintf(ferr,"foreach: foreach without matching endfor.\n");
+X    fptr = end-1;
+X    return 1;
+X  }
+X  if (n < 3) {
+X    fprintf(ferr,"foreach: Not enough arguments.\n");
+X    fptr = end;
+X    return 1;
+X  }
+X
+X  while(arg[p]) {
+X    fptr = start;
+X    makeset(ex,arg[p++]);
+X    while (fptr < end) {
+X      run(fptr);
+X      if (err == ERR_BREAK) {
+X	fptr = end;
+X	break;
+X      } else if (err == ERR_CONTINUE) {
+X	fptr = end;
+X	err = 0;
+X	break;
+X      }
+X      if (err || badstat(_status)) {
+X	fptr = end;
+X        return 0;
+X      }
+X      fptr++;
+X    }
+X    if (err) break;
+X  }
+X  fptr = end;
+X  return 0;
+X}
+X
+XENDFOR(ferr)
+XFILE *ferr;
+X{
+X  fprintf(ferr,"endfor: endfor without foreach.\n");
+X  return 1;
+X}
+X
+char *grab(arg,start,hit,pt)
+char **arg;
+char *hit;
+int start,*pt;
+X{
+X  static int i,j,k,p;
+X  static char *ex;
+X
+X  j = 0;
+X  ex = NULL;
+X  if (!hit) {
+X    for(i=start;arg[i];i++) j+= strlen(arg[i]);
+X  } else {
+X    for(i=start;arg[i] && strcmp(arg[i],hit);i++) j+= strlen(arg[i]);
+X  }
+X  if (!j) return NULL;
+X  *pt = i;
+X  ex = (char *)malloc(j+1);
+X  for(p=0,k=start;k<i;k++) {
+X    for(j=0;arg[k][j];j++) ex[p++] = arg[k][j];
+X  }
+X  ex[p] = 0;
+X  return ex;
+X}
+X
+INC(n,arg,ferr)
+int n;
+char **arg;
+XFILE *ferr;
+X{
+X  struct _setvar *s;
+X
+X  if (n < 2) {
+X    fprintf(ferr,"inc: variable expected.\n");
+X    return 1;
+X  }
+X  for(a=1;arg[a];a++) {
+X    s = find_var(arg[a]);
+X    if (!s) makenvar(arg[a],1);
+X    else {
+X      s->sv.val++;
+X    }
+X  }
+X  return 0;
+X}
+X
+DEC(n,arg,ferr)
+int n;
+char **arg;
+XFILE *ferr;
+X{
+X  struct _setvar *s;
+X
+X  if (n < 2) {
+X    fprintf(ferr,"dec: variable expected.\n");
+X    return 1;
+X  }
+X  for(a=1;arg[a];a++) {
+X    s = find_var(arg[a]);
+X    if (!s) makenvar(arg[a],1);
+X    else {
+X      s->sv.val--;
+X    }
+X  }
+X  return 0;
+X}
+X
+XEVAL(n,arg,ferr)
+int n;
+char **arg;
+XFILE *ferr;
+X{
+X  char *ex;
+X
+X  if (n < 2) {
+X    fprintf(ferr,"eval: argument expected.\n");
+X    return 1;
+X  }
+X  ex = string(arg+1);
+X  run2(ex);
+X  free(ex);
+X  return 0;
+X}
+X
+XEXECUTE(n,arg,ferr)
+int n;
+char **arg;
+XFILE *ferr;
+X{
+X  char *ex;
+X
+X  if (n < 2) {
+X    fprintf(ferr,"exec: argument expected.\n");
+X    return 1;
+X  }
+X  ex = string(arg+1);
+X  _nofork = TRUE;
+X  run2(ex);
+X  _nofork = FALSE;
+X  free(ex);
+X  return 1;
+X}
+X
+SWITCH(n,arg,ferr)
+int n;
+char **arg;
+XFILE *ferr;
+X{
+X  char *s = arg[1], l = 0, **etmp, *tmp;
+X  int ptr = fptr+1, start = 0, end = 0, i, j, k;
+X
+X  if (n < 2) {
+X    fprintf(ferr,"switch: string argument expected.\n");
+X    return 1;
+X  }
+X  if (n > 2) {
+X    fprintf(ferr,"switch: Too many arguments.\n");
+X    return 1;
+X  }
+X  for(;file[ptr]; ptr++) {
+X    if (!l && !start && file[ptr][1] && !strcmp("case",file[ptr][0])) {
+X      for(i=1;i<n && start != ptr;i++) {
+X	if (file[ptr][i][0] == '"' || file[ptr][i][0] == '\'') {
+X	  j = file[ptr][i][(k=strlen(file[ptr][i]))-1];
+X	  file[ptr][i][k-1] = 0;
+X	  etmp = evalw(tmp=file[ptr][i]+1);
+X	  file[ptr][i][k-1] = j;
+X	} else etmp = evalw(tmp=file[ptr][i]);
+X	for(j=0;etmp[j];j++)
+X	  if (patmatch(s,etmp[j])) {
+X	    start = ptr;
+X	    break;
+X	  }
+X	if (tmp != etmp[0])
+X	  for(j=0;etmp[j];j++) free(etmp[j]);
+X	free(etmp);
+X      }
+X    } else if (!l && !start && !strcmp("default",file[ptr][0])) {
+X      start = ptr;
+X    } else if (!strcmp("switch",file[ptr][0])) l++;
+X    else if (l && !strcmp("endsw",file[ptr][0])) l--;
+X    else if (!l && !strcmp("endsw",file[ptr][0])) {
+X      end = ptr;
+X      break;
+X    }
+X  }
+X  if (!end) {
+X    fprintf(ferr,"switch: switch without matching endsw.\n");
+X    return 1;
+X  }
+X  if (!start) {
+X    fptr = end;
+X    return 0;
+X  }
+X  fptr = start+1;
+X  while(fptr < end) {
+X    if (!strcmp("case",file[fptr][0]) || !strcmp("default",file[fptr][0])) {
+X      fptr++;
+X      continue;
+X    }
+X    run(fptr);
+X    if (err == ERR_BREAK) {
+X      fptr = end;
+X      err = 0;
+X      return 0;
+X    }
+X    if (err || badstat(_status)) {
+X      fptr = end;
+X      return _status&RET_MASK;
+X    }
+X    fptr++;
+X  }
+X  return 0;
+X}
+X
+XENDSW(ferr)
+XFILE *ferr;
+X{
+X  fprintf(ferr,"endsw: endsw without matching switch.\n");
+X  return 1;
+X}
+X
+usage(fout,ferr)
+XFILE *fout, *ferr;
+X{
+X  static struct rusage ru;
+X
+X  getrusage(RUSAGE_SELF,&ru);
+X  a = ru.ru_utime.tv_sec;
+X  b = a%3600;
+X  c = b%60;
+X  fprintf(fout,"USER time: %02d:%02d:%02d.%06d\t",a/3600,b/60,c,ru.ru_utime.tv_usec);
+X  a = ru.ru_stime.tv_sec;
+X  b = a%3600;
+X  c = b%60;
+X  fprintf(fout,"SYSTEM time: %02d:%02d:%02d.%06d\n",a/3600,b/60,c,ru.ru_stime.tv_usec);
+X  fprintf(fout,"MAX RSS: %dK\tPage Reclaims: %d\t Page faults: %d\n",(ru.ru_maxrss*getpagesize())/1024,ru.ru_minflt,ru.ru_majflt);
+X  fprintf(fout,"SWAPS: %d\tBlocks In: %d\tBlocks Out: %d\tSignals: %d\n",ru.ru_nswap,ru.ru_inblock,ru.ru_oublock,ru.ru_nsignals);
+X  return 0;
+X}
+X
+isnum(w)
+char *w;
+X{
+X  while(*w) if (!isdigit(*w++)) return FALSE;
+X  return TRUE;
+X}
+X
+INTR(n,arg,fout,ferr)
+int n;
+char **arg;
+XFILE *fout, *ferr;
+X{
+X  static char *sigs[] = {
+X    "HUP","INT","QUIT","ILL","TRAP","IOT","EMT","FPE","KILL","BUS","SEGV",
+X    "SYS","PIPE","ALRM","TERM","URG","STOP","TSTP","CONT","CHLD","TTIN",
+X    "TTOU","IO","XCPU","XFSZ","VTALRM","PROF","WINCH","USR1","USR2",0
+X  };
+X
+X  if (n == 1) {
+X    for(a=0;sigs[a];a++)
+X      if (SIGMASK&(1<<a))
+X	fprintf(fout,"%s%s",a?" ":"",sigs[a]);
+X    fputc('\n',fout);
+X    return 0;
+X  }
+X  for(a=1;arg[a];a++) {
+X    if (arg[a][0] == '-' && !arg[a][1]) SIGMASK = 0;
+X    else if (arg[a][0] == '+' && !arg[a][1]) SIGMASK = 0xFFFFFFFF;
+X    else {
+X      for(b=0;sigs[b];b++) {
+X	if (!strcmp(sigs[b],arg[a])) {
+X	  SIGMASK ^= (1<<b);
+X	  break;
+X	}
+X      }
+X      if (!sigs[b]) {
+X	fprintf(ferr,"intr: %s: invalid argument.\n",arg[a]);
+X	return 1;
+X      }
+X    }
+X  }
+X  return 0;
+X}
+X
+TERM(n,arg,fout,ferr)
+int n;
+char **arg;
+XFILE *fout, *ferr;
+X{
+X  static char *t[12] = {"SO","SE","CE","KS","KE","DC","IC","DS","TC","FS","HS",0};
+X  struct _setvar *VAR;
+X
+X  if (n == 1) {
+X    if ((VAR = find_var("term")) != NULL) fprintf(fout,"term: %s\n",VAR->sv.wrd[0]);
+X    for(a=0;a<10;a++) {
+X      fprintf(fout,"%s\t",t[a]);
+X      if (_term[a]) {
+X        fputc('\042',fout);
+X        fprt(fout,_term[a]);
+X        fputc('\042',fout);
+X      } else fputs("<undefined>",fout);
+X      fputc('\n',fout);
+X    }
+X    fprintf(fout,"HS\t%d\n",_term[HS]);
+X    return 0;
+X  } else {
+X    if (n == 2) {
+X      for(a=0;t[a];a++) {
+X        if (!strcmp(t[a],arg[1])) {
+X	  if (a == HS) fprintf(fout,"HS\t%d\n",_term[HS]);
+X	  else {
+X	    fprintf(fout,"%s\t",t[a]);
+X	    if (_term[a]) {
+X	      fputc('\042',fout);
+X	      fprt(fout,_term[a]);
+X	      fputc('\042',fout);
+X	    } else fputs("<undefined>",fout);
+X	    fputc('\n',fout);
+X	  }
+X	  return 0;
+X	}
+X      }
+X      fprintf(ferr,"term: %s not found.\n",arg[1]);
+X      return 1;
+X    } else {
+X      for(a=0;t[a];a++) {
+X        if (!strcmp(t[a],arg[1])) {
+X	  if (a == HS) _term[HS] = (char *)atoi(arg[2]);
+X	  else {
+X	    free(_term[a]);
+X	    _term[a] = string(arg+2);
+X	    if (!strlen(_term[a])) {
+X	      free(_term[a]);
+X	      _term[a] = NULL;
+X	    }
+X	  }
+X	  return 0;
+X	}
+X      }
+X      fprintf(ferr,"term: %s not found.\n",arg[1]);
+X      return 1;
+X    }
+X  }
+X}
+X
+PROTECT(n,arg,ferr)
+int n;
+char **arg;
+XFILE *ferr;
+X{
+X  struct _setvar *VAR;
+X
+X  if (n < 2) {
+X    fprintf(ferr,"protect: missing argument.\n");
+X    return 1;
+X  }
+X  if ((VAR = find_var(arg[1])) == NULL) {
+X    fprintf(ferr,"protect: %s not found.\n",arg[1]);
+X    return 1;
+X  }
+X  VAR->protect = 1;
+X  return 0;
+X}
+X
+X#ifdef NOSETENV
+extern char **environ;
+extern int errno;
+X
+int setenv(name,value,overwrite)
+char *name, *value;
+int overwrite;
+X{
+X  int i, l = strlen(name);
+X  char **tmp, **se = environ;
+X
+X  if (name[l-1] == '=') l--;
+X  for(i=0;environ[i];i++) {
+X    if (!strncmp(name,environ[i],l) && environ[i][l] == '=') {
+X      if (overwrite) {
+X        free(environ[i]);
+X	break;
+X      }
+X      return 0;
+X    }
+X  }
+X  if (!environ[i]) {
+X    if ((environ = (char **)realloc(environ,sizeof(char *)*(i+2))) == NULL) {
+X      if (errno == EINVAL) {
+X	if ((tmp = (char **)malloc(sizeof(char *) * (i+2))) == NULL) return -1;
+X	for(i=0;se[i];i++) tmp[i] = se[i];
+X	environ = tmp;
+X      } else return -1;
+X    }
+X    environ[i+1] = NULL;
+X  }
+X  if ((environ[i] = (char *)malloc(l+strlen(value)+2)) == NULL) return -1;
+X  sprintf(environ[i],"%.*s=%s",l,name,value[0]=='='?value+1:value);
+X  return 0;
+X}
+X
+void unsetenv(name)
+char *name;
+X{
+X  int i = 0, j, f = 0, l = strlen(name);
+X
+X  if (name[l-1] == '=') l--;
+X  while(environ[i]) {
+X    if (!strncmp(name,environ[i],l) && environ[i][l] == '=') {
+X      f = 1;
+X      free(environ[i]);
+X      for(j=i;environ[j];j++) environ[j] = environ[j+1];
+X    } else i++;
+X  }
+X/*  if (f) environ = (char **)realloc(environ,sizeof(char *) * i+1); */
+X}
+X#endif
+END_OF_FILE
+if test 38412 -ne `wc -c <'shcmds.c'`; then
+    echo shar: \"'shcmds.c'\" unpacked with wrong size!
+fi
+# end of 'shcmds.c'
+fi
+echo shar: End of archive 3 \(of 4\).
+cp /dev/null ark3isdone
+MISSING=""
+for I in 1 2 3 4 ; do
+    if test ! -f ark${I}isdone ; then
+	MISSING="${MISSING} ${I}"
+    fi
+done
+if test "${MISSING}" = "" ; then
+    echo You have unpacked all 4 archives.
+    rm -f ark[1-9]isdone
+else
+    echo You still need to unpack the following archives:
+    echo "        " ${MISSING}
+fi
+##  End of shell archive.
+exit 0

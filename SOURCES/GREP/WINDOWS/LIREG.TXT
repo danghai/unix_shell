@@ -1,0 +1,76 @@
+LI  Version 1.33 Order Form
+
+Third Millennium Technologies
+P O Box 852382
+Mesquite, TX 75185
+
+fax: 214-203-1742
+e-mail: 73537.1203@compuserve.com
+
+Please Remit per the following table to:
+
+Number of Copies        Price Per Copy
+     1-2                      $20
+     3-10                     $19
+     11-20                    $18
+     21-50                    $17
+     51-100                   $16
+  101 and above               $15
+site license = $2,000
+
+Your Name       ______________________________________
+
+Company         ______________________________________
+
+Address         ______________________________________
+
+                ______________________________________
+
+                ______________________________________
+
+                ______________________________________
+
+e-mail adr      ______________________________________
+
+
+Order Qty       _______
+Price per copy  _______
+Sub Total       _______
+Tax             _______  (TX residents add 7.75%)
+Total           _______
+
+Check or purchase order enclosed? ____
+
+Charge to:   MasterCard _____     VISA _____   Exp Date _____/_____
+
+Card Number __ __ __ __ __ __ __ __ __ __ __ __ __ __ __ __
+
+Cardholder's Signature __________________________________
+
+Please send     ___ Current Ver        ____ Ver X.X (next release)
+
+Your Windows Version?    ______
+
+How did you obtain this copy of LI?
+
+
+
+Comments (likes/dislikes/problems/suggestions):
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Thank you for your support,
+Jeff Lundblad.

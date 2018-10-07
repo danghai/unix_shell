@@ -1,0 +1,1843 @@
+Newsgroups: comp.sources.unix
+From: sw@cs.arizona.edu (Sun Wu)
+Subject: v26i021: agrep - very fast grep with approximate pattern matching, Part01/03
+Message-ID: <1992May10.050713.13505@PA.dec.com>
+Date: Sun, 10 May 92 05:07:13 GMT
+Approved: vixie@pa.dec.com
+
+Submitted-By: sw@cs.arizona.edu (Sun Wu)
+Posting-Number: Volume 26, Issue 21
+Archive-Name: agrep-2.01/part01
+
+[ I've been using this since I got it, and it's GREAT.  Faster than gnugrep
+  and bmgrep almost always, and faster than egrep if you don't need the
+  extended regex syntax.						--vix ]
+
+This is version 2.01 of agrep - a new tool for fast text searching allowing
+errors.  agrep is similar to egrep/grep/fgrep, but it is much more general
+and usually faster.
+
+The three most significant features of agrep that are not supported by
+the grep family are 
+1) the ability to search for approximate patterns;
+    for example, "agrep -2 homogenos foo" will find homogeneous as well 
+    as any other word that can be obtained from homogenos with at most 
+    2 substitutions, insertions, or deletions.
+    "agrep -B homogenos foo" will generate a message of the form
+    best match has 2 errors, there are 5 matches, output them? (y/n)
+2) agrep is record oriented rather than just line oriented;  a record
+    is by default a line, but it can be user defined;
+    for example, "agrep -d '^From ' 'pizza' mbox"
+    outputs all mail messages that contain the keyword "pizza".
+    Another example:  "agrep -d '$$' pattern foo" will output all
+    paragraphs (separated by an empty line) that contain pattern.
+3) multiple patterns with AND (or OR) logic queries.   
+    For example, "agrep -d '^From ' 'burger,pizza' mbox" 
+    outputs all mail messages containing at least one of the 
+    two keywords (, stands for OR).
+    "agrep -d '^From ' 'good;pizza' mbox" outputs all mail messages
+    containing both keywords.
+
+Putting these options together one can ask queries like
+
+agrep -d '$$' -2 '<CACM>;TheAuthor;Curriculum;<198[5-9]>' bib
+
+which outputs all paragraphs referencing articles in CACM between 
+1985 and 1989 by TheAuthor dealing with curriculum.  
+Two errors are allowed, but they cannot be in either CACM or the year 
+(the <> brackets forbid errors in the pattern between them).  
+
+Other features include searching for regular expressions (with or
+without errors), unlimited wild cards, limiting the errors to only 
+insertions or only substitutions or any combination, 
+allowing each deletion, for example, to be counted as, say, 
+2 substitutions or 3 insertions, restricting parts of the query 
+to be exact and parts to be approximate, and many more.
+
+Please mail bug reports (or any other comments) 
+to sw@cs.arizona.edu or to udi@cs.arizona.edu.
+
+We would appreciate if users notify us (at the address above)
+of any extensions, improvements, or interesting uses of this software.
+
+Feburary 23, 1992
+
+#! /bin/sh
+# This is a shell archive.  Remove anything before this line, then unpack
+# it by saving it into a file and typing "sh file".  To overwrite existing
+# files, type "sh file -c".  You can also feed this as standard input via
+# unshar, or by typing "sh <file", e.g..  If this archive is complete, you
+# will see the following message at the end:
+#		"End of archive 1 (of 3)."
+# Contents:  COPYRIGHT Makefile README agrep.algorithms agrep.chronicle
+#   agrep.h asearch1.c bitap.c checkfile.c checkfile.h compat.c
+#   contribution.list follow.c maskgen.c preprocess.c re.h utilities.c
+# Wrapped by sw@optima on Sun Feb 23 13:44:15 1992
+PATH=/bin:/usr/bin:/usr/ucb ; export PATH
+if test -f 'COPYRIGHT' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'COPYRIGHT'\"
+else
+echo shar: Extracting \"'COPYRIGHT'\" \(971 characters\)
+sed "s/^X//" >'COPYRIGHT' <<'END_OF_FILE'
+This material was developed by Sun Wu and Udi Manber
+at the University of Arizona, Department of Computer Science.
+Permission is granted to copy this software, to redistribute it
+on a nonprofit basis, and to use it for any purpose, subject to
+the following restrictions and understandings.
+X
+X1. Any copy made of this software must include this copyright notice
+in full.
+X
+X2. All materials developed as a consequence of the use of this
+software shall duly acknowledge such use, in accordance with the usual
+standards of acknowledging credit in academic research.
+X
+X3. The authors have made no warranty or representation that the
+operation of this software will be error-free or suitable for any
+application, and they are under under no obligation to provide any
+services, by way of maintenance, update, or otherwise.  The software
+is an experimental prototype offered on an as-is basis.
+X
+X4. Redistribution for profit requires the express, written permission
+of the authors.
+X
+END_OF_FILE
+if test 971 -ne `wc -c <'COPYRIGHT'`; then
+    echo shar: \"'COPYRIGHT'\" unpacked with wrong size!
+fi
+# end of 'COPYRIGHT'
+fi
+if test -f 'Makefile' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'Makefile'\"
+else
+echo shar: Extracting \"'Makefile'\" \(606 characters\)
+sed "s/^X//" >'Makefile' <<'END_OF_FILE'
+CFLAGS	      = -O
+X
+PROG	      = agrep
+HDRS	      =	agrep.h checkfile.h re.h
+OBJS	      =	\
+X		asearch.o	\
+X		asearch1.o	\
+X		bitap.o		\
+X		checkfile.o	\
+X		compat.o	\
+X		follow.o	\
+X		main.o		\
+X		maskgen.o	\
+X		parse.o		\
+X		preprocess.o	\
+X		sgrep.o		\
+X		mgrep.o		\
+X		utilities.o
+X
+X$(PROG):	$(OBJS)
+X		$(CC) $(CFLAGS) -o $@ $(OBJS)
+X
+clean:
+X		-rm -f $(OBJS) core a.out
+X
+asearch.o:	agrep.h
+asearch1.o:	agrep.h
+bitap.o:	agrep.h
+checkfile.o:	checkfile.h
+follow.o:	re.h
+main.o:		agrep.h checkfile.h
+maskgen.o:	agrep.h
+next.o:		agrep.h
+parse.o:	re.h
+preprocess.o:	agrep.h
+sgrep.o:	agrep.h
+abm.o:		agrep.h
+utilities.o:	re.h
+END_OF_FILE
+if test 606 -ne `wc -c <'Makefile'`; then
+    echo shar: \"'Makefile'\" unpacked with wrong size!
+fi
+# end of 'Makefile'
+fi
+if test -f 'README' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'README'\"
+else
+echo shar: Extracting \"'README'\" \(3629 characters\)
+sed "s/^X//" >'README' <<'END_OF_FILE'
+This is version 2.01 of agrep - a new tool for fast 
+text searching allowing errors.
+agrep is similar to egrep (or grep or fgrep), but it is much more general
+X(and usually faster).
+The main changes from version 1.1 are 1) incorporating Boyer-Moore
+type filtering to speed up search considerably, 2) allowing multi patterns 
+via the -f option; this is similar to fgrep, but from our experience 
+agrep is much faster, 3) searching for "best match" without having to
+specify the number of errors allowed, and 4) ascii is no longer required.
+Several more options were added.
+X
+The three most significant features of agrep that are not supported by
+the grep family are 
+X1) the ability to search for approximate patterns;
+X    for example, "agrep -2 homogenos foo" will find homogeneous as well 
+X    as any other word that can be obtained from homogenos with at most 
+X    2 substitutions, insertions, or deletions.
+X    "agrep -B homogenos foo" will generate a message of the form
+X    best match has 2 errors, there are 5 matches, output them? (y/n)
+X2) agrep is record oriented rather than just line oriented;  a record
+X    is by default a line, but it can be user defined;
+X    for example, "agrep -d '^From ' 'pizza' mbox"
+X    outputs all mail messages that contain the keyword "pizza".
+X    Another example:  "agrep -d '$$' pattern foo" will output all
+X    paragraphs (separated by an empty line) that contain pattern.
+X3) multiple patterns with AND (or OR) logic queries.   
+X    For example, "agrep -d '^From ' 'burger,pizza' mbox" 
+X    outputs all mail messages containing at least one of the 
+X    two keywords (, stands for OR).
+X    "agrep -d '^From ' 'good;pizza' mbox" outputs all mail messages
+X    containing both keywords.
+X
+Putting these options together one can ask queries like
+X
+agrep -d '$$' -2 '<CACM>;TheAuthor;Curriculum;<198[5-9]>' bib
+X
+which outputs all paragraphs referencing articles in CACM between 
+X1985 and 1989 by TheAuthor dealing with curriculum.  
+Two errors are allowed, but they cannot be in either CACM or the year 
+X(the <> brackets forbid errors in the pattern between them).  
+X
+Other features include searching for regular expressions (with or
+without errors), unlimited wild cards, limiting the errors to only 
+insertions or only substitutions or any combination, 
+allowing each deletion, for example, to be counted as, say, 
+X2 substitutions or 3 insertions, restricting parts of the query 
+to be exact and parts to be approximate, and many more.
+X
+agrep is available by anonymous ftp from cs.arizona.edu (IP 192.12.69.5)
+as agrep/agrep-2.01.tar.Z (or in uncompressed form as agrep/agrep-2.01.tar).
+The tar file contains the source code (in C), man pages (agrep.1),
+and two additional files, agrep.algorithms and agrep.chronicle,
+giving more information.
+The agrep directory also includes two postscript files: 
+agrep.ps.1 is a technical report from June 1991 
+describing the design and implementation of agrep;
+agrep.ps.2 is a copy of the paper as appeared in the 1992
+Winter USENIX conference.
+X
+Please mail bug reports (or any other comments) 
+to sw@cs.arizona.edu or to udi@cs.arizona.edu.
+X
+We would appreciate if users notify us (at the address above)
+of any extensions, improvements, or interesting uses of this software.
+X
+January 17, 1992
+X
+X
+BUGS found and fixed:
+X1. multiple definitions of some global variables.
+X   (though haven't caused real problems)
+X2. -G option doesn't work.
+X   (compat.c do too much checking. After remove the checking of
+X    -c option against -G option, and it works.)
+X3. -w option forced the first character in the pattern to match.
+X    remove the restriction.
+January 23, 1992
+END_OF_FILE
+if test 3629 -ne `wc -c <'README'`; then
+    echo shar: \"'README'\" unpacked with wrong size!
+fi
+# end of 'README'
+fi
+if test -f 'agrep.algorithms' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'agrep.algorithms'\"
+else
+echo shar: Extracting \"'agrep.algorithms'\" \(2654 characters\)
+sed "s/^X//" >'agrep.algorithms' <<'END_OF_FILE'
+The implementation of agrep includes the following algorithms.
+XExcept for exact matching of simple patterns, for which we use 
+a simple variation of the Boyer-Moore algorithm, 
+all the algorithms (listed below) were designed by Sun Wu and Udi Manber.
+X
+X1. bitap:  The most general algorithm inside agrep.
+X       It supports many extensions such as approximate regular expression 
+X       pattern matching, non-uniform costs, simultaneous matching of 
+X       multiple patterns, mixed exact/approximate matching, etc.
+X       The algorithm is described in agrep.ps.1.
+X
+X2. mgrep:  A sub-linear expect-time algorithm for matching a set of patterns.
+X       It assumes that the set of patterns contains k patterns, and that
+X       the shortest pattern is of size m.
+X       See agrep.ps.2 for a brief description of the algorithm.
+X
+X3. amonkey: a Boyer-Moore style algorithm for approximate pattern matching.
+X       let b = log_c (2*m), where c is the size of alphabet set.
+X       In the preprocessing, a table is built to determine whether
+X       a given substring of size b is in the pattern.
+X       Suppose we are looking for matches with at most k errors.
+X       The search is done in two passes.
+X       In the first pass (the filtering pass), the areas in the text
+X       that have a possibility to contain the matches are marked.
+X       The second pass finds the matches in those marked areas.
+X       The search in the first pass is done in the following way.
+X       Suppose the end position of the pattern is currently aligned with 
+X       position tx in the text.
+X       The algorithm scans backward from tx until either (k+1) blocks
+X       that do not occur in the pattern have been scanned, or
+X       the scan has passed position (tx-m+k).
+X       In the former case, pattern is shifted forward to align
+X       the beginning position of the pattern with one character after
+X       the position in the text where the scan was stopped.
+X       In the latter case, we marked tx-m to tx+m as a candidate area.
+X
+X4. mmonkey: Combining the mgrep algorithm with a partition technique, we
+X       have an algorithm with the same time complexity as amonkey.
+X       For ASCII text and pattern, this algorithm is faster than amonkey.
+X       The principle of the partition technique is as follows.
+X       Let A and B be two strings of size m. 
+X       If we partition A into (k+1) blocks, then the distance between 
+X       A and B is > k if none of the blocks of A occur in B. 
+X       This implies that to match A with no more than k errors, 
+X       B has to contain a substring that matches exactly one block of A.
+X       A brief description can be found in agrep.ps.2.
+X
+END_OF_FILE
+if test 2654 -ne `wc -c <'agrep.algorithms'`; then
+    echo shar: \"'agrep.algorithms'\" unpacked with wrong size!
+fi
+# end of 'agrep.algorithms'
+fi
+if test -f 'agrep.chronicle' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'agrep.chronicle'\"
+else
+echo shar: Extracting \"'agrep.chronicle'\" \(2561 characters\)
+sed "s/^X//" >'agrep.chronicle' <<'END_OF_FILE'
+This chronicle briefly describes the progress of agrep.
+X
+XFeb/91: The approximate pattern matching algorithm called 'bitap'
+X    (bit-parallel approximate pattern matching) is designed.
+X    The algorithm is a generalization of Baeza-Yates' "shift-or"
+X    algorithm for exact matching.
+X
+Mar/91: Many extensions of the algorithm 'bitap' are found, especially
+X    for approximate regular expression pattern matching.  Preliminary
+X    implementation of the algorithm showed a strong promise for 
+X    a general-purpose fast approximate pattern-matching tool.
+X
+Apr/91: Approximate regular expression pattern matching was implemented.
+X    The result is even better than expected. 
+X    The design of the software tool is pinned down.
+X    (For example, record oriented, multi-pattern, AND/OR logic queries.)
+X    A partition technique for approximate pattern matching is used.
+X    
+May/91: The prototype of "agrep" is completed.
+X    A lot of debugging/optimization in this month.
+X
+Jun/91: The first version of agrep is released.
+X    agrep 1.0 was announced and made available by anonymous ftp 
+X    from cs.arizona.edu.
+X
+Jul/91: A sub-linear expected-time algorithm, called "amonkey" for 
+X    approximate pattern matching (for simple pattern) is designed.
+X    The algorithm has the same time complexity as that of
+X    Chang&Lawler but is much much faster in practice.
+X    The algorithm is based on a variation of Boyer-Moore technique,
+X    which we call "block-shifting." 
+X    A sub-linear expected-time algorithm, called "mgrep" for 
+X    matching a set of patterns is designed based on the "block-shifting" 
+X    technique with a hashing technique.
+X
+Aug/91: "amonkey" is implemented and incorporated into agrep.
+X    It is very fast for long patterns like DNA patterns.
+X    (But roughly the same for matching English words as the bitap
+X    algorithm using the partition technique.)
+X    Prototype of "mgrep" is implemented.
+X
+Sep/91: "mgrep" is incorporated into agrep to support the -f option.
+X    An algorithm for approximate pattern matching that combines the 
+X    'partition' technique with the sub-linear expected-time algorithm 
+X    for multi-patterns is designed.
+X    Implementation shows it to be the fastest for ASCII text (and pattern).
+X    Boyer-moore technique for exact matching is incorporated.
+X
+Nov/91: The final paper of "agrep" that is to appear in USENIX
+X    conference (Jan 1992)  is finished.
+X
+Jan/92: Some new options are added, such as find best matches (-B), 
+X    and file outputs (-G).
+X    The man pages are revised.
+X    agrep version 2.0 is released.
+X
+END_OF_FILE
+if test 2561 -ne `wc -c <'agrep.chronicle'`; then
+    echo shar: \"'agrep.chronicle'\" unpacked with wrong size!
+fi
+# end of 'agrep.chronicle'
+fi
+if test -f 'agrep.h' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'agrep.h'\"
+else
+echo shar: Extracting \"'agrep.h'\" \(1837 characters\)
+sed "s/^X//" >'agrep.h' <<'END_OF_FILE'
+X#include <stdio.h>
+X#include <math.h>
+X#include <ctype.h>
+X#include "re.h"
+X
+extern unsigned char *strcpy(), *strncpy(), *strcat();
+extern int strlen();
+X#define CHAR	unsigned char
+X#define MAXPAT 128
+X#define MAXPATT 256
+X#define MAXDELIM 8            /* Max size of a delimiter pattern */
+X#define SHORTREG 15
+X#define MAXREG   30
+X#define MAXNAME  256
+X#define Max_Pats 12    /* max num of patterns */
+X#define Max_Keys 12    /* max num of keywords */
+X#define Max_Psize 128  /* max size of a pattern counting all the characters */
+X#define Max_Keyword 31 /* the max size of a keyword */
+X#define WORD 32        /* the size of a word */
+X#define MaxError 8     /* the max number of errors allowed */
+X#define MaxRerror 4    /* the max number of erros for regular expression */
+X#define MaxDelimit 16   /* the max raw length of a user defined delimiter */
+X#define BlockSize  49152
+X#define Max_record 49152
+X#define SIZE 16384       /* BlockSIze in sgrep */
+X#define MAXLINE   1024  /* maxline in sgrep */
+X#define Maxline   1024
+X#define RBLOCK    8192
+X#define RMAXLINE  1024
+X#define MaxNext   66000
+X#define ON 1
+X#define OFF 0
+X#define Compl 1
+X#define Maxresult 10000
+X#define MaxCan 2500
+X#define MAXSYM 256 /* ASCII */
+X#define WORDB     241    /* -w option */
+X#define LPARENT   242    /* ( */
+X#define RPARENT   243    /* ) */
+X#define LRANGE    244    /* [ */
+X#define RRANGE    245    /* ] */
+X#define LANGLE    246    /* < */
+X#define RANGLE    247    /* > */
+X#define NOTSYM    248    /* ^ */
+X#define WILDCD    249    /* wildcard */
+X#define ORSYM     250   /* | */
+X#define ORPAT     251   /* , */
+X#define ANDPAT    252   /* ; */
+X#define STAR      253   /* closure */
+X#define HYPHEN    237   /* - */
+X#define NOCARE    238   /* . */
+X#define NNLINE    239   /* special symbol for newline in begin of pattern*/
+X                       /* matches '\n' and NNLINE */
+X
+END_OF_FILE
+if test 1837 -ne `wc -c <'agrep.h'`; then
+    echo shar: \"'agrep.h'\" unpacked with wrong size!
+fi
+# end of 'agrep.h'
+fi
+if test -f 'asearch1.c' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'asearch1.c'\"
+else
+echo shar: Extracting \"'asearch1.c'\" \(5049 characters\)
+sed "s/^X//" >'asearch1.c' <<'END_OF_FILE'
+X/* Copyright (c) 1991 Sun Wu and Udi Manber.  All Rights Reserved. */
+X#include "agrep.h"
+X 
+extern unsigned Init1, Init[], Mask[], endposition, D_endpos;
+extern unsigned NO_ERR_MASK;
+extern int TRUNCATE, DELIMITER, AND, I, S, DD, INVERSE, FILENAMEONLY ;
+extern char CurrentFileName[];
+extern int num_of_matched;
+X
+X
+asearch1(old_D_pat, Text, D)
+char old_D_pat[]; int Text; register unsigned D;
+X{
+X  register unsigned end, i, r1, r2, r3, r4, r5, CMask, D_Mask, Init0, k, endpos; 
+X  register unsigned r_NO_ERR;
+X  unsigned A[MaxError*2+1], B[MaxError*2+1];
+X  int D_length, ResidueSize, lasti, num_read,  FIRSTROUND, j=0;
+X  char buffer[BlockSize+Max_record+1];
+X   
+X  if(I == 0) Init1 = 037777777777;
+X  if(DD > D) DD = D+1;
+X  if(I  > D) I  = D+1;
+X  if(S  > D) S  = D+1;
+X  D_length = strlen(old_D_pat);
+X  buffer[Max_record-1] = '\n';
+X   
+X  lasti = Max_record;
+X  r_NO_ERR = NO_ERR_MASK;
+X
+X  D_Mask = D_endpos;
+X  for(i=1 ; i<D_length; i++) D_Mask = (D_Mask << 1) | D_Mask;
+X  D_Mask = ~D_Mask;
+X  endpos = D_endpos;
+X  r3 = D+1; r4 = D*2;  /* to make sure in register */
+X  for(k=0; k < D;   k++) A[k] = B[k] = 0;
+X  for(k=D; k <= r4; k++) A[k] = B[k] = Init[0];
+X   
+X  while ((num_read = fill_buf(Text, buffer + Max_record, Max_record)) > 0)
+X  {
+X    i=Max_record; end = Max_record + num_read;
+X    if(FIRSTROUND) { i = Max_record -1 ;
+X			if(DELIMITER) {
+X				for(k=0; k<D_length; k++) {
+X					if(old_D_pat[k] != buffer[Max_record+k]) 						break;
+X				}
+X				if(k>=D_length) j--;
+X			}
+X                     FIRSTROUND = 0; }
+X    if(num_read < BlockSize) {
+X                      strncpy(buffer+Max_record+num_read, old_D_pat, D_length);
+X                      end = end + D_length;
+X                      buffer[end] = '\0';
+X    }
+X    while (i < end)
+X    {
+X        CMask = Mask[buffer[i++]];
+X              r1 = Init1 & B[D];
+X              A[D] = ((B[D] >> 1) & CMask )  | r1;
+X              for(k = r3; k <= r4; k++)  /* r3 = D+1, r4 = 2*D */
+X              { 
+X                  r5 = B[k];
+X                  r1 = Init1 & r5;
+X                  A[k] = ((r5 >> 1) & CMask) | B[k-I] |                                                (((A[k-DD] | B[k-S]) >>1) & r_NO_ERR) | r1 ; 
+X              }
+X        if(A[D] & endpos) {  
+X           j++;
+X           if(((AND == 1) && ((A[D*2] & endposition) == endposition)) ||                           ((AND == 0) && (A[D*2] & endposition)) ^ INVERSE )
+X                   { 
+X                     if(FILENAMEONLY) {
+X			num_of_matched++;
+X                        printf("%s\n", CurrentFileName);
+X                        return;       } 
+X                     if(lasti < Max_record + num_read)
+X                        output(buffer, lasti, i-D_length-1, j); 
+X                   }
+X           lasti = i - D_length;
+X           TRUNCATE = OFF;
+X           for(k = D; k <= r4 ; k++) A[k] = B[k] = Init[0];
+X           r1 = Init1 & B[D];
+X           A[D] = (((B[D] >> 1) & CMask )  | r1) & D_Mask;
+X           for(k = r3; k <= r4; k++)  /* r3 = D+1, r4 = 2*D */
+X              { 
+X                  r5 = B[k];
+X                  r1 = Init1 & r5;
+X                  A[k] = ((r5 >> 1) & CMask) | B[k-I] |                                                (((A[k-DD] | B[k-S]) >>1) & r_NO_ERR) | r1 ; 
+X              }
+X        }  /* end if (A[D]&endpos) */
+X        CMask = Mask[buffer[i++]];
+X              r1 = A[D] & Init1;
+X              B[D] = ((A[D] >> 1) & CMask) | r1;
+X              for(k = r3; k <= r4; k++)
+X              { 
+X                  r1 = A[k] & Init1;
+X                  B[k] = ((A[k] >> 1) & CMask) | A[k-I] |                                                (((B[k-DD] | A[k-S]) >>1)&r_NO_ERR) | r1 ; 
+X              }
+X        if(B[D] & endpos)  {  
+X             j++;
+X           if(((AND == 1) && ((B[r4] & endposition) == endposition)) ||                           ((AND == 0) && (B[r4] & endposition)) ^ INVERSE )
+X                   { if(FILENAMEONLY) {
+X                        num_of_matched++;
+X                        printf("%s\n", CurrentFileName);
+X                        return;       }
+X                     if(lasti < Max_record + num_read)
+X                        output(buffer, lasti, i-D_length-1, j); 
+X                   } 
+X           lasti = i-D_length; 
+X           TRUNCATE = OFF;
+X           for(k=D; k <= r4; k++) A[k] = B[k] = Init[0];
+X           r1 = Init1 & A[D];
+X           B[D] = (((A[D] >> 1) & CMask )  | r1) & D_Mask;
+X           for(k = r3; k <= r4; k++)  /* r3 = D+1, r4 = 2*D */
+X              { 
+X                  r5 = A[k];
+X                  r1 = Init1 & r5;
+X                  B[k] = ((r5 >> 1) & CMask) | A[k-I] |                                                (((B[k-DD] | A[k-S]) >>1) & r_NO_ERR) | r1 ; 
+X              }
+X        }  /* end if (B[D]&endpos) */
+X    }
+X    ResidueSize = Max_record + num_read - lasti;
+X    if(ResidueSize > Max_record) {
+X            ResidueSize = Max_record;
+X            TRUNCATE = ON;   
+X    }
+X    strncpy(buffer+Max_record-ResidueSize, buffer+lasti, ResidueSize);
+X    lasti = Max_record - ResidueSize;
+X    if(lasti < 0) lasti = 1;
+X    if(num_read < BlockSize) lasti = Max_record;
+X  }
+X  return;
+X}
+X
+END_OF_FILE
+if test 5049 -ne `wc -c <'asearch1.c'`; then
+    echo shar: \"'asearch1.c'\" unpacked with wrong size!
+fi
+# end of 'asearch1.c'
+fi
+if test -f 'bitap.c' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'bitap.c'\"
+else
+echo shar: Extracting \"'bitap.c'\" \(5407 characters\)
+sed "s/^X//" >'bitap.c' <<'END_OF_FILE'
+X/* Copyright (c) 1991 Sun Wu and Udi Manber.  All Rights Reserved. */
+X/* if the pattern is not simple fixed pattern, then after preprocessing */
+X/* and generating the masks, the program goes here. four cases:  1.     */ 
+X/* the pattern is simple regular expression and no error, then do the   */
+X/* matching here.  2. the pattern is simple regular expression and      */
+X/* unit cost errors are allowed: then go to asearch().                  */
+X/* 3. the pattern is simple regular expression, and the edit cost is    */
+X/* not uniform, then go to asearch1().                                  */
+X/* if the pattern is regular expression then go to re() if M < 14,      */
+X/* else go to re1()                                                     */
+X/* input parameters: old_D_pat: delimiter pattern.                      */
+X/* fd, input file descriptor, M: size of pattern, D: # of errors.       */
+X
+X#include "agrep.h"
+X
+extern unsigned Init1, D_endpos, endposition, Init[], Mask[], Bit[];
+extern int DELIMITER, FILENAMEONLY, D_length, I, AND, REGEX, JUMP, INVERSE; 
+extern char D_pattern[];
+extern int TRUNCATE, DD, S;
+extern char Progname[], CurrentFileName[];
+extern int num_of_matched;
+X
+X/* bitap dispatches job */
+X
+bitap(old_D_pat, Pattern, fd, M, D)
+char old_D_pat[], *Pattern;  int fd, M, D;  
+X{
+char c;  
+register unsigned r1, r2, r3, CMask, i;
+register unsigned end, endpos, r_Init1;
+register unsigned D_Mask;
+int  ResidueSize , FIRSTROUND, lasti, print_end, j, num_read;
+int  k;
+char buffer[Max_record+Max_record+BlockSize];
+X  D_length = strlen(old_D_pat);
+X  for(i=0; i<D_length; i++) if(old_D_pat[i] == '^' || old_D_pat[i] == '$')
+X                               old_D_pat[i] = '\n';
+X  if (REGEX) { 
+X      if (D > 4) {
+X          fprintf(stderr, "%s: the maximum number of erorrs allowed for full regular expression is 4\n", Progname);
+X          exit(2);
+X      }
+X      if (M <= SHORTREG) { re(fd, M, D);   /* SUN: need to find a even point */ 
+X                     return; }
+X      else { re1(fd, M, D); 
+X             return; }
+X  }   
+X  if (D > 0 && JUMP == ON) 
+X     { asearch1(old_D_pat, fd, D); return; }
+X  if (D > 0) 
+X     { asearch(old_D_pat, fd, D); return; }
+X  if(I == 0) Init1 = 037777777777;
+X
+X  j=0;
+X  lasti = Max_record;
+X  buffer[Max_record-1] = '\n';
+X  r_Init1 = Init1;
+X  r1 = r2 = r3 = Init[0];
+X  endpos = D_endpos;
+X  
+X  buffer[Max_record-1] = '\n';
+X  D_Mask = D_endpos;
+X  for(i=1 ; i<D_length; i++) D_Mask = (D_Mask << 1) | D_Mask;
+X  D_Mask = ~D_Mask;
+X  FIRSTROUND = ON;
+X
+X  while ((num_read = fill_buf(fd, buffer + Max_record, Max_record)) > 0)
+X  {
+X    i=Max_record; end = Max_record + num_read; 
+X    if(FIRSTROUND) {  i = Max_record - 1 ;
+X
+X			if(DELIMITER) {
+X				for(k=0; k<D_length; k++) {
+X					if(old_D_pat[k] != buffer[Max_record+k]) 						break;
+X				}
+X				if(k>=D_length) j--;
+X			}
+X
+X                      FIRSTROUND = OFF;  }
+X    if(num_read < BlockSize) {
+X                      strncpy(buffer+Max_record+num_read, old_D_pat, D_length);
+X                      end = end + D_length;
+X                      buffer[end] = '\0';
+X    }
+X    while (i < end)
+X    {
+X        c = buffer[i++];
+X        CMask = Mask[c];
+X              r1 = r_Init1 & r3;
+X              r2 = (( r3 >> 1 ) & CMask) | r1;
+X        if ( r2 & endpos ) {
+X           j++;
+X           if(((AND == 1) && ((r2 & endposition) == endposition)) ||                           ((AND == 0) && (r2 & endposition)) ^ INVERSE )
+X               { 
+X                 if(FILENAMEONLY) {
+X                    num_of_matched++;
+X                    printf("%s\n", CurrentFileName);
+X                    return; }
+X                 print_end = i - D_length - 1;
+X                 if(!(lasti >= Max_record+num_read - 1))
+X                    output(buffer, lasti, print_end, j); 
+X               }
+X           lasti = i - D_length; 
+X           TRUNCATE = OFF;
+X           r2 = r3 = r1 = Init[0];
+X           r1 = r_Init1 & r3;
+X           r2 = ((( r2 >> 1) & CMask) | r1 ) & D_Mask;
+X        }
+X        c = buffer[i++];
+X        CMask = Mask[c];
+X              r1 = r_Init1 & r2;
+X              r3 = (( r2 >> 1 ) & CMask) | r1; 
+X        if ( r3 & endpos ) {
+X           j++;
+X           if(((AND == 1) && ((r3 & endposition) == endposition)) ||                           ((AND == 0) && (r3 & endposition)) ^ INVERSE )
+X               { 
+X                 if(FILENAMEONLY) {
+X                    num_of_matched++;
+X                    printf("%s\n", CurrentFileName);
+X                    return; }
+X                 print_end = i - D_length - 1;
+X                 if(!(lasti >= Max_record+num_read - 1))
+X                    output(buffer, lasti, print_end, j);
+X               }
+X           lasti = i - D_length ;
+X           TRUNCATE = OFF;
+X           r2 = r3 = r1 = Init[0]; 
+X           r1 = r_Init1 & r2;
+X           r3 = ((( r2 >> 1) & CMask) | r1 ) & D_Mask;
+X       }   
+X    }
+X    ResidueSize = num_read + Max_record - lasti;
+X    if(ResidueSize > Max_record) {
+X            ResidueSize = Max_record;
+X            TRUNCATE = ON;   
+X    }
+X    strncpy(buffer+Max_record-ResidueSize, buffer+lasti, ResidueSize);
+X    lasti = Max_record - ResidueSize;
+X    if(lasti < 0) {
+X       lasti = 1;
+X    } 
+X  }
+X  return;
+X}
+X
+fill_buf(fd, buf, record_size)
+int fd, record_size; unsigned char *buf;
+X{
+int num_read=1;
+int total_read=0;
+X	while(total_read < record_size && num_read > 0) {
+X		num_read = read(fd, buf+total_read, 4096);
+X		total_read = total_read + num_read;
+X	}
+X	return(total_read);
+X}
+X
+END_OF_FILE
+if test 5407 -ne `wc -c <'bitap.c'`; then
+    echo shar: \"'bitap.c'\" unpacked with wrong size!
+fi
+# end of 'bitap.c'
+fi
+if test -f 'checkfile.c' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'checkfile.c'\"
+else
+echo shar: Extracting \"'checkfile.c'\" \(2149 characters\)
+sed "s/^X//" >'checkfile.c' <<'END_OF_FILE'
+X/*
+X *  checkfile.c
+X *    takes a file descriptor and checks to see if a file is a regular
+X *    ascii file
+X *
+X */
+X
+X#include <stdio.h>
+X#include <ctype.h>
+X#include <fcntl.h>
+X#include <sys/types.h>
+X#include <sys/stat.h>
+X#include <errno.h>
+X
+X#include "checkfile.h"
+X
+X#define MAXLINE 512
+X
+extern char Progname[];
+extern int errno;
+X
+unsigned char ibuf[MAXLINE];
+X
+X/**************************************************************************
+X*
+X*    check_file
+X*       input:  filename or path (null-terminated character string)
+X*       returns: int (0 if file is a regular file, non-0 if not)
+X*
+X*    uses stat(2) to see if a file is a regular file.
+X*
+X***************************************************************************/
+X
+int check_file(fname)
+char *fname;
+X
+X{
+struct stat buf;
+int ftype;
+X
+X
+X  if (stat(fname, &buf) != 0) {
+X    if (errno == ENOENT)
+X      return NOSUCHFILE;
+X    else
+X      return STATFAILED;  
+X    } else {
+X/*
+X      if (S_ISREG(buf.st_mode)) {
+X        if ((ftype = samplefile(fname)) == ISASCIIFILE) {
+X          return ISASCIIFILE;
+X        } else if (ftype == ISBINARYFILE) {
+X          return ISBINARYFILE;
+X        } else if (ftype == OPENFAILED) {
+X          return OPENFAILED;
+X        }
+X      }
+X      if (S_ISDIR(buf.st_mode)) {
+X        return ISDIRECTORY;
+X      }
+X      if (S_ISBLK(buf.st_mode)) {
+X        return ISBLOCKFILE;
+X      }
+X      if (S_ISSOCK(buf.st_mode)) {
+X        return ISSOCKET;
+X      }
+X*/
+X    }
+X}
+X
+X/***************************************************************************
+X*
+X*  samplefile
+X*    reads in the first part of a file, and checks to see that it is
+X*    all ascii.
+X*
+X***************************************************************************/
+X/*
+int samplefile(fname)
+char *fname;
+X{
+char *p;
+int numread;
+int fd;
+X
+X  if ((fd = open(fname, O_RDONLY)) == -1) {
+X    fprintf(stderr, "open failed on filename %s\n", fname);
+X    return OPENFAILED;
+X  }
+X  if (numread = read(fd, ibuf, MAXLINE)) {
+X   close(fd);
+X   p = ibuf;
+X    while (isascii(*p++) && --numread);
+X    if (!numread) {
+X      return(ISASCIIFILE);
+X    } else {
+X      return(ISBINARYFILE);
+X    }
+X  } else {
+X    close(fd);
+X    return(ISASCIIFILE);
+X  }
+X}
+X*/
+END_OF_FILE
+if test 2149 -ne `wc -c <'checkfile.c'`; then
+    echo shar: \"'checkfile.c'\" unpacked with wrong size!
+fi
+# end of 'checkfile.c'
+fi
+if test -f 'checkfile.h' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'checkfile.h'\"
+else
+echo shar: Extracting \"'checkfile.h'\" \(174 characters\)
+sed "s/^X//" >'checkfile.h' <<'END_OF_FILE'
+X#define NOSUCHFILE -3
+X#define OPENFAILED -2
+X#define STATFAILED -1
+X#define ISASCIIFILE 0
+X#define ISDIRECTORY 1
+X#define ISBLOCKFILE 2
+X#define ISSOCKET 3
+X#define ISBINARYFILE 4
+END_OF_FILE
+if test 174 -ne `wc -c <'checkfile.h'`; then
+    echo shar: \"'checkfile.h'\" unpacked with wrong size!
+fi
+# end of 'checkfile.h'
+fi
+if test -f 'compat.c' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'compat.c'\"
+else
+echo shar: Extracting \"'compat.c'\" \(1301 characters\)
+sed "s/^X//" >'compat.c' <<'END_OF_FILE'
+X/* test the conflicts between options */
+X#include <stdio.h>
+X
+extern int FILENAMEONLY, APPROX, PAT_FILE, COUNT, INVERSE, BESTMATCH;
+extern FILEOUT;
+extern REGEX;
+extern DELIMITER;
+extern WHOLELINE;
+extern LINENUM;
+extern I, S, DD;
+extern JUMP;
+extern char Progname[32];
+X
+compat()
+X{
+int i, j, k;
+X	if(BESTMATCH)  if(COUNT || FILENAMEONLY || APPROX || PAT_FILE) {
+X		BESTMATCH = 0;
+X		fprintf(stderr, "WARNING!!! -B option ignored when -c, -l, -f, or -# is on\n", Progname);
+X	}
+X	if(PAT_FILE)   {
+X		if(APPROX)  {
+X			fprintf(stderr, "WARNING!!!  approximate matching is not supported with -f option\n");
+X		}
+X/*
+X		if(INVERSE) {
+X			fprintf(stderr, "%s: -f and -v are not compatible\n", Progname);
+X			exit(2);
+X		}
+X*/
+X		if(LINENUM) {
+X			fprintf(stderr, "%s: -f and -n are not compatible\n", Progname);
+X			exit(2);
+X		}
+X		if(DELIMITER) {
+X			fprintf(stderr, "%s: -f and -d are not compatible\n", Progname);
+X			exit(2);
+X		}
+X	}
+X	if(JUMP) {
+X		if(REGEX) {
+X			fprintf(stderr, "WARNING!!! -D#, -I#, or -S# option is ignored for regular expression pattern\n");
+X			JUMP = 0;
+X		}
+X		if(I == 0 || S == 0 || DD == 0) {
+X			fprintf(stderr, "%s: the error cost cannot be 0\n", Progname);
+X			exit(2);
+X		}
+X	}
+X	if(DELIMITER) {
+X		if(WHOLELINE) {
+X			fprintf(stderr, "%s: -d and -x is not compatible\n", Progname);
+X			exit(2);
+X		}
+X	}
+X
+X}
+END_OF_FILE
+if test 1301 -ne `wc -c <'compat.c'`; then
+    echo shar: \"'compat.c'\" unpacked with wrong size!
+fi
+# end of 'compat.c'
+fi
+if test -f 'contribution.list' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'contribution.list'\"
+else
+echo shar: Extracting \"'contribution.list'\" \(318 characters\)
+sed "s/^X//" >'contribution.list' <<'END_OF_FILE'
+List of people who have contributed to agrep:
+X
+Chunghwa H. Rao
+Gene Myers
+Ricardo Baeza-Yates
+Cliff Hathaway 
+Ric Anderson 
+Su-Ing Tsuei
+Raphael Finkel
+Andrew Hume
+David W. Sanderson
+William I. Chang
+Jack Kirman
+Dave Lutz
+Tony Plate
+Ken Lalonde
+Mark Christopher
+Dieter Becker
+Ian Young
+James M. Winget
+John F. Stoffel
+END_OF_FILE
+if test 318 -ne `wc -c <'contribution.list'`; then
+    echo shar: \"'contribution.list'\" unpacked with wrong size!
+fi
+# end of 'contribution.list'
+fi
+if test -f 'follow.c' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'follow.c'\"
+else
+echo shar: Extracting \"'follow.c'\" \(3224 characters\)
+sed "s/^X//" >'follow.c' <<'END_OF_FILE'
+X/* the functions in this file take a syntax tree for a regular
+X   expression and produce a DFA using the McNaughton-Yamada
+X   construction.						*/
+X
+X#include <stdio.h>
+X#include "re.h"
+X
+extern char *strncpy(), *strcat(), *strcpy();
+extern int  strlen();
+X
+X#define TRUE	1
+X
+extern char *malloc();
+extern Pset pset_union(); 
+extern int pos_cnt;
+extern Re_node parse();
+X
+Re_lit_array lpos; 
+X
+X
+X/*  extend_re() extends the RE by adding a ".*(" at the front and a "("
+X    at the back.						   	*/
+X
+char *extend_re(s)
+char *s;
+X{
+X    char *s1;
+X
+X    s1 = malloc((unsigned) strlen(s)+4+1);
+X    return strcat(strcat(strcpy(s1, ".*("), s), ")");
+X}
+X
+X/* mk_followpos() takes a syntax tree for a regular expression and
+X   traverses it once, computing the followpos function at each node
+X   and returns a pointer to an array whose ith element is a pointer
+X   to a list of position nodes, representing the positions in
+X   followpos(i).							*/
+X
+void mk_followpos_1(e, fpos)
+Re_node e;
+Pset_array fpos;
+X{
+X    Pset pos;
+X    int i;
+X
+X    switch (Op(e)) {
+X	case EOS: break;
+X	case OPSTAR:
+X	    pos = Lastpos(e);
+X	    while (pos != NULL) {
+X		i = pos->posnum;
+X		(*fpos)[i] = pset_union(Firstpos(e), (*fpos)[i]);
+X		pos = pos->nextpos;
+X	    }
+X	    mk_followpos_1(Child(e), fpos);
+X	    break;
+X	case OPCAT:
+X	    pos = Lastpos(Lchild(e));
+X	    while (pos != NULL) {
+X		i = pos->posnum;
+X		(*fpos)[i] = pset_union(Firstpos(Rchild(e)), (*fpos)[i]);
+X		pos = pos->nextpos;
+X	    }
+X	    mk_followpos_1(Lchild(e), fpos);
+X	    mk_followpos_1(Rchild(e), fpos);
+X	    break;
+X	case OPOPT:
+X	    mk_followpos_1(Child(e), fpos);
+X	    break;
+X	case OPALT:
+X	    mk_followpos_1(Lchild(e), fpos);
+X	    mk_followpos_1(Rchild(e), fpos);
+X	    break;
+X	case LITERAL:
+X	    break;
+X	default: printf("mk_followpos: unknown node type %d\n", Op(e));
+X    }
+X    return;
+X}
+X
+Pset_array mk_followpos(tree, npos)
+Re_node tree;
+int npos;
+X{
+X    int i;
+X    Pset_array fpos;
+X
+X    if (tree == NULL || npos < 0) return NULL;
+X    fpos = (Pset_array) malloc((unsigned) (npos+1)*sizeof(Pset));
+X    if (fpos == NULL) return NULL;
+X    for (i = 0; i <= npos; i++) (*fpos)[i] = NULL;
+X    mk_followpos_1(tree, fpos);
+X    return fpos;
+X}
+X
+X/* mk_poslist() sets a static array whose i_th element is a pointer to
+X   the RE-literal at position i.  It returns 1 if everything is OK,  0
+X   otherwise.								*/
+X
+X/* init performs initialization actions; it returns -1 in case of error,
+X   0 if everything goes OK.						*/
+X
+int init(s, table)
+char *s; int table[32][32];
+X{
+X    Pset_array fpos;
+X    Re_node e;
+X    Pset l;
+X    int i, j;
+X
+X    if ((e = parse(extend_re(s))) == NULL) return -1;
+X    if ((fpos = mk_followpos(e, pos_cnt)) == NULL) return -1;
+X    for (i = 0; i <= pos_cnt; i += 1) {
+X#ifdef Debug
+X	printf("followpos[%d] = ", i);
+X#endif
+X        l = (*fpos)[i];
+X        j = 0;
+X        for ( ; l != NULL; l = l->nextpos)  {
+X#ifdef Debug
+X            printf("%d ", l->posnum);
+X#endif
+X            table[i][j] = l->posnum;
+X            j++;
+X        } 
+X#ifdef Debug
+X        printf("\n");
+X#endif
+X    }
+X#ifdef Debug
+X    for (i=0; i <= pos_cnt; i += 1)  {
+X       j = 0;
+X       while (table[i][j] != 0) {
+X          printf(" %d ", table[i][j]);
+X          j++;
+X      }
+X      printf("\n");
+X   }
+X#endif
+X    return (pos_cnt);
+X}
+X
+END_OF_FILE
+if test 3224 -ne `wc -c <'follow.c'`; then
+    echo shar: \"'follow.c'\" unpacked with wrong size!
+fi
+# end of 'follow.c'
+fi
+if test -f 'maskgen.c' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'maskgen.c'\"
+else
+echo shar: Extracting \"'maskgen.c'\" \(6459 characters\)
+sed "s/^X//" >'maskgen.c' <<'END_OF_FILE'
+X/* Copyright (c) 1991 Sun Wu and Udi Manber.  All Rights Reserved. */
+X#include "agrep.h"
+X 
+extern unsigned D_endpos, endposition, Init1, wildmask;
+extern Mask[], Bit[], Init[], NO_ERR_MASK;
+extern int AND, SIMPLEPATTERN, REGEX, NOUPPER, D_length;
+extern unsigned char Progname[];
+X	   
+maskgen(Pattern, D)
+unsigned char *Pattern; int D;
+X{
+struct term { int flag; unsigned char class[WORD];
+X            } position[WORD+10];
+unsigned char c;
+X
+int i, j, k, l, M, OR=0, EVEN = 0, base, No_error;
+X
+X
+for(i=0; i<WORD; i++) position[i].class[0] = '\0';
+for(i=0; i<WORD; i++) position[i].flag = 0;
+wildmask = NO_ERR_MASK = endposition = 0;
+No_error = 0;
+M = strlen(Pattern);
+if(NOUPPER) {
+X              for(i=0; i<M; i++) if(isalpha(Pattern[i])) 
+X                     if (isupper(Pattern[i])) Pattern[i] = tolower(Pattern[i]);
+X            }
+X#ifdef DEBUG
+X	for(i=0; i<M; i++) printf(" %d", Pattern[i]);
+X	printf("\n");
+X#endif
+for (i=0, j=1; i< M; i++)
+X{
+X  switch (Pattern[i])
+X  {
+X    case WILDCD : if(REGEX) {
+X                     position[j].class[0] = '.';
+X                     position[j].class[1] = '.';
+X                     position[j++].class[2] = '\0'; 
+X                     break;
+X                  }
+X                  wildmask = wildmask | Bit[j-1]; break;
+X    case STAR   : break; 
+X    case ORSYM  : break; 
+X    case LPARENT: break;
+X    case RPARENT: break;
+X    case LANGLE : No_error = ON; EVEN++;
+X                  break;
+X    case RANGLE : No_error = OFF; EVEN--;
+X                  if(EVEN < 0) {
+X                     fprintf(stderr, "%s: illegal pattern, unmatched '<', '>'\n", Progname);
+X                     exit(2);
+X                  }
+X                  break;
+X    case LRANGE : if(No_error == ON) NO_ERR_MASK = NO_ERR_MASK | Bit[j]; 
+X                  i=i+1; 
+X                  if (Pattern[i] == NOTSYM) { position[j].flag = Compl; i++; }
+X                  k=0;
+X                  while (Pattern[i] != RRANGE && i < M)
+X                  { 
+X                    if(Pattern[i] == HYPHEN) 
+X                       { position[j].class[k-1] = Pattern[i+1]; i=i+2; }
+X                    else { 
+X                     position[j].class[k] = position[j].class[k+1] = Pattern[i];
+X                     k = k+2; i++;
+X                    }
+X                  }
+X                  if(i == M) {
+X                     fprintf(stderr, "%s: illegal pattern, unmatched '[', ']'\n",Progname);
+X                     exit(2);
+X                  }
+X                  position[j].class[k] = '\0';
+X                  j++; break;
+X    case RRANGE : fprintf(stderr, "%s: illegal pattern, unmatched '[', ']'\n", Progname); 
+X                  exit(2);
+X                  break;     
+X    case ORPAT  : if(REGEX == ON || AND == ON) {
+X                     fprintf(stderr, "illegal pattern \n");
+X                     exit(2);
+X                  }
+X                  OR = ON;
+X                  position[j].flag = 2; position[j].class[0] = '\0';
+X                  endposition = endposition | Bit[j++]; break;
+X    case ANDPAT : position[j].flag = 2; position[j].class[0] = '\0'; 
+X                  if(j > D_length) AND = ON;
+X                  if(OR || (REGEX == ON && j>D_length)) {
+X                     fprintf(stderr, "illegal pattern \n");
+X                     exit(2);
+X                  }
+X                  endposition = endposition | Bit[j++]; break;
+X/*
+X    case ' '    : if (Pattern[i-1] == ORPAT || Pattern[i-1] == ANDPAT) break;
+X                  if(No_error == ON) NO_ERR_MASK = NO_ERR_MASK | Bit[j];
+X                  position[j].flag = 0;
+X                  position[j].class[0] = position[j].class[1] = Pattern[i];
+X                  position[j++].class[2] = '\0';  break;
+X*/
+X    case '\n'   : NO_ERR_MASK = NO_ERR_MASK | Bit[j];
+X                  position[j].class[0] = position[j].class[1] = '\n';
+X                  position[j++].class[2] = '\0'; 
+X                  break;
+X    case WORDB  : NO_ERR_MASK = NO_ERR_MASK | Bit[j];
+X                  position[j].class[0] = 1;
+X                  position[j].class[1] = 47;
+X                  position[j].class[2] = 58;
+X                  position[j].class[3] = 64;
+X                  position[j].class[4] = 91;
+X                  position[j].class[5] = 96;
+X                  position[j].class[6] = 123;
+X                  position[j].class[7] = 127;
+X                  position[j++].class[8] = '\0';
+X                  break;    
+X    case NNLINE : NO_ERR_MASK |= Bit[j];
+X                  position[j].class[0] = position[j].class[1] = '\n';
+X                  position[j].class[2] = position[j].class[3] = NNLINE;
+X                  position[j++].class[4] = '\0';
+X                  break;
+X    default : if(No_error == ON) NO_ERR_MASK = NO_ERR_MASK | Bit[j];
+X                  position[j].flag = 0;
+X                  position[j].class[0] = position[j].class[1] = Pattern[i];
+X                  position[j++].class[2] = '\0'; 
+X  }
+X  if(j > WORD) {
+X     fprintf(stderr, "%s: pattern too long\n", Progname);
+X     exit(2);
+X  }
+X}
+X  if (EVEN != 0) {
+X     fprintf(stderr, "%s: illegal pattern, unmatched '<', '>'\n", Progname);
+X     exit(2);
+X  }
+M = j - 1;
+base = WORD - M;
+wildmask = (wildmask >> base);
+endposition = (endposition >> base);
+NO_ERR_MASK = (NO_ERR_MASK >> 1) & (~Bit[1]);
+NO_ERR_MASK = ~NO_ERR_MASK >> (base-1);
+X  for (i=1; i<= WORD - M ; i++) Init[0] = Init[0] | Bit[i];
+X  Init[0] = Init[0] | endposition;
+X             /* not necessary for INit[i], i>0, */
+X             /* but at every begining of the matching process append one
+X                no-match character to initialize the error vectors */
+X  endposition = ( endposition << 1 ) + 1;
+X  Init1 = (Init[0] | wildmask | endposition) ;
+X  D_endpos = ( endposition >> ( M - D_length ) ) << ( M - D_length);
+X  endposition = endposition ^ D_endpos;
+X#ifdef DEBUG
+X	printf("endposition: %o\n", endposition);
+X	printf("no_err_mask: %o\n", NO_ERR_MASK);
+X#endif
+X  for(c=0, i=0; i < MAXSYM; c++, i++)
+X  {
+X     for (k=1, l=0; k<=M ; k++, l=0)  {
+X         while (position[k].class[l] != '\0') {
+X               if (position[k].class[l] == NOCARE && (c != '\n' || REGEX) ) 
+X                  {  Mask[c] = Mask[c] | Bit[base + k]; break; }
+X               if (c >= position[k].class[l] && c <= position[k].class[l+1])
+X                  {  Mask[c] = Mask[c] | Bit[base + k]; break; }
+X               l = l + 2;  }
+X         if (position[k].flag == Compl) Mask[c] = Mask[c] ^ Bit[base+k];
+X     }
+X  }
+X  if(NOUPPER) for(c='A'; c<='Z'; c=c+1) if (isupper(c)) 
+X                  Mask[c] = Mask[tolower(c)]; 
+X  return(M);
+X}
+X
+END_OF_FILE
+if test 6459 -ne `wc -c <'maskgen.c'`; then
+    echo shar: \"'maskgen.c'\" unpacked with wrong size!
+fi
+# end of 'maskgen.c'
+fi
+if test -f 'preprocess.c' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'preprocess.c'\"
+else
+echo shar: Extracting \"'preprocess.c'\" \(7657 characters\)
+sed "s/^X//" >'preprocess.c' <<'END_OF_FILE'
+X/* Copyright (c) 1991 Sun Wu and Udi Manber.  All Rights Reserved. */
+X/* substitute metachar with special symbol                               */
+X/* if regularr expression, then set flag REGEX                           */
+X/* if REGEX and MULTIPAT then report error message,                      */
+X/* -w only for single word pattern. If WORDBOUND & MULTIWORD error       */
+X/* process start of line, endof line symbol,                             */
+X/* process -w WORDBOUND option, append special symbol at begin&end of    */
+X/* process -d option before this routine                                 */
+X/* the delimiter pattern is in D_pattern (need to end with '; ')          */
+X/* if '-t' (suggestion: how about -B) the pattern is passed to sgrep     */
+X/* and doesn't go here                                                   */
+X/* in that case, -d is ignored? or not necessary                         */
+X/* upon return, Pattern contains the pattern to be processed by maskgen  */
+X/* D_pattern contains transformed D_pattern                              */
+X   
+X#include "agrep.h"
+X  
+extern int SIMPLEPATTERN, WHOLELINE, REGEX, RE_ERR, DELIMITER, TAIL, WORDBOUND;
+extern int HEAD;
+extern CHAR Progname[];
+extern int D_length;
+extern int table[WORD][WORD];
+X  
+preprocess(D_pattern, Pattern)   /* need two parameters  */
+CHAR *D_pattern, *Pattern;
+X{
+X  CHAR temp[Maxline], *r_pat, *old_pat;  /* r_pat for r.e. */
+X  CHAR old_D_pat[MaxDelimit];
+X  int i, j=0, rp=0, m, t=0, partitions, num_pos, ANDON = 0;
+X  int d_end ;  
+X  int IN_RANGE=0, EVEN=0, OR_AND=0;
+X  old_pat = Pattern; /* to remember the starting position */
+X  m = strlen(Pattern);
+X  for(i=0; i< m; i++) {
+X      if(Pattern[i] == '\\') i++;
+X      else if(Pattern[i] == '|' || Pattern[i] == '*' ) REGEX = ON;   
+X  }
+X  r_pat = (CHAR *) malloc(strlen(Pattern)+2*strlen(D_pattern));
+X  strcpy(temp, D_pattern);
+X  d_end = t = strlen(temp);  /* size of D_pattern, including '; ' */
+X  if (WHOLELINE) { temp[t++] = LANGLE; 
+X                   temp[t++] = NNLINE; 
+X                   temp[t++] = RANGLE;
+X                   temp[t] = '\0';
+X                   strcat(temp, Pattern);
+X                   m = strlen(temp);
+X                   temp[m++] = LANGLE; 
+X                   temp[m++] = '\n'; 
+X                   temp[m++] = RANGLE; 
+X                   temp[m] = '\0';  }
+X  else {
+X     if (WORDBOUND) { temp[t++] = LANGLE; 
+X                      temp[t++] = WORDB; 
+X                      temp[t++] = RANGLE;
+X                      temp[t] = '\0'; }
+X     strcat(temp, Pattern);
+X     m = strlen(temp);
+X     if (WORDBOUND) { temp[m++] = LANGLE; 
+X                      temp[m++] = WORDB; 
+X                      temp[m++] = RANGLE; }
+X     temp[m] = '\0';
+X  }
+X        /* now temp contains augmented pattern , m it's size */
+X
+X  D_length = 0;
+X  for (i=0, j=0; i< d_end-2; i++) {
+X      switch(temp[i]) 
+X      {
+X         case '\\' : i++; 
+X                     Pattern[j++] = temp[i];
+X                     old_D_pat[D_length++] = temp[i];
+X                     break;
+X         case '<'  : Pattern[j++] = LANGLE;
+X                     break;
+X         case '>'  : Pattern[j++] = RANGLE;
+X                     break;
+X         case '^'  : Pattern[j++] = '\n';
+X                     old_D_pat[D_length++] = temp[i];
+X                     break;
+X         case '$'  : Pattern[j++] = '\n';
+X                     old_D_pat[D_length++] = temp[i];
+X                     break;
+X         default  :  Pattern[j++] = temp[i];
+X                     old_D_pat[D_length++] = temp[i];
+X                     break;
+X     }
+X  }
+X  if(D_length > MAXDELIM) {
+X     fprintf(stderr, "%s: delimiter pattern too long\n", Progname);
+X     exit(2);
+X  }
+X  Pattern[j++] = ANDPAT;
+X  old_D_pat[D_length] = '\0';
+X  strcpy(D_pattern, old_D_pat);
+X  D_length++;
+X/*
+X  Pattern[j++] = ' ';
+X*/
+X  Pattern[j] = '\0';
+X  rp = 0; 
+X  if(REGEX) {
+X      r_pat[rp++] = '.';    /* if REGEX: always append '.' in front */
+X      r_pat[rp++] = '(';
+X      Pattern[j++] = NOCARE;
+X      HEAD = ON;
+X  }
+X  for (i=d_end; i < m ; i++)
+X  {
+X       switch(temp[i]) 
+X       {
+X           case '\\': i++;  Pattern[j++] = temp[i]; 
+X                      r_pat[rp++] = 'o';   /* the symbol doesn't matter */
+X                      break;
+X           case '#':  if(REGEX) {
+X                         Pattern[j++] = NOCARE;
+X                         r_pat[rp++] = '.';
+X                         r_pat[rp++] = '*';
+X                         break; }
+X                      Pattern[j++] = WILDCD;
+X                      break; 
+X           case '(':  Pattern[j++] = LPARENT; 
+X                      r_pat[rp++] = '(';     
+X                      break;
+X           case ')':  Pattern[j++] = RPARENT; 
+X                      r_pat[rp++] = ')'; 
+X                      break;
+X           case '[':  Pattern[j++] = LRANGE;  
+X                      r_pat[rp++] = '[';
+X                      IN_RANGE = ON;
+X                      break;
+X           case ']':  Pattern[j++] = RRANGE;  
+X                      r_pat[rp++] = ']'; 
+X		      IN_RANGE = OFF;
+X                      break;
+X           case '<':  Pattern[j++] = LANGLE;  
+X                      break;
+X           case '>':  Pattern[j++] = RANGLE;  
+X                      break;
+X           case '^':  if (temp[i-1] == '[') Pattern[j++] = NOTSYM;
+X                      else Pattern[j++] = '\n';
+X                      r_pat[rp++] = '^';
+X                      break;
+X           case '$':  Pattern[j++] = '\n'; 
+X                      r_pat[rp++] = '$';
+X                      break;
+X           case '.':  Pattern[j++] = NOCARE;
+X                      r_pat[rp++] = '.';
+X                      break;
+X           case '*':  Pattern[j++] = STAR; 
+X                      r_pat[rp++] = '*';
+X                      break;
+X           case '|':  Pattern[j++] = ORSYM; 
+X                      r_pat[rp++] = '|';
+X                      break;
+X           case ',':  Pattern[j++] = ORPAT;  
+X                      RE_ERR = ON; 
+X                      break;
+X           case ';':  if(ANDON) RE_ERR = ON; 
+X                      Pattern[j++] = ANDPAT;
+X                      ANDON = ON;
+X                      break;
+X           case '-':  if(IN_RANGE) {
+X                          Pattern[j++] = HYPHEN; 
+X                          r_pat[rp++] = '-';
+X                      }
+X                      else { 
+X                          Pattern[j++] = temp[i];
+X                          r_pat[rp++] = temp[i];
+X                      }  
+X                      break;
+X           case NNLINE :
+X                      Pattern[j++] = temp[i];
+X                      r_pat[rp++] = 'N';
+X                      break;
+X           default:   Pattern[j++] = temp[i]; 
+X                      r_pat[rp++] = temp[i];
+X                      break;
+X      }
+X  }
+X  if(REGEX) {           /* append ').' at end of regular expression */
+X      r_pat[rp++] = ')';
+X      r_pat[rp++] = '.';
+X      Pattern[j++] = NOCARE;
+X      TAIL = ON;
+X  }
+X  Pattern[j] = '\0'; 
+X  m = j;
+X  r_pat[rp] = '\0'; 
+X  if(REGEX)
+X  {  
+X     if(DELIMITER || WORDBOUND)  {
+X          fprintf(stderr, "%s: -d or -w option is not supported for this pattern\n", Progname);
+X          exit(2);
+X     }
+X     if(RE_ERR) {
+X        fprintf(stderr, "%s: illegal regular expression\n", Progname);
+X        exit(2);
+X     }
+X     while(*Pattern != NOCARE && m-- > 0) Pattern++;  /* poit to . */
+X     num_pos = init(r_pat, table);
+X     if(num_pos <= 0) {
+X         fprintf(stderr, "%s: illegal regular expression\n", Progname);
+X         exit(2);
+X     }
+X     if(num_pos > 30) {
+X        fprintf(stderr, "%s: regular expression too long\n", Progname);
+X        exit(2);
+X     }
+X  strcpy(old_pat, Pattern); /* do real change to the Pattern to be returned */
+X  return;
+X  } /* if regex */
+X
+X  return;
+X}
+X
+END_OF_FILE
+if test 7657 -ne `wc -c <'preprocess.c'`; then
+    echo shar: \"'preprocess.c'\" unpacked with wrong size!
+fi
+# end of 'preprocess.c'
+fi
+if test -f 're.h' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'re.h'\"
+else
+echo shar: Extracting \"'re.h'\" \(3433 characters\)
+sed "s/^X//" >'re.h' <<'END_OF_FILE'
+X/*************************************************************
+X *							     *
+X * 	Macros defining special characters.		     *
+X *							     *
+X *************************************************************/
+X
+X#define NUL	    '\0'
+X#define ASCII_MIN   '\001'
+X#define ASCII_MAX   '\177'
+X
+X/*************************************************************
+X *							     *
+X * 	Macros defining lexical categories.		     *
+X *							     *
+X *************************************************************/
+X
+X#define C_LIT	0   /* individual character literal */
+X#define C_SET	1   /* character set literal	    */
+X
+X#define EOS		0	/* end-of-string */
+X#define LITERAL		1
+X#define OPSTAR		2
+X#define OPALT		3
+X#define OPOPT		4
+X#define OPCAT		5
+X#define LPAREN		6
+X#define RPAREN		7
+X
+X/*************************************************************
+X *							     *
+X * 	Macros for manipulating syntax tree nodes.	     *
+X *							     *
+X *************************************************************/
+X
+X#define lit_type(x)	(x->l_type)
+X#define lit_pos(x)	(x->pos)
+X#define lit_char(x)	((x->val).c)
+X#define lit_cset(x)	((x->val).cset)
+X
+X#define tok_type(x)	(x->type)
+X#define tok_val(x)	(x->val)
+X#define tok_op(x)       (x->val->op)
+X#define tok_lit(x)	((x->val->refs).lit)
+X
+X#define Op(x)		(x->op)
+X#define Lit(x)		((x->refs).lit)
+X#define Child(x)	((x->refs).child)
+X#define Lchild(x)	((x->refs).children.l_child)
+X#define Rchild(x)	((x->refs).children.r_child)
+X#define Nullable(x)	(x->nullable)
+X#define Firstpos(x)	(x->firstposn)
+X#define Lastpos(x)	(x->lastposn)
+X
+X/*************************************************************
+X *							     *
+X *  Macros for manipulating DFA states and sets of states.   *
+X *							     *
+X *************************************************************/
+X
+X#define Positions(x)	(x->posns)
+X#define Final_St(x)	(x->final)
+X#define Goto(x, c)	((x->trans)[c])
+X#define Next_State(x)	((x)->next_state)
+X
+X/*************************************************************/
+X
+X#define new_node(x)	malloc(sizeof(*x))
+X
+typedef struct {	/* character range literals */
+X	    char low_bd, hi_bd;
+X	} *Ch_Range;
+X
+typedef struct ch_set {	    /* character set literals */
+X	    Ch_Range elt;	/* rep. as list of ranges */
+X	    struct ch_set *rest;
+X	} *Ch_Set;
+X
+typedef struct {	/* regular expression literal */
+X	    int pos;	     /* position in syntax tree */
+X	    short l_type;    /* type of literal */
+X	    union {
+X		char c;     /* for character literals */
+X		Ch_Set cset; /* for character sets */
+X	    } val;
+X	} *Re_Lit, *(*Re_lit_array)[];
+X
+typedef struct pnode {
+X	    int posnum;
+X	    struct pnode *nextpos;
+X	} *Pset, *(*Pset_array)[];
+X
+typedef struct rnode {	/* regular expression node */
+X	    short op;     /* operator at that node */
+X	    union {
+X		Re_Lit lit;		/* child is a leaf node */
+X		struct rnode *child;	/* child of unary op */
+X		struct {
+X		    struct rnode *l_child; 
+X		    struct rnode *r_child;
+X		} children;		/* children of binary op */
+X	    } refs;
+X	    short nullable;
+X	    Pset firstposn, lastposn;
+X	} *Re_node;
+X
+typedef struct {			/* token node */
+X	    short type;
+X	    Re_node val;
+X	} *Tok_node;
+X
+X
+typedef struct snode {
+X	    Re_node val;
+X	    int size;
+X	    struct snode *next;
+X	} *Stack;
+X
+typedef struct dfa_st {
+X	    Pset posns;
+X	    int final;	    /* 1 if the state is a final state, 0 o/w */
+X	    struct dfa_st *trans[128];
+X	} *Dfa_state;
+X
+typedef struct dfa_stset {
+X	    Dfa_state st;
+X	    struct dfa_stset *next_state;
+X	} *Dfa_state_set;
+X
+X
+END_OF_FILE
+if test 3433 -ne `wc -c <'re.h'`; then
+    echo shar: \"'re.h'\" unpacked with wrong size!
+fi
+# end of 're.h'
+fi
+if test -f 'utilities.c' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'utilities.c'\"
+else
+echo shar: Extracting \"'utilities.c'\" \(2977 characters\)
+sed "s/^X//" >'utilities.c' <<'END_OF_FILE'
+X/* this file contains various utility functions for accessing
+X   and manipulating regular expression syntax trees.	*/
+X
+X#include <stdio.h>
+X#include "re.h"
+X
+X/************************************************************************/
+X/*                                                                      */
+X/*  the following routines implement an abstract data type "stack".	*/
+X/*                                                                      */
+X/************************************************************************/
+X
+Stack Push(s, v)
+Stack *s;
+Re_node v;
+X{
+X    Stack node;
+X
+X    node = (Stack) new_node(node);
+X    if (s == NULL || node == NULL) return NULL;	    /* can't allocate */
+X    node->next = *s;
+X    node->val = v;
+X    if (*s == NULL) node->size = 1;
+X    else node->size = (*s)->size + 1;
+X    *s = node;
+X    return *s;
+X}
+X
+Re_node Pop(s)
+Stack *s;
+X{
+X    Re_node node;
+X    Stack temp;
+X
+X    if (s == NULL || *s == NULL) return NULL;
+X    else {
+X	temp = *s;
+X	node = (*s)->val;
+X	*s = (*s)->next;
+X	free(temp);
+X	return node;
+X    }
+X}
+X
+Re_node Top(s)
+Stack s;
+X{
+X    if (s == NULL) return NULL;
+X    else return s->val;
+X}
+X
+int Size(s)
+Stack s;
+X{
+X    if (s == NULL) return 0;
+X    else return s->size;
+X}
+X
+X/************************************************************************/
+X/*                                                                      */
+X/*	the following routines manipulate sets of positions.		*/
+X/*                                                                      */
+X/************************************************************************/
+X
+int occurs_in(n, p)
+int n;
+Pset p;
+X{
+X    while (p != NULL)
+X	if (n == p->posnum) return 1;
+X	else p = p->nextpos;
+X    return 0;
+X}
+X
+X/* pset_union() takes two position-sets and returns their union.    */
+X
+Pset pset_union(s1, s2)
+Pset s1, s2;
+X{
+X    Pset hd, curr, new;
+X    int occ;
+X
+X    hd = NULL; curr = NULL;
+X    while (s1 != NULL) {
+X	if (!occurs_in(s1->posnum, s2)) {
+X	    new = (Pset) new_node(new);
+X	    if (new == NULL) return NULL;
+X	    new->posnum = s1->posnum;
+X	    if (hd == NULL) hd = new;
+X	    else curr->nextpos = new;
+X	}
+X	curr = new;
+X	s1 = s1->nextpos;
+X    }
+X    if (hd == NULL) hd = s2;
+X    else curr->nextpos = s2;
+X    return hd;
+X}
+X
+X/* create_pos() creates a position node with the position value given,
+X   then returns a pointer to this node.					*/
+X
+Pset create_pos(n)
+int n;
+X{
+X    Pset x;
+X
+X    x = (Pset) new_node(x);
+X    if (x == NULL) return NULL;
+X    x->posnum = n;
+X    x->nextpos = NULL;
+X    return x;
+X}
+X
+X/* eq_pset() takes two position sets and checks to see if they are
+X   equal.  It returns 1 if the sets are equal, 0 if they are not.	*/
+X
+subset_pset(s1, s2)
+Pset s1, s2;
+X{
+X    int subs = 1;
+X
+X    while (s1 != NULL && subs != 0) {
+X	subs = 0;
+X	while (s2 != NULL && subs != 1)
+X	    if (s1->posnum == s2->posnum) subs = 1;
+X	    else s2 = s2->nextpos;
+X	s1 = s1->nextpos;
+X    }
+X    return subs;
+X}	
+X
+int eq_pset(s1, s2)
+Pset s1, s2;
+X{
+X    return subset_pset(s1, s2) && subset_pset(s2, s1);
+X}
+X
+END_OF_FILE
+if test 2977 -ne `wc -c <'utilities.c'`; then
+    echo shar: \"'utilities.c'\" unpacked with wrong size!
+fi
+# end of 'utilities.c'
+fi
+echo shar: End of archive 1 \(of 3\).
+cp /dev/null ark1isdone
+MISSING=""
+for I in 1 2 3 ; do
+    if test ! -f ark${I}isdone ; then
+	MISSING="${MISSING} ${I}"
+    fi
+done
+if test "${MISSING}" = "" ; then
+    echo You have unpacked all 3 archives.
+    rm -f ark[1-9]isdone
+else
+    echo You still need to unpack the following archives:
+    echo "        " ${MISSING}
+fi
+##  End of shell archive.
+exit 0

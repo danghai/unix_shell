@@ -1,0 +1,1651 @@
+Path: uunet!rs
+From: rs@uunet.UU.NET (Rich Salz)
+Newsgroups: comp.sources.unix
+Subject: v11i004:  New version of T-shell, Part04/06
+Message-ID: <862@uunet.UU.NET>
+Date: 11 Aug 87 23:52:37 GMT
+Organization: UUNET Communications Services, Arlington, VA
+Lines: 1641
+Approved: rs@uunet.UU.NET
+
+Submitted-by: Paul Placeway <pyramid!osu-eddie!paul>
+Posting-number: Volume 11, Issue 4
+Archive-name: tcsh/Part04
+
+# This is a shell archive.  Remove anything before this line
+# then unpack it by saving it in a file and typing "sh file"
+# (Files unpacked will be owned by you and have default permissions).
+# This archive contains the following files:
+#	./pwprintf.c
+#	./nmalloc.c
+#	./tw.h
+#	./tw.help.c
+#	./tw.init.c
+#	./tw.parse.c
+#
+if `test ! -s ./pwprintf.c`
+then
+echo "writing ./pwprintf.c"
+sed 's/^x//' > ./pwprintf.c << '\Rogue\Monster\'
+x/* A public-domain, minimal printf routine that prints through the putchar()
+x   routine.  Feel free to use for anything...  -- 7/17/87 Paul Placeway */
+x
+x#include <ctype.h>
+x#include <varargs.h>
+x
+x/* use varargs since it's the RIGHT WAY, and assuming things about parameters
+x   on the stack will be wrong on a register passing machine (Pyramid) */
+x
+x#define INF	32766		/* should be bigger than any field to print */
+x
+xstatic char buf[128];
+x
+x/*VARARGS*/
+xprintf (va_alist)
+xva_dcl
+x{
+x    va_list ap;
+x    register char *f, *bp;
+x    register long l;
+x    register unsigned long u;
+x    register int i;
+x    register int fmt;
+x    register char pad = ' ';
+x    int flush_left = 0, f_width = 0, prec = INF, hash = 0, do_long = 0;
+x    int sign = 0;
+x
+x    va_start(ap);
+x    
+x    f = va_arg(ap, char *);
+x    for (; *f; f++) {
+x	if (*f != '%') {	/* then just out the char */
+x	    putchar (*f);
+x	} else {
+x	    f++;		/* skip the % */
+x
+x	    if (*f == '-') {	/* minus: flush left */
+x		flush_left = 1;
+x		f++;
+x	    }
+x
+x	    if (*f == '0') {	/* padding with 0 rather than blank */
+x		pad = '0';
+x		f++;
+x	    }
+x	    if (*f == '*') {	/* field width */
+x		f_width = va_arg(ap, int);
+x		f++;
+x	    } else if (isdigit(*f)) {
+x		f_width = atoi (f);
+x		while (isdigit(*f)) f++; /* skip the digits */
+x	    }
+x	   
+x	    if (*f == '.') {	/* precision */
+x		f++;
+x		if (*f == '*') {
+x		    prec = va_arg(ap, int);
+x		    f++;
+x		} else if (isdigit(*f)) {
+x		    prec = atoi (f);
+x		    while (isdigit(*f)) f++; /* skip the digits */
+x		}
+x	    }
+x
+x	    if (*f == '#') {	/* alternate form */
+x		hash = 1;
+x		f++;
+x	    }
+x
+x	    if (*f == 'l') {	/* long format */
+x		do_long = 1;
+x		f++;
+x	    }
+x
+x	    fmt = *f;
+x	    if (isupper(fmt)) {
+x		do_long = 1;
+x		fmt = tolower(fmt);
+x	    }
+x	    bp = buf;
+x	    switch (fmt) {	/* do the format */
+x	      case 'd':
+x		if (do_long)
+x		    l = va_arg(ap, long);
+x		else
+x		    l = (long) ( va_arg(ap, int) );
+x		if (l < 0) {
+x		    sign = 1;		    
+x		    l = -l;
+x		}
+x		do {
+x		    *bp++ = l % 10 + '0';
+x		} while ((l /= 10) > 0);
+x		if (sign)
+x		    *bp++ = '-';
+x		f_width = f_width - (bp - buf);
+x		if (!flush_left)
+x		    while (f_width-- > 0)
+x			putchar (pad);
+x		for (bp--; bp >= buf; bp--)
+x		    putchar (*bp);
+x		if (flush_left)
+x		    while (f_width-- > 0)
+x			putchar (' ');
+x		break;
+x
+x	      case 'o':
+x	      case 'x':
+x	      case 'u':
+x		if (do_long)
+x		    u = va_arg(ap, unsigned long);
+x		else
+x		    u = (unsigned long) ( va_arg(ap, unsigned) );
+x		if (fmt == 'u') { /* unsigned decimal */
+x		    do {
+x			*bp++ = u % 10 + '0';
+x		    } while ((u /= 10) > 0);
+x		} else if (fmt == 'o') { /* octal */
+x		    do {
+x			*bp++ = u % 8 + '0';
+x		    } while ((u /= 8) > 0);
+x		    if (hash)
+x			*bp++ = '0';
+x		} else if (fmt == 'x') { /* hex */
+x		    do {
+x			i = u % 16;
+x			if (i < 10)
+x			    *bp++ = i + '0';
+x			else
+x			    *bp++ = i - 10 + 'a';
+x		    } while ((u /= 16) > 0);
+x		    if (hash) {
+x			*bp++ = 'x';
+x			*bp++ = '0';
+x		    }
+x		}
+x		i = f_width - (bp - buf);
+x		if (!flush_left)
+x		    while (i-- > 0)
+x			putchar (pad);
+x		for (bp--; bp >= buf; bp--)
+x		    putchar (*bp);
+x		if (flush_left)
+x		    while (i-- > 0)
+x			putchar (' ');
+x		break;
+x		
+x
+x	      case 'c':
+x		i = va_arg(ap, int);
+x		putchar (i);
+x		break;
+x
+x	      case 's':
+x		bp = va_arg(ap, char *);
+x		f_width = f_width - strlen(bp);
+x		if (!flush_left)
+x		    while (f_width-- > 0)
+x			putchar (pad);
+x	        for (i = 0; *bp && i < prec; i++) {
+x		    putchar (*bp);
+x		    bp++;
+x		}
+x		if (flush_left)
+x		    while (f_width-- > 0)
+x			putchar (' ');
+x
+x		break;
+x
+x	      case '%':
+x		putchar ('%');
+x		break;
+x	    }
+x	    flush_left = 0, f_width = 0, prec = INF, hash = 0, do_long = 0;
+x	    sign = 0;
+x	    pad = ' ';
+x	}
+x    }
+x    va_end(ap);
+x    return 0;
+x}
+\Rogue\Monster\
+else
+  echo "will not over write ./pwprintf.c"
+fi
+if [ `wc -c ./pwprintf.c | awk '{printf $1}'` -ne 3648 ]
+then
+echo `wc -c ./pwprintf.c | awk '{print "Got " $1 ", Expected " 3648}'`
+fi
+if `test ! -s ./nmalloc.c`
+then
+echo "writing ./nmalloc.c"
+sed 's/^x//' > ./nmalloc.c << '\Rogue\Monster\'
+xstatic char RCSid[] = "$Header: nmalloc.c,v 1.1 85/02/11 21:19:46 paul Exp $";
+x#define MSTATS
+x
+x/*
+x * malloc.c (Caltech) 2/21/82
+x * Chris Kingsley, kingsley@cit-20.
+x *
+x * This is a very fast storage allocator.  It allocates blocks of a small 
+x * number of different sizes, and keeps free lists of each size.  Blocks that
+x * don't exactly fit are passed up to the next larger size.  In this 
+x * implementation, the available sizes are 2^n-4 (or 2^n-12) bytes long.
+x * This is designed for use in a program that uses vast quantities of memory,
+x * but bombs when it runs out. 
+x */
+x
+x#include <sys/types.h>
+x
+x#define	NULL 0
+x
+x/*
+x * The overhead on a block is at least 4 bytes.  When free, this space
+x * contains a pointer to the next free block, and the bottom two bits must
+x * be zero.  When in use, the first byte is set to MAGIC, and the second
+x * byte is the size index.  The remaining bytes are for alignment.
+x * If range checking is enabled and the size of the block fits
+x * in two bytes, then the top two bytes hold the size of the requested block
+x * plus the range checking words, and the header word MINUS ONE.
+x */
+xunion	overhead {
+x	union	overhead *ov_next;	/* when free */
+x	struct {
+x		u_char	ovu_magic;	/* magic number */
+x		u_char	ovu_index;	/* bucket # */
+x#ifdef RCHECK
+x		u_short	ovu_size;	/* actual block size */
+x		u_int	ovu_rmagic;	/* range magic number */
+x#endif
+x	} ovu;
+x#define	ov_magic	ovu.ovu_magic
+x#define	ov_index	ovu.ovu_index
+x#define	ov_size		ovu.ovu_size
+x#define	ov_rmagic	ovu.ovu_rmagic
+x};
+x
+x#define	MAGIC		0xff		/* magic # on accounting info */
+x#define RMAGIC		0x55555555	/* magic # on range info */
+x#ifdef RCHECK
+x#define	RSLOP		sizeof (u_int)
+x#else
+x#define	RSLOP		0
+x#endif
+x
+x/*
+x * nextf[i] is the pointer to the next free block of size 2^(i+3).  The
+x * smallest allocatable block is 8 bytes.  The overhead information
+x * precedes the data area returned to the user.
+x */
+x#define	NBUCKETS 30
+xstatic	union overhead *nextf[NBUCKETS];
+xextern	char *sbrk();
+xstatic char *memtop = NULL;	/* PWP: top of current memory */
+x
+x#ifdef MSTATS
+x/*
+x * nmalloc[i] is the difference between the number of mallocs and frees
+x * for a given block size.
+x */
+xstatic	u_int nmalloc[NBUCKETS];
+x#endif
+x
+x#include "sh.local.h"
+x#ifdef debug
+x#define	ASSERT(p)   if (!(p)) botch("p"); else
+xstatic
+xbotch(s)
+x	char *s;
+x{
+x
+x	printf("assertion botched: %s\n", s);
+x	abort();
+x}
+x#else
+x#define	ASSERT(p)
+x#endif
+x
+xchar *
+xmalloc(nbytes)
+x	register unsigned nbytes;
+x{
+x  	register union overhead *p;
+x  	register int bucket = 0;
+x  	register unsigned shiftr;
+x
+x	/*
+x	 * Convert amount of memory requested into
+x	 * closest block size stored in hash buckets
+x	 * which satisfies request.  Account for
+x	 * space used per block for accounting.
+x	 */
+x  	nbytes += sizeof (union overhead) + RSLOP;
+x  	nbytes = (nbytes + 3) &~ 3; 
+x  	shiftr = (nbytes - 1) >> 2;
+x	/* apart from this loop, this is O(1) */
+x  	while (shiftr >>= 1)
+x  		bucket++;
+x	/*
+x	 * If nothing in hash bucket right now,
+x	 * request more memory from the system.
+x	 */
+x  	if (nextf[bucket] == NULL)    
+x  		morecore(bucket);
+x  	if ((p = (union overhead *)nextf[bucket]) == NULL)
+x  		return (NULL);
+x	/* remove from linked list */
+x  	nextf[bucket] = nextf[bucket]->ov_next;
+x	p->ov_magic = MAGIC;
+x	p->ov_index= bucket;
+x#ifdef MSTATS
+x  	nmalloc[bucket]++;
+x#endif
+x#ifdef RCHECK
+x	/*
+x	 * Record allocated size of block and
+x	 * bound space with magic numbers.
+x	 */
+x  	if (nbytes <= 0x10000)
+x		p->ov_size = nbytes - 1;
+x	p->ov_rmagic = RMAGIC;
+x  	*((u_int *)((caddr_t)p + nbytes - RSLOP)) = RMAGIC;
+x#endif
+x  	return ((char *)(p + 1));
+x}
+x
+x/*
+x * Allocate more memory to the indicated bucket.
+x */
+xstatic
+xmorecore(bucket)
+x	register bucket;
+x{
+x  	register union overhead *op;
+x  	register int rnu;       /* 2^rnu bytes will be requested */
+x  	register int nblks;     /* become nblks blocks of the desired size */
+x	register int siz;
+x
+x  	if (nextf[bucket])
+x  		return;
+x	/*
+x	 * Insure memory is allocated
+x	 * on a page boundary.  Should
+x	 * make getpageize call?
+x	 */
+x  	op = (union overhead *)sbrk(0);
+x	memtop = (char *) op;	/* PWP */
+x  	if ((int)op & 0x3ff) {
+x  		memtop = sbrk(1024 - ((int)op & 0x3ff)); /* PWP */
+x		memtop += 1024 - ((int)op & 0x3ff);
+x	}
+x	/* take 2k unless the block is bigger than that */
+x  	rnu = (bucket <= 8) ? 11 : bucket + 3;
+x  	nblks = 1 << (rnu - (bucket + 3));  /* how many blocks to get */
+x  	if (rnu < bucket)
+x		rnu = bucket;
+x	memtop = sbrk(1 << rnu); /* PWP */
+x	op = (union overhead *) memtop;
+x	memtop += 1 << rnu;
+x	/* no more room! */
+x  	if ((int)op == -1)
+x  		return;
+x	/*
+x	 * Round up to minimum allocation size boundary
+x	 * and deduct from block count to reflect.
+x	 */
+x  	if ((int)op & 7) {
+x  		op = (union overhead *)(((int)op + 8) &~ 7);
+x  		nblks--;
+x  	}
+x	/*
+x	 * Add new memory allocated to that on
+x	 * free list for this hash bucket.
+x	 */
+x  	nextf[bucket] = op;
+x  	siz = 1 << (bucket + 3);
+x  	while (--nblks > 0) {
+x		op->ov_next = (union overhead *)((caddr_t)op + siz);
+x		op = (union overhead *)((caddr_t)op + siz);
+x  	}
+x}
+x
+xfree(cp)
+x	char *cp;
+x{   
+x  	register int size;
+x	register union overhead *op;
+x
+x  	if (cp == NULL)
+x  		return;
+x	if (cp > memtop) {
+x	    /* printf ("free(%lx) above top of memory: %lx\n", cp, memtop); */
+x	    return;
+x	}
+x
+x	op = (union overhead *)((caddr_t)cp - sizeof (union overhead));
+x#ifdef debug
+x/*  	ASSERT(op->ov_magic == MAGIC);		/* make sure it was in use */
+x#else
+x	if (op->ov_magic != MAGIC)
+x		return;				/* sanity */
+x#endif
+x#ifdef RCHECK
+x  	ASSERT(op->ov_rmagic == RMAGIC);
+x	if (op->ov_index <= 13)
+x		ASSERT(*(u_int *)((caddr_t)op + op->ov_size + 1 - RSLOP) == RMAGIC);
+x#endif
+x  	ASSERT(op->ov_index < NBUCKETS);
+x  	size = op->ov_index;
+x	op->ov_next = nextf[size];
+x  	nextf[size] = op;
+x#ifdef MSTATS
+x  	nmalloc[size]--;
+x#endif
+x}
+x
+x/*
+x * When a program attempts "storage compaction" as mentioned in the
+x * old malloc man page, it realloc's an already freed block.  Usually
+x * this is the last block it freed; occasionally it might be farther
+x * back.  We have to search all the free lists for the block in order
+x * to determine its bucket: 1st we make one pass thru the lists
+x * checking only the first block in each; if that fails we search
+x * ``realloc_srchlen'' blocks in each list for a match (the variable
+x * is extern so the caller can modify it).  If that fails we just copy
+x * however many bytes was given to realloc() and hope it's not huge.
+x */
+xint realloc_srchlen = 4;	/* 4 should be plenty, -1 =>'s whole list */
+x
+xchar *
+xrealloc(cp, nbytes)
+x	char *cp; 
+x	unsigned nbytes;
+x{   
+x  	register u_int onb;
+x	union overhead *op;
+x  	char *res;
+x	register int i;
+x	int was_alloced = 0;
+x
+x  	if (cp == NULL)
+x  		return (malloc(nbytes));
+x	op = (union overhead *)((caddr_t)cp - sizeof (union overhead));
+x	if (op->ov_magic == MAGIC) {
+x		was_alloced++;
+x		i = op->ov_index;
+x	} else {
+x		/*
+x		 * Already free, doing "compaction".
+x		 *
+x		 * Search for the old block of memory on the
+x		 * free list.  First, check the most common
+x		 * case (last element free'd), then (this failing)
+x		 * the last ``realloc_srchlen'' items free'd.
+x		 * If all lookups fail, then assume the size of
+x		 * the memory block being realloc'd is the
+x		 * smallest possible.
+x		 */
+x		if ((i = findbucket(op, 1)) < 0 &&
+x		    (i = findbucket(op, realloc_srchlen)) < 0)
+x			i = 0;
+x	}
+x	onb = (1 << (i + 3)) - sizeof (*op) - RSLOP;
+x	/* avoid the copy if same size block */
+x	if (was_alloced &&
+x	    nbytes <= onb && nbytes > (onb >> 1) - sizeof(*op) - RSLOP)
+x		return(cp);
+x  	if ((res = malloc(nbytes)) == NULL)
+x  		return (NULL);
+x  	if (cp != res)			/* common optimization */
+x		bcopy(cp, res, (nbytes < onb) ? nbytes : onb);
+x  	if (was_alloced)
+x		free(cp);
+x  	return (res);
+x}
+x
+x/*
+x * Search ``srchlen'' elements of each free list for a block whose
+x * header starts at ``freep''.  If srchlen is -1 search the whole list.
+x * Return bucket number, or -1 if not found.
+x */
+xstatic
+xfindbucket(freep, srchlen)
+x	union overhead *freep;
+x	int srchlen;
+x{
+x	register union overhead *p;
+x	register int i, j;
+x
+x	for (i = 0; i < NBUCKETS; i++) {
+x		j = 0;
+x		for (p = nextf[i]; p && j != srchlen; p = p->ov_next) {
+x			if (p == freep)
+x				return (i);
+x			j++;
+x		}
+x	}
+x	return (-1);
+x}
+x
+x#ifdef MSTATS
+x/*
+x * mstats - print out statistics about malloc
+x * 
+x * Prints two lines of numbers, one showing the length of the free list
+x * for each size category, the second showing the number of mallocs -
+x * frees for each size category.
+x */
+xshowall(v)
+x	char **v;
+x{
+x  	register int i, j;
+x  	register union overhead *p;
+x  	int totfree = 0,
+x  	totused = 0;
+x
+x  	printf("tcsh memory allocation statistics\nfree:\t");
+x  	for (i = 0; i < NBUCKETS; i++) {
+x  		for (j = 0, p = nextf[i]; p; p = p->ov_next, j++)
+x  			;
+x  		printf(" %4d", j);
+x  		totfree += j * (1 << (i + 3));
+x  	}
+x  	printf("\nused:\t");
+x  	for (i = 0; i < NBUCKETS; i++) {
+x  		printf(" %4d", nmalloc[i]);
+x  		totused += nmalloc[i] * (1 << (i + 3));
+x  	}
+x  	printf("\n\tTotal in use: %d, total free: %d\n",
+x	    totused, totfree);
+x}
+x#endif
+\Rogue\Monster\
+else
+  echo "will not over write ./nmalloc.c"
+fi
+if [ `wc -c ./nmalloc.c | awk '{printf $1}'` -ne 8882 ]
+then
+echo `wc -c ./nmalloc.c | awk '{print "Got " $1 ", Expected " 8882}'`
+fi
+if `test ! -s ./tw.h`
+then
+echo "writing ./tw.h"
+sed 's/^x//' > ./tw.h << '\Rogue\Monster\'
+x#ifdef MAKE_TWENEX
+x
+x#define FREE_ITEMS(items,num)\
+x{\
+x    sighold (SIGINT);\
+x    free_items (items,num);\
+x    items = NULL;\
+x    sigrelse (SIGINT);\
+x}
+x
+x#define FREE_DIR(fd)\
+x{\
+x    sighold (SIGINT);\
+x    closedir (fd);\
+x    fd = NULL;\
+x    sigrelse (SIGINT);\
+x}
+x
+x#define TRUE		1
+x#define FALSE		0
+x#define ON		1
+x#define OFF		0
+x#define FILSIZ		512		/* Max reasonable file name length */
+x#define ESC		'\033'
+x#define equal(a, b)	(strcmp(a, b) == 0)
+x
+x#define is_set(var)	adrof(var)
+x
+x#define BUILTINS	"/usr/local/lib/builtins/" /* fake builtin bin */
+x#define SEARCHLIST "HPATH"	/* Env. param for helpfile searchlist */
+x#define DEFAULTLIST ":/u0/osu/man/cat1:/u0/osu/man/cat8:/u0/osu/man/cat6:/usr/man/cat1:/usr/man/cat8:/usr/man/cat6:/u0/local/man/cat1:/u0/local/man/cat8:/u0/local/man/cat6"    /* if no HPATH */
+x
+xextern char  PromptBuf[];
+x
+xextern char *getenv ();
+x
+xtypedef enum {LIST, RECOGNIZE, PRINT_HELP, SPELL} COMMAND;
+x
+x
+xchar *getentry();
+xchar GetAChar();
+xchar *tilde();
+xchar filetype();
+x
+x#define NUMCMDS_START 512	/* was 800 */
+x#define NUMCMDS_INCR 256
+x#define ITEMS_START 512
+x#define ITEMS_INCR 256
+x
+x#ifndef DONT_EXTERN
+x
+xextern char **command_list;  /* the pre-digested list of commands
+x					 for speed and general usefullness */
+xextern int numcommands;
+xextern int have_sorted;
+x
+xextern int  dirctr;		/* -1 0 1 2 ... */
+xextern char dirflag[5];		/*  ' nn\0' - dir #s -  . 1 2 ... */
+x
+x
+x#endif
+x#endif
+\Rogue\Monster\
+else
+  echo "will not over write ./tw.h"
+fi
+if [ `wc -c ./tw.h | awk '{printf $1}'` -ne 1398 ]
+then
+echo `wc -c ./tw.h | awk '{print "Got " $1 ", Expected " 1398}'`
+fi
+if `test ! -s ./tw.help.c`
+then
+echo "writing ./tw.help.c"
+sed 's/^x//' > ./tw.help.c << '\Rogue\Monster\'
+xstatic char RCSid[] = "$Header: tw.help.c,v 1.1 85/02/11 21:22:00 paul Exp $";
+x#define MAKE_TWENEX		/* flag to include definitions */
+x#include "tw.h"
+x#include "sh.h"
+x
+x
+x/* actually look up and print documentation on a file.  Look down the path
+x   for an approiate file, then print it.  Note that the printing is NOT 
+x   PAGED.  This is because the function is NOT ment to look at manual pages,
+x   it only does so if there is no .help file to look in. */
+x
+xstatic int f = -1;
+x
+xdo_help (command)
+xchar *command;
+x{
+x    char name[FILSIZ + 1];
+x    char *cmd_p;
+x    int cleanf(), orig_intr;
+x    char curdir[128];		/* Current directory being looked at */
+x    char *getenv();
+x    register char *hpath;	/* The environment parameter */
+x    char *skipslist();
+x    char full[128], buf[512];	/* full path name and buffer for read */
+x    int len;			/* length of read buffer */
+x
+x				/* copy the string to a safe place */
+x    copyn (name, command, sizeof (name));
+x
+x			/* trim off the garbage that may be at the end */
+x    for (cmd_p = name; *cmd_p != '\0'; cmd_p++) {
+x	if (*cmd_p == ' ' || *cmd_p == '\t') *cmd_p = '\0';
+x    }
+x
+x				/* if nothing left, return */
+x    if (*name == '\0') return;
+x
+x		/* got is, now "cat" the file based on the path $HPATH */
+x
+x    hpath = getenv(SEARCHLIST);
+x    if(hpath == (char *)0)
+x        hpath = DEFAULTLIST;
+x
+x    while (1)
+x    {
+x	if(!*hpath)
+x	{
+x	    printf("No help file for %s\n", name);
+x	    break;
+x	}
+x	nextslist(hpath, curdir);
+x	hpath = skipslist(hpath);
+x
+x/* now make the full path name - try first /bar/foo.help, then /bar/foo.1,
+x   /bar/foo.8, then finally /bar/foo.6 .  This is so that you don't spit
+x   a binary at the tty when $HPATH == $PATH.  I know, I know, gotos are
+x   BOGUS */
+x
+x	copyn (full, curdir, sizeof (full));
+x	catn (full, "/", sizeof (full));
+x	catn (full, name, sizeof (full));
+x	catn (full, ".help", sizeof (full));
+x	f = open (full, 0);	/* try to open for reading */
+x	if (f != -1) goto cat_it;	/* no file there */
+x
+x	copyn (full, curdir, sizeof (full));
+x	catn (full, "/", sizeof (full));
+x	catn (full, name, sizeof (full));
+x	catn (full, ".1", sizeof (full));
+x	f = open (full, 0);	/* try to open for reading */
+x	if (f != -1) goto cat_it;	/* no file there */
+x
+x	copyn (full, curdir, sizeof (full));
+x	catn (full, "/", sizeof (full));
+x	catn (full, name, sizeof (full));
+x	catn (full, ".8", sizeof (full));
+x	f = open (full, 0);	/* try to open for reading */
+x	if (f != -1) goto cat_it;	/* no file there */
+x
+x	copyn (full, curdir, sizeof (full));
+x	catn (full, "/", sizeof (full));
+x	catn (full, name, sizeof (full));
+x	catn (full, ".6", sizeof (full));
+x	f = open (full, 0);	/* try to open for reading */
+x	if (f == -1) continue;	/* no file there */
+x
+xcat_it:
+x	orig_intr = (int) signal(SIGINT, cleanf);
+x	while ((f != -1) && (len = read (f, buf, 512)) != 0) {
+x							/* the file is here */
+x	    write (SHOUT, buf, len);			/* so cat it to the */
+x	}						/* terminal */
+x	if (f != -1)
+x	    close(f);
+x	f = (-1);
+x	signal(SIGINT, orig_intr);
+x	break;
+x    }
+x}
+x
+xstatic
+xcleanf()
+x{
+x    if (f != -1)
+x	close(f);
+x    f = (-1);
+x}
+x
+x/* these next two are stolen from CMU's man(1) command for looking down 
+x * paths.  they are prety straight forward. */
+x
+x/*
+x * nextslist takes a search list and copies the next path in it
+x * to np.  A null search list entry is expanded to ".".
+x * If there are no entries in the search list, then np will point
+x * to a null string.
+x */
+x
+xnextslist(sl, np)
+x  register char *sl;
+x  register char *np;
+x{
+x    if(!*sl)
+x	*np = '\000';
+x    else if(*sl == ':')
+x    {
+x	*np++ = '.';
+x	*np = '\000';
+x    }
+x    else
+x    {
+x	while(*sl && *sl != ':')
+x	    *np++ = *sl++;
+x	*np = '\000';
+x    }
+x}
+x
+x/*
+x * skipslist returns the pointer to the next entry in the search list.
+x */
+x
+xchar *
+xskipslist(sl)
+x  register char *sl;
+x{
+x    while(*sl && *sl++ != ':');
+x    return(sl);
+x}
+x
+\Rogue\Monster\
+else
+  echo "will not over write ./tw.help.c"
+fi
+if [ `wc -c ./tw.help.c | awk '{printf $1}'` -ne 3785 ]
+then
+echo `wc -c ./tw.help.c | awk '{print "Got " $1 ", Expected " 3785}'`
+fi
+if `test ! -s ./tw.init.c`
+then
+echo "writing ./tw.init.c"
+sed 's/^x//' > ./tw.init.c << '\Rogue\Monster\'
+x#define MAKE_TWENEX		/* flag to include definitions */
+x#include "tw.h"
+x#include "sh.h"
+x
+x/*
+x * Build the command name list (and print the results).  This is a HACK until
+x * I can get the rehash command to include its results in the command list.
+x */
+x
+xchar	*extract_dir_from_path();
+xint	fcompare();
+xchar	*malloc();
+xchar	*calloc();
+xstatic int maxcommands = 0;
+x
+xstatic int tw_been_inited = 0;
+x			/* to avoid double reading of commands file */
+x
+xtw_clear_comm_list() {
+x    register int i;
+x
+x    have_sorted = 0;
+x    if (numcommands != 0) {
+x/*        for (i = 0; command_list[i]; i++) { */
+x        for (i = 0; i < numcommands; i++) {
+x	    if (command_list[i] == 0) {
+x		printf ("tried to free a null, i = %d\n", i);
+x	    } else {
+x		free (command_list[i]);
+x	    }
+x	    command_list[i] = NULL;
+x	}
+x	numcommands = 0;
+x    }
+x}
+x
+xtw_sort_comms () {		/* could be re-written */
+x    register int i,forward;
+x    
+x    /* sort the list. */
+x    qsort (command_list, numcommands, sizeof (command_list[0]), fcompare);
+x
+x    /* get rid of multiple entries */
+x    for (i = 0, forward = 0; i < numcommands - 1; i++) {
+x	if (strcmp (command_list[i], command_list[i+1]) == 0) {	/* garbage */
+x	    if (command_list[i] == 0) {
+x		printf ("tried to free a null, i = %d, previous = %s\n", i,
+x		    command_list [i-1]);
+x	    } else {
+x		free (command_list[i]);
+x	    }
+x	    forward++;		/* increase the forward ref. count */
+x	} else if (forward) {
+x	    command_list[i-forward] = command_list[i];
+x	}
+x    }
+x    numcommands -= forward;
+x    command_list[numcommands] = (char *)NULL;
+x
+x    have_sorted = 1;
+x}
+x
+xtw_add_comm_name (name)      /* this is going to be called a LOT at startup */
+xchar *name;
+x{
+x    register int length;
+x    register long i;
+x    register char **ncl, **p1, **p2;
+x
+x    if (maxcommands == 0) {
+x	command_list = (char **)malloc(NUMCMDS_START * sizeof (command_list[0]));
+x	if (command_list == NULL) {
+x	    printf ("\nYikes! malloc ran out of memory!!!\n");
+x	    return;
+x	}
+x	maxcommands = NUMCMDS_START;
+x	for (i = 0, p2 = command_list; i < maxcommands; i++)
+x	    *p2 = NULL;
+x    } else if (numcommands >= maxcommands) {
+x	ncl = (char **)malloc((maxcommands + NUMCMDS_INCR) *
+x			      sizeof (command_list[0]));
+x	if (ncl == NULL) {
+x	    printf ("\nYikes! malloc ran out of memory!!!\n");
+x	    return;
+x	}
+x	for (i = 0, p1 = command_list, p2 = ncl; i < numcommands; i++)
+x	    *p2++ = *p1++;
+x	for (; i < maxcommands+NUMCMDS_INCR; i++)
+x	    *p2++ = NULL;
+x	free(command_list);
+x	command_list = ncl;
+x#ifdef COMMENT
+x	command_list = (char **)realloc(command_list, (maxcommands +
+x		       NUMCMDS_INCR) * sizeof (command_list[0]));
+x	if (command_list == NULL) {
+x	    printf ("\nYikes! realloc ran out of memory!!!\n");
+x	    return;
+x	}
+x#endif
+x	maxcommands += NUMCMDS_INCR;
+x    }
+x
+x    if (name[0] == '.') return;	/* no dot commands... */
+x    if (name[0] == '#') return;	/* no Emacs buffer checkpoints */
+x
+x    length = strlen(name) + 1;
+x
+x    if (name[length-2] == '~') return; /* and no Emacs backups either */
+x
+x    if ((command_list[numcommands] = (char *)malloc (length)) == NULL) {
+x        printf ("\nYikes!! I ran out of memory!!!\n");
+x        return;
+x    }
+x
+x    copyn (command_list[numcommands], name, MAXNAMLEN);
+x    numcommands++;
+x}
+x
+xtw_add_builtins() {
+x    register char *cp;
+x    register struct biltins *bptr;
+x
+x    for (bptr = bfunc; cp = bptr->bname; bptr++) {
+x	tw_add_comm_name (cp);
+x    }
+x}
+x
+xtw_add_aliases ()
+x{
+x    register struct varent *vp;
+x
+x    vp = &aliases;
+x
+x    for (vp = vp->link; vp != 0; vp = vp->link) {
+x	tw_add_comm_name(vp->name);
+x    }
+x
+x}
+\Rogue\Monster\
+else
+  echo "will not over write ./tw.init.c"
+fi
+if [ `wc -c ./tw.init.c | awk '{printf $1}'` -ne 3517 ]
+then
+echo `wc -c ./tw.init.c | awk '{print "Got " $1 ", Expected " 3517}'`
+fi
+if `test ! -s ./tw.parse.c`
+then
+echo "writing ./tw.parse.c"
+sed 's/^x//' > ./tw.parse.c << '\Rogue\Monster\'
+x#define MAKE_TWENEX		/* flag to include definitions */
+x#include "tw.h"
+x#include "sh.h"
+x
+xstatic int maxitems = 0;
+xchar **command_list = (char **)NULL;  /* the pre-digested list of commands
+x					 for speed and general usefullness */
+xint numcommands = 0;
+xint have_sorted = 0;
+x
+xint  dirctr;		/* -1 0 1 2 ... */
+xchar dirflag[5];		/*  ' nn\0' - dir #s -  . 1 2 ... */
+x
+x/* do the expand or list on the command line -- SHOULD BE REPLACED */
+xint fcompare();
+x
+xextern char NeedsRedraw;	/* from ed.h */
+x
+xtenematch (inputline, inputline_size, num_read, command)
+xchar   *inputline;		/* match string prefix */
+xint     inputline_size;		/* max size of string */
+xint	num_read;		/* # actually in inputline */
+xCOMMAND command;		/* LIST or RECOGNIZE or PRINT_HELP */
+x
+x{
+x    static char 
+x	    *delims = " '\"\t;&<>()|^%";
+x    static char 
+x	    *cmd_delims = ";&(|`";
+x    char word [FILSIZ + 1];
+x    register char *str_end, *word_start, *cmd_start, *wp;
+x    char *cmd_st;
+x    int space_left;
+x    int is_a_cmd;		/* UNIX command rather than filename */
+x    int search_ret;		/* what search returned for debugging */
+x
+x    str_end = &inputline[num_read];
+x
+x   /*
+x    * Find LAST occurence of a delimiter in the inputline.
+x    * The word start is one character past it.
+x    */
+x    for (word_start = str_end; word_start > inputline; --word_start)
+x	if (index (delims, word_start[-1]))
+x	    break;
+x
+x				/* space backward looking for the beginning
+x				   of this command */
+x    for (cmd_st = str_end; cmd_st > inputline; --cmd_st)
+x	if (index (cmd_delims, cmd_st[-1]))
+x	    break;
+x				/* step forward over leading spaces */
+x    while (*cmd_st != '\0' && (*cmd_st == ' ' || *cmd_st == '\t'))
+x	cmd_st++;
+x
+x    space_left = inputline_size - (word_start - inputline) - 1;
+x    
+x    is_a_cmd = starting_a_command (word_start, inputline);
+x
+x    for (cmd_start = word_start, wp = word; cmd_start < str_end;
+x    	 *wp++ = *cmd_start++);
+x    *wp = 0;
+x
+x/*  printf ("\ncmd_st:%s:\nword_start:%s:\n", cmd_st, word_start); */
+x				/* for debugging */
+x    if (command == RECOGNIZE) {
+x        search_ret = t_search (word, wp, command, space_left, is_a_cmd);
+x	if (InsertStr(wp) < 0)	/* put it in the input buffer */
+x	    return 2;		/* error inserting */
+x	return search_ret;
+x    } else if (command == SPELL) {
+x	search_ret = spell_me(word, sizeof(word), is_a_cmd);
+x	DeleteBack(str_end-word_start);	/* get rid of old word */
+x	if (InsertStr(word) < 0) /* insert newly spelled word */
+x	    return 2;		/* error inserting */
+x	if (search_ret < 0)
+x	    return 2;
+x	else
+x	    return 1;		/* force a beep */
+x    } else if (command == PRINT_HELP) {
+x	do_help (cmd_st);
+x	return 1;
+x    } else {			/* LIST */
+x        search_ret = t_search (word, wp, command, space_left, is_a_cmd);
+x	return search_ret;
+x    }
+x}
+x
+x
+x
+x/*
+x * return true if check items initial chars in template
+x * This differs from PWB imatch in that if check is null
+x * it items anything
+x */
+x
+xstatic
+xis_prefix (check, template)
+xchar   *check,
+x       *template;
+x{
+x    register char  *check_char,
+x                   *template_char;
+x
+x    check_char = check;
+x    template_char = template;
+x    do
+x	if (*check_char == 0)
+x	    return (TRUE);
+x    while (*check_char++ == *template_char++);
+x    return (FALSE);
+x}
+x
+x/* return true if the command starting at wordstart is a command */
+x
+xstarting_a_command (wordstart, inputline)
+xregister char *wordstart, *inputline;
+x{
+x    static char
+x	    *cmdstart = ";&(|`",
+x	    *cmdalive = " \t'\"";
+x    while (--wordstart >= inputline)
+x    {
+x	if (index (cmdstart, *wordstart))
+x	    break;
+x	if (!index (cmdalive, *wordstart))
+x	    return (FALSE);
+x    }
+x    if (wordstart > inputline && *wordstart == '&')	/* Look for >& */
+x    {
+x	while (wordstart > inputline &&
+x			(*--wordstart == ' ' || *wordstart == '\t'));
+x	if (*wordstart == '>')
+x		return (FALSE);
+x    }
+x    return (TRUE);
+x}
+x
+x
+x/*
+x * Object: extend what user typed up to an ambiguity.
+x * Algorithm:
+x * On first match, copy full entry (assume it'll be the only match) 
+x * On subsequent matches, shorten extended_name to the first
+x * character mismatch between extended_name and entry.
+x * If we shorten it back to the prefix length, stop searching.
+x */
+xrecognize (extended_name, entry, name_length, numitems)
+xchar *extended_name, *entry;
+x{
+x    if (numitems == 1)				/* 1st match */
+x	copyn (extended_name, entry, MAXNAMLEN);
+x    else					/* 2nd and subsequent matches */
+x    {
+x	register char *x, *ent;
+x	register int len = 0;
+x	for (x = extended_name, ent = entry; *x && *x == *ent++; x++, len++);
+x	*x = '\0';				/* Shorten at 1st char diff */
+x	if (len == name_length)			/* Ambiguous to prefix? */
+x	    return (-1);		       /* So stop now and save time */
+x    }
+x    return (0);
+x}
+x
+x
+x/*
+x * Perform a RECOGNIZE or LIST command on string "word".
+x */
+xt_search (word, wp, command, max_word_length, looking_for_command)
+xchar   *word,
+x       *wp;			/* original end-of-word */
+xCOMMAND command;
+x{
+x    register numitems,
+x	    name_length,		/* Length of prefix (file name) */
+x	    looking_for_lognames;	/* True if looking for login names */
+x    int	    showpathn;			/* True if we want path number */
+x    struct stat
+x	    dot_statb,			/* Stat buffer for "." */
+x	    curdir_statb;	       /* Stat buffer for current directory */
+x    int	    dot_scan,			/* True if scanning "." */
+x	    dot_got;			/* True if have scanned dot already */
+x    char    tilded_dir[FILSIZ + 1],	/* dir after ~ expansion */
+x	    dir[FILSIZ + 1],		/* /x/y/z/ part in /x/y/z/f */
+x            name[MAXNAMLEN + 1],	/* f part in /d/d/d/f */
+x            extended_name[MAXNAMLEN+1],	/* the recognized (extended) name */
+x            *entry,		       /* single directory entry or logname */
+x	    *path;			/* hacked PATH environment variable */
+x    int     next_command = 0;		/* the next command to take out of */
+x					/* the list of commands */
+x    int d = 4, nd;	/* distance and new distance to command for SPELL */
+x
+x    static DIR 
+x	    *dir_fd = NULL;
+x    static char
+x           **items = NULL;		/* file names when doing a LIST */
+x
+x    if (items != NULL)
+x	FREE_ITEMS (items, numitems);
+x    numitems = 0;
+x    if (dir_fd != NULL)
+x	FREE_DIR (dir_fd);
+x
+x    looking_for_lognames = (*word == '~') && (index (word, '/') == NULL);
+x    looking_for_command &= (*word != '~') && (index (word, '/') == NULL);
+x
+x    dot_got = FALSE;
+x    stat (".", &dot_statb);
+x
+x    if (looking_for_lognames) {			/* Looking for login names? */
+x	setpwent ();				/* Open passwd file */
+x	copyn (name, &word[1], MAXNAMLEN);	/* name sans ~ */
+x    } else if (looking_for_command) {
+x	if (!numcommands)	/* if we have no list of commands */
+x	    get_tw_comm_list();
+x	if (!have_sorted) {	/* if we haven't sorted them yet */
+x	    tw_add_builtins();
+x	    tw_add_aliases();
+x	    tw_sort_comms ();	/* re-build the command path for twenex.c */
+x	}
+x    } else {			/* not looking for a command or logname */
+x	/* Open the directory */
+x	extract_dir_and_name (word, dir, name);
+x	if ((tilde (tilded_dir, dir) == 0) ||	/* expand ~user/... stuff */
+x	    ((dir_fd = opendir (*tilded_dir ? tilded_dir : ".")) == NULL)) {
+x	    printf ("\n%s unreadable\n", *tilded_dir ? tilded_dir : ".");
+x	    NeedsRedraw = 1;
+x	    return (0);
+x	}
+x
+x	dot_scan = FALSE;
+x    }
+x
+x    name_length = strlen (name);
+x    showpathn = looking_for_command && is_set("listpathnum");
+x
+x    while (1) {
+x        if (!looking_for_command) {
+x	    if ((entry = getentry (dir_fd, looking_for_lognames)) == NULL) {
+x		break;
+x	    }
+x	    
+x    	    /*
+x    	     * Don't match . files on null prefix match
+x    	     */
+x    	    if (name_length == 0 && entry[0] == '.' &&
+x		!looking_for_lognames && !is_set("showdots"))
+x    	        continue;
+x
+x	} else {
+x	    if (numcommands == 0) {
+x		dohash ();
+x	    }
+x	    if (next_command >= numcommands) break; /* end of list */
+x	    if ((entry = command_list[next_command++]) == NULL)
+x		break;
+x	    copyn (name, word, MAXNAMLEN);	/* so it can match things */
+x	}
+x
+x	if (command == SPELL) {	/* correct the spelling of the last bit */
+x	    nd = spdist(entry, name); /* test the entry against original */
+x	    if (nd <= d && nd != 4) {
+x		strcpy (extended_name, entry);
+x		d = nd;
+x		if (d == 0)	/* if found it exactly */
+x		    break;
+x	    }
+x	} else if (command == LIST) { /* LIST command */
+x    	    extern char *malloc ();
+x    	    register int length;
+x	    register long i;
+x	    register char **ni, **p1, **p2;
+x
+x	    if (!is_prefix (name, entry))
+x		continue;
+x
+x	    if (items == NULL || maxitems == 0) {
+x    		items = (char **) malloc (sizeof (items[0]) * (ITEMS_START+1));
+x    		if (items == NULL) {
+x		    printf("\nCannot malloc items!!\n");
+x		    NeedsRedraw = 1;
+x    		    break;
+x		}
+x		maxitems = ITEMS_START;
+x		for (i = 0, p2 = items; i < maxitems; i++)
+x		    *p2++ = NULL;
+x	    } else if (numitems >= maxitems) {
+x		ni = (char **)malloc((sizeof (items[0])) *
+x				     (maxitems + ITEMS_INCR));
+x    		if (ni == NULL) {
+x		    printf("\nCannot realloc items!!\n");
+x		    NeedsRedraw = 1;
+x    		    break;
+x		}
+x		for (i = 0, p1 = items, p2 = ni; i < numitems; i++)
+x		    *p2++ = *p1++;
+x		for (; i < numitems+ITEMS_INCR; i++)
+x		    *p2++ = NULL;
+x		free (items);
+x		items = ni;
+x		maxitems += ITEMS_INCR;
+x	    }
+x
+x
+x    	    length = strlen(entry) + 1;
+x    	    if (showpathn)
+x    		length += strlen(dirflag);
+x    	    if ((items[numitems] = malloc (length)) == NULL)
+x    	    {
+x    		printf ("\nYikes!! I ran out of memory!!!\n");
+x		NeedsRedraw = 1;
+x    		break;
+x    	    }
+x    	    copyn (items[numitems], entry, MAXNAMLEN);
+x    	    if (showpathn)
+x    	        catn (items[numitems], dirflag, MAXNAMLEN);
+x    	    numitems++;
+x    	} else {					/* RECOGNIZE command */
+x	    if (!is_prefix (name, entry))
+x		continue;
+x
+x	    if (adrof ("recexact")) {
+x		if (strcmp (name, entry) == 0) {	/* EXACT match */
+x	            copyn (extended_name, entry, MAXNAMLEN);
+x		    numitems = 1;		/* fake into expanding */
+x		    break;
+x		}
+x	    }
+x    	    if (recognize (extended_name, entry, name_length, ++numitems))
+x    		break;
+x	}
+x    }
+x
+x    if (!looking_for_command) {		
+x        if (looking_for_lognames)
+x	    endpwent ();
+x        else
+x	    FREE_DIR (dir_fd);
+x    }
+x
+x    if (command == RECOGNIZE && numitems > 0)
+x    {
+x	if (looking_for_lognames)
+x	    copyn (word, "~", 1);
+x	else if (looking_for_command)
+x	    word[0] = '\0';
+x	else
+x	    copyn (word, dir, max_word_length);	       /* put back dir part */
+x	catn (word, extended_name, max_word_length);   /* add extended name */
+x	if (numitems == 1) {
+x            if (looking_for_lognames) {			/* add / */
+x                catn (word, "/", max_word_length);
+x            }
+x            else {
+x                if (looking_for_command) {		/* add space */
+x                    catn (word, " ", max_word_length);
+x                }
+x                else {
+x                    if (isadirectory (tilded_dir, extended_name)) {
+x                        catn (word, "/", max_word_length);
+x                    }
+x                    else {
+x                        catn (word, " ", max_word_length);
+x                    }
+x                }
+x            }
+x	}
+x	return (numitems);		        /* at the end */
+x    } else if (command == LIST) {
+x	qsort (items, numitems, sizeof (items[1]), fcompare);
+x	print_by_column (looking_for_lognames ? NULL:tilded_dir, items,
+x			 numitems, looking_for_command);
+x	if (items != NULL)
+x	    FREE_ITEMS (items, numitems);
+x	return (0);
+x    } else if (command == SPELL) {
+x	if (looking_for_lognames)
+x	    copyn (word, "~", 1);
+x	else if (looking_for_command)
+x	    word[0] = '\0';
+x	else
+x	    copyn (word, dir, max_word_length);	       /* put back dir part */
+x	catn (word, extended_name, max_word_length);   /* add extended name */
+x	return d;
+x    }
+x}
+x
+x
+x/* stuff for general command line hacking */
+x
+x/*
+x * Strip next directory from path; return ptr to next unstripped directory.
+x */
+x 
+xchar *extract_dir_from_path (path, dir)
+xchar *path, dir[];
+x{
+x    register char *d = dir;
+x
+x    while (*path && (*path == ' ' || *path == ':')) path++;
+x    while (*path && (*path != ' ' && *path != ':')) *(d++) = *(path++);
+x    while (*path && (*path == ' ' || *path == ':')) path++;
+x
+x    ++dirctr;
+x    if (*dir == '.')
+x        strcpy (dirflag, " .");
+x    else
+x    {
+x        dirflag[0] = ' ';
+x	if (dirctr <= 9)
+x	{
+x		dirflag[1] = '0' + dirctr;
+x		dirflag[2] = '\0';
+x	}
+x	else
+x	{
+x		dirflag[1] = '0' + dirctr / 10;
+x		dirflag[2] = '0' + dirctr % 10;
+x		dirflag[3] = '\0';
+x	}
+x    }
+x    *(d++) = '/';
+x    *d = 0;
+x
+x    return path;
+x}
+x
+x
+xstatic
+xfree_items (items, numitems)
+xregister char **items;
+xregister numitems;
+x{
+x    register int i;
+x/*     for (i = 0; items[i] != (char *)NULL; i++) */
+x    for (i = 0; i < numitems; i++)
+x	free (items[i]);
+x    free (items);
+x    maxitems = 0;
+x}
+x
+x
+x/*
+x * parse full path in file into 2 parts: directory and file names
+x * Should leave final slash (/) at end of dir.
+x */
+xstatic
+xextract_dir_and_name (path, dir, name)
+xchar   *path, *dir, *name;
+x{
+x    extern char *rindex ();
+x    register char  *p;
+x    p = rindex (path, '/');
+x    if (p == NULL)
+x    {
+x	copyn (name, path, MAXNAMLEN);
+x	dir[0] = '\0';
+x    }
+x    else
+x    {
+x	p++;
+x	copyn (name, p, MAXNAMLEN);
+x	copyn (dir, path, p - path);
+x    }
+x}
+x
+x
+xchar *
+xgetentry (dir_fd, looking_for_lognames)
+xDIR *dir_fd;
+x{
+x    if (looking_for_lognames)			/* Is it login names we want? */
+x    {
+x	extern struct passwd *getpwent ();
+x	register struct passwd *pw;
+x	if ((pw = getpwent ()) == NULL)
+x	    return (NULL);
+x	return (pw -> pw_name);
+x    }
+x    else					/* It's a dir entry we want */
+x    {
+x	register struct direct *dirp;
+x	if (dirp = readdir (dir_fd))
+x	    return (dirp -> d_name);
+x	return (NULL);
+x    }
+x}
+x
+x
+x/*
+x * expand "old" file name with possible tilde usage
+x *		~person/mumble
+x * expands to
+x *		home_directory_of_person/mumble
+x * into string "new".
+x */
+x
+xchar *
+xtilde (new, old)
+xchar *new, *old;
+x{
+x    extern struct passwd *getpwuid (), *getpwnam ();
+x
+x    register char *o, *p;
+x    register struct passwd *pw;
+x    static char person[40] = {0};
+x
+x    if ((old[0] != '~') && (old[0] != '='))
+x    {
+x	strcpy (new, old);
+x	return (new);
+x    }
+x
+x    for (p = person, o = &old[1]; *o && *o != '/'; *p++ = *o++);
+x    *p = '\0';
+x
+x    if (old[0] == '~') {
+x	if (person[0] == '\0')			/* then use current uid */
+x	    pw = getpwuid (getuid ());
+x	else
+x	    pw = getpwnam (person);
+x
+x	if (pw == NULL)
+x	    return (NULL);
+x
+x	strcpy (new, pw -> pw_dir);
+x    } else {					/* '=' stack expansion */
+x        new[0] = '\0';
+x        if (!isdigit (old[1]) && old[1] != '-')
+x	    return (NULL);
+x        getstakd (new, (old[1] == '-') ? -1 : old[1] - '0', 0);
+x					/* last "0" = don't call error */
+x        if (new[0] == '\0')
+x	    return (NULL);
+x    }
+x    (void) strcat (new, o);
+x    return (new);
+x}
+x
+xchar
+xfiletype (dir, file)		/* symbology from 4.3 ls command */
+xchar *dir, *file;
+x{
+x    if (dir)
+x    {
+x	char path[512];
+x	struct stat statb;
+x	strcpy (path, dir);
+x	catn (path, file, sizeof path);
+x	if (lstat (path, &statb) >= 0) /* if no symlinks, change to stat() */
+x	{
+x	    if ((statb.st_mode & S_IFLNK) == S_IFLNK) /* Symbolic link */
+x		return ('@');
+x	    if ((statb.st_mode & S_IFSOCK) == S_IFSOCK)	/* Socket */
+x		return ('=');
+x#ifdef S_IFIFO
+x	    if ((statb.st_mode & S_IFIFO) == S_IFIFO)	/* Named Pipe */
+x		return ('<');
+x#endif
+x	    if ((statb.st_mode & S_IFDIR) == S_IFDIR) /* normal Directory */
+x		return ('/');
+x	    if (statb.st_mode & 0111)
+x		return ('*');
+x	}
+x    }
+x    return (' ');
+x}
+x
+xisadirectory (dir, file)	/* return 1 if dir/file is a directory */
+xchar *dir, *file;		/* uses stat rather than lstat to get dest. */
+x{
+x    if (dir)
+x    {
+x	char path[512];
+x	struct stat statb;
+x	strcpy (path, dir);
+x	catn (path, file, sizeof path);
+x	if (stat (path, &statb) >= 0) /* if no symlinks, change to stat() */
+x	{
+x	    if ((statb.st_mode & S_IFDIR) == S_IFDIR) /* normal Directory */
+x		return 1;
+x	}
+x    }
+x    return 0;
+x}
+x
+x/*
+x * Print sorted down columns
+x */
+xprint_by_column (dir, items, count, looking_for_command)
+xregister char *dir, *items[];
+x{
+x    register int i, rows, r, c, maxwidth = 0, columns;
+x    extern int TermH;		/* from the editor routines */
+x    extern int lbuffed;		/* from sh.print.c */
+x
+x    /*    lbuffed = 0; */	/* turn off line buffering */
+x
+x    for (i = 0; i < count; i++)
+x	maxwidth = max (maxwidth, strlen (items[i]));
+x    maxwidth += looking_for_command ? 1:2;    /* for the file tag and space */
+x    columns = (TermH+1) / maxwidth; /* PWP: terminal size change */
+x    if (!columns) columns = 1;
+x    rows = (count + (columns - 1)) / columns;
+x    for (r = 0; r < rows; r++)
+x    {
+x	for (c = 0; c < columns; c++)
+x	{
+x	    i = c * rows + r;
+x	    if (i < count)
+x	    {
+x		register int w;
+x		printf("%s", items[i]);
+x		w = strlen (items[i]);
+x		/* Print filename followed by '/' or '*' or ' ' */
+x		if (!looking_for_command)
+x			putchar (filetype (dir, items[i])), w++;
+x		if (c < (columns - 1))			/* Not last column? */
+x		    for (; w < maxwidth; w++)
+x			putchar (' ');
+x	    }
+x	}
+x	printf ("\n");
+x    }
+x
+x    /* lbuffed = 1; */		/* turn back on line buffering */
+x    flush();
+x}
+x
+x/*
+x * For qsort()
+x */
+xfcompare (file1, file2)
+xchar  **file1, **file2;
+x{
+x    return (strcmp (*file1, *file2));
+x}
+x
+x/*
+x * Concatonate src onto tail of des.
+x * Des is a string whose maximum length is count.
+x * Always null terminate.
+x */
+x
+xcatn (des, src, count)
+xregister char *des, *src;
+xregister count;
+x{
+x    while (--count >= 0 && *des)
+x	des++;
+x    while (--count >= 0)
+x	if ((*des++ = *src++) == 0)
+x	    return;
+x    *des = '\0';
+x}
+x
+xmax (a, b)
+x{
+x    if (a > b)
+x	return (a);
+x    return (b);
+x}
+x
+x/*
+x * like strncpy but always leave room for trailing \0
+x * and always null terminate.
+x */
+xcopyn (des, src, count)
+xregister char *des, *src;
+xregister count;
+x{
+x    while (--count >= 0)
+x	if ((*des++ = *src++) == 0)
+x	    return;
+x    *des = '\0';
+x}
+\Rogue\Monster\
+else
+  echo "will not over write ./tw.parse.c"
+fi
+if [ `wc -c ./tw.parse.c | awk '{printf $1}'` -ne 17506 ]
+then
+echo `wc -c ./tw.parse.c | awk '{print "Got " $1 ", Expected " 17506}'`
+fi
+echo "Finished archive 4 of 6"
+# if you want to concatenate archives, remove anything after this line
+exit
+
+-- 
+
+Rich $alz
+Cronus Project, BBN Labs			rsalz@bbn.com
+Moderator, comp.sources.unix			sources@uunet.uu.net

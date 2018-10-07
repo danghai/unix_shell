@@ -1,0 +1,2278 @@
+From: rsalz@uunet.uu.net (Rich Salz)
+Newsgroups: comp.sources.unix
+Subject: v22i098:  GNU AWK, version 2.11, Part12/16
+Message-ID: <2637@papaya.bbn.com>
+Date: 7 Jun 90 20:31:18 GMT
+Approved: rsalz@uunet.UU.NET
+
+Submitted-by: "Arnold D. Robbins" <arnold@unix.cc.emory.edu>
+Posting-number: Volume 22, Issue 98
+Archive-name: gawk2.11/part12
+
+#! /bin/sh
+# This is a shell archive.  Remove anything before this line, then feed it
+# into a shell via "sh file" or similar.  To overwrite existing files,
+# type "sh file -c".
+# The tool that generated this appeared in the comp.sources.unix newsgroup;
+# send mail to comp-sources-unix@uunet.uu.net if you want that tool.
+# Contents:  ./builtin.c ./eval.c ./missing.d/gcvt.c
+# Wrapped by rsalz@litchi.bbn.com on Wed Jun  6 12:24:57 1990
+PATH=/bin:/usr/bin:/usr/ucb ; export PATH
+echo If this archive is complete, you will see the following message:
+echo '          "shar: End of archive 12 (of 16)."'
+if test -f './builtin.c' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'./builtin.c'\"
+else
+  echo shar: Extracting \"'./builtin.c'\" \(20659 characters\)
+  sed "s/^X//" >'./builtin.c' <<'END_OF_FILE'
+X/*
+X * builtin.c - Builtin functions and various utility procedures 
+X */
+X
+X/* 
+X * Copyright (C) 1986, 1988, 1989 the Free Software Foundation, Inc.
+X * 
+X * This file is part of GAWK, the GNU implementation of the
+X * AWK Progamming Language.
+X * 
+X * GAWK is free software; you can redistribute it and/or modify
+X * it under the terms of the GNU General Public License as published by
+X * the Free Software Foundation; either version 1, or (at your option)
+X * any later version.
+X * 
+X * GAWK is distributed in the hope that it will be useful,
+X * but WITHOUT ANY WARRANTY; without even the implied warranty of
+X * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+X * GNU General Public License for more details.
+X * 
+X * You should have received a copy of the GNU General Public License
+X * along with GAWK; see the file COPYING.  If not, write to
+X * the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
+X */
+X
+X#include "awk.h"
+X
+Xextern void srandom();
+Xextern char *initstate();
+Xextern char *setstate();
+Xextern long random();
+X
+Xextern NODE **fields_arr;
+X
+Xstatic void get_one();
+Xstatic void get_two();
+Xstatic int get_three();
+X
+X/* Builtin functions */
+XNODE *
+Xdo_exp(tree)
+XNODE *tree;
+X{
+X	NODE *tmp;
+X	double d, res;
+X	double exp();
+X
+X	get_one(tree, &tmp);
+X	d = force_number(tmp);
+X	free_temp(tmp);
+X	errno = 0;
+X	res = exp(d);
+X	if (errno == ERANGE)
+X		warning("exp argument %g is out of range", d);
+X	return tmp_number((AWKNUM) res);
+X}
+X
+XNODE *
+Xdo_index(tree)
+XNODE *tree;
+X{
+X	NODE *s1, *s2;
+X	register char *p1, *p2;
+X	register int l1, l2;
+X	long ret;
+X
+X
+X	get_two(tree, &s1, &s2);
+X	force_string(s1);
+X	force_string(s2);
+X	p1 = s1->stptr;
+X	p2 = s2->stptr;
+X	l1 = s1->stlen;
+X	l2 = s2->stlen;
+X	ret = 0;
+X	if (! strict && IGNORECASE_node->var_value->numbr != 0.0) {
+X		while (l1) {
+X			if (casetable[*p1] == casetable[*p2]
+X			    && strncasecmp(p1, p2, l2) == 0) {
+X				ret = 1 + s1->stlen - l1;
+X				break;
+X			}
+X			l1--;
+X			p1++;
+X		}
+X	} else {
+X		while (l1) {
+X			if (STREQN(p1, p2, l2)) {
+X				ret = 1 + s1->stlen - l1;
+X				break;
+X			}
+X			l1--;
+X			p1++;
+X		}
+X	}
+X	free_temp(s1);
+X	free_temp(s2);
+X	return tmp_number((AWKNUM) ret);
+X}
+X
+XNODE *
+Xdo_int(tree)
+XNODE *tree;
+X{
+X	NODE *tmp;
+X	double floor();
+X	double d;
+X
+X	get_one(tree, &tmp);
+X	d = floor((double)force_number(tmp));
+X	free_temp(tmp);
+X	return tmp_number((AWKNUM) d);
+X}
+X
+XNODE *
+Xdo_length(tree)
+XNODE *tree;
+X{
+X	NODE *tmp;
+X	int len;
+X
+X	get_one(tree, &tmp);
+X	len = force_string(tmp)->stlen;
+X	free_temp(tmp);
+X	return tmp_number((AWKNUM) len);
+X}
+X
+XNODE *
+Xdo_log(tree)
+XNODE *tree;
+X{
+X	NODE *tmp;
+X	double log();
+X	double d, arg;
+X
+X	get_one(tree, &tmp);
+X	arg = (double) force_number(tmp);
+X	if (arg < 0.0)
+X		warning("log called with negative argument %g", arg);
+X	d = log(arg);
+X	free_temp(tmp);
+X	return tmp_number((AWKNUM) d);
+X}
+X
+X/*
+X * Note that the output buffer cannot be static because sprintf may get
+X * called recursively by force_string.  Hence the wasteful alloca calls 
+X */
+X
+X/* %e and %f formats are not properly implemented.  Someone should fix them */
+XNODE *
+Xdo_sprintf(tree)
+XNODE *tree;
+X{
+X#define bchunk(s,l) if(l) {\
+X    while((l)>ofre) {\
+X      char *tmp;\
+X      tmp=(char *)alloca(osiz*2);\
+X      memcpy(tmp,obuf,olen);\
+X      obuf=tmp;\
+X      ofre+=osiz;\
+X      osiz*=2;\
+X    }\
+X    memcpy(obuf+olen,s,(l));\
+X    olen+=(l);\
+X    ofre-=(l);\
+X  }
+X
+X	/* Is there space for something L big in the buffer? */
+X#define chksize(l)  if((l)>ofre) {\
+X    char *tmp;\
+X    tmp=(char *)alloca(osiz*2);\
+X    memcpy(tmp,obuf,olen);\
+X    obuf=tmp;\
+X    ofre+=osiz;\
+X    osiz*=2;\
+X  }
+X
+X	/*
+X	 * Get the next arg to be formatted.  If we've run out of args,
+X	 * return "" (Null string) 
+X	 */
+X#define parse_next_arg() {\
+X  if(!carg) arg= Nnull_string;\
+X  else {\
+X  	get_one(carg,&arg);\
+X	carg=carg->rnode;\
+X  }\
+X }
+X
+X	char *obuf;
+X	int osiz, ofre, olen;
+X	static char chbuf[] = "0123456789abcdef";
+X	static char sp[] = " ";
+X	char *s0, *s1;
+X	int n0;
+X	NODE *sfmt, *arg;
+X	register NODE *carg;
+X	long fw, prec, lj, alt, big;
+X	long *cur;
+X	long val;
+X#ifdef sun386			/* Can't cast unsigned (int/long) from ptr->value */
+X	long tmp_uval;		/* on 386i 4.0.1 C compiler -- it just hangs */
+X#endif
+X	unsigned long uval;
+X	int sgn;
+X	int base;
+X	char cpbuf[30];		/* if we have numbers bigger than 30 */
+X	char *cend = &cpbuf[30];/* chars, we lose, but seems unlikely */
+X	char *cp;
+X	char *fill;
+X	double tmpval;
+X	char *pr_str;
+X	int ucasehex = 0;
+X	extern char *gcvt();
+X
+X
+X	obuf = (char *) alloca(120);
+X	osiz = 120;
+X	ofre = osiz;
+X	olen = 0;
+X	get_one(tree, &sfmt);
+X	sfmt = force_string(sfmt);
+X	carg = tree->rnode;
+X	for (s0 = s1 = sfmt->stptr, n0 = sfmt->stlen; n0-- > 0;) {
+X		if (*s1 != '%') {
+X			s1++;
+X			continue;
+X		}
+X		bchunk(s0, s1 - s0);
+X		s0 = s1;
+X		cur = &fw;
+X		fw = 0;
+X		prec = 0;
+X		lj = alt = big = 0;
+X		fill = sp;
+X		cp = cend;
+X		s1++;
+X
+Xretry:
+X		--n0;
+X		switch (*s1++) {
+X		case '%':
+X			bchunk("%", 1);
+X			s0 = s1;
+X			break;
+X
+X		case '0':
+X			if (fill != sp || lj)
+X				goto lose;
+X			if (cur == &fw)
+X				fill = "0";	/* FALL through */
+X		case '1':
+X		case '2':
+X		case '3':
+X		case '4':
+X		case '5':
+X		case '6':
+X		case '7':
+X		case '8':
+X		case '9':
+X			if (cur == 0)
+X				goto lose;
+X			*cur = s1[-1] - '0';
+X			while (n0 > 0 && *s1 >= '0' && *s1 <= '9') {
+X				--n0;
+X				*cur = *cur * 10 + *s1++ - '0';
+X			}
+X			goto retry;
+X#ifdef not_yet
+X		case ' ':		/* print ' ' or '-' */
+X		case '+':		/* print '+' or '-' */
+X#endif
+X		case '-':
+X			if (lj || fill != sp)
+X				goto lose;
+X			lj++;
+X			goto retry;
+X		case '.':
+X			if (cur != &fw)
+X				goto lose;
+X			cur = &prec;
+X			goto retry;
+X		case '#':
+X			if (alt)
+X				goto lose;
+X			alt++;
+X			goto retry;
+X		case 'l':
+X			if (big)
+X				goto lose;
+X			big++;
+X			goto retry;
+X		case 'c':
+X			parse_next_arg();
+X			if (arg->flags & NUMERIC) {
+X#ifdef sun386
+X				tmp_uval = arg->numbr; 
+X				uval= (unsigned long) tmp_uval;
+X#else
+X				uval = (unsigned long) arg->numbr;
+X#endif
+X				cpbuf[0] = uval;
+X				prec = 1;
+X				pr_str = cpbuf;
+X				goto dopr_string;
+X			}
+X			if (! prec)
+X				prec = 1;
+X			else if (prec > arg->stlen)
+X				prec = arg->stlen;
+X			pr_str = arg->stptr;
+X			goto dopr_string;
+X		case 's':
+X			parse_next_arg();
+X			arg = force_string(arg);
+X			if (!prec || prec > arg->stlen)
+X				prec = arg->stlen;
+X			pr_str = arg->stptr;
+X
+X	dopr_string:
+X			if (fw > prec && !lj) {
+X				while (fw > prec) {
+X					bchunk(sp, 1);
+X					fw--;
+X				}
+X			}
+X			bchunk(pr_str, (int) prec);
+X			if (fw > prec) {
+X				while (fw > prec) {
+X					bchunk(sp, 1);
+X					fw--;
+X				}
+X			}
+X			s0 = s1;
+X			free_temp(arg);
+X			break;
+X		case 'd':
+X		case 'i':
+X			parse_next_arg();
+X			val = (long) force_number(arg);
+X			free_temp(arg);
+X			if (val < 0) {
+X				sgn = 1;
+X				val = -val;
+X			} else
+X				sgn = 0;
+X			do {
+X				*--cp = '0' + val % 10;
+X				val /= 10;
+X			} while (val);
+X			if (sgn)
+X				*--cp = '-';
+X			if (prec > fw)
+X				fw = prec;
+X			prec = cend - cp;
+X			if (fw > prec && !lj) {
+X				if (fill != sp && *cp == '-') {
+X					bchunk(cp, 1);
+X					cp++;
+X					prec--;
+X					fw--;
+X				}
+X				while (fw > prec) {
+X					bchunk(fill, 1);
+X					fw--;
+X				}
+X			}
+X			bchunk(cp, (int) prec);
+X			if (fw > prec) {
+X				while (fw > prec) {
+X					bchunk(fill, 1);
+X					fw--;
+X				}
+X			}
+X			s0 = s1;
+X			break;
+X		case 'u':
+X			base = 10;
+X			goto pr_unsigned;
+X		case 'o':
+X			base = 8;
+X			goto pr_unsigned;
+X		case 'X':
+X			ucasehex = 1;
+X		case 'x':
+X			base = 16;
+X			goto pr_unsigned;
+X	pr_unsigned:
+X			parse_next_arg();
+X			uval = (unsigned long) force_number(arg);
+X			free_temp(arg);
+X			do {
+X				*--cp = chbuf[uval % base];
+X				if (ucasehex && isalpha(*cp))
+X					*cp = toupper(*cp);
+X				uval /= base;
+X			} while (uval);
+X			if (alt && (base == 8 || base == 16)) {
+X				if (base == 16) {
+X					if (ucasehex)
+X						*--cp = 'X';
+X					else
+X						*--cp = 'x';
+X				}
+X				*--cp = '0';
+X			}
+X			prec = cend - cp;
+X			if (fw > prec && !lj) {
+X				while (fw > prec) {
+X					bchunk(fill, 1);
+X					fw--;
+X				}
+X			}
+X			bchunk(cp, (int) prec);
+X			if (fw > prec) {
+X				while (fw > prec) {
+X					bchunk(fill, 1);
+X					fw--;
+X				}
+X			}
+X			s0 = s1;
+X			break;
+X		case 'g':
+X			parse_next_arg();
+X			tmpval = force_number(arg);
+X			free_temp(arg);
+X			if (prec == 0)
+X				prec = 13;
+X			(void) gcvt(tmpval, (int) prec, cpbuf);
+X			prec = strlen(cpbuf);
+X			cp = cpbuf;
+X			if (fw > prec && !lj) {
+X				if (fill != sp && *cp == '-') {
+X					bchunk(cp, 1);
+X					cp++;
+X					prec--;
+X				}	/* Deal with .5 as 0.5 */
+X				if (fill == sp && *cp == '.') {
+X					--fw;
+X					while (--fw >= prec) {
+X						bchunk(fill, 1);
+X					}
+X					bchunk("0", 1);
+X				} else
+X					while (fw-- > prec)
+X						bchunk(fill, 1);
+X			} else {/* Turn .5 into 0.5 */
+X				/* FOO */
+X				if (*cp == '.' && fill == sp) {
+X					bchunk("0", 1);
+X					--fw;
+X				}
+X			}
+X			bchunk(cp, (int) prec);
+X			if (fw > prec)
+X				while (fw-- > prec)
+X					bchunk(fill, 1);
+X			s0 = s1;
+X			break;
+X		case 'f':
+X			parse_next_arg();
+X			tmpval = force_number(arg);
+X			free_temp(arg);
+X			chksize(fw + prec + 5);	/* 5==slop */
+X
+X			cp = cpbuf;
+X			*cp++ = '%';
+X			if (lj)
+X				*cp++ = '-';
+X			if (fill != sp)
+X				*cp++ = '0';
+X			if (cur != &fw) {
+X				(void) strcpy(cp, "*.*f");
+X				(void) sprintf(obuf + olen, cpbuf, (int) fw, (int) prec, (double) tmpval);
+X			} else {
+X				(void) strcpy(cp, "*f");
+X				(void) sprintf(obuf + olen, cpbuf, (int) fw, (double) tmpval);
+X			}
+X			ofre -= strlen(obuf + olen);
+X			olen += strlen(obuf + olen);	/* There may be nulls */
+X			s0 = s1;
+X			break;
+X		case 'e':
+X			parse_next_arg();
+X			tmpval = force_number(arg);
+X			free_temp(arg);
+X			chksize(fw + prec + 5);	/* 5==slop */
+X			cp = cpbuf;
+X			*cp++ = '%';
+X			if (lj)
+X				*cp++ = '-';
+X			if (fill != sp)
+X				*cp++ = '0';
+X			if (cur != &fw) {
+X				(void) strcpy(cp, "*.*e");
+X				(void) sprintf(obuf + olen, cpbuf, (int) fw, (int) prec, (double) tmpval);
+X			} else {
+X				(void) strcpy(cp, "*e");
+X				(void) sprintf(obuf + olen, cpbuf, (int) fw, (double) tmpval);
+X			}
+X			ofre -= strlen(obuf + olen);
+X			olen += strlen(obuf + olen);	/* There may be nulls */
+X			s0 = s1;
+X			break;
+X
+X		default:
+X	lose:
+X			break;
+X		}
+X	}
+X	bchunk(s0, s1 - s0);
+X	free_temp(sfmt);
+X	return tmp_string(obuf, olen);
+X}
+X
+Xvoid
+Xdo_printf(tree)
+XNODE *tree;
+X{
+X	struct redirect *rp = NULL;
+X	register FILE *fp = stdout;
+X	int errflg = 0;		/* not used, sigh */
+X
+X	if (tree->rnode) {
+X		rp = redirect(tree->rnode, &errflg);
+X		if (rp)
+X			fp = rp->fp;
+X	}
+X	if (fp)
+X		print_simple(do_sprintf(tree->lnode), fp);
+X	if (rp && (rp->flag & RED_NOBUF))
+X		fflush(fp);
+X}
+X
+XNODE *
+Xdo_sqrt(tree)
+XNODE *tree;
+X{
+X	NODE *tmp;
+X	double sqrt();
+X	double d, arg;
+X
+X	get_one(tree, &tmp);
+X	arg = (double) force_number(tmp);
+X	if (arg < 0.0)
+X		warning("sqrt called with negative argument %g", arg);
+X	d = sqrt(arg);
+X	free_temp(tmp);
+X	return tmp_number((AWKNUM) d);
+X}
+X
+XNODE *
+Xdo_substr(tree)
+XNODE *tree;
+X{
+X	NODE *t1, *t2, *t3;
+X	NODE *r;
+X	register int indx, length;
+X
+X	t1 = t2 = t3 = NULL;
+X	length = -1;
+X	if (get_three(tree, &t1, &t2, &t3) == 3)
+X		length = (int) force_number(t3);
+X	indx = (int) force_number(t2) - 1;
+X	t1 = force_string(t1);
+X	if (length == -1)
+X		length = t1->stlen;
+X	if (indx < 0)
+X		indx = 0;
+X	if (indx >= t1->stlen || length <= 0) {
+X		if (t3)
+X			free_temp(t3);
+X		free_temp(t2);
+X		free_temp(t1);
+X		return Nnull_string;
+X	}
+X	if (indx + length > t1->stlen)
+X		length = t1->stlen - indx;
+X	if (t3)
+X		free_temp(t3);
+X	free_temp(t2);
+X	r =  tmp_string(t1->stptr + indx, length);
+X	free_temp(t1);
+X	return r;
+X}
+X
+XNODE *
+Xdo_system(tree)
+XNODE *tree;
+X{
+X#if defined(unix) || defined(MSDOS) /* || defined(gnu) */
+X	NODE *tmp;
+X	int ret;
+X
+X	(void) flush_io ();	/* so output is synchronous with gawk's */
+X	get_one(tree, &tmp);
+X	ret = system(force_string(tmp)->stptr);
+X	ret = (ret >> 8) & 0xff;
+X	free_temp(tmp);
+X	return tmp_number((AWKNUM) ret);
+X#else
+X	fatal("the \"system\" function is not supported.");
+X	/* NOTREACHED */
+X#endif
+X}
+X
+Xvoid 
+Xdo_print(tree)
+Xregister NODE *tree;
+X{
+X	struct redirect *rp = NULL;
+X	register FILE *fp = stdout;
+X	int errflg = 0;		/* not used, sigh */
+X
+X	if (tree->rnode) {
+X		rp = redirect(tree->rnode, &errflg);
+X		if (rp)
+X			fp = rp->fp;
+X	}
+X	if (!fp)
+X		return;
+X	tree = tree->lnode;
+X	if (!tree)
+X		tree = WHOLELINE;
+X	if (tree->type != Node_expression_list) {
+X		if (!(tree->flags & STR))
+X			cant_happen();
+X		print_simple(tree, fp);
+X	} else {
+X		while (tree) {
+X			print_simple(force_string(tree_eval(tree->lnode)), fp);
+X			tree = tree->rnode;
+X			if (tree)
+X				print_simple(OFS_node->var_value, fp);
+X		}
+X	}
+X	print_simple(ORS_node->var_value, fp);
+X	if (rp && (rp->flag & RED_NOBUF))
+X		fflush(fp);
+X}
+X
+XNODE *
+Xdo_tolower(tree)
+XNODE *tree;
+X{
+X	NODE *t1, *t2;
+X	register char *cp, *cp2;
+X
+X	get_one(tree, &t1);
+X	t1 = force_string(t1);
+X	t2 = tmp_string(t1->stptr, t1->stlen);
+X	for (cp = t2->stptr, cp2 = t2->stptr + t2->stlen; cp < cp2; cp++)
+X		if (isupper(*cp))
+X			*cp = tolower(*cp);
+X	free_temp(t1);
+X	return t2;
+X}
+X
+XNODE *
+Xdo_toupper(tree)
+XNODE *tree;
+X{
+X	NODE *t1, *t2;
+X	register char *cp;
+X
+X	get_one(tree, &t1);
+X	t1 = force_string(t1);
+X	t2 = tmp_string(t1->stptr, t1->stlen);
+X	for (cp = t2->stptr; cp < t2->stptr + t2->stlen; cp++)
+X		if (islower(*cp))
+X			*cp = toupper(*cp);
+X	free_temp(t1);
+X	return t2;
+X}
+X
+X/*
+X * Get the arguments to functions.  No function cares if you give it too many
+X * args (they're ignored).  Only a few fuctions complain about being given
+X * too few args.  The rest have defaults.
+X */
+X
+Xstatic void
+Xget_one(tree, res)
+XNODE *tree, **res;
+X{
+X	if (!tree) {
+X		*res = WHOLELINE;
+X		return;
+X	}
+X	*res = tree_eval(tree->lnode);
+X}
+X
+Xstatic void
+Xget_two(tree, res1, res2)
+XNODE *tree, **res1, **res2;
+X{
+X	if (!tree) {
+X		*res1 = WHOLELINE;
+X		return;
+X	}
+X	*res1 = tree_eval(tree->lnode);
+X	if (!tree->rnode)
+X		return;
+X	tree = tree->rnode;
+X	*res2 = tree_eval(tree->lnode);
+X}
+X
+Xstatic int
+Xget_three(tree, res1, res2, res3)
+XNODE *tree, **res1, **res2, **res3;
+X{
+X	if (!tree) {
+X		*res1 = WHOLELINE;
+X		return 0;
+X	}
+X	*res1 = tree_eval(tree->lnode);
+X	if (!tree->rnode)
+X		return 1;
+X	tree = tree->rnode;
+X	*res2 = tree_eval(tree->lnode);
+X	if (!tree->rnode)
+X		return 2;
+X	tree = tree->rnode;
+X	*res3 = tree_eval(tree->lnode);
+X	return 3;
+X}
+X
+Xint
+Xa_get_three(tree, res1, res2, res3)
+XNODE *tree, **res1, **res2, **res3;
+X{
+X	if (!tree) {
+X		*res1 = WHOLELINE;
+X		return 0;
+X	}
+X	*res1 = tree_eval(tree->lnode);
+X	if (!tree->rnode)
+X		return 1;
+X	tree = tree->rnode;
+X	*res2 = tree->lnode;
+X	if (!tree->rnode)
+X		return 2;
+X	tree = tree->rnode;
+X	*res3 = tree_eval(tree->lnode);
+X	return 3;
+X}
+X
+Xvoid
+Xprint_simple(tree, fp)
+XNODE *tree;
+XFILE *fp;
+X{
+X	if (fwrite(tree->stptr, sizeof(char), tree->stlen, fp) != tree->stlen)
+X		warning("fwrite: %s", strerror(errno));
+X	free_temp(tree);
+X}
+X
+XNODE *
+Xdo_atan2(tree)
+XNODE *tree;
+X{
+X	NODE *t1, *t2;
+X	extern double atan2();
+X	double d1, d2;
+X
+X	get_two(tree, &t1, &t2);
+X	d1 = force_number(t1);
+X	d2 = force_number(t2);
+X	free_temp(t1);
+X	free_temp(t2);
+X	return tmp_number((AWKNUM) atan2(d1, d2));
+X}
+X
+XNODE *
+Xdo_sin(tree)
+XNODE *tree;
+X{
+X	NODE *tmp;
+X	extern double sin();
+X	double d;
+X
+X	get_one(tree, &tmp);
+X	d = sin((double)force_number(tmp));
+X	free_temp(tmp);
+X	return tmp_number((AWKNUM) d);
+X}
+X
+XNODE *
+Xdo_cos(tree)
+XNODE *tree;
+X{
+X	NODE *tmp;
+X	extern double cos();
+X	double d;
+X
+X	get_one(tree, &tmp);
+X	d = cos((double)force_number(tmp));
+X	free_temp(tmp);
+X	return tmp_number((AWKNUM) d);
+X}
+X
+Xstatic int firstrand = 1;
+Xstatic char state[256];
+X
+X#define	MAXLONG	2147483647	/* maximum value for long int */
+X
+X/* ARGSUSED */
+XNODE *
+Xdo_rand(tree)
+XNODE *tree;
+X{
+X	if (firstrand) {
+X		(void) initstate((unsigned) 1, state, sizeof state);
+X		srandom(1);
+X		firstrand = 0;
+X	}
+X	return tmp_number((AWKNUM) random() / MAXLONG);
+X}
+X
+XNODE *
+Xdo_srand(tree)
+XNODE *tree;
+X{
+X	NODE *tmp;
+X	static long save_seed = 1;
+X	long ret = save_seed;	/* SVR4 awk srand returns previous seed */
+X	extern long time();
+X
+X	if (firstrand)
+X		(void) initstate((unsigned) 1, state, sizeof state);
+X	else
+X		(void) setstate(state);
+X
+X	if (!tree)
+X		srandom((int) (save_seed = time((long *) 0)));
+X	else {
+X		get_one(tree, &tmp);
+X		srandom((int) (save_seed = (long) force_number(tmp)));
+X		free_temp(tmp);
+X	}
+X	firstrand = 0;
+X	return tmp_number((AWKNUM) ret);
+X}
+X
+XNODE *
+Xdo_match(tree)
+XNODE *tree;
+X{
+X	NODE *t1;
+X	int rstart;
+X	struct re_registers reregs;
+X	struct re_pattern_buffer *rp;
+X	int need_to_free = 0;
+X
+X	t1 = force_string(tree_eval(tree->lnode));
+X	tree = tree->rnode;
+X	if (tree == NULL || tree->lnode == NULL)
+X		fatal("match called with only one argument");
+X	tree = tree->lnode;
+X	if (tree->type == Node_regex) {
+X		rp = tree->rereg;
+X		if (!strict && ((IGNORECASE_node->var_value->numbr != 0)
+X		    ^ (tree->re_case != 0))) {
+X			/* recompile since case sensitivity differs */
+X			rp = tree->rereg =
+X				mk_re_parse(tree->re_text,
+X				(IGNORECASE_node->var_value->numbr != 0));
+X			tree->re_case =
+X				(IGNORECASE_node->var_value->numbr != 0);
+X		}
+X	} else {
+X		need_to_free = 1;
+X		rp = make_regexp(force_string(tree_eval(tree)),
+X				(IGNORECASE_node->var_value->numbr != 0));
+X		if (rp == NULL)
+X			cant_happen();
+X	}
+X	rstart = re_search(rp, t1->stptr, t1->stlen, 0, t1->stlen, &reregs);
+X	free_temp(t1);
+X	if (rstart >= 0) {
+X		rstart++;	/* 1-based indexing */
+X		/* RSTART set to rstart below */
+X		RLENGTH_node->var_value->numbr =
+X			(AWKNUM) (reregs.end[0] - reregs.start[0]);
+X	} else {
+X		/*
+X		 * Match failed. Set RSTART to 0, RLENGTH to -1.
+X		 * Return the value of RSTART.
+X		 */
+X		rstart = 0;	/* used as return value */
+X		RLENGTH_node->var_value->numbr = -1.0;
+X	}
+X	RSTART_node->var_value->numbr = (AWKNUM) rstart;
+X	if (need_to_free) {
+X		free(rp->buffer);
+X		free(rp->fastmap);
+X		free((char *) rp);
+X	}
+X	return tmp_number((AWKNUM) rstart);
+X}
+X
+Xstatic NODE *
+Xsub_common(tree, global)
+XNODE *tree;
+Xint global;
+X{
+X	register int len;
+X	register char *scan;
+X	register char *bp, *cp;
+X	int search_start = 0;
+X	int match_length;
+X	int matches = 0;
+X	char *buf;
+X	struct re_pattern_buffer *rp;
+X	NODE *s;		/* subst. pattern */
+X	NODE *t;		/* string to make sub. in; $0 if none given */
+X	struct re_registers reregs;
+X	unsigned int saveflags;
+X	NODE *tmp;
+X	NODE **lhs;
+X	char *lastbuf;
+X	int need_to_free = 0;
+X
+X	if (tree == NULL)
+X		fatal("sub or gsub called with 0 arguments");
+X	tmp = tree->lnode;
+X	if (tmp->type == Node_regex) {
+X		rp = tmp->rereg;
+X		if (! strict && ((IGNORECASE_node->var_value->numbr != 0)
+X		    ^ (tmp->re_case != 0))) {
+X			/* recompile since case sensitivity differs */
+X			rp = tmp->rereg =
+X				mk_re_parse(tmp->re_text,
+X				(IGNORECASE_node->var_value->numbr != 0));
+X			tmp->re_case = (IGNORECASE_node->var_value->numbr != 0);
+X		}
+X	} else {
+X		need_to_free = 1;
+X		rp = make_regexp(force_string(tree_eval(tmp)),
+X				(IGNORECASE_node->var_value->numbr != 0));
+X		if (rp == NULL)
+X			cant_happen();
+X	}
+X	tree = tree->rnode;
+X	if (tree == NULL)
+X		fatal("sub or gsub called with only 1 argument");
+X	s = force_string(tree_eval(tree->lnode));
+X	tree = tree->rnode;
+X	deref = 0;
+X	field_num = -1;
+X	if (tree == NULL) {
+X		t = node0_valid ? fields_arr[0] : *get_field(0, 0);
+X		lhs = &fields_arr[0];
+X		field_num = 0;
+X		deref = t;
+X	} else {
+X		t = tree->lnode;
+X		lhs = get_lhs(t, 1);
+X		t = force_string(tree_eval(t));
+X	}
+X	/*
+X	 * create a private copy of the string
+X	 */
+X	if (t->stref > 1 || (t->flags & PERM)) {
+X		saveflags = t->flags;
+X		t->flags &= ~MALLOC;
+X		tmp = dupnode(t);
+X		t->flags = saveflags;
+X		do_deref();
+X		t = tmp;
+X		if (lhs)
+X			*lhs = tmp;
+X	}
+X	lastbuf = t->stptr;
+X	do {
+X		if (re_search(rp, t->stptr, t->stlen, search_start,
+X		    t->stlen-search_start, &reregs) == -1
+X		    || reregs.start[0] == reregs.end[0])
+X			break;
+X		matches++;
+X
+X		/*
+X		 * first, make a pass through the sub. pattern, to calculate
+X		 * the length of the string after substitution 
+X		 */
+X		match_length = reregs.end[0] - reregs.start[0];
+X		len = t->stlen - match_length;
+X		for (scan = s->stptr; scan < s->stptr + s->stlen; scan++)
+X			if (*scan == '&')
+X				len += match_length;
+X			else if (*scan == '\\' && *(scan+1) == '&') {
+X				scan++;
+X				len++;
+X			} else
+X				len++;
+X		emalloc(buf, char *, len + 1, "do_sub");
+X		bp = buf;
+X
+X		/*
+X		 * now, create the result, copying in parts of the original
+X		 * string 
+X		 */
+X		for (scan = t->stptr; scan < t->stptr + reregs.start[0]; scan++)
+X			*bp++ = *scan;
+X		for (scan = s->stptr; scan < s->stptr + s->stlen; scan++)
+X			if (*scan == '&')
+X				for (cp = t->stptr + reregs.start[0];
+X				     cp < t->stptr + reregs.end[0]; cp++)
+X					*bp++ = *cp;
+X			else if (*scan == '\\' && *(scan+1) == '&') {
+X				scan++;
+X				*bp++ = *scan;
+X			} else
+X				*bp++ = *scan;
+X		search_start = bp - buf;
+X		for (scan = t->stptr + reregs.end[0];
+X		     scan < t->stptr + t->stlen; scan++)
+X			*bp++ = *scan;
+X		*bp = '\0';
+X		free(lastbuf);
+X		t->stptr = buf;
+X		lastbuf = buf;
+X		t->stlen = len;
+X	} while (global && search_start < t->stlen);
+X
+X	free_temp(s);
+X	if (need_to_free) {
+X		free(rp->buffer);
+X		free(rp->fastmap);
+X		free((char *) rp);
+X	}
+X	if (matches > 0) {
+X		if (field_num == 0)
+X			set_record(fields_arr[0]->stptr, fields_arr[0]->stlen);
+X		t->flags &= ~(NUM|NUMERIC);
+X	}
+X	field_num = -1;
+X	return tmp_number((AWKNUM) matches);
+X}
+X
+XNODE *
+Xdo_gsub(tree)
+XNODE *tree;
+X{
+X	return sub_common(tree, 1);
+X}
+X
+XNODE *
+Xdo_sub(tree)
+XNODE *tree;
+X{
+X	return sub_common(tree, 0);
+X}
+X
+END_OF_FILE
+  if test 20659 -ne `wc -c <'./builtin.c'`; then
+    echo shar: \"'./builtin.c'\" unpacked with wrong size!
+  fi
+  # end of './builtin.c'
+fi
+if test -f './eval.c' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'./eval.c'\"
+else
+  echo shar: Extracting \"'./eval.c'\" \(29550 characters\)
+  sed "s/^X//" >'./eval.c' <<'END_OF_FILE'
+X/*
+X * eval.c - gawk parse tree interpreter 
+X */
+X
+X/* 
+X * Copyright (C) 1986, 1988, 1989 the Free Software Foundation, Inc.
+X * 
+X * This file is part of GAWK, the GNU implementation of the
+X * AWK Progamming Language.
+X * 
+X * GAWK is free software; you can redistribute it and/or modify
+X * it under the terms of the GNU General Public License as published by
+X * the Free Software Foundation; either version 1, or (at your option)
+X * any later version.
+X * 
+X * GAWK is distributed in the hope that it will be useful,
+X * but WITHOUT ANY WARRANTY; without even the implied warranty of
+X * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+X * GNU General Public License for more details.
+X * 
+X * You should have received a copy of the GNU General Public License
+X * along with GAWK; see the file COPYING.  If not, write to
+X * the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
+X */
+X
+X#include "awk.h"
+X
+Xextern void do_print();
+Xextern void do_printf();
+Xextern NODE *do_match();
+Xextern NODE *do_sub();
+Xextern NODE *do_getline();
+Xextern NODE *concat_exp();
+Xextern int in_array();
+Xextern void do_delete();
+Xextern double pow();
+X
+Xstatic int eval_condition();
+Xstatic NODE *op_assign();
+Xstatic NODE *func_call();
+Xstatic NODE *match_op();
+X
+XNODE *_t;		/* used as a temporary in macros */
+X#ifdef MSDOS
+Xdouble _msc51bug;	/* to get around a bug in MSC 5.1 */
+X#endif
+XNODE *ret_node;
+X
+X/* More of that debugging stuff */
+X#ifdef	DEBUG
+X#define DBG_P(X) print_debug X
+X#else
+X#define DBG_P(X)
+X#endif
+X
+X/* Macros and variables to save and restore function and loop bindings */
+X/*
+X * the val variable allows return/continue/break-out-of-context to be
+X * caught and diagnosed
+X */
+X#define PUSH_BINDING(stack, x, val) (memcpy ((char *)(stack), (char *)(x), sizeof (jmp_buf)), val++)
+X#define RESTORE_BINDING(stack, x, val) (memcpy ((char *)(x), (char *)(stack), sizeof (jmp_buf)), val--)
+X
+Xstatic jmp_buf loop_tag;	/* always the current binding */
+Xstatic int loop_tag_valid = 0;	/* nonzero when loop_tag valid */
+Xstatic int func_tag_valid = 0;
+Xstatic jmp_buf func_tag;
+Xextern int exiting, exit_val;
+X
+X/*
+X * This table is used by the regexp routines to do case independant
+X * matching. Basically, every ascii character maps to itself, except
+X * uppercase letters map to lower case ones. This table has 256
+X * entries, which may be overkill. Note also that if the system this
+X * is compiled on doesn't use 7-bit ascii, casetable[] should not be
+X * defined to the linker, so gawk should not load.
+X *
+X * Do NOT make this array static, it is used in several spots, not
+X * just in this file.
+X */
+X#if 'a' == 97	/* it's ascii */
+Xchar casetable[] = {
+X	'\000', '\001', '\002', '\003', '\004', '\005', '\006', '\007',
+X	'\010', '\011', '\012', '\013', '\014', '\015', '\016', '\017',
+X	'\020', '\021', '\022', '\023', '\024', '\025', '\026', '\027',
+X	'\030', '\031', '\032', '\033', '\034', '\035', '\036', '\037',
+X	/* ' '     '!'     '"'     '#'     '$'     '%'     '&'     ''' */
+X	'\040', '\041', '\042', '\043', '\044', '\045', '\046', '\047',
+X	/* '('     ')'     '*'     '+'     ','     '-'     '.'     '/' */
+X	'\050', '\051', '\052', '\053', '\054', '\055', '\056', '\057',
+X	/* '0'     '1'     '2'     '3'     '4'     '5'     '6'     '7' */
+X	'\060', '\061', '\062', '\063', '\064', '\065', '\066', '\067',
+X	/* '8'     '9'     ':'     ';'     '<'     '='     '>'     '?' */
+X	'\070', '\071', '\072', '\073', '\074', '\075', '\076', '\077',
+X	/* '@'     'A'     'B'     'C'     'D'     'E'     'F'     'G' */
+X	'\100', '\141', '\142', '\143', '\144', '\145', '\146', '\147',
+X	/* 'H'     'I'     'J'     'K'     'L'     'M'     'N'     'O' */
+X	'\150', '\151', '\152', '\153', '\154', '\155', '\156', '\157',
+X	/* 'P'     'Q'     'R'     'S'     'T'     'U'     'V'     'W' */
+X	'\160', '\161', '\162', '\163', '\164', '\165', '\166', '\167',
+X	/* 'X'     'Y'     'Z'     '['     '\'     ']'     '^'     '_' */
+X	'\170', '\171', '\172', '\133', '\134', '\135', '\136', '\137',
+X	/* '`'     'a'     'b'     'c'     'd'     'e'     'f'     'g' */
+X	'\140', '\141', '\142', '\143', '\144', '\145', '\146', '\147',
+X	/* 'h'     'i'     'j'     'k'     'l'     'm'     'n'     'o' */
+X	'\150', '\151', '\152', '\153', '\154', '\155', '\156', '\157',
+X	/* 'p'     'q'     'r'     's'     't'     'u'     'v'     'w' */
+X	'\160', '\161', '\162', '\163', '\164', '\165', '\166', '\167',
+X	/* 'x'     'y'     'z'     '{'     '|'     '}'     '~' */
+X	'\170', '\171', '\172', '\173', '\174', '\175', '\176', '\177',
+X	'\200', '\201', '\202', '\203', '\204', '\205', '\206', '\207',
+X	'\210', '\211', '\212', '\213', '\214', '\215', '\216', '\217',
+X	'\220', '\221', '\222', '\223', '\224', '\225', '\226', '\227',
+X	'\230', '\231', '\232', '\233', '\234', '\235', '\236', '\237',
+X	'\240', '\241', '\242', '\243', '\244', '\245', '\246', '\247',
+X	'\250', '\251', '\252', '\253', '\254', '\255', '\256', '\257',
+X	'\260', '\261', '\262', '\263', '\264', '\265', '\266', '\267',
+X	'\270', '\271', '\272', '\273', '\274', '\275', '\276', '\277',
+X	'\300', '\301', '\302', '\303', '\304', '\305', '\306', '\307',
+X	'\310', '\311', '\312', '\313', '\314', '\315', '\316', '\317',
+X	'\320', '\321', '\322', '\323', '\324', '\325', '\326', '\327',
+X	'\330', '\331', '\332', '\333', '\334', '\335', '\336', '\337',
+X	'\340', '\341', '\342', '\343', '\344', '\345', '\346', '\347',
+X	'\350', '\351', '\352', '\353', '\354', '\355', '\356', '\357',
+X	'\360', '\361', '\362', '\363', '\364', '\365', '\366', '\367',
+X	'\370', '\371', '\372', '\373', '\374', '\375', '\376', '\377',
+X};
+X#else
+X#include "You lose. You will need a translation table for your character set."
+X#endif
+X
+X/*
+X * Tree is a bunch of rules to run. Returns zero if it hit an exit()
+X * statement 
+X */
+Xint
+Xinterpret(tree)
+XNODE *tree;
+X{
+X	volatile jmp_buf loop_tag_stack; /* shallow binding stack for loop_tag */
+X	static jmp_buf rule_tag;/* tag the rule currently being run, for NEXT
+X				 * and EXIT statements.  It is static because
+X				 * there are no nested rules */
+X	register NODE *t = NULL;/* temporary */
+X	volatile NODE **lhs;	/* lhs == Left Hand Side for assigns, etc */
+X	volatile struct search *l;	/* For array_for */
+X	volatile NODE *stable_tree;
+X
+X	if (tree == NULL)
+X		return 1;
+X	sourceline = tree->source_line;
+X	source = tree->source_file;
+X	switch (tree->type) {
+X	case Node_rule_list:
+X		for (t = tree; t != NULL; t = t->rnode) {
+X			tree = t->lnode;
+X		/* FALL THROUGH */
+X	case Node_rule_node:
+X			sourceline = tree->source_line;
+X			source = tree->source_file;
+X			switch (setjmp(rule_tag)) {
+X			case 0:	/* normal non-jump */
+X				/* test pattern, if any */
+X				if (tree->lnode == NULL 
+X				    || eval_condition(tree->lnode)) {
+X					DBG_P(("Found a rule", tree->rnode));
+X					if (tree->rnode == NULL) {
+X						/*
+X						 * special case: pattern with
+X						 * no action is equivalent to
+X						 * an action of {print}
+X						 */
+X						NODE printnode;
+X
+X						printnode.type = Node_K_print;
+X						printnode.lnode = NULL;
+X						printnode.rnode = NULL;
+X						do_print(&printnode);
+X					} else if (tree->rnode->type == Node_illegal) {
+X						/*
+X						 * An empty statement
+X						 * (``{ }'') is different
+X						 * from a missing statement.
+X						 * A missing statement is
+X						 * equal to ``{ print }'' as
+X						 * above, but an empty
+X						 * statement is as in C, do
+X						 * nothing.
+X						 */
+X					} else
+X						(void) interpret(tree->rnode);
+X				}
+X				break;
+X			case TAG_CONTINUE:	/* NEXT statement */
+X				return 1;
+X			case TAG_BREAK:
+X				return 0;
+X			default:
+X				cant_happen();
+X			}
+X			if (t == NULL)
+X				break;
+X		}
+X		break;
+X
+X	case Node_statement_list:
+X		for (t = tree; t != NULL; t = t->rnode) {
+X			DBG_P(("Statements", t->lnode));
+X			(void) interpret(t->lnode);
+X		}
+X		break;
+X
+X	case Node_K_if:
+X		DBG_P(("IF", tree->lnode));
+X		if (eval_condition(tree->lnode)) {
+X			DBG_P(("True", tree->rnode->lnode));
+X			(void) interpret(tree->rnode->lnode);
+X		} else {
+X			DBG_P(("False", tree->rnode->rnode));
+X			(void) interpret(tree->rnode->rnode);
+X		}
+X		break;
+X
+X	case Node_K_while:
+X		PUSH_BINDING(loop_tag_stack, loop_tag, loop_tag_valid);
+X
+X		DBG_P(("WHILE", tree->lnode));
+X		stable_tree = tree;
+X		while (eval_condition(stable_tree->lnode)) {
+X			switch (setjmp(loop_tag)) {
+X			case 0:	/* normal non-jump */
+X				DBG_P(("DO", stable_tree->rnode));
+X				(void) interpret(stable_tree->rnode);
+X				break;
+X			case TAG_CONTINUE:	/* continue statement */
+X				break;
+X			case TAG_BREAK:	/* break statement */
+X				RESTORE_BINDING(loop_tag_stack, loop_tag, loop_tag_valid);
+X				return 1;
+X			default:
+X				cant_happen();
+X			}
+X		}
+X		RESTORE_BINDING(loop_tag_stack, loop_tag, loop_tag_valid);
+X		break;
+X
+X	case Node_K_do:
+X		PUSH_BINDING(loop_tag_stack, loop_tag, loop_tag_valid);
+X		stable_tree = tree;
+X		do {
+X			switch (setjmp(loop_tag)) {
+X			case 0:	/* normal non-jump */
+X				DBG_P(("DO", stable_tree->rnode));
+X				(void) interpret(stable_tree->rnode);
+X				break;
+X			case TAG_CONTINUE:	/* continue statement */
+X				break;
+X			case TAG_BREAK:	/* break statement */
+X				RESTORE_BINDING(loop_tag_stack, loop_tag, loop_tag_valid);
+X				return 1;
+X			default:
+X				cant_happen();
+X			}
+X			DBG_P(("WHILE", stable_tree->lnode));
+X		} while (eval_condition(stable_tree->lnode));
+X		RESTORE_BINDING(loop_tag_stack, loop_tag, loop_tag_valid);
+X		break;
+X
+X	case Node_K_for:
+X		PUSH_BINDING(loop_tag_stack, loop_tag, loop_tag_valid);
+X		DBG_P(("FOR", tree->forloop->init));
+X		(void) interpret(tree->forloop->init);
+X		DBG_P(("FOR.WHILE", tree->forloop->cond));
+X		stable_tree = tree;
+X		while (eval_condition(stable_tree->forloop->cond)) {
+X			switch (setjmp(loop_tag)) {
+X			case 0:	/* normal non-jump */
+X				DBG_P(("FOR.DO", stable_tree->lnode));
+X				(void) interpret(stable_tree->lnode);
+X				/* fall through */
+X			case TAG_CONTINUE:	/* continue statement */
+X				DBG_P(("FOR.INCR", stable_tree->forloop->incr));
+X				(void) interpret(stable_tree->forloop->incr);
+X				break;
+X			case TAG_BREAK:	/* break statement */
+X				RESTORE_BINDING(loop_tag_stack, loop_tag, loop_tag_valid);
+X				return 1;
+X			default:
+X				cant_happen();
+X			}
+X		}
+X		RESTORE_BINDING(loop_tag_stack, loop_tag, loop_tag_valid);
+X		break;
+X
+X	case Node_K_arrayfor:
+X#define hakvar forloop->init
+X#define arrvar forloop->incr
+X		PUSH_BINDING(loop_tag_stack, loop_tag, loop_tag_valid);
+X		DBG_P(("AFOR.VAR", tree->hakvar));
+X		lhs = (volatile NODE **) get_lhs(tree->hakvar, 1);
+X		t = tree->arrvar;
+X		if (t->type == Node_param_list)
+X			t = stack_ptr[t->param_cnt];
+X		stable_tree = tree;
+X		for (l = assoc_scan(t); l; l = assoc_next((struct search *)l)) {
+X			deref = *((NODE **) lhs);
+X			do_deref();
+X			*lhs = dupnode(l->retval);
+X			if (field_num == 0)
+X				set_record(fields_arr[0]->stptr,
+X				    fields_arr[0]->stlen);
+X			DBG_P(("AFOR.NEXTIS", *lhs));
+X			switch (setjmp(loop_tag)) {
+X			case 0:
+X				DBG_P(("AFOR.DO", stable_tree->lnode));
+X				(void) interpret(stable_tree->lnode);
+X			case TAG_CONTINUE:
+X				break;
+X
+X			case TAG_BREAK:
+X				RESTORE_BINDING(loop_tag_stack, loop_tag, loop_tag_valid);
+X				field_num = -1;
+X				return 1;
+X			default:
+X				cant_happen();
+X			}
+X		}
+X		field_num = -1;
+X		RESTORE_BINDING(loop_tag_stack, loop_tag, loop_tag_valid);
+X		break;
+X
+X	case Node_K_break:
+X		DBG_P(("BREAK", NULL));
+X		if (loop_tag_valid == 0)
+X			fatal("unexpected break");
+X		longjmp(loop_tag, TAG_BREAK);
+X		break;
+X
+X	case Node_K_continue:
+X		DBG_P(("CONTINUE", NULL));
+X		if (loop_tag_valid == 0)
+X			fatal("unexpected continue");
+X		longjmp(loop_tag, TAG_CONTINUE);
+X		break;
+X
+X	case Node_K_print:
+X		DBG_P(("PRINT", tree));
+X		do_print(tree);
+X		break;
+X
+X	case Node_K_printf:
+X		DBG_P(("PRINTF", tree));
+X		do_printf(tree);
+X		break;
+X
+X	case Node_K_next:
+X		DBG_P(("NEXT", NULL));
+X		longjmp(rule_tag, TAG_CONTINUE);
+X		break;
+X
+X	case Node_K_exit:
+X		/*
+X		 * In A,K,&W, p. 49, it says that an exit statement "...
+X		 * causes the program to behave as if the end of input had
+X		 * occurred; no more input is read, and the END actions, if
+X		 * any are executed." This implies that the rest of the rules
+X		 * are not done. So we immediately break out of the main loop.
+X		 */
+X		DBG_P(("EXIT", NULL));
+X		exiting = 1;
+X		if (tree) {
+X			t = tree_eval(tree->lnode);
+X			exit_val = (int) force_number(t);
+X		}
+X		free_temp(t);
+X		longjmp(rule_tag, TAG_BREAK);
+X		break;
+X
+X	case Node_K_return:
+X		DBG_P(("RETURN", NULL));
+X		t = tree_eval(tree->lnode);
+X		ret_node = dupnode(t);
+X		free_temp(t);
+X		longjmp(func_tag, TAG_RETURN);
+X		break;
+X
+X	default:
+X		/*
+X		 * Appears to be an expression statement.  Throw away the
+X		 * value. 
+X		 */
+X		DBG_P(("E", NULL));
+X		t = tree_eval(tree);
+X		free_temp(t);
+X		break;
+X	}
+X	return 1;
+X}
+X
+X/* evaluate a subtree, allocating strings on a temporary stack. */
+X
+XNODE *
+Xr_tree_eval(tree)
+XNODE *tree;
+X{
+X	register NODE *r, *t1, *t2;	/* return value & temporary subtrees */
+X	int i;
+X	register NODE **lhs;
+X	int di;
+X	AWKNUM x, x2;
+X	long lx;
+X	extern NODE **fields_arr;
+X
+X	source = tree->source_file;
+X	sourceline = tree->source_line;
+X	switch (tree->type) {
+X	case Node_and:
+X		DBG_P(("AND", tree));
+X		return tmp_number((AWKNUM) (eval_condition(tree->lnode)
+X					    && eval_condition(tree->rnode)));
+X
+X	case Node_or:
+X		DBG_P(("OR", tree));
+X		return tmp_number((AWKNUM) (eval_condition(tree->lnode)
+X					    || eval_condition(tree->rnode)));
+X
+X	case Node_not:
+X		DBG_P(("NOT", tree));
+X		return tmp_number((AWKNUM) ! eval_condition(tree->lnode));
+X
+X		/* Builtins */
+X	case Node_builtin:
+X		DBG_P(("builtin", tree));
+X		return ((*tree->proc) (tree->subnode));
+X
+X	case Node_K_getline:
+X		DBG_P(("GETLINE", tree));
+X		return (do_getline(tree));
+X
+X	case Node_in_array:
+X		DBG_P(("IN_ARRAY", tree));
+X		return tmp_number((AWKNUM) in_array(tree->lnode, tree->rnode));
+X
+X	case Node_func_call:
+X		DBG_P(("func_call", tree));
+X		return func_call(tree->rnode, tree->lnode);
+X
+X	case Node_K_delete:
+X		DBG_P(("DELETE", tree));
+X		do_delete(tree->lnode, tree->rnode);
+X		return Nnull_string;
+X
+X		/* unary operations */
+X
+X	case Node_var:
+X	case Node_var_array:
+X	case Node_param_list:
+X	case Node_subscript:
+X	case Node_field_spec:
+X		DBG_P(("var_type ref", tree));
+X		lhs = get_lhs(tree, 0);
+X		field_num = -1;
+X		deref = 0;
+X		return *lhs;
+X
+X	case Node_unary_minus:
+X		DBG_P(("UMINUS", tree));
+X		t1 = tree_eval(tree->subnode);
+X		x = -force_number(t1);
+X		free_temp(t1);
+X		return tmp_number(x);
+X
+X	case Node_cond_exp:
+X		DBG_P(("?:", tree));
+X		if (eval_condition(tree->lnode)) {
+X			DBG_P(("True", tree->rnode->lnode));
+X			return tree_eval(tree->rnode->lnode);
+X		}
+X		DBG_P(("False", tree->rnode->rnode));
+X		return tree_eval(tree->rnode->rnode);
+X
+X	case Node_match:
+X	case Node_nomatch:
+X	case Node_regex:
+X		DBG_P(("[no]match_op", tree));
+X		return match_op(tree);
+X
+X	case Node_func:
+X		fatal("function `%s' called with space between name and (,\n%s",
+X			tree->lnode->param,
+X			"or used in other expression context");
+X
+X	/* assignments */
+X	case Node_assign:
+X		DBG_P(("ASSIGN", tree));
+X		r = tree_eval(tree->rnode);
+X		lhs = get_lhs(tree->lnode, 1);
+X		*lhs = dupnode(r);
+X		free_temp(r);
+X		do_deref();
+X		if (field_num == 0)
+X			set_record(fields_arr[0]->stptr, fields_arr[0]->stlen);
+X		field_num = -1;
+X		return *lhs;
+X
+X	/* other assignment types are easier because they are numeric */
+X	case Node_preincrement:
+X	case Node_predecrement:
+X	case Node_postincrement:
+X	case Node_postdecrement:
+X	case Node_assign_exp:
+X	case Node_assign_times:
+X	case Node_assign_quotient:
+X	case Node_assign_mod:
+X	case Node_assign_plus:
+X	case Node_assign_minus:
+X		return op_assign(tree);
+X	default:
+X		break;	/* handled below */
+X	}
+X
+X	/* evaluate subtrees in order to do binary operation, then keep going */
+X	t1 = tree_eval(tree->lnode);
+X	t2 = tree_eval(tree->rnode);
+X
+X	switch (tree->type) {
+X	case Node_concat:
+X		DBG_P(("CONCAT", tree));
+X		t1 = force_string(t1);
+X		t2 = force_string(t2);
+X
+X		r = newnode(Node_val);
+X		r->flags |= (STR|TEMP);
+X		r->stlen = t1->stlen + t2->stlen;
+X		r->stref = 1;
+X		emalloc(r->stptr, char *, r->stlen + 1, "tree_eval");
+X		memcpy(r->stptr, t1->stptr, t1->stlen);
+X		memcpy(r->stptr + t1->stlen, t2->stptr, t2->stlen + 1);
+X		free_temp(t1);
+X		free_temp(t2);
+X		return r;
+X
+X	case Node_geq:
+X	case Node_leq:
+X	case Node_greater:
+X	case Node_less:
+X	case Node_notequal:
+X	case Node_equal:
+X		di = cmp_nodes(t1, t2);
+X		free_temp(t1);
+X		free_temp(t2);
+X		switch (tree->type) {
+X		case Node_equal:
+X			DBG_P(("EQUAL", tree));
+X			return tmp_number((AWKNUM) (di == 0));
+X		case Node_notequal:
+X			DBG_P(("NOT_EQUAL", tree));
+X			return tmp_number((AWKNUM) (di != 0));
+X		case Node_less:
+X			DBG_P(("LESS_THAN", tree));
+X			return tmp_number((AWKNUM) (di < 0));
+X		case Node_greater:
+X			DBG_P(("GREATER_THAN", tree));
+X			return tmp_number((AWKNUM) (di > 0));
+X		case Node_leq:
+X			DBG_P(("LESS_THAN_EQUAL", tree));
+X			return tmp_number((AWKNUM) (di <= 0));
+X		case Node_geq:
+X			DBG_P(("GREATER_THAN_EQUAL", tree));
+X			return tmp_number((AWKNUM) (di >= 0));
+X		default:
+X			cant_happen();
+X		}
+X		break;
+X	default:
+X		break;	/* handled below */
+X	}
+X
+X	(void) force_number(t1);
+X	(void) force_number(t2);
+X
+X	switch (tree->type) {
+X	case Node_exp:
+X		DBG_P(("EXPONENT", tree));
+X		if ((lx = t2->numbr) == t2->numbr) {	/* integer exponent */
+X			if (lx == 0)
+X				x = 1;
+X			else if (lx == 1)
+X				x = t1->numbr;
+X			else {
+X				/* doing it this way should be more precise */
+X				for (x = x2 = t1->numbr; --lx; )
+X					x *= x2;
+X			}
+X		} else
+X			x = pow((double) t1->numbr, (double) t2->numbr);
+X		free_temp(t1);
+X		free_temp(t2);
+X		return tmp_number(x);
+X
+X	case Node_times:
+X		DBG_P(("MULT", tree));
+X		x = t1->numbr * t2->numbr;
+X		free_temp(t1);
+X		free_temp(t2);
+X		return tmp_number(x);
+X
+X	case Node_quotient:
+X		DBG_P(("DIVIDE", tree));
+X		x = t2->numbr;
+X		free_temp(t2);
+X		if (x == (AWKNUM) 0)
+X			fatal("division by zero attempted");
+X			/* NOTREACHED */
+X		else {
+X			x = t1->numbr / x;
+X			free_temp(t1);
+X			return tmp_number(x);
+X		}
+X
+X	case Node_mod:
+X		DBG_P(("MODULUS", tree));
+X		x = t2->numbr;
+X		free_temp(t2);
+X		if (x == (AWKNUM) 0)
+X			fatal("division by zero attempted in mod");
+X			/* NOTREACHED */
+X		lx = t1->numbr / x;	/* assignment to long truncates */
+X		x2 = lx * x;
+X		x = t1->numbr - x2;
+X		free_temp(t1);
+X		return tmp_number(x);
+X
+X	case Node_plus:
+X		DBG_P(("PLUS", tree));
+X		x = t1->numbr + t2->numbr;
+X		free_temp(t1);
+X		free_temp(t2);
+X		return tmp_number(x);
+X
+X	case Node_minus:
+X		DBG_P(("MINUS", tree));
+X		x = t1->numbr - t2->numbr;
+X		free_temp(t1);
+X		free_temp(t2);
+X		return tmp_number(x);
+X
+X	default:
+X		fatal("illegal type (%d) in tree_eval", tree->type);
+X	}
+X	return 0;
+X}
+X
+X/*
+X * This makes numeric operations slightly more efficient. Just change the
+X * value of a numeric node, if possible 
+X */
+Xvoid
+Xassign_number(ptr, value)
+XNODE **ptr;
+XAWKNUM value;
+X{
+X	extern NODE *deref;
+X	register NODE *n = *ptr;
+X
+X#ifdef DEBUG
+X	if (n->type != Node_val)
+X		cant_happen();
+X#endif
+X	if (n == Nnull_string) {
+X		*ptr = make_number(value);
+X		deref = 0;
+X		return;
+X	}
+X	if (n->stref > 1) {
+X		*ptr = make_number(value);
+X		return;
+X	}
+X	if ((n->flags & STR) && (n->flags & (MALLOC|TEMP)))
+X		free(n->stptr);
+X	n->numbr = value;
+X	n->flags |= (NUM|NUMERIC);
+X	n->flags &= ~STR;
+X	n->stref = 0;
+X	deref = 0;
+X}
+X
+X
+X/* Is TREE true or false?  Returns 0==false, non-zero==true */
+Xstatic int
+Xeval_condition(tree)
+XNODE *tree;
+X{
+X	register NODE *t1;
+X	int ret;
+X
+X	if (tree == NULL)	/* Null trees are the easiest kinds */
+X		return 1;
+X	if (tree->type == Node_line_range) {
+X		/*
+X		 * Node_line_range is kind of like Node_match, EXCEPT: the
+X		 * lnode field (more properly, the condpair field) is a node
+X		 * of a Node_cond_pair; whether we evaluate the lnode of that
+X		 * node or the rnode depends on the triggered word.  More
+X		 * precisely:  if we are not yet triggered, we tree_eval the
+X		 * lnode; if that returns true, we set the triggered word. 
+X		 * If we are triggered (not ELSE IF, note), we tree_eval the
+X		 * rnode, clear triggered if it succeeds, and perform our
+X		 * action (regardless of success or failure).  We want to be
+X		 * able to begin and end on a single input record, so this
+X		 * isn't an ELSE IF, as noted above.
+X		 */
+X		if (!tree->triggered)
+X			if (!eval_condition(tree->condpair->lnode))
+X				return 0;
+X			else
+X				tree->triggered = 1;
+X		/* Else we are triggered */
+X		if (eval_condition(tree->condpair->rnode))
+X			tree->triggered = 0;
+X		return 1;
+X	}
+X
+X	/*
+X	 * Could just be J.random expression. in which case, null and 0 are
+X	 * false, anything else is true 
+X	 */
+X
+X	t1 = tree_eval(tree);
+X	if (t1->flags & NUMERIC)
+X		ret = t1->numbr != 0.0;
+X	else
+X		ret = t1->stlen != 0;
+X	free_temp(t1);
+X	return ret;
+X}
+X
+Xint
+Xcmp_nodes(t1, t2)
+XNODE *t1, *t2;
+X{
+X	AWKNUM d;
+X	AWKNUM d1;
+X	AWKNUM d2;
+X	int ret;
+X	int len1, len2;
+X
+X	if (t1 == t2)
+X		return 0;
+X	d1 = force_number(t1);
+X	d2 = force_number(t2);
+X	if ((t1->flags & NUMERIC) && (t2->flags & NUMERIC)) {
+X		d = d1 - d2;
+X		if (d == 0.0)	/* from profiling, this is most common */
+X			return 0;
+X		if (d > 0.0)
+X			return 1;
+X		return -1;
+X	}
+X	t1 = force_string(t1);
+X	t2 = force_string(t2);
+X	len1 = t1->stlen;
+X	len2 = t2->stlen;
+X	if (len1 == 0) {
+X		if (len2 == 0)
+X			return 0;
+X		else
+X			return -1;
+X	} else if (len2 == 0)
+X		return 1;
+X	ret = memcmp(t1->stptr, t2->stptr, len1 <= len2 ? len1 : len2);
+X	if (ret == 0 && len1 != len2)
+X		return len1 < len2 ? -1: 1;
+X	return ret;
+X}
+X
+Xstatic NODE *
+Xop_assign(tree)
+XNODE *tree;
+X{
+X	AWKNUM rval, lval;
+X	NODE **lhs;
+X	AWKNUM t1, t2;
+X	long ltemp;
+X	NODE *tmp;
+X
+X	lhs = get_lhs(tree->lnode, 1);
+X	lval = force_number(*lhs);
+X
+X	switch(tree->type) {
+X	case Node_preincrement:
+X	case Node_predecrement:
+X		DBG_P(("+-X", tree));
+X		assign_number(lhs,
+X		    lval + (tree->type == Node_preincrement ? 1.0 : -1.0));
+X		do_deref();
+X		if (field_num == 0)
+X			set_record(fields_arr[0]->stptr, fields_arr[0]->stlen);
+X		field_num = -1;
+X		return *lhs;
+X
+X	case Node_postincrement:
+X	case Node_postdecrement:
+X		DBG_P(("X+-", tree));
+X		assign_number(lhs,
+X		    lval + (tree->type == Node_postincrement ? 1.0 : -1.0));
+X		do_deref();
+X		if (field_num == 0)
+X			set_record(fields_arr[0]->stptr, fields_arr[0]->stlen);
+X		field_num = -1;
+X		return tmp_number(lval);
+X	default:
+X		break;	/* handled below */
+X	}
+X
+X	tmp = tree_eval(tree->rnode);
+X	rval = force_number(tmp);
+X	free_temp(tmp);
+X	switch(tree->type) {
+X	case Node_assign_exp:
+X		DBG_P(("ASSIGN_exp", tree));
+X		if ((ltemp = rval) == rval) {	/* integer exponent */
+X			if (ltemp == 0)
+X				assign_number(lhs, (AWKNUM) 1);
+X			else if (ltemp == 1)
+X				assign_number(lhs, lval);
+X			else {
+X				/* doing it this way should be more precise */
+X				for (t1 = t2 = lval; --ltemp; )
+X					t1 *= t2;
+X				assign_number(lhs, t1);
+X			}
+X		} else
+X			assign_number(lhs, (AWKNUM) pow((double) lval, (double) rval));
+X		break;
+X
+X	case Node_assign_times:
+X		DBG_P(("ASSIGN_times", tree));
+X		assign_number(lhs, lval * rval);
+X		break;
+X
+X	case Node_assign_quotient:
+X		DBG_P(("ASSIGN_quotient", tree));
+X		if (rval == (AWKNUM) 0)
+X			fatal("division by zero attempted in /=");
+X		assign_number(lhs, lval / rval);
+X		break;
+X
+X	case Node_assign_mod:
+X		DBG_P(("ASSIGN_mod", tree));
+X		if (rval == (AWKNUM) 0)
+X			fatal("division by zero attempted in %=");
+X		ltemp = lval / rval;	/* assignment to long truncates */
+X		t1 = ltemp * rval;
+X		t2 = lval - t1;
+X		assign_number(lhs, t2);
+X		break;
+X
+X	case Node_assign_plus:
+X		DBG_P(("ASSIGN_plus", tree));
+X		assign_number(lhs, lval + rval);
+X		break;
+X
+X	case Node_assign_minus:
+X		DBG_P(("ASSIGN_minus", tree));
+X		assign_number(lhs, lval - rval);
+X		break;
+X	default:
+X		cant_happen();
+X	}
+X	do_deref();
+X	if (field_num == 0)
+X		set_record(fields_arr[0]->stptr, fields_arr[0]->stlen);
+X	field_num = -1;
+X	return *lhs;
+X}
+X
+XNODE **stack_ptr;
+X
+Xstatic NODE *
+Xfunc_call(name, arg_list)
+XNODE *name;		/* name is a Node_val giving function name */
+XNODE *arg_list;		/* Node_expression_list of calling args. */
+X{
+X	register NODE *arg, *argp, *r;
+X	NODE *n, *f;
+X	volatile jmp_buf func_tag_stack;
+X	volatile jmp_buf loop_tag_stack;
+X	volatile int save_loop_tag_valid = 0;
+X	volatile NODE **save_stack, *save_ret_node;
+X	NODE **local_stack, **sp;
+X	int count;
+X	extern NODE *ret_node;
+X
+X	/*
+X	 * retrieve function definition node
+X	 */
+X	f = lookup(variables, name->stptr);
+X	if (!f || f->type != Node_func)
+X		fatal("function `%s' not defined", name->stptr);
+X#ifdef FUNC_TRACE
+X	fprintf(stderr, "function %s called\n", name->stptr);
+X#endif
+X	count = f->lnode->param_cnt;
+X	emalloc(local_stack, NODE **, count * sizeof(NODE *), "func_call");
+X	sp = local_stack;
+X
+X	/*
+X	 * for each calling arg. add NODE * on stack
+X	 */
+X	for (argp = arg_list; count && argp != NULL; argp = argp->rnode) {
+X		arg = argp->lnode;
+X		r = newnode(Node_var);
+X		/*
+X		 * call by reference for arrays; see below also
+X		 */
+X		if (arg->type == Node_param_list)
+X			arg = stack_ptr[arg->param_cnt];
+X		if (arg->type == Node_var_array)
+X			*r = *arg;
+X		else {
+X			n = tree_eval(arg);
+X			r->lnode = dupnode(n);
+X			r->rnode = (NODE *) NULL;
+X			free_temp(n);
+X  		}
+X		*sp++ = r;
+X		count--;
+X	}
+X	if (argp != NULL)	/* left over calling args. */
+X		warning(
+X		    "function `%s' called with more arguments than declared",
+X		    name->stptr);
+X	/*
+X	 * add remaining params. on stack with null value
+X	 */
+X	while (count-- > 0) {
+X		r = newnode(Node_var);
+X		r->lnode = Nnull_string;
+X		r->rnode = (NODE *) NULL;
+X		*sp++ = r;
+X	}
+X
+X	/*
+X	 * Execute function body, saving context, as a return statement
+X	 * will longjmp back here.
+X	 *
+X	 * Have to save and restore the loop_tag stuff so that a return
+X	 * inside a loop in a function body doesn't scrog any loops going
+X	 * on in the main program.  We save the necessary info in variables
+X	 * local to this function so that function nesting works OK.
+X	 * We also only bother to save the loop stuff if we're in a loop
+X	 * when the function is called.
+X	 */
+X	if (loop_tag_valid) {
+X		int junk = 0;
+X
+X		save_loop_tag_valid = (volatile int) loop_tag_valid;
+X		PUSH_BINDING(loop_tag_stack, loop_tag, junk);
+X		loop_tag_valid = 0;
+X	}
+X	save_stack = (volatile NODE **) stack_ptr;
+X	stack_ptr = local_stack;
+X	PUSH_BINDING(func_tag_stack, func_tag, func_tag_valid);
+X	save_ret_node = (volatile NODE *) ret_node;
+X	ret_node = Nnull_string;	/* default return value */
+X	if (setjmp(func_tag) == 0)
+X		(void) interpret(f->rnode);
+X
+X	r = ret_node;
+X	ret_node = (NODE *) save_ret_node;
+X	RESTORE_BINDING(func_tag_stack, func_tag, func_tag_valid);
+X	stack_ptr = (NODE **) save_stack;
+X
+X	/*
+X	 * here, we pop each parameter and check whether
+X	 * it was an array.  If so, and if the arg. passed in was
+X	 * a simple variable, then the value should be copied back.
+X	 * This achieves "call-by-reference" for arrays.
+X	 */
+X	sp = local_stack;
+X	count = f->lnode->param_cnt;
+X	for (argp = arg_list; count > 0 && argp != NULL; argp = argp->rnode) {
+X		arg = argp->lnode;
+X		n = *sp++;
+X		if (arg->type == Node_var && n->type == Node_var_array) {
+X			arg->var_array = n->var_array;
+X			arg->type = Node_var_array;
+X		}
+X		deref = n->lnode;
+X		do_deref();
+X		freenode(n);
+X		count--;
+X	}
+X	while (count-- > 0) {
+X		n = *sp++;
+X		deref = n->lnode;
+X		do_deref();
+X		freenode(n);
+X	}
+X	free((char *) local_stack);
+X
+X	/* Restore the loop_tag stuff if necessary. */
+X	if (save_loop_tag_valid) {
+X		int junk = 0;
+X
+X		loop_tag_valid = (int) save_loop_tag_valid;
+X		RESTORE_BINDING(loop_tag_stack, loop_tag, junk);
+X	}
+X
+X	if (!(r->flags & PERM))
+X		r->flags |= TEMP;
+X	return r;
+X}
+X
+X/*
+X * This returns a POINTER to a node pointer. get_lhs(ptr) is the current
+X * value of the var, or where to store the var's new value 
+X */
+X
+XNODE **
+Xget_lhs(ptr, assign)
+XNODE *ptr;
+Xint assign;		/* this is being called for the LHS of an assign. */
+X{
+X	register NODE **aptr;
+X	NODE *n;
+X
+X#ifdef DEBUG
+X	if (ptr == NULL)
+X		cant_happen();
+X#endif
+X	deref = NULL;
+X	field_num = -1;
+X	switch (ptr->type) {
+X	case Node_var:
+X	case Node_var_array:
+X		if (ptr == NF_node && (int) NF_node->var_value->numbr == -1)
+X			(void) get_field(HUGE-1, assign); /* parse record */
+X		deref = ptr->var_value;
+X#ifdef DEBUG
+X		if (deref->type != Node_val)
+X			cant_happen();
+X		if (deref->flags == 0)
+X			cant_happen();
+X#endif
+X		return &(ptr->var_value);
+X
+X	case Node_param_list:
+X		n = stack_ptr[ptr->param_cnt];
+X		deref = n->var_value;
+X#ifdef DEBUG
+X		if (deref->type != Node_val)
+X			cant_happen();
+X		if (deref->flags == 0)
+X			cant_happen();
+X#endif
+X		return &(n->var_value);
+X
+X	case Node_field_spec:
+X		n = tree_eval(ptr->lnode);
+X		field_num = (int) force_number(n);
+X		free_temp(n);
+X		if (field_num < 0)
+X			fatal("attempt to access field %d", field_num);
+X		aptr = get_field(field_num, assign);
+X		deref = *aptr;
+X		return aptr;
+X
+X	case Node_subscript:
+X		n = ptr->lnode;
+X		if (n->type == Node_param_list)
+X			n = stack_ptr[n->param_cnt];
+X		aptr = assoc_lookup(n, concat_exp(ptr->rnode));
+X		deref = *aptr;
+X#ifdef DEBUG
+X		if (deref->type != Node_val)
+X			cant_happen();
+X		if (deref->flags == 0)
+X			cant_happen();
+X#endif
+X		return aptr;
+X	case Node_func:
+X		fatal ("`%s' is a function, assignment is not allowed",
+X			ptr->lnode->param);
+X	default:
+X		cant_happen();
+X	}
+X	return 0;
+X}
+X
+Xstatic NODE *
+Xmatch_op(tree)
+XNODE *tree;
+X{
+X	NODE *t1;
+X	struct re_pattern_buffer *rp;
+X	int i;
+X	int match = 1;
+X
+X	if (tree->type == Node_nomatch)
+X		match = 0;
+X	if (tree->type == Node_regex)
+X		t1 = WHOLELINE;
+X	else {
+X		if (tree->lnode)
+X			t1 = force_string(tree_eval(tree->lnode));
+X		else
+X			t1 = WHOLELINE;
+X		tree = tree->rnode;
+X	}
+X	if (tree->type == Node_regex) {
+X		rp = tree->rereg;
+X		if (!strict && ((IGNORECASE_node->var_value->numbr != 0)
+X		    ^ (tree->re_case != 0))) {
+X			/* recompile since case sensitivity differs */
+X			rp = tree->rereg =
+X			    mk_re_parse(tree->re_text,
+X			    (IGNORECASE_node->var_value->numbr != 0));
+X			tree->re_case =
+X			    (IGNORECASE_node->var_value->numbr != 0);
+X		}
+X	} else {
+X		rp = make_regexp(force_string(tree_eval(tree)),
+X			(IGNORECASE_node->var_value->numbr != 0));
+X		if (rp == NULL)
+X			cant_happen();
+X	}
+X	i = re_search(rp, t1->stptr, t1->stlen, 0, t1->stlen,
+X		(struct re_registers *) NULL);
+X	i = (i == -1) ^ (match == 1);
+X	free_temp(t1);
+X	if (tree->type != Node_regex) {
+X		free(rp->buffer);
+X		free(rp->fastmap);
+X		free((char *) rp);
+X	}
+X	return tmp_number((AWKNUM) i);
+X}
+END_OF_FILE
+  if test 29550 -ne `wc -c <'./eval.c'`; then
+    echo shar: \"'./eval.c'\" unpacked with wrong size!
+  fi
+  # end of './eval.c'
+fi
+if test -f './missing.d/gcvt.c' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'./missing.d/gcvt.c'\"
+else
+  echo shar: Extracting \"'./missing.d/gcvt.c'\" \(129 characters\)
+  sed "s/^X//" >'./missing.d/gcvt.c' <<'END_OF_FILE'
+Xchar	*
+Xgcvt(value, digits, buff)
+Xdouble	value;
+Xint	digits;
+Xchar	*buff;
+X{
+X	sprintf(buff, "%*g", digits, value);
+X	return (buff);
+X}
+END_OF_FILE
+  if test 129 -ne `wc -c <'./missing.d/gcvt.c'`; then
+    echo shar: \"'./missing.d/gcvt.c'\" unpacked with wrong size!
+  fi
+  # end of './missing.d/gcvt.c'
+fi
+echo shar: End of archive 12 \(of 16\).
+cp /dev/null ark12isdone
+MISSING=""
+for I in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 ; do
+    if test ! -f ark${I}isdone ; then
+	MISSING="${MISSING} ${I}"
+    fi
+done
+if test "${MISSING}" = "" ; then
+    echo You have unpacked all 16 archives.
+    rm -f ark[1-9]isdone ark[1-9][0-9]isdone
+else
+    echo You still must unpack the following archives:
+    echo "        " ${MISSING}
+fi
+exit 0
+exit 0 # Just in case...
+-- 
+Please send comp.sources.unix-related mail to rsalz@uunet.uu.net.
+Use a domain-based address or give alternate paths, or you may lose out.

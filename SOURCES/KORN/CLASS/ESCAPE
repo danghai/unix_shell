@@ -1,0 +1,73 @@
+                              Escape Sequences
+
+Cursor positioning
+
+cursor up (CUU)         ESC [ Pn A      moves cursor up Pn lines - same column
+
+cursor down (CUD)       ESC [ Pn B      moves cursor down Pn lines - "
+
+cursor forward (CUF)    ESC [ Pn C      moves cursor right Pn columns
+
+cursor backward (CUB)   ESC [ Pn D      moves cursor left Pn columns
+
+cursor position (CUP)   ESC [ Pl ; Pc H moves cursor to line Pl, column Pc
+
+Select Graphic Rendition (SGR)
+
+You can select one or more character renditions at a time using the
+following format:
+
+ESC [ Ps ; ... Ps m
+
+When you use multiple parameters, they are executed in sequence.
+The effects are cumulative.
+For example, to change to blinking-underlined, you can use:
+
+ESC [ 0 ; 4 ; 5 m
+
+Ps      Action
+
+0       All attributes off
+1       Display at increased intensity
+4       Display underscored
+5       Display blinking
+7       Display negative (reverse) image
+2 2     Display normal intensity
+2 4     Display not underlined
+2 5     Display not blinking
+2 7     Display positive image
+
+Erasing
+
+Erase in line           ESC [ K         erases from the cursor to end of line
+
+                        ESC [ 1 K       erases from beginning of line to cursor
+
+                        ESC [ 2 K       erases the complete line
+
+Erase in display        ESC [ J         erases from cursor to end of screen
+
+                        ESC [ 1 J       erases from beginning of screen
+                                        to cursor
+
+                        ESC [ 2 J       erases the complete display
+
+Xterm title
+
+To set the title bare of an xterm:
+
+ESC ] 2 ; title ^G
+
+For example type this in an xterm window:
+
+echo "^[]2;test title^G"
+
+where ^[ is an escape and ^G is a control G
+
+REMEMEBER:  when entering any control sequence type ctrl-V then the
+control sequence.  In this case type ctrl-V ESC .... ctrl-V ctrl-G
+
+Also remember that these settings are like toggle switches, they stay on
+till they are switched off.  If you are using them be careful if you
+allow yourself to ctrl-c out of the program between setting and
+unsetting.  You can end up with your window in a weird state.

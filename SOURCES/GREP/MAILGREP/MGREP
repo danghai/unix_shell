@@ -1,0 +1,191 @@
+Xref: wupost comp.lang.perl:9207 alt.sources:4620
+Path: wupost!think.com!ames!sun-barr!cronkite.Central.Sun.COM!male!uunet!sun!me
+From: me@anywhere.EBay.Sun.COM (Wayne Thompson)
+Newsgroups: comp.lang.perl,alt.sources
+Subject: mgrep (mail grep)
+Message-ID: <9908@male.EBay.Sun.COM>
+Date: 18 Jan 92 17:24:16 GMT
+Sender: news@male.EBay.Sun.COM
+Followup-To: comp.lang.perl
+Organization: Sun Microsystems, Inc.
+Lines: 179
+
+Some one asked me if I knew where to find "mgrep" which they describe as
+grep for mail folders. Since I couldn't find it, I wrote one.
+
+"mgrep -h" for an ASCII man page.
+
+:
+eval 'exec /usr/dist/`/bin/arch`/bin/perl -S $0 ${1+"$@"}'
+    if $running_under_some_shell;
+#
+#     @(#)mgrep,v1.0                    (me@anywhere.EBay.Sun.COM) 01/18/92
+#
+$PATHNAME    = 'anywhere.EBay:/home/me/bin/mgrep';
+$ENV{'PATH'} = '/usr/ucb:/bin:/usr/bin';
+($MYNAME     = $0) =~ s|.*/||;
+#
+# Author:
+#     Wayne Thompson
+#
+# Synopsis:
+($usage = <<endusage) =~ s/^ *//;
+      usage: $MYNAME [-c] [-h] [-i] [-l] [-s] [-v] [file ...]
+endusage
+#
+# Description:
+#     This is a simple mail grep.
+#
+# Options:
+#     -c                Display a count of matching messages.
+#     -h                Print command description.
+#     -i                Perform case-insensitive match.
+#     -l                List only the names of files with matching lines.
+#     -s                Work silently.
+#     -v                Invert the search to only display lines that do
+#                       not match.
+#
+# Environment:
+#     MAIL              mail folder.
+#     USER              user.
+#
+# Files:
+#     $ENV{'MAIL'}                      <i/o    mail folder
+#     /usr/spool/mail/$ENV{'USER'}      <i/o    mail folder
+#
+# Diagnostics:
+#     Exit Status:
+#         0     matches were found.
+#         1     no matches were found.
+#
+#     Errors (stderr):
+#         usage
+#
+#     Warnings (stderr):
+#
+#     Info (stdout):
+#
+# Dependencies:
+#
+# Caveats:
+#
+# Bugs:
+#
+
+# >> BEGIN parse options >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> #
+
+OPTION: for ($_ = 0; $_ <= $#ARGV; $_++) {
+    CASE: {
+        $ARGV[$_] eq '-h' && do {               # help
+            seek(DATA, 0, 0);
+            while (<DATA>) {
+                exit if /^$/;
+                next if /(^#!|running_under_some_shell)/;
+                s/\$MYNAME/$MYNAME/o;
+                chop;
+                print(substr($_, 2), "\n") if /^[# ]/;
+            }
+        };
+
+        $ARGV[$_] eq '-c' && do {               # count
+            $action1 = $action2 = ';';
+            $count = true;
+            next OPTION;
+        };
+
+        $ARGV[$_] eq '-i' && do {               # case-insensitive
+            $case = 'i';
+            next OPTION;
+        };
+
+        $ARGV[$_] eq '-l' && do {               # list file(s)
+            $action1 = $action2 = 'print "$FILE\n"; next FILE';
+            next OPTION;
+        };
+        
+        $ARGV[$_] eq '-s' && do {               # silent
+            $action1 = $action2 = ';';
+            next OPTION;
+        };
+        
+        $ARGV[$_] eq '-v' && do {               # invert pattern
+            $test = 'unless';
+            next OPTION;
+        };
+
+        $ARGV[$_] eq '--' && do {               # end of options
+            splice(@ARGV, $_, 1);
+            last OPTION;
+        };
+
+        $ARGV[$_] =~ /^-/ && do {               # unknown option
+            warn("$MYNAME: error: $ARGV[$_]: unknown option.\n$usage");
+            exit(2);
+        };
+
+        DEFAULT: {                              # end of options
+            last OPTION;
+        }
+    }
+}
+splice(@ARGV, 0, $_);
+
+# << END parse options <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< #
+
+# >> BEGIN parse arguments >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> #
+
+$pat = shift;
+$pat =~ s/!/\\!/g;
+
+@files = ($ARGV[0] || $ENV{'MAIL'} || "/usr/spool/mail/$ENV{'USER'}");
+push(@files, @ARGV[1..$#ARGV]) if $#ARGV > 0;
+
+# << END parse arguments <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< #
+
+# >> BEGIN initialization >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> #
+
+$/ = "\nFrom ";
+$test = $test || 'if';
+$action1 = $action1 || 'print(substr($_, 0, length($_) - 5))';
+$action2 = $action2 || 'print(\'From \', substr($_, 0, length($_) - 5))';
+
+# << END initialization <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< #
+
+# >> BEGIN main >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> #
+
+eval <<EOF;
+    FILE: for \$FILE (\@files) {
+        if (open(FILE)) {
+            <FILE>;
+            $test (m!$pat!$case) {
+                \$match++;
+                $action1;
+            }
+
+            while (<FILE>) {
+                $test (m!$pat!$case) {
+                    \$match++;
+                    $action2;
+                }
+            }
+
+            close(FILE);
+            print "\$FILE: \$match\n" if \$count;
+        }
+        else {
+            warn("\$MYNAME: error: \$FILE: \$!\n");
+            \$status = 2;
+        }
+    }
+EOF
+
+if ($@) {
+    warn $@;
+    exit(2);
+}
+
+exit($status || !$match);
+
+# << END main <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< #
+
+__END__

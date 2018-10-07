@@ -1,0 +1,1775 @@
+Newsgroups: comp.sources.unix
+From: sw@cs.arizona.edu (Sun Wu)
+Subject: v26i023: agrep - very fast grep with approximate pattern matching, Part03/03
+Sender: unix-sources-moderator@pa.dec.com
+Approved: vixie@pa.dec.com
+
+Submitted-By: sw@cs.arizona.edu (Sun Wu)
+Posting-Number: Volume 26, Issue 23
+Archive-Name: agrep-2.01/part03
+
+#! /bin/sh
+# This is a shell archive.  Remove anything before this line, then unpack
+# it by saving it into a file and typing "sh file".  To overwrite existing
+# files, type "sh file -c".  You can also feed this as standard input via
+# unshar, or by typing "sh <file", e.g..  If this archive is complete, you
+# will see the following message at the end:
+#		"End of archive 3 (of 3)."
+# Contents:  main.c sgrep.c
+# Wrapped by sw@optima on Sun Feb 23 13:44:16 1992
+PATH=/bin:/usr/bin:/usr/ucb ; export PATH
+if test -f 'main.c' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'main.c'\"
+else
+echo shar: Extracting \"'main.c'\" \(35404 characters\)
+sed "s/^X//" >'main.c' <<'END_OF_FILE'
+X/* Copyright (c) 1991 Sun Wu and Udi Manber.  All Rights Reserved. */
+X#include "agrep.h"
+X#include "checkfile.h"
+X
+unsigned Mask[MAXSYM];
+unsigned Init1, NO_ERR_MASK, Init[MaxError];
+unsigned Bit[WORD+1];
+CHAR buffer[BlockSize+Maxline+1];
+unsigned Next[MaxNext], Next1[MaxNext];
+unsigned wildmask, endposition, D_endpos; 
+int  REGEX, RE_ERR, FNAME, WHOLELINE, SIMPLEPATTERN;
+int  COUNT, HEAD, TAIL, LINENUM, INVERSE, I, S, DD, AND, SGREP, JUMP; 
+int  Num_Pat, PSIZE, num_of_matched, SILENT, BESTMATCH, NOUPPER;
+int  NOMATCH, TRUNCATE, FIRST_IN_RE, FIRSTOUTPUT;
+int  WORDBOUND, DELIMITER, D_length;
+int  EATFIRST, OUTTAIL;
+int  FILEOUT;
+int  DNA = 0;
+int  APPROX = 0;
+int  PAT_FILE = 0;
+int  CONSTANT = 0;
+int total_line = 0; /* used in mgrep */
+X                                     
+CHAR **Textfiles;     /* array of filenames to be searched */
+CHAR old_D_pat[MaxDelimit] = "\n";  /* to hold original D_pattern */
+CHAR CurrentFileName[MAXNAME]; 
+CHAR Progname[MAXNAME]; 
+CHAR D_pattern[MaxDelimit] = "\n; "; /* string which delimits records --
+X                                        defaults to newline */   
+int  NOFILENAME = 0,  /* Boolean flag, set for -h option */
+X     FILENAMEONLY = 0,/* Boolean flag, set for -l option */
+X     Numfiles = 0;    /* indicates how many files in Textfiles */
+extern int init();
+int table[WORD][WORD];
+X
+initial_value()
+X{
+X   int i; 
+X
+X   JUMP = REGEX = FNAME = BESTMATCH = NOUPPER = 0;
+X   COUNT = LINENUM = WHOLELINE = SGREP = 0;
+X   EATFIRST = INVERSE = AND = TRUNCATE = OUTTAIL = 0; 
+X   FIRST_IN_RE = NOMATCH = FIRSTOUTPUT = ON;
+X   I = DD = S = 1;
+X   HEAD = TAIL = ON;
+X   D_length = 2;
+X   SILENT = Num_Pat = PSIZE = SIMPLEPATTERN = num_of_matched = 0 ;
+X   WORDBOUND = DELIMITER = RE_ERR = 0;
+X   Bit[WORD] = 1;
+X   for (i = WORD - 1; i > 0  ; i--)  Bit[i] = Bit[i+1] << 1; 
+X   for (i=0; i< MAXSYM; i++) Mask[i] = 0;
+X}
+X
+compute_next(M, Next, Next1)
+int M; unsigned *Next, *Next1;
+X{
+X  int i, j=0, n,  k, temp;
+X  int mid, pp;
+X  int MM, base;
+X  unsigned V[WORD];
+X   
+X  base = WORD - M;
+X  temp = Bit[base]; Bit[base] = 0;
+X  for (i=0; i<WORD; i++) V[i] = 0;
+X  for (i=1; i<M; i++)
+X  {  
+X      j=0;
+X      while (table[i][j] > 0 && j < 10) {
+X            V[i] = V[i] | Bit[base + table[i][j++]];
+X      }
+X  }
+X  Bit[base]=temp;
+X  if(M <= SHORTREG)
+X  {
+X    k = exponen(M);
+X    pp = 2*k;
+X    for(i=k; i<pp ; i++)
+X    {   n = i;
+X        Next[i]= (k>>1);
+X        for(j=M; j>=1; j--)
+X        {
+X           if(n & Bit[WORD]) Next[i] = Next[i] | V[j];
+X           n = (n>>1);
+X        }
+X    }      
+X    return;
+X  }
+X  if(M > MAXREG) fprintf(stderr, "%s: regular expression too long\n", Progname);
+X  MM = M;
+X  if(M & 1) M=M+1;
+X  k = exponen(M/2);
+X  pp = 2*k;
+X  mid = MM/2;
+X  for(i=k; i<pp ; i++)
+X  {     n = i;
+X        Next[i]= (Bit[base]>>1);
+X        for(j=MM; j>mid ; j--)
+X        {
+X           if(n & Bit[WORD]) Next[i] = Next[i] | V[j-mid];
+X           n = (n>>1);
+X        }
+X        n=i-k;
+X        Next1[i-k] = 0;
+X        for(j = 0; j<mid; j++)
+X        {
+X           if(n & Bit[WORD]) Next1[i-k] = Next1[i-k] | V[MM-j];
+X           n = (n>>1);
+X        }
+X  }      
+X  return;
+X}
+X  
+exponen(m)
+int m;
+X{ int i, ex;
+X  ex= 1;
+X  for (i=0; i<m; i++) ex= ex*2;
+X  return(ex);
+X}
+X
+re1(Text, M, D)
+int Text, M, D;
+X{
+X  register unsigned i, c, r0, r1, r2, r3, CMask, Newline, Init0, r_NO_ERR; 
+X  register unsigned end;
+X  register unsigned hh, LL=0, k;  /* Lower part */
+X  int  FIRST_TIME=ON, num_read , j=0, base;
+X  unsigned A[MaxRerror+1], B[MaxRerror+1];
+X  unsigned Next[MaxNext], Next1[MaxNext];
+X  CHAR buffer[BlockSize+Maxline+1];
+X  int FIRST_LOOP = 1;
+X   
+X  r_NO_ERR = NO_ERR_MASK;
+X  if(M > 30) {
+X     fprintf(stderr, "%s: regular expression too long\n", Progname);
+X     exit(2);
+X  }
+X  base = WORD - M;
+X  hh = M/2;
+X  for(i=WORD, j=0; j < hh ; i--, j++) LL = LL | Bit[i];
+X  if(FIRST_IN_RE) compute_next(M, Next, Next1); 
+X                                   /*SUN: try: change to memory allocation */
+X  FIRST_IN_RE = 0;
+X  Newline = '\n';
+X  Init[0] = Bit[base];
+X  if(HEAD) Init[0] = Init[0] | Bit[base+1];
+X  for(i=1; i<= D; i++) Init[i] = Init[i-1] | Next[Init[i-1]>>hh] | Next1[Init[i-1]&LL];
+X  Init1 = Init[0] | 1; 
+X  Init0 = Init[0];
+X  r2 = r3 = Init[0];
+X  for(k=0; k<= D; k++) { A[k] = B[k] = Init[k]; }
+X  if ( D == 0 )
+X  {
+X    while ((num_read = read(Text, buffer + Maxline, BlockSize)) > 0)
+X    {
+X      i=Maxline; end = num_read + Maxline;
+X      if((num_read < BlockSize) && buffer[end-1] != '\n') buffer[end] = '\n';
+X      if(FIRST_LOOP) {         /* if first time in the loop add a newline */
+X        buffer[i-1] = '\n';  /* in front the  text.  */
+X	i--;
+X        FIRST_LOOP = 0;
+X      }
+X      while ( i < end )
+X      {
+X        c = buffer[i++];
+X        CMask = Mask[c];
+X        if(c != Newline)
+X        {  if(CMask != 0) {  
+X              r1 = Init1 & r3;
+X              r2 = ((Next[r3>>hh] | Next1[r3&LL]) & CMask) | r1;
+X           }
+X	   else  {
+X              r2 = r3 & Init1; 
+X           }
+X        }
+X        else {  j++; 
+X              r1 = Init1 & r3;            /* match against endofline */
+X              r2 = ((Next[r3>>hh] | Next1[r3&LL]) & CMask) | r1;
+X              if(TAIL) r2 = (Next[r2>>hh] | Next1[r2&LL]) | r2;                                        /* epsilon move */
+X              if(( r2 & 1 ) ^ INVERSE) {
+X                   if(FILENAMEONLY) {
+X                          num_of_matched++;
+X                          printf("%s\n", CurrentFileName);
+X                          return;
+X                   } 
+X                   r_output(buffer, i-1, end, j);
+X              }
+X              r3 = Init0;
+X              r2 = (Next[r3>>hh] | Next1[r3&LL]) & CMask | Init0;  
+X                                               /* match begin of line */
+X        }
+X        c = buffer[i++];
+X        CMask = Mask[c];
+X        if(c != Newline)
+X        {  if(CMask != 0) {  
+X              r1 = Init1 & r2;
+X              r3 = ((Next[r2>>hh] | Next1[r2&LL]) & CMask) | r1;
+X           }
+X	   else   r3 = r2 & Init1; 
+X        } /* if(NOT Newline) */
+X        else {  j++;
+X              r1 = Init1 & r2;            /* match against endofline */
+X              r3 = ((Next[r2>>hh] | Next1[r2&LL]) & CMask) | r1;
+X              if(TAIL) r3 = ( Next[r3>>hh] | Next1[r3&LL] ) | r3; 
+X                                           /* epsilon move */
+X              if(( r3 & 1 ) ^ INVERSE) {
+X                   if(FILENAMEONLY) {
+X                          num_of_matched++;
+X                          printf("%s\n", CurrentFileName);
+X                          return;
+X                   } 
+X                   r_output(buffer, i-1, end, j);
+X              }
+X              r2 = Init0;
+X              r3 = ((Next[r2>>hh] | Next1[r2&LL]) & CMask) | Init0; 
+X                   /* match begin of line */
+X        }
+X      } /* while i < end ... */
+X      strncpy(buffer, buffer+num_read, Maxline);
+X    } /* end while read()... */
+X  return;
+X  } /*  end if (D == 0) */
+X  while ((num_read = read(Text, buffer + Maxline, BlockSize)) > 0)
+X  {
+X    i=Maxline; end = Maxline + num_read;
+X    if((num_read < BlockSize) && buffer[end-1] != '\n') buffer[end] = '\n';
+X    if(FIRST_TIME) {         /* if first time in the loop add a newline */
+X        buffer[i-1] = '\n';  /* in front the  text.  */
+X	i--;
+X        FIRST_TIME = 0;
+X    }
+X    while (i < end )
+X    {
+X        c = buffer[i];
+X        CMask = Mask[c];
+X        if(c !=  Newline)
+X        {
+X           if(CMask != 0) {  
+X              r2 = B[0];
+X              r1 = Init1 & r2;
+X              A[0] = ((Next[r2>>hh] | Next1[r2&LL]) & CMask) | r1;
+X              r3 = B[1];
+X              r1 = Init1 & r3;
+X              r0 = r2 | A[0];     /* A[0] | B[0] */
+X              A[1] = ((Next[r3>>hh] | Next1[r3&LL]) & CMask) |                                       (( r2 | Next[r0>>hh] | Next1[r0&LL])&r_NO_ERR) | r1 ;  
+X                     if(D == 1) goto Nextchar;
+X              r2 = B[2];
+X              r1 = Init1 & r2;
+X              r0 = r3 | A[1];
+X              A[2] = ((Next[r2>>hh] | Next1[r2&LL]) & CMask) |                                       ((r3 | Next[r0>>hh] | Next1[r0&LL])&r_NO_ERR) | r1 ;  
+X                     if(D == 2) goto Nextchar;
+X              r3 = B[3];
+X              r1 = Init1 & r3;
+X              r0 = r2 | A[2];
+X              A[3] = ((Next[r3>>hh] | Next1[r3&LL]) & CMask) |                                       ((r2 | Next[r0>>hh] | Next1[r0&LL])&r_NO_ERR) | r1 ;  
+X                     if(D == 3) goto Nextchar;
+X              r2 = B[4];
+X              r1 = Init1 & r2;
+X              r0 = r3 | A[3];
+X              A[4] = ((Next[r2>>hh] | Next1[r2&LL]) & CMask) |                                        ((r3 | Next[r0>>hh] | Next1[r0&LL])&r_NO_ERR) | r1 ;  
+X                     if(D == 4)  goto Nextchar;
+X           }  /* if(CMask) */
+X	   else  {
+X              r2 = B[0];
+X              A[0] = r2 & Init1; 
+X              r3 = B[1];
+X              r1 = Init1 & r3;
+X              r0 = r2 | A[0];
+X              A[1] = ((r2 | Next[r0>>hh] | Next1[r0&LL])&r_NO_ERR) | r1 ;  
+X                   if(D == 1) goto Nextchar;
+X              r2 = B[2];
+X              r1 = Init1 & r2;
+X              r0 = r3 | A[1];
+X              A[2] = ((r3 | Next[r0>>hh] | Next1[r0&LL])&r_NO_ERR) | r1 ;  
+X                   if(D == 2) goto Nextchar;
+X              r3 = B[3];
+X              r1 = Init1 & r3;
+X              r0 = r2 | A[2];
+X              A[3] = ((r2 | Next[r0>>hh] | Next1[r0&LL])&r_NO_ERR) | r1 ;  
+X                   if(D == 3) goto Nextchar;
+X              r2 = B[4];
+X              r1 = Init1 & r2;
+X              r0 = r3 | A[3];
+X              A[4] = ((r3 | Next[r0>>hh] | Next1[r0&LL])&r_NO_ERR) | r1 ;  
+X                   if(D == 4) goto Nextchar;
+X           }
+X        }
+X        else {  j++;
+X              r1 = Init1 & B[D];            /* match against endofline */
+X              A[D] = ((Next[B[D]>>hh] | Next1[B[D]&LL]) & CMask) | r1;
+X              if(TAIL) A[D] = ( Next[A[D]>>hh] | Next1[A[D]&LL] ) | A[D]; 
+X                                           /* epsilon move */
+X              if(( A[D] & 1 ) ^ INVERSE) {
+X                   if(FILENAMEONLY) {
+X                          num_of_matched++;
+X                          printf("%s\n", CurrentFileName);
+X                          return;
+X                   } 
+X                   r_output(buffer, i, end, j);
+X              }
+X              for(k=0; k<=D; k++)  B[k] = Init[0];
+X              r1 = Init1 & B[0];
+X              A[0] = (( Next[B[0]>>hh] | Next1[B[0]&LL]) & CMask) | r1;
+X              for(k=1; k<=D; k++) {
+X                   r3 = B[k];
+X                   r1 = Init1 & r3;
+X                   r2 = A[k-1] | B[k-1];
+X                   A[k] = ((Next[r3>>hh] | Next1[r3&LL]) & CMask) |                                       ((B[k-1] | Next[r2>>hh] | Next1[r2&LL]) & r_NO_ERR) | r1;
+X              }
+X        }
+Nextchar: i=i+1;
+X        c = buffer[i];
+X        CMask = Mask[c];
+X        if(c != Newline)
+X        {
+X           if(CMask != 0) {  
+X              r2 = A[0];
+X              r1 = Init1 & r2;
+X              B[0] = ((Next[r2>>hh] | Next1[r2&LL]) & CMask) | r1;
+X              r3 = A[1];
+X              r1 = Init1 & r3;
+X              r0 = B[0] | r2;
+X              B[1] = ((Next[r3>>hh] | Next1[r3&LL]) & CMask) |                                       ((r2 | Next[r0>>hh] | Next1[r0&LL]) & r_NO_ERR) | r1 ;  
+X                     if(D == 1) goto Nextchar1;
+X              r2 = A[2];
+X              r1 = Init1 & r2;
+X              r0 = B[1] | r3;
+X              B[2] = ((Next[r2>>hh] | Next1[r2&LL]) & CMask) |                                   ((r3 | Next[r0>>hh] | Next1[r0&LL])&r_NO_ERR) | r1 ;  
+X                     if(D == 2) goto Nextchar1;
+X              r3 = A[3];
+X              r1 = Init1 & r3;
+X              r0 = B[2] | r2;
+X              B[3] = ((Next[r3>>hh] | Next1[r3&LL]) & CMask) |                                       ((r2 | Next[r0>>hh] | Next1[r0&LL])&r_NO_ERR) | r1 ;  
+X                     if(D == 3) goto Nextchar1;
+X              r2 = A[4];
+X              r1 = Init1 & r2;
+X              r0 = B[3] | r3;
+X              B[4] = ((Next[r2>>hh] | Next1[r2&LL]) & CMask) |                                       ((r3 | Next[r0>>hh] | Next1[r0&LL])&r_NO_ERR) | r1 ;  
+X                     if(D == 4)   goto Nextchar1;
+X           }  /* if(CMask) */
+X	   else  {
+X              r2 = A[0];
+X              B[0] = r2 & Init1; 
+X              r3 = A[1];
+X              r1 = Init1 & r3;
+X              r0 = B[0] | r2;
+X              B[1] = ((r2 | Next[r0>>hh] | Next1[r0&LL])&r_NO_ERR) | r1 ;  
+X                   if(D == 1) goto Nextchar1;
+X              r2 = A[2];
+X              r1 = Init1 & r2;
+X              r0 = B[1] | r3;
+X              B[2] = ((r3 | Next[r0>>hh] | Next1[r0&LL])&r_NO_ERR) | r1 ;  
+X                   if(D == 2) goto Nextchar1;
+X              r3 = A[3];
+X              r1 = Init1 & r3;
+X              r0 = B[2] | r2;
+X              B[3] = ((r2 | Next[r0>>hh] | Next1[r0&LL])&r_NO_ERR) | r1 ;  
+X                   if(D == 3) goto Nextchar1;
+X              r2 = A[4];
+X              r1 = Init1 & r2;
+X              r0 = B[3] | r3;
+X              B[4] = ((r3 | Next[r0>>hh] | Next1[r0&LL])&r_NO_ERR) | r1 ;  
+X                   if(D == 4) goto Nextchar1;
+X           }
+X        } /* if(NOT Newline) */
+X        else {  j++;
+X              r1 = Init1 & A[D];            /* match against endofline */
+X              B[D] = ((Next[A[D]>>hh] | Next1[A[D]&LL]) & CMask) | r1;
+X              if(TAIL) B[D] = ( Next[B[D]>>hh] | Next1[B[D]&LL] ) | B[D]; 
+X                                           /* epsilon move */
+X              if(( B[D] & 1 ) ^ INVERSE) {
+X                   if(FILENAMEONLY) {
+X                          num_of_matched++;
+X                          printf("%s\n", CurrentFileName);
+X                          return;
+X                   } 
+X                   r_output(buffer, i, end, j);
+X              }
+X              for(k=0; k<=D; k++) A[k] = Init0; 
+X              r1 = Init1 & A[0];
+X              B[0] = ((Next[A[0]>>hh] | Next1[A[0]&LL]) & CMask) | r1;
+X              for(k=1; k<=D; k++) {
+X                   r3 = A[k];
+X                   r1 = Init1 & r3;
+X                   r2 = A[k-1] | B[k-1];
+X                   B[k] = ((Next[r3>>hh] | Next1[r3&LL]) & CMask) |                                       ((A[k-1] | Next[r2>>hh] | Next1[r2&LL]) & r_NO_ERR) | r1;
+X              }
+X        }
+Nextchar1: i=i+1;
+X    } /* while */
+X    strncpy(buffer, buffer+num_read, Maxline);
+X  } /* while */
+X  return;
+X} /* re1 */
+X
+re(Text, M, D)
+int Text, M, D;
+X{
+X  register unsigned i, c, r1, r2, r3, CMask, k, Newline, Init0, Init1, end; 
+X  register unsigned r_even, r_odd, r_NO_ERR ;
+X  unsigned RMask[MAXSYM];
+X  unsigned A[MaxRerror+1], B[MaxRerror+1];
+X  int num_read, j=0, bp, lasti, base, ResidueSize; 
+X  int FIRST_TIME; /* Flag */ 
+X  base = WORD - M;
+X  k = 2*exponen(M);
+X  if(FIRST_IN_RE) {
+X         compute_next(M, Next, Next1); 
+X         FIRST_IN_RE = 0;    }
+X  for(i=0; i< MAXSYM; i++) RMask[i] = Mask[i];
+X  r_NO_ERR = NO_ERR_MASK;
+X  Newline = '\n';
+X  lasti = Maxline;
+X  Init0 = Init[0] = Bit[base];
+X  if(HEAD) Init0  = Init[0] = Init0 | Bit[base+1] ;
+X  for(i=1; i<= D; i++) Init[i] = Init[i-1] | Next[Init[i-1]]; /* can be out? */
+X  Init1 = Init0 | 1; 
+X  r2 = r3 = Init0;
+X  for(k=0; k<= D; k++) { A[k] = B[k] = Init[0]; }  /* can be out? */
+X  FIRST_TIME = ON;
+X  if ( D == 0 )
+X  {
+X    while ((num_read = read(Text, buffer + Maxline, BlockSize)) > 0)
+X    {
+X      i=Maxline; end = Maxline + num_read ;
+X      if((num_read < BlockSize)&&buffer[end-1] != '\n') buffer[end] = '\n';
+X      if(FIRST_TIME) {
+X         buffer[i-1] = '\n';
+X	 i--;
+X         FIRST_TIME = 0;
+X      }
+X      while (i < end) 
+X      {              
+X        c = buffer[i++];
+X        CMask = RMask[c];
+X        if(c != Newline)
+X        {  
+X              r1 = Init1 & r3;
+X              r2 = (Next[r3] & CMask) | r1;
+X        }
+X        else {  
+X              r1 = Init1 & r3;            /* match against '\n' */
+X              r2 = Next[r3] & CMask | r1;
+X              j++;
+X              if(TAIL) r2 = Next[r2] | r2 ;   /* epsilon move */
+X              if(( r2 & 1) ^ INVERSE) {
+X                   if(FILENAMEONLY) {
+X                          num_of_matched++;
+X                          printf("%s\n", CurrentFileName);
+X                          return;
+X                   } 
+X                   r_output(buffer, i-1, end, j);
+X              }
+X              lasti = i - 1;
+X              r3 = Init0;
+X              r2 = (Next[r3] & CMask) | Init0;
+X        }
+X        c = buffer[i++];   
+X        CMask = RMask[c];
+X        if(c != Newline)
+X        {
+X              r1 = Init1 & r2;
+X              r3 = (Next[r2] & CMask) | r1;
+X        }
+X        else {  j++;
+X              r1 = Init1 & r2;            /* match against endofline */
+X              r3 = Next[r2] & CMask | r1;
+X              if(TAIL) r3 = Next[r3] | r3;
+X              if(( r3 & 1) ^ INVERSE) {
+X                   if(FILENAMEONLY) {
+X                          num_of_matched++;
+X                          printf("%s\n", CurrentFileName);
+X                          return;
+X                   } 
+X                   r_output(buffer, i-1, end, j);
+X              }
+X              lasti = i - 1;
+X              r2 = Init0; 
+X              r3 = (Next[r2] & CMask) | Init0;  /* match the newline */
+X        }
+X      } /* while */
+X      ResidueSize = Maxline + num_read - lasti;
+X      if(ResidueSize > Maxline) {
+X           ResidueSize = Maxline;  }
+X      strncpy(buffer+Maxline-ResidueSize, buffer+lasti, ResidueSize);
+X      lasti = Maxline - ResidueSize;
+X    } /* while */
+X  return;
+X  } /* end if(D==0) */
+X  while ((num_read = read(Text, buffer + Maxline, BlockSize)) > 0)
+X  {
+X    i=Maxline; end = Maxline+num_read;
+X    if((num_read < BlockSize) && buffer[end-1] != '\n') buffer[end] = '\n';
+X    if(FIRST_TIME) {
+X        buffer[i-1] = '\n';
+X	i--;
+X        FIRST_TIME = 0;
+X    }
+X    while (i < end)
+X    {   c = buffer[i++];
+X        CMask = RMask[c];
+X        if (c != Newline)
+X        {  
+X              r_even = B[0];
+X              r1 = Init1 & r_even;
+X              A[0] = (Next[r_even] & CMask) | r1;
+X              r_odd = B[1];
+X              r1 = Init1 & r_odd;
+X              r2 = (r_even | Next[r_even|A[0]]) &r_NO_ERR;
+X              A[1] = (Next[r_odd] & CMask) | r2 | r1 ;  
+X                     if(D == 1) goto Nextchar;
+X              r_even = B[2];
+X              r1 = Init1 & r_even;
+X              r2 = (r_odd | Next[r_odd|A[1]]) &r_NO_ERR;
+X              A[2] = (Next[r_even] & CMask) | r2 | r1 ;  
+X                     if(D == 2) goto Nextchar;
+X              r_odd = B[3];
+X              r1 = Init1 & r_odd;
+X              r2 = (r_even | Next[r_even|A[2]]) &r_NO_ERR;
+X              A[3] = (Next[r_odd] & CMask) | r2 | r1 ;  
+X                     if(D == 3) goto Nextchar;
+X              r_even = B[4];
+X              r1 = Init1 & r_even;
+X              r2 = (r_odd | Next[r_odd|A[3]]) &r_NO_ERR;
+X              A[4] = (Next[r_even] & CMask) | r2 | r1 ;  
+X              goto Nextchar;
+X        } /* if NOT Newline */
+X        else {  j++;
+X              r1 = Init1 & B[D];               /* match endofline */
+X              A[D] = (Next[B[D]] & CMask) | r1;
+X              if(TAIL) A[D] = Next[A[D]] | A[D];
+X              if((A[D] & 1) ^ INVERSE )  {
+X                   if(FILENAMEONLY) {
+X                          num_of_matched++;    
+X                          printf("%s\n", CurrentFileName);
+X                          return;
+X                   }  
+X                   r_output(buffer, i-1, end, j);
+X              }
+X              for(k=0; k<= D; k++) { A[k] = B[k] = Init[k]; }
+X              r1 = Init1 & B[0]; 
+X              A[0] = (Next[B[0]] & CMask) | r1;
+X              for(k=1; k<= D; k++) {
+X                    r1 = Init1 & B[k];
+X                    r2 = (B[k-1] | Next[A[k-1]|B[k-1]]) &r_NO_ERR;
+X                    A[k] = (Next[B[k]] & CMask) | r1 | r2;
+X              }
+X        }
+Nextchar: 
+X        c = buffer[i];
+X        CMask = RMask[c];
+X        if(c != Newline)
+X        { 
+X              r1 = Init1 & A[0];
+X              B[0] = (Next[A[0]] & CMask) | r1;
+X              r1 = Init1 & A[1];
+X              B[1] = (Next[A[1]] & CMask) |                                                          ((A[0] | Next[A[0] | B[0]]) & r_NO_ERR) | r1 ;  
+X                     if(D == 1) goto Nextchar1;
+X              r1 = Init1 & A[2];
+X              B[2] = (Next[A[2]] & CMask) | ((A[1] | Next[A[1] | B[1]]) &r_NO_ERR) | r1 ;  
+X                     if(D == 2) goto Nextchar1;
+X              r1 = Init1 & A[3];
+X              B[3] = (Next[A[3]] & CMask) | ((A[2] | Next[A[2] | B[2]])&r_NO_ERR) | r1 ;  
+X                     if(D == 3) goto Nextchar1;
+X              r1 = Init1 & A[4];
+X              B[4] = (Next[A[4]] & CMask) | ((A[3] | Next[A[3] | B[3]])&r_NO_ERR) | r1 ;  
+X              goto Nextchar1;
+X        } /* if(NOT Newline) */
+X        else {  j++;
+X              r1 = Init1 & A[D];               /* match endofline */
+X              B[D] = (Next[A[D]] & CMask) | r1;
+X              if(TAIL) B[D] = Next[B[D]] | B[D];
+X              if((B[D] & 1) ^ INVERSE )  {
+X                   if(FILENAMEONLY) {
+X                          num_of_matched++;
+X                          printf("%s\n", CurrentFileName);
+X                          return;
+X                   } 
+X                   r_output(buffer, i, end, j);
+X              }
+X              for(k=0; k<= D; k++) { A[k] = B[k] = Init[k]; }
+X              r1 = Init1 & A[0]; 
+X              B[0] = (Next[A[0]] & CMask) | r1;
+X              for(k=1; k<= D; k++) {
+X                    r1 = Init1 & A[k];
+X                    r2 = (A[k-1] | Next[A[k-1]|B[k-1]])&r_NO_ERR;
+X                    B[k] = (Next[A[k]] & CMask) | r1 | r2;
+X              }
+X        }
+Nextchar1: i++;
+X    } /* while i < end */
+X    strncpy(buffer, buffer+num_read, Maxline);
+X  } /* while  read() */
+X  return;
+X} /* re */
+X
+X
+r_output (buffer, i, end, j) 
+int i, end, j; 
+CHAR *buffer;
+X{
+int bp;
+X      if(i >= end) return;
+X      num_of_matched++;
+X      if(COUNT)  return; 
+X      if(FNAME) printf("%s: ", CurrentFileName);
+X      bp = i-1;
+X      while ((buffer[bp] != '\n') && (bp > 0)) bp--;
+X      if(LINENUM) printf("%d: ", j); 
+X      if(buffer[bp] != '\n') bp = Maxline-1;
+X      bp++; 
+X      while (bp <= i ) putchar(buffer[bp++]);
+X}
+X
+main(argc, argv)
+int argc; char *argv[];
+X{
+X  int N, M, D=0, fp, fd, i, j; 
+X  char c;
+X  int filetype;
+X  unsigned char Pattern[MAXPAT], OldPattern[MAXPAT], temp[MAXPAT];
+X  
+X  initial_value();
+X  strcpy(Progname, argv[0]);
+X  if (argc < 2) usage();
+X  Pattern[0] = '\0';
+X  while(--argc > 0 && (*++argv)[0] == '-') {
+X     c = *(argv[0]+1); 
+X     switch(c) {
+X       case 'c' : COUNT = ON;    /* output the # of matched */
+X                  break;
+X       case 's' : SILENT = ON;   /* silent mode  */
+X                  break;
+X       case 'p' : I = 0;         /* insertion cost is 0 */
+X                  break; 
+X       case 'x' : WHOLELINE = ON;  /* match the whole line */
+X		  if(WORDBOUND) {
+X			fprintf(stderr, "%s: illegal option combination\n", Progname);
+X			exit(2);
+X		  }
+X                  break;
+X       case 'L' : break;
+X       case 'd' : DELIMITER = ON;  /* user defines delimiter */
+X                  if(argc <= 1) usage();
+X                  if (argv[0][2] == '\0') {/* space after -d option */
+X                    argv++;
+X                    if ((D_length = strlen(argv[0])) > MaxDelimit) {
+X                      fprintf(stderr, "%s: delimiter pattern too long\n", Progname);
+X                      exit(2);
+X                    }
+X                    D_pattern[0] = '<';
+X                    strcpy(D_pattern+1, argv[0]);
+X                    argc--;
+X                  } else {
+X                    if ((D_length = strlen(argv[0]+2)) > MaxDelimit) {
+X                      fprintf(stderr, "%s: delimiter pattern too long\n", Progname);
+X                      exit(2);
+X                    }
+X                    D_pattern[0] = '<';
+X                    strcpy(D_pattern+1, argv[0]+2);
+X                  } /* else */
+X                  strcat(D_pattern, ">; ");
+X                  D_length++;   /* to count ';' as one */
+X                  break;
+X       case 'e' : argc--;
+X		  if(argc == 0) {
+X			fprintf(stderr, "%s: the pattern should immediately follow the -e option\n", Progname);
+X			usage();
+X		  }
+X		  if((++argv)[0][0] == '-') {
+X                       Pattern[0] = '\\';
+X                       strcat(Pattern, (argv)[0]);
+X                  }
+X                  else strcat(Pattern, argv[0]);
+X                  break;
+X       case 'f' : PAT_FILE = ON;
+X		  argv++;
+X		  argc--;
+X		  if((fp = open(argv[0], 0)) < 0) {
+X			fprintf(stderr, "%s: Can't open pattern file %s\n", Progname, argv[0]);
+X			exit(2);
+X		  }
+X		  break;
+X       case 'h' : NOFILENAME = ON;
+X                  break;
+X       case 'i' : NOUPPER = ON;
+X                  break;
+X       case 'k' : argc--;
+X		  if(argc == 0) {
+X			fprintf(stderr, "%s: the pattern should immediately follow the -k option\n", Progname);
+X			usage();
+X		  }
+X		  CONSTANT = ON;
+X		  argv++;
+X		  strcat(Pattern, argv[0]);
+X		  if(argc > 1 && argv[1][0] == '-') {
+X			fprintf(stderr, "%s: -k should be the last option in the command\n", Progname);
+X			exit(2);
+X		  }
+X		  break;
+X       case 'l' : FILENAMEONLY = ON;
+X                  break;
+X       case 'n' : LINENUM = ON;  /* output prefixed by line no*/
+X                  break;
+X       case 'v' : INVERSE = ON;  /* output no-matched lines */
+X                  break;
+X       case 't' : OUTTAIL = ON;  /* output from tail of delimiter */
+X                  break;
+X       case 'B' : BESTMATCH = ON;
+X                  break;
+X       case 'w' : WORDBOUND = ON;/* match to words */
+X		  if(WHOLELINE) {
+X			fprintf(stderr, "%s: illegal option combination\n", Progname);
+X			exit(2);
+X		  }
+X                  break;
+X       case 'I' : I = atoi(argv[0]+2);  /* Insertion Cost */
+X	          JUMP = ON;
+X                  break;
+X       case 'S' : S = atoi(argv[0]+2);  /* Substitution Cost */
+X                  JUMP = ON;
+X                  break;
+X       case 'D' : DD = atoi(argv[0]+2); /* Deletion Cost */
+X                  JUMP = ON;
+X                  break;
+X       case 'G' : FILEOUT = ON; 
+X		  COUNT = ON;
+X		  break;
+X       default  : if (isdigit(c)) {
+X		    APPROX = ON;
+X                    D = atoi(argv[0]+1);
+X                    if (D > MaxError) {
+X                      fprintf(stderr,"%s: the maximum number of errors is %d \n", Progname, MaxError);
+X                      exit(2);
+X                    }
+X                  } else {
+X                    fprintf(stderr, "%s: illegal option  -%c\n",Progname, c);
+X		    usage();
+X                  }
+X       } /* switch(c) */
+X  } /* while (--argc > 0 && (*++argv)[0] == '-') */
+X
+X  if (FILENAMEONLY && NOFILENAME) {
+X    fprintf(stderr, "%s: -h and -l options are mutually exclusive\n",Progname);
+X  }
+X  if (COUNT && (FILENAMEONLY || NOFILENAME)) {
+X      FILENAMEONLY = OFF; 
+X      if(!FILEOUT) NOFILENAME = OFF;
+X  }
+X  if (!(PAT_FILE) && Pattern[0] == '\0') { /* Pattern not set with -e option */
+X    if (argc == 0) usage();
+X    strcpy(Pattern, *argv); 
+X    argc--;
+X    argv++;
+X  }
+X  Numfiles = 0;  
+X  fd = 3; /* make sure it's not 0 */
+X  if (argc == 0)  /* check Pattern against stdin */
+X    fd = 0;
+X  else {
+X    if (!(Textfiles = (CHAR **)malloc(argc * sizeof(CHAR *) ))) {
+X      fprintf(stderr, "%s: malloc failure (you probably don't have enough memory)\n", Progname);
+X      exit(2);
+X    }
+X    while (argc--)  { /* one or more filenames on command line -- put
+X                          the valid filenames in a array of strings */    
+X/*
+X      if ((filetype = check_file(*argv)) != ISASCIIFILE) {
+X	if(filetype == NOSUCHFILE) fprintf(stderr,"%s: %s: no such file or directory\n",Progname,*argv);
+X        argv++;
+X*/
+X      
+X      if ((filetype = check_file(*argv)) == NOSUCHFILE) {
+X	if(filetype == NOSUCHFILE) fprintf(stderr,"%s: %s: no such file or directory\n",Progname,*argv);
+X        argv++;
+X      } else { /* file is ascii*/
+X        if (!(Textfiles[Numfiles] = (CHAR *)malloc((strlen(*argv)+1)))) {
+X          fprintf(stderr, "%s: malloc failure (you probably don't have enough memory)\n", Progname);
+X          exit(2);
+X        }
+X        strcpy(Textfiles[Numfiles++], *argv++);
+X	   } /* else */
+X     } /* while (argc--) */
+X  } /* else */
+X  checksg(Pattern, D);       /* check if the pattern is simple */
+X  strcpy(OldPattern, Pattern);
+X  if (SGREP == 0) {
+X      preprocess(D_pattern, Pattern);
+X      strcpy(old_D_pat, D_pattern);
+X      M = maskgen(Pattern, D);
+X  }
+X  else M = strlen(OldPattern);
+X  if (PAT_FILE)  prepf(fp);
+X  if (Numfiles > 1) FNAME = ON;
+X  if (NOFILENAME) FNAME = 0;
+X  num_of_matched = 0;
+X  compat(); /* check compatibility between options */
+X  if (fd == 0) {
+X    if(FILENAMEONLY) {
+X       fprintf(stderr, "%s: -l option is not compatible with standard input\n", Progname);
+X       exit(2);  
+X    }
+X    if(PAT_FILE) mgrep(fd);
+X    else {
+X    	if(SGREP) sgrep(OldPattern, strlen(OldPattern), fd, D);
+X   	else      bitap(old_D_pat, Pattern, fd, M, D);
+X    }
+X    if (COUNT) {
+X	if(INVERSE && PAT_FILE) printf("%d\n", total_line-num_of_matched);
+X	else printf("%d\n", num_of_matched);
+X    }
+X  } 
+X  else {
+X    for (i = 0; i < Numfiles; i++, close(fd), num_of_matched = 0) {
+X      	strcpy(CurrentFileName, Textfiles[i]);
+X      	if ((fd = open(Textfiles[i], 0)) <= 0) {
+X            fprintf(stderr, "%s: can't open file %s\n",Progname, Textfiles[i]);
+X      	} 
+X	else { 
+X	     	if(PAT_FILE) mgrep(fd);
+X	     	else {
+X             		if(SGREP) sgrep(OldPattern, strlen(OldPattern), fd, D);
+X             		else      bitap(old_D_pat, Pattern, fd, M, D);
+X	        }
+X        	if (num_of_matched) NOMATCH = OFF;
+X        	if (COUNT && !FILEOUT) {
+X			if(INVERSE && PAT_FILE) {
+X 		    		if(FNAME) printf("%s: %d\n", CurrentFileName, total_line - num_of_matched);
+X				else printf("%d\n", total_line - num_of_matched);
+X			}
+X			else {
+X 		    		if(FNAME) printf("%s: %d\n", CurrentFileName, num_of_matched);
+X				else printf("%d\n", num_of_matched);
+X			}
+X        	}  /* if COUNT */
+X		if(FILEOUT && num_of_matched) {
+X			file_out(CurrentFileName);
+X		}
+X      	} /* else */
+X    }  /* for i < Numfiles */
+X    if(NOMATCH && BESTMATCH) {
+X	if(WORDBOUND || WHOLELINE || LINENUM || INVERSE) { 
+X		SGREP = 0;	
+X      		preprocess(D_pattern, Pattern);
+X      		strcpy(old_D_pat, D_pattern);
+X      		M = maskgen(Pattern, D);
+X	}
+X	COUNT=ON; D=1;
+X	while(D<M && D<=MaxError && num_of_matched == 0) {
+X    		for (i = 0; i < Numfiles; i++, close(fd)) {
+X      			strcpy(CurrentFileName, Textfiles[i]);
+X      			if ((fd = open(Textfiles[i], 0)) > 0) {
+X	     			if(PAT_FILE) mgrep(fd);
+X	     			else {
+X             		    		if(SGREP) sgrep(OldPattern,strlen(OldPattern),fd,D);
+X             		    		else bitap(old_D_pat,Pattern,fd,M,D);
+X      				}
+X			} 
+X   		}  /* for i < Numfiles */
+X		D++;
+X	} /* while */
+X	if(num_of_matched > 0) {
+X		D--; COUNT = 0;
+X		if(D==1) fprintf(stderr, "best match has 1 error, ");
+X		else fprintf(stderr, "best match has %d errors, ", D);
+X		fflush(stderr);
+X		if(num_of_matched == 1) fprintf(stderr,"there is 1 match, output it? (y/n)");
+X		else fprintf(stderr,"there are %d matches, output them? (y/n)", num_of_matched);
+X		scanf("%c",&c);
+X		if(c != 'y') goto CONT;
+X    		for (i = 0; i < Numfiles; i++, close(fd)) {
+X      			strcpy(CurrentFileName, Textfiles[i]);
+X      			if ((fd = open(Textfiles[i], 0)) > 0) {
+X	     			if(PAT_FILE) mgrep(fd);
+X	     			else {
+X             		    		if(SGREP) sgrep(OldPattern,strlen(OldPattern),fd,D);
+X             		    		else bitap(old_D_pat,Pattern,fd,M,D);
+X				}
+X      			} 
+X   		}  /* for i < Numfiles */
+X		NOMATCH = 0;
+X	}
+X   }
+X }
+CONT:
+X if(EATFIRST) {
+X      printf("\n");
+X      EATFIRST = OFF;
+X }
+X if(NOMATCH) exit(1);
+X exit(0);
+X} /* end of main() */
+X
+X	   
+file_out(fname)
+char *fname;
+X{
+int num_read;
+int fd;
+int i, len;
+CHAR buf[4097];
+X	if(FNAME) {
+X		len = strlen(fname);
+X		putchar('\n');
+X		for(i=0; i< len; i++) putchar(':');
+X		putchar('\n');
+X		printf("%s\n", CurrentFileName);
+X		len = strlen(fname);
+X		for(i=0; i< len; i++) putchar(':');
+X		putchar('\n');
+X		fflush(stdout);
+X	}
+X	fd = open(fname, 0);
+X	while((num_read = read(fd, buf, 4096)) > 0) 
+X		write(1, buf, num_read);
+X}
+X
+X
+usage()
+X{
+X    	fprintf(stderr, "usage: %s [-#cdehiklnpstvwxBDGIS] [-f patternfile] pattern [files]\n", Progname); 
+X 	printf("\n");	
+X	fprintf(stderr, "summary of frequently used options:\n");
+X	fprintf(stderr, "-#: find matches with at most # errors\n");
+X	fprintf(stderr, "-c: output the number of matched records\n");
+X	fprintf(stderr, "-d: define record delimiter\n");
+X	fprintf(stderr, "-h: do not output file names\n");
+X	fprintf(stderr, "-i: case-insensitive search, e.g., 'a' = 'A'\n");
+X	fprintf(stderr, "-l: output the names of files that contain a match\n");
+X	fprintf(stderr, "-n: output record prefixed by record number\n");
+X	fprintf(stderr, "-v: output those records containing no matches\n");
+X	fprintf(stderr, "-w: pattern has to match as a word, e.g., 'win' will not match 'wind'\n");
+X	fprintf(stderr, "-B: best match mode. find the closest matches to the pattern\n"); 
+X	fprintf(stderr, "-G: output the files that contain a match\n");
+X 	printf("\n");	
+X
+X    	exit(2);
+X}
+X
+checksg(Pattern, D) 
+CHAR *Pattern; int D;
+X{                          
+X  char c;
+X  int i, m;
+X  m = strlen(Pattern);
+X  if(!(PAT_FILE) && m <= D) {
+X      fprintf(stderr, "%s: size of pattern must be greater than number of errors\n", Progname);
+X      exit(2);
+X  }
+X  SIMPLEPATTERN = ON;
+X  for (i=0; i < m; i++) 
+X  {
+X      switch(Pattern[i])
+X      {
+X         case ';' : SIMPLEPATTERN = OFF; break;
+X         case ',' : SIMPLEPATTERN = OFF; break;
+X         case '.' : SIMPLEPATTERN = OFF; break;
+X         case '*' : SIMPLEPATTERN = OFF; break;
+X         case '-' : SIMPLEPATTERN = OFF; break;
+X         case '[' : SIMPLEPATTERN = OFF; break;
+X         case ']' : SIMPLEPATTERN = OFF; break;
+X         case '(' : SIMPLEPATTERN = OFF; break;
+X         case ')' : SIMPLEPATTERN = OFF; break;
+X         case '<' : SIMPLEPATTERN = OFF; break;
+X         case '>' : SIMPLEPATTERN = OFF; break;
+X         case '^' : if(D > 0) SIMPLEPATTERN = OFF; 
+X		    break;
+X         case '$' : if(D > 0) SIMPLEPATTERN = OFF; 
+X		    break;
+X         case '|' : SIMPLEPATTERN = OFF; break;
+X         case '#' : SIMPLEPATTERN = OFF; break;
+X         case '\\' : SIMPLEPATTERN = OFF; break;
+X         default  : break;
+X      }
+X  }
+X  if (CONSTANT) SIMPLEPATTERN = ON;
+X  if (SIMPLEPATTERN == OFF) return;
+X  if (NOUPPER && D) return;     
+X  if (JUMP == ON) return;
+X  if (I == 0) return;
+X  if (LINENUM) return;
+X  if (DELIMITER) return;   
+X  if (INVERSE) return;
+X  if (WORDBOUND && D > 0) return;  
+X  if (WHOLELINE && D > 0) return;  
+X  if (SILENT) return;     /* REMINDER: to be removed */
+X  SGREP = ON;
+X  if(m >= 16) DNA = ON;
+X  for(i=0; i<m; i++) {
+X	c = Pattern[i];
+X	if(c == 'a' || c == 'c' || c == 't' || c == 'g' ) ;
+X	else DNA = OFF;
+X  }
+X  return;
+X}
+X
+output (buffer, i1, i2, j)  
+register CHAR *buffer; int i1, i2, j;
+X{
+register CHAR *bp, *outend;
+X	if(i1 > i2) return;
+X        num_of_matched++;
+X        if(COUNT)  return;
+X        if(SILENT) return;
+X	if(OUTTAIL) {
+X              i1 = i1 + D_length;
+X              i2 = i2 + D_length;
+X        }
+X        if(DELIMITER) j = j+1;
+X        if(FIRSTOUTPUT) {
+X           if (buffer[i1] == '\n')  {
+X               i1++;
+X               EATFIRST = ON;
+X           }
+X           FIRSTOUTPUT = 0;
+X        }
+X        if(TRUNCATE) {
+X           fprintf(stderr, "WARNING!!!  some lines have been truncated in output record #%d\n", num_of_matched-1);
+X        }
+X        while(buffer[i1] == '\n' && i1 <= i2) {
+X	   printf("\n");
+X           i1++;
+X        }
+X        if(FNAME == ON) printf("%s: ", CurrentFileName);
+X        if(LINENUM) printf("%d: ", j-1); 
+X	bp = buffer + i1;
+X	outend = buffer + i2;
+X	while(bp <= outend) putchar(*bp++);
+X}
+X
+X/* end of main.c */
+END_OF_FILE
+if test 35404 -ne `wc -c <'main.c'`; then
+    echo shar: \"'main.c'\" unpacked with wrong size!
+fi
+# end of 'main.c'
+fi
+if test -f 'sgrep.c' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'sgrep.c'\"
+else
+echo shar: Extracting \"'sgrep.c'\" \(18635 characters\)
+sed "s/^X//" >'sgrep.c' <<'END_OF_FILE'
+X/* Copyright (c) 1991 Sun Wu and Udi Manber.  All Rights Reserved. */
+X#include <stdio.h>
+X#define MAXSYM  256
+X#define MAXMEMBER 8192
+X#define	CHARTYPE	unsigned char
+X#define MaxError 20
+X#define MAXPATT 256
+X#define MAXLINE 1024
+X#define MaxCan  2048
+X#define BLOCKSIZE    8192
+X#define MAX_SHIFT_2  4096
+X#define ON      1
+X#define LOG_ASCII 8
+X#define LOG_DNA  3
+X#define MAXMEMBER_1 65536
+X#define LONG_EXAC  20
+X#define LONG_APPX  24
+X#define W_DELIM    2
+X
+extern COUNT, FNAME, SILENT, FILENAMEONLY, num_of_matched;
+extern DNA ;  /* DNA flag is set in checksg when pattern is DNA pattern and
+X		 p_size > 16  */
+extern WORDBOUND, WHOLELINE, NOUPPER;
+extern unsigned char CurrentFileName[],  Progname[]; 
+extern unsigned Mask[];
+extern unsigned endposition;
+X
+unsigned char BSize;                /* log_c m   */
+unsigned char char_map[MAXSYM];
+X	
+X
+X/* data area */
+int shift_1;
+CHARTYPE SHIFT[MAXSYM];
+CHARTYPE MEMBER[MAXMEMBER];
+CHARTYPE pat[MAXPATT];
+unsigned Hashmask;
+char MEMBER_1[MAXMEMBER_1];
+CHARTYPE TR[MAXSYM];
+X
+char_tr(pat, m)
+X	unsigned char *pat;
+X	int *m;
+X{
+int i;
+unsigned char temp[MAXPATT];
+X	for(i=0; i<MAXSYM; i++) TR[i] = i;
+X	if(NOUPPER) {
+X		for(i='A'; i<= 'Z'; i++) TR[i] = i + 'a' - 'A';
+X	}
+X	if(WORDBOUND) { /* SUN: To be added to be more complete */
+X		TR['\n'] = TR['\t'] = TR[' '] = TR[','] = TR[';'] = TR[':'] = 
+X        	TR['!'] = TR['"'] = TR['?'] = TR['<'] = TR['>'] = 
+X		TR['='] = TR['['] = TR[']'] = TR['\''] =
+X        	TR['('] = TR[')'] = TR['$'] = TR['/'] = TR['\\'] = W_DELIM;
+X	}
+X	if(WHOLELINE) {
+X		memcpy(temp, pat, *m);
+X		pat[0] = '\n';
+X		memcpy(pat+1, temp, *m);
+X		pat[*m+1] = '\n';
+X		pat[*m+2] = 0;
+X		*m = *m + 2;
+X	}
+X}
+X
+sgrep(pat, m, fd, D)
+CHARTYPE *pat;  int fd, m, D;
+X{ 
+X    CHARTYPE text[BLOCKSIZE+2*MAXLINE+MAXPATT]; /* input text stream */
+X    int offset = 2*MAXLINE;
+X    int buf_end, num_read, i, start, end, residue = 0;
+X    if(pat[0] == '^' || pat[0] == '$') pat[0] = '\n';
+X    if(pat[m-1] == '^' || pat[m-1] == '$') pat[m-1] = '\n';
+X    char_tr(pat, &m);   /* will change pat, and m if WHOLELINE is ON */
+X    text[offset-1] = '\n';  /* initial case */
+X    for(i=0; i < MAXLINE; i++) text[i] = 0;   /* security zone */
+X    start = offset;   
+X    if(WHOLELINE) start--;
+X    if(m >= MAXPATT) {
+X         fprintf(stderr, "%s: pattern too long\n", Progname);
+X         exit(2);
+X    }
+X    if(D == 0) {
+X	if(m > LONG_EXAC) m_preprocess(pat);
+X	else prep_bm(pat, m);
+X    }
+X    else if (DNA) prep4(pat, m);
+X	 else 	if(m >= LONG_APPX) am_preprocess(pat);
+X		else {
+X			prep(pat, m, D);
+X			initmask(pat, Mask, m, 0, &endposition); 
+X		}
+X    for(i=1; i<=m; i++) text[BLOCKSIZE+offset+i] = pat[m-1];
+X		/* to make sure the skip loop in bm() won't go out of bound */
+X    while( (num_read = read(fd, text+offset, BLOCKSIZE)) > 0) 
+X    {
+X       buf_end = end = offset + num_read -1 ;
+X       if(num_read < BLOCKSIZE) if(text[end] != '\n') text[++end] = '\n';
+X       while(text[end]  != '\n' && end > offset) end--;
+X       residue = buf_end - end + 1 ;
+X       text[start-1] = '\n';
+X       if(D==0)  {
+X		if(m > LONG_EXAC) monkey(pat, m, text+start, text+end);
+X		else bm(pat, m, text+start, text+end);
+X       }
+X       else {
+X		if(DNA) monkey4( pat, m, text+start, text+end, D  );
+X		else {
+X		  if(m >= LONG_APPX) a_monkey(pat, m, text+start, text+end, D);
+X		  else       agrep(pat, m, text+start, text+end, D);
+X		}
+X       }
+X       if(FILENAMEONLY && num_of_matched) {
+X            printf("%s\n", CurrentFileName);
+X            return; }
+X       start = offset - residue ;
+X       if(start < MAXLINE) {
+X            start = MAXLINE; 
+X       }
+X       strncpy(text+start, text+end, residue);
+X       start++;
+X    } /* end of while(num_read = ... */
+X    return;
+X} /* end sgrep */
+X
+X/* SUN: bm assumes that the content of text[n]...text[n+m-1] is 
+pat[m-1] such that the skip loop is guaranteed to terminated */
+X
+bm(pat, m, text, textend)
+X	CHARTYPE *text, *textend, *pat;  int m;
+X{
+register int shift;
+register int  m1, j, d1; 
+X
+X/*
+printf("%d\t", textend - text);
+printf("%c, %c", *text, *textend);
+X*/
+X
+d1 = shift_1;    /* at least 1 */
+m1 = m - 1;
+shift = 0;       
+while (text <= textend) {
+X	shift = SHIFT[*(text += shift)];
+X	while(shift) {          
+X		shift = SHIFT[*(text += shift)];
+X		shift = SHIFT[*(text += shift)];
+X		shift = SHIFT[*(text += shift)];
+X	}
+X		j = 0;
+X		while(TR[pat[m1 - j]] == TR[*(text - j)]) {
+X			if(++j == m)  break;       /* if statement can be
+X						    saved, but for safty ... */
+X		}
+X	        if (j == m ) { 
+X			if(text > textend) return;
+X			if(WORDBOUND) {
+X				if(TR[*(text+1)] != W_DELIM) goto CONT;
+X				if(TR[*(text-m)] != W_DELIM) goto CONT;
+X			}
+X			num_of_matched++;
+X			if(FILENAMEONLY) return;
+X			if(!(COUNT)) {
+X				if(FNAME) printf("%s: ", CurrentFileName);
+X				while(*(--text) != '\n');
+X				while(*(++text) != '\n') putchar(*(text));
+X				putchar(*text);
+X			}
+X			else { while(*text != '\n') text++; } 
+CONT:
+X			shift = 1;
+X                }
+X		else shift = d1;
+X  }
+return;
+X}
+X
+X  
+X/* initmask() initializes the mask table for the pattern                    */ 
+X/* endposition is a mask for the endposition of the pattern                 */
+X/* endposition will contain k mask bits if the pattern contains k fragments */
+initmask(pattern, Mask, m, D, endposition)
+CHARTYPE *pattern; unsigned *Mask; register int m, D; unsigned *endposition;
+X{
+X  register unsigned Bit1, c;
+X  register int i, j, frag_num;
+X
+X  Bit1 = 1 << 31;    /* the first bit of Bit1 is 1, others 0.  */
+X  frag_num = D+1; *endposition = 0;
+X  for (i = 0; i < frag_num; i++) *endposition = *endposition | (Bit1 >> i);
+X  *endposition = *endposition >> (m - frag_num);
+X  for(i = 0; i < m; i++) 
+X          if (pattern[i] == '^' || pattern[i] == '$') {
+X              pattern[i] = '\n'; 
+X          }
+X  for(i = 0; i < MAXSYM; i++) Mask[i] = ~0;
+X  for(i = 0; i < m; i++)     /* initialize the mask table */
+X  {  c = pattern[i];
+X     for ( j = 0; j < m; j++)
+X           if( c == pattern[j] )
+X               Mask[c] = Mask[c] & ~( Bit1 >> j ) ;
+X  }
+X}
+X
+prep(Pattern, M, D)             /* preprocessing for partitioning_bm */
+X	CHARTYPE *Pattern;  /* can be fine-tuned to choose a better partition */
+X	register int M, D;
+X{
+register int i, j, k, p, shift;
+register unsigned m;
+unsigned hash, b_size = 3;
+X	m = M/(D+1);
+X	p = M - m*(D+1);
+X	for (i = 0; i < MAXSYM; i++) SHIFT[i] = m;
+X	for (i = M-1; i>=p ; i--) {
+X		shift = (M-1-i)%m;
+X		hash = Pattern[i];
+X		if(SHIFT[hash] > shift) SHIFT[hash] = shift;
+X	}
+X#ifdef DEBUG
+X	for(i=0; i<M; i++) printf(" %d,", SHIFT[Pattern[i]]);
+X	printf("\n");
+X#endif
+X	shift_1 = m;
+X	for(i=0; i<D+1; i++) {
+X		j = M-1 - m*i;
+X		for(k=1; k<m; k++) {
+X			for(p=0; p<D+1; p++) 
+X				if(Pattern[j-k] == Pattern[M-1-m*p]) 
+X					if(k < shift_1) shift_1 = k;
+X		}
+X	}
+X#ifdef DEBUG
+X	printf("\nshift_1 = %d", shift_1);
+X#endif
+X	if(shift_1 == 0) shift_1 = 1;
+X	for(i=0; i<MAXMEMBER; i++) MEMBER[i] = 0;
+X	if (m < 3) b_size = m;
+X	for(i=0; i<D+1; i++) {
+X		j = M-1 - m*i;
+X		hash = 0;
+X		for(k=0; k<b_size; k++) {
+X			hash = (hash << 2) + Pattern[j-k];
+X		}
+X#ifdef DEBUG
+X	printf(" hash = %d,", hash);
+X#endif
+X		MEMBER[hash] = 1;
+X	}
+X}
+X
+X
+agrep( pat, M, text, textend, D ) 
+int M, D ; register CHARTYPE *text, *textend, *pat;
+X{
+X  register int i;
+X  register int m = M/(D+1);
+X  register CHARTYPE *textstart;
+X  register int shift, HASH;
+X  int  j=0, k, m1, d1;
+X  int  n, cdx;
+X  int  Candidate[MaxCan][2], round, lastend=0;
+X  unsigned R1[MaxError+1], R2[MaxError+1]; 
+X  register unsigned int r1, endpos, c; 
+X  unsigned currentpos;
+X  unsigned Bit1;
+X  unsigned r_newline;
+X
+X  Candidate[0][0] = Candidate[0][1] = 0; 
+X  d1 = shift_1;
+X  cdx = 0;
+X  if(m < 3) r1 = m;
+X  else r1 = 3;
+X  textstart = text;
+X  shift = m-1;
+X  while (text < textend) {
+X	shift = SHIFT[*(text += shift)];
+X	while(shift) {
+X		shift = SHIFT[*(text += shift)];
+X		shift = SHIFT[*(text += shift)];
+X	}
+X		j = 1; HASH = *text;
+X		while(j < r1) { HASH = (HASH << 2) + *(text-j);
+X				j++; }
+X	        if (MEMBER[HASH]) { 
+X			i = text - textstart;
+X                     	if((i - M - D - 10) > Candidate[cdx][1]) { 	
+X				Candidate[++cdx][0] = i-M-D-2;
+X                          	Candidate[cdx][1] = i+M+D; }
+X                     	else Candidate[cdx][1] = i+M+D;
+X			shift = d1;
+X                }
+X		else shift = d1;
+X  }
+X
+X
+X  text = textstart;
+X  n = textend - textstart;
+X  r_newline = '\n';
+X  /* for those candidate areas, find the D-error matches                     */
+X  if(Candidate[1][0] < 0) Candidate[1][0] = 0;
+X  endpos = endposition;                /* the mask table and the endposition */
+X  Bit1 = (1 << 31);
+X  for(round = 0; round <= cdx; round++)
+X  {  i = Candidate[round][0] ; 
+X     if(Candidate[round][1] > n) Candidate[round][1] = n;
+X     if(i < 0) i = 0;
+X#ifdef DEBUG
+X     printf("round: %d, start=%d, end=%d, ", round, i, Candidate[round][1]);
+X#endif
+X     R1[0] = R2[0] = ~0;
+X     R1[1] = R2[1] = ~Bit1;
+X     for(k = 1; k <= D; k++) R1[k] = R2[k] = (R1[k-1] >> 1) & R1[k-1];
+X     while (i < Candidate[round][1])                     
+X     {  
+X	    c = text[i++];
+X            if(c == r_newline) {
+X               for(k = 0 ; k <= D; k++) R1[k] = R2[k] = (~0 );
+X            }
+X            r1 = Mask[c];
+X            R1[0] = (R2[0] >> 1) | r1;
+X            for(k=1; k<=D; k++)
+X                R1[k] = ((R2[k] >> 1) | r1) & R2[k-1] & ((R1[k-1] & R2[k-1]) >> 1);
+X            if((R1[D] & endpos) == 0) { 
+X                                    num_of_matched++;
+X                                    if(FILENAMEONLY) { return; }
+X                                    currentpos = i;
+X                                    if(i <= lastend) i = lastend;
+X                                    else {
+X                                       s_output(text, &currentpos); 
+X                                       i = currentpos; 
+X                                    }
+X                                    lastend = i;
+X                                    for(k=0; k<=D; k++) R1[k] = R2[k] = ~0;
+X                                  }
+X            c = text[i++];
+X            if(c == r_newline) {
+X                for(k = 0 ; k <= D; k++) R1[k] = R2[k] = (~0 );
+X            }
+X            r1 = Mask[c];
+X            R2[0] = (R1[0] >> 1) | r1;
+X            for(k = 1; k <= D; k++)
+X                R2[k] = ((R1[k] >> 1) | r1) & R1[k-1] & ((R1[k-1] & R2[k-1]) >> 1);
+X            if((R2[D] & endpos) == 0) { currentpos = i;
+X                                    num_of_matched++;
+X                                    if(FILENAMEONLY) { return; }
+X                                    if(i <= lastend) i = lastend;
+X                                    else {
+X                                       s_output(text, &currentpos); 
+X                                       i = currentpos; 
+X                                    }
+X                                    lastend = i;
+X                                    for(k=0; k<=D; k++) R1[k] = R2[k] = ~0;
+X                                  }
+X     }
+X  }
+X  return;
+X}
+X
+s_output (text, i) 
+int *i; CHARTYPE *text;
+X{
+int kk, bp;
+X        if(SILENT) return;
+X        if(COUNT) {
+X		while(text[*i] != '\n') *i = *i + 1; 
+X		return;
+X	}
+X        if(FNAME == ON) printf("%s: ", CurrentFileName);
+X        bp = *i;
+X        while(text[--bp] != '\n');
+X        while(text[++bp] != '\n') putchar(text[bp]);
+X        putchar('\n');
+X        *i = bp;
+X}
+X
+X
+prep_bm(Pattern, m)      
+X	unsigned char *Pattern;
+X	register m;
+X{
+int i, j;
+unsigned hash;
+unsigned char lastc;
+X	for (i = 0; i < MAXSYM; i++) SHIFT[i] = m;
+X	for (i = m-1; i>=0; i--) {
+X		hash = TR[Pattern[i]];
+X		if(SHIFT[hash] >= m - 1) SHIFT[hash] = m-1-i;
+X	}
+X	shift_1 = m-1;
+X	lastc = TR[Pattern[m-1]];
+X	for (i= m-2; i>=0; i--) {
+X		if(TR[Pattern[i]] == lastc )
+X			{ shift_1 = m-1 - i;  i = -1; }
+X	}
+X	if(shift_1 == 0) shift_1 = 1;
+X	if(NOUPPER) for(i='A'; i<='Z'; i++) SHIFT[i] = SHIFT[i +  'a' - 'A'];
+X#ifdef DEBUG
+X	for(i='a'; i<='z'; i++) printf("%c: %d", i, SHIFT[i]); printf("\n");
+X	for(i='A'; i<='Z'; i++) printf("%c: %d", i, SHIFT[i]); printf("\n");
+X#endif
+X}
+X
+X
+X/* a_monkey() the approximate monkey move */
+X
+a_monkey( pat, m, text, textend, D ) 
+register int m, D ; register CHARTYPE *text, *textend, *pat;
+X{
+register CHARTYPE *oldtext;
+register unsigned hash, i, hashmask, suffix_error; 
+register int  m1 = m-1-D, j, pos; 
+X
+X  	hashmask = Hashmask;
+X  	oldtext  = text;
+X  	while (text < textend) {
+X     		text = text+m1;
+X     		suffix_error = 0;
+X     		while(suffix_error <= D) {
+X			hash = *text--;
+X			while(MEMBER_1[hash]) {
+X	      			hash = ((hash << LOG_ASCII) + *(text--)) & hashmask;
+X			}
+X			suffix_error++;
+X     		}
+X     		if(text <= oldtext) {
+X		           if((pos = verify(m, 2*m+D, D, pat, oldtext)) > 0)  {
+X				text = oldtext+pos;
+X				if(text > textend) return;
+X				num_of_matched++;
+X				if(FILENAMEONLY) return;
+X				if(!(COUNT)) {
+X					if(FNAME) printf("%s: ", CurrentFileName);
+X					while(*(--text) != '\n');
+X			 		while(*(++text) != '\n') putchar(*text);
+X			        	printf("\n");
+X				}
+X				else {
+X					while(*text != '\n') text++;
+X				}
+X			   }
+X			   else { 
+X			        text = oldtext + m;
+X			   }
+X     		}
+X     		oldtext = text; 
+X  	}
+X}
+X
+X/* monkey uses two characters for delta_1 shifting */
+X
+CHARTYPE SHIFT_2[MAX_SHIFT_2];
+X
+monkey( pat, m, text, textend  ) 
+register int m  ; register CHARTYPE *text, *textend, *pat;
+X{
+register unsigned hash, i; 
+register CHARTYPE shift;
+register int  m1, j; 
+register unsigned r_newline;
+X
+r_newline = '\n';
+X
+X  m1 = m - 1;
+X  text = text+m1;
+X  while (text < textend) {
+X	hash = *text;
+X	hash = (hash << 3) + *(text-1);
+X	shift = SHIFT_2[hash];
+X	while(shift) {
+X		text = text + shift;
+X		hash = (*text << 3) + *(text-1);
+X		shift = SHIFT_2[hash];
+X	}
+X	j = 0;
+X	while(TR[pat[m1 - j]] == TR[*(text - j)]) { if(++j == m) break; }
+X	if (j == m ) { 
+X		if(text >= textend) return;
+X                num_of_matched++;
+X                if(FILENAMEONLY)  return;
+X	        if(COUNT) {
+X			  while (*text != r_newline) text++;
+X			  text--;
+X		}
+X		else {
+X			  if(FNAME) printf("%s: ", CurrentFileName);
+X                          while(*(--text) != r_newline);
+X                          while(*(++text) != r_newline) putchar(*text);
+X			  printf("\n");
+X			  text--;
+X		}
+X        }
+X	text++;
+X  }
+X}
+X 
+am_preprocess(Pattern)
+CHARTYPE *Pattern;
+X{
+int i, j, m;
+unsigned hash;
+X	m = strlen(Pattern);
+X	for (i = 1, Hashmask = 1 ; i<16 ; i++) Hashmask = (Hashmask << 1) + 1 ;
+X	for (i = 0; i < MAXMEMBER_1; i++) MEMBER_1[i] = 0;
+X	for (i = m-1; i>=0; i--) {
+X		MEMBER_1[Pattern[i]] = 1;
+X        }
+X	for (i = m-1; i > 0; i--) {
+X	   	MEMBER_1[(Pattern[i] << LOG_ASCII) + Pattern[i-1]] = 1;
+X	}
+X}
+X
+X
+verify(m, n, D, pat, text)
+register int m, n, D;
+CHARTYPE *pat, *text;
+X{   
+X    int A[MAXPATT], B[MAXPATT];
+X    register int last = D;      
+X    register int cost = 0;  
+X    register int k, i, c;
+X    register int m1 = m+1;
+X    CHARTYPE *textend = text+n;
+X    CHARTYPE *textbegin = text;
+X
+X   for (i = 0; i <= m1; i++)  A[i] = B[i] = i;
+X   while (text < textend)
+X   {
+X       for (k = 1; k <= last; k++)
+X       {
+X           cost = B[k-1]+1; 
+X           if (pat[k-1] != *text)
+X           {   if (B[k]+1 < cost) cost = B[k]+1; 
+X               if (A[k-1]+1 < cost) cost = A[k-1]+1; }
+X           else cost = cost -1; 
+X           A[k] = cost; 
+X       }
+X       if(pat[last] == *text++) { A[last+1] = B[last]; last++; }
+X       if(A[last] < D) A[last+1] = A[last++]+1;
+X       while (A[last] > D) last = last - 1;
+X       if(last >= m) return(text - textbegin - 1);
+X       if(*text == '\n') {
+X            last = D;
+X	    for(c = 0; c<=m1; c++) A[c] = B[c] = c;
+X       }
+X       for (k = 1; k <= last; k++)
+X       {
+X           cost = A[k-1]+1; 
+X           if (pat[k-1] != *text)
+X           {   if (A[k]+1 < cost) cost = A[k]+1; 
+X               if (B[k-1]+1 < cost) cost = B[k-1]+1; }
+X           else cost = cost -1; 
+X           B[k] = cost;
+X       }
+X       if(pat[last] == *text++) { B[last+1] = A[last]; last++; }
+X       if(B[last] < D) B[last+1] = B[last++]+1;
+X       while (B[last] > D) last = last -1;
+X       if(last >= m)   return(text - textbegin - 1);
+X       if(*text == '\n') {
+X            last = D;
+X	    for(c = 0; c<=m1; c++) A[c] = B[c] = c;
+X       }
+X   }    
+X   return(0);
+X}
+X
+X/* preprocessing for monkey()   */
+X
+m_preprocess(Pattern)
+CHARTYPE *Pattern;
+X{
+int i, j, m;
+unsigned hash;
+X	m = strlen(Pattern);
+X	for (i = 0; i < MAX_SHIFT_2; i++) SHIFT_2[i] = m;
+X	for (i = m-1; i>=1; i--) {
+X		hash = Pattern[i];
+X		hash = hash << 3;
+X		for (j = 0; j< MAXSYM; j++) {
+X			if(SHIFT_2[hash+j] == m) SHIFT_2[hash+j] = m-1;
+X		}
+X		hash = hash + Pattern[i-1];
+X		if(SHIFT_2[hash] >= m - 1) SHIFT_2[hash] = m-1-i;
+X	}
+X	shift_1 = m-1;
+X	for (i= m-2; i>=0; i--) {
+X		if(Pattern[i] == Pattern[m-1] )
+X			{ shift_1 = m-1 - i;  i = -1; }
+X	}
+X	if(shift_1 == 0) shift_1 = 1;
+X	SHIFT_2[0] = 0;
+X}
+X
+X/* monkey4() the approximate monkey move */
+X
+char *MEMBER_D;
+X
+monkey4( pat, m, text, textend, D  ) 
+register int m, D ; register unsigned char *text, *pat, *textend;
+X{
+register unsigned char *oldtext;
+register unsigned hash, i, hashmask, suffix_error; 
+register int m1=m-1-D, j, pos; 
+X
+X  hashmask = Hashmask;
+X  oldtext = text ;
+X  while (text < textend) {
+X     text = text + m1;
+X     suffix_error = 0;
+X     while(suffix_error <= D) {
+X	hash = char_map[*text--];
+X	hash = ((hash << LOG_DNA) + char_map[*(text--)]) & hashmask;
+X	while(MEMBER_D[hash]) {
+X	      hash = ((hash << LOG_DNA) + char_map[*(text--)]) & hashmask;
+X	}
+X	suffix_error++;
+X     }
+X     if(text <= oldtext) {
+X		           if((pos = verify(m, 2*m+D, D, pat, oldtext)) > 0)  {
+X				text = oldtext+pos;
+X				if(text > textend) return;
+X				num_of_matched++;
+X				if(FILENAMEONLY) return;
+X				if(!(COUNT)) {
+X					if(FNAME) printf("%s:", CurrentFileName);
+X					while(*(--text) != '\n');
+X			 		while(*(++text) != '\n') putchar(*text);
+X			        	printf("\n");
+X					text++;
+X				}
+X				else {
+X					while(*text != '\n') text++;
+X					text++;
+X				}
+X			   }
+X			   else text = oldtext + m;
+X     }
+X     oldtext = text; 
+X  }
+X}
+X 
+prep4(Pattern, m)
+char *Pattern; int m;
+X{
+int i, j, k;
+unsigned hash;
+X
+for(i=0; i< MAXSYM; i++) char_map[i] = 0;
+char_map['a'] = char_map['A'] = 4;
+char_map['g'] = char_map['g'] = 1;
+char_map['t'] = char_map['t'] = 2;
+char_map['c'] = char_map['c'] = 3;
+char_map['n'] = char_map['n'] = 5;
+X
+X	BSize = blog(4, m);
+X	for (i = 1, Hashmask = 1 ; i<BSize*LOG_DNA; i++) Hashmask = (Hashmask << 1) + 1 ;
+X	MEMBER_D = (char *) malloc((Hashmask+1)  * sizeof(char));
+X#ifdef DEBUG
+X	printf("BSize = %d", BSize);
+X#endif 
+X	for (i=0; i <= Hashmask; i++) MEMBER_D[i] = 0;
+X	for (j=0; j < BSize; j++) {
+X            for(i=m-1; i >= j; i--) {
+X               hash = 0;
+X	       for(k=0; k <= j; k++) 
+X		  hash = (hash << LOG_DNA) +char_map[Pattern[i-k]]; 
+X#ifdef DEBUG
+X	       printf("< %d >, ", hash);
+X#endif
+X	       MEMBER_D[hash] = 1;
+X            }
+X        }
+X}
+X
+blog(base, m )
+int base, m;
+X{
+int i, exp;
+X	exp = base;
+X        m = m + m/2;
+X	for (i = 1; exp < m; i++) exp = exp * base;
+X	return(i);
+X}
+X
+END_OF_FILE
+if test 18635 -ne `wc -c <'sgrep.c'`; then
+    echo shar: \"'sgrep.c'\" unpacked with wrong size!
+fi
+# end of 'sgrep.c'
+fi
+echo shar: End of archive 3 \(of 3\).
+cp /dev/null ark3isdone
+MISSING=""
+for I in 1 2 3 ; do
+    if test ! -f ark${I}isdone ; then
+	MISSING="${MISSING} ${I}"
+    fi
+done
+if test "${MISSING}" = "" ; then
+    echo You have unpacked all 3 archives.
+    rm -f ark[1-9]isdone
+else
+    echo You still need to unpack the following archives:
+    echo "        " ${MISSING}
+fi
+##  End of shell archive.
+exit 0

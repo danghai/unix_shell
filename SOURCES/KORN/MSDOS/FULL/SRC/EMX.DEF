@@ -1,0 +1,6 @@
+;
+; emx.def (created by emximp)
+;
+LIBRARY doscalls
+EXPORTS
+  _16_Dos16QProcStatus             @154

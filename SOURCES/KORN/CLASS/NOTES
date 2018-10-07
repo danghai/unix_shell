@@ -1,0 +1,155 @@
+                                korn1.notes
+
+The Korn shell has some of the most advanced programming capabilities of
+any command interpreter of its type.  Although its syntax is nowhere
+near as elegant or consistent as that of most convential programming
+languages, its power and flexibility are comparable.  In fact, the Korn
+shell can be used as a complete environment for writing software
+prototypes.
+
+A script, or file that contains shell commands, is a shell program.
+Your .profile and .kshrc files are shell scripts.
+
+You can execute a shell script in four ways:
+
+just type the commands at the shell prompt
+. file
+file    (if it has execute permission)
+file&   (if it has execute permission)
+
+The first two are basically the same, as are the last two, as far as the
+way they are handled by the shell.  The first two are executed in the
+calling shell, while the last two run another copy of the shell as a
+subprocess, called a subshell.  The subshell then takes commands from
+the script, runs them, and terminates, handing control back to the
+parent shell.
+
+An important ramification of subshells is that some information from
+the parent shell is known by the subshell, but subprocesses can never
+make any information known to the process that created them.
+
+Which pieces of information from the parent shell are known by the
+subshell:
+
+exported environment variables
+built-in functions
+aliases, options and variables from your .kshrc file
+functions from your .kshrc file if they are exported (typeset -fx)
+
+This is a good time to talk about the order of precedence for the
+various sources of commands.  When you type a command to the shell, it
+looks in the following places until it finds a match:
+
+Keywords such as function, if, for etc
+Aliases
+Built-ins like cd, whence and functions
+Functions
+Scripts and executable programs in your PATH
+
+To find out the exact source of a command, use:
+        whence -v command
+
+OPTIONS
+
+The Korn shell has a number of options that can be set.  If they are set
+in the .kshrc file then they are global and can be passed to subshells.
+
+To list all the Korn shell options use:
+        set -o
+
+To set an option use:
+        set -o optionname
+
+To unset an option use:
+        set +o optionname
+
+FUNCTIONS
+
+What are functions?  They are sort of a script-within-a-script.  They
+are always in the shells memory and therefore run faster.  They are
+similar to subroutines or procedures.  You can just type them in at the
+command line or put them in your .kshrc file.
+
+The structure of a function is either:
+
+function funcname {
+        shell commands
+
+
+or:
+
+funcname () {
+        shell commands
+
+
+To remove a function use:
+        unset -f
+
+To list all current functions use:
+        functions
+
+To export a function use:
+        typeset -fx funcname
+
+To unexport a function use:
+        typeset +fx funcname
+
+ALIASES
+
+The syntax of an alias is:
+
+alias aliasname=command
+
+Notice there are no spaces on either side of the =, this is required
+syntax.  If the command being aliased contains more than one word, it
+has to be surrounded by single quotes.  For example:
+        alias ll='ls -l'
+
+To unset or remove an alias use:
+        unalias aliasname
+
+To list all current aliases use:
+        alias
+
+DEBUGGING
+
+There are two ways to to debug a shell script and one way to debug a
+function.
+
+The two ways to debug a shell script are:
+
+set -o xtrace   -which gives a low level of debugging (set +o xtrace)
+
+ksh -x shellprog args   -which gives a much higher level of debugging.
+
+To debug a function you use the typeset command with function trace on:
+
+typeset -ft funcname    (typeset +ft funcname turns it off again)
+
+PROMPTS
+
+This brings me to the subject of prompts.  There are four prompts in the
+Korn shell, each with a different purpose:
+
+PS1     which is the main shell prompt (default $ )
+PS2     is the secondary or continuation prompt (default > )
+PS3     is the selection prompt used within a select loop (default #? )
+PS4     is the debug prompt (default + )
+
+Most people personalise PS1, but rarely touch the others.  Suggestions:
+PS2=more?>;export PS2
+PS3     best set in a shell script to reflect variable being requested
+PS4=debug+>;export PS4
+
+BUILT_IN or COMMAND LINE VARIABLES
+
+$#      Number of command-line arguments
+$?      Exit value of last executed command
+$$      Process number of current process
+$!      Process number of last background command
+$0      First word, that is the command name
+$n      Individual arguments on the command line (positional paramaters)
+        You can have more than nine parameters if specified as ${n}
+$*      All arguments on command line ("$1 $2...")
+"$@"    All arguments on command line, individually quoted ("$1" "$2"...)
+$_      Used interactively, stores the last argument of the previous command

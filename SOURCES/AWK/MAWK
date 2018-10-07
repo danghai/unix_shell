@@ -1,0 +1,40 @@
+                                 tool: mawk
+
+---------------------------------------------------------------------------
+ Language:    awk (new)
+ Version:     1.2beta
+ Parts:       interpreter
+ Author:      Mike Brennan <brennan@bcsaic.boeing.com>
+ Location:    ftp://oxy.edu/public/mawk*
+ Description: a pattern-directed language for massaging text files
+ Conformance: superset of (old, V7) awk
+                 * RS can be a regular expression
+ Features:       * faster than most new awks
+
+ Ports:       sun3,sun4:sunos4.0.3 vax:bsd4.3,ultrix4.1
+              stardent3000:sysVR3 decstation:ultrix4.1 msdos:turboC++
+ Status:      actively developed
+ Contact:     Mike Brennan <brennan@bcsaic.boeing.com>
+ Updated:     December 16th, 1994
+
+---------------------------------------------------------------------------
+
+                               Related Items
+
+language: awk
+
+category: scripting languages summary, or expanded.
+
+---------------------------------------------------------------------------
+---------------------------------------------------------------------------
+This work supported by Idiom Consulting. Idiom Consulting         [ aqui ]
+provides Internet access and perl programming in the SF Bay
+Area.
+
+Please send updates to free-compilers@idiom.com
+
+The HTML is maintained by David Muir Sharnoff and the entries themselves
+are maintained by Steve Robenalt.
+
+Copyright (c) 1992, 1993, 1994, David Muir Sharnoff, All Rights Reserved
+Copyright (c) 1994, 1995, 1996, Steven Allen Robenalt, All Rights Reserved

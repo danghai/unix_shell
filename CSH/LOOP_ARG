@@ -1,0 +1,15 @@
+#!/bin/csh -f
+# Script is called loop.args
+
+while ( $#argv )
+echo $argv
+shift
+end
+
+	(The Command LIne)
+% loop.args a b c d e
+	a b c d e
+	b c d e
+	c d e
+	d e
+	e 

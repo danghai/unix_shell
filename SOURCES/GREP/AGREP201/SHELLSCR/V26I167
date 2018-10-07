@@ -1,0 +1,4119 @@
+From: Steve Baker (ice@judy.indstate.edu)
+Newsgroups: comp.sources.unix
+Subject: v26i167: ssh - Steve's SHell (a small csh-like shell), V1.7, Part01/04
+Date: 15 Apr 1993 22:51:44 -0700
+Approved: paul@vix.com
+Message-ID: <1qlhhg$kun@gw.home.vix.com>
+
+Submitted-By: Steve Baker (ice@judy.indstate.edu)
+Posting-Number: Volume 26, Issue 167
+Archive-Name: ssh-1.7/part01
+
+  This is ssh V1.7, a unix shell, written over the period of some 2 years on
+and off by Steve Baker with help from Thomas Moore who wrote the wildcarding
+routines for this shell.
+
+  This shell is public domain and may be copied and distributed and further
+developed under the guidelines set forth in the file COPYING.  Further
+development and modifications to the shell are strongly encouraged.
+
+  Ssh sports these features among others:
+
+  1. Job control (&, &!, jobs, fg, bg, stop)
+  2. String, numeric and null variables w/ variable protection.
+  3. Recursive string variable insertion.
+  4. Advanced alias argument placement. (%- %+ %% %n %n-m).
+  5. Logical assignments for abbreviated paths and files.
+  6. Advanced wild card support (~*?[^-]{^})
+  7. Advanced redirection and piping
+     (< <% <<% > >% >> >>% >! >!% >>! >>!% >& >&% >>& >>&% | |! |&)
+  8. C like expressions w/ the full set of C operators, including
+     pre/post incrementing/deincrementing.
+  9. Shell history save file (w/ auto set history size).
+ 10. Secondary password support
+ 11. Advanced key macro support w/ gold key support
+ 12. Command line editing
+ 13. Status line support
+ 14. New mail check
+ 15. Idle timeout
+ 16. Structured scripting language.
+ 17. 50+ builtin commands.
+
+  This shell has been compiled and tested on the following machines (future
+developers, please add machines that you have tested it on to this list):
+
+  A Sequent symmetry system running Dynix V3.2.0
+  A Tatung Sun clone running SunOS V4.1.1
+  A Sun running SunOS V4.1.1
+  A NeXT running NeXTStep V3.0
+  A DECstation running Ultrix 4.2A
+  A 486 PC running BSDI BSD/386 V1.0
+
+  It is unlikely that all bugs have been worked out, but hopefully it's a
+fairly solid little shell.  If problems do arise while trying to compile
+this program, by all means contact me and I will attempt to help you (and
+perhaps release a fixed version).  I am sure that this program will not
+compile on all machines.
+
+	Steve Baker (ice@judy.indstate.edu)
+	Thomas Moore (dark@judy.indstate.edu)
+	1600 S. Center St. Apt #1
+	Terre Haute, IN 47802
+
+#! /bin/sh
+# This is a shell archive.  Remove anything before this line, then unpack
+# it by saving it into a file and typing "sh file".  To overwrite existing
+# files, type "sh file -c".  You can also feed this as standard input via
+# unshar, or by typing "sh <file", e.g..  If this archive is complete, you
+# will see the following message at the end:
+#		"End of archive 1 (of 4)."
+# Contents:  COPYING DISTRIBUTION INSTALLING MANIFEST MODS Makefile
+#   NOTES README alias.c assign.c cmds.h file.c init.c key.c parse.c
+#   scripts shell.c shell.h stat.c wc.c
+# Wrapped by vixie@gw.home.vix.com on Thu Apr 15 22:49:00 1993
+PATH=/bin:/usr/bin:/usr/ucb ; export PATH
+if test -f 'COPYING' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'COPYING'\"
+else
+echo shar: Extracting \"'COPYING'\" \(1419 characters\)
+sed "s/^X//" >'COPYING' <<'END_OF_FILE'
+X			        -= COPYING =-
+X
+X
+This software is provided as is without any express or implied warranties,
+including, without limitation, the implied warranties of merchantability
+and fitness for a particular purpose.
+X
+The authors of this software and any unnamed third parties, including, but
+not limited to those who redistribute and/or modify the source for their own
+means, are not liable for any damages, including but not limited to the
+loss of data and/or productivity, arising out of the use of this software.
+X
+This software may be copied freely with the limitation that the attached
+copyright notice in each source file remain and that Steve Baker and Thomas
+Moore be recognized as the originating authors of the software.  This code
+may be modified and redistributed with only the limitation that the above
+copyright notices are maintained, and the author of the modifications
+appends his name (and e-mail address if applicable), version number and a
+record of his modifications in the file ``MODS'' to be distributed with the
+the source.  The manual should be updated to reflect any "noticeable"
+changes in the shell or it's behavior.  And remember to update the version
+builtin command.
+X
+Code may be extracted from the shell and used in your own programs with the
+limitation that the source is documented as having been extracted, where it
+was extracted from and the original author of the source if applicable.
+END_OF_FILE
+if test 1419 -ne `wc -c <'COPYING'`; then
+    echo shar: \"'COPYING'\" unpacked with wrong size!
+fi
+# end of 'COPYING'
+fi
+if test -f 'DISTRIBUTION' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'DISTRIBUTION'\"
+else
+echo shar: Extracting \"'DISTRIBUTION'\" \(276 characters\)
+sed "s/^X//" >'DISTRIBUTION' <<'END_OF_FILE'
+This is the archive for the Ssh shell version 1.7.  It should include the
+following files:
+X
+COPYING
+DISTRIBUTION
+INSTALLING
+MODS
+Makefile
+NOTES
+README
+alias.c
+assign.c
+cmds.h
+eval.c
+exe.c
+file.c
+init.c
+key.c
+parse.c
+scripts/*
+shcmds.c
+shell.c
+shell.h
+ssh.1
+stat.c
+vars.c
+wc.c
+END_OF_FILE
+if test 276 -ne `wc -c <'DISTRIBUTION'`; then
+    echo shar: \"'DISTRIBUTION'\" unpacked with wrong size!
+fi
+# end of 'DISTRIBUTION'
+fi
+if test -f 'INSTALLING' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'INSTALLING'\"
+else
+echo shar: Extracting \"'INSTALLING'\" \(1126 characters\)
+sed "s/^X//" >'INSTALLING' <<'END_OF_FILE'
+X				INSTALLING SSH
+X
+Since SSH is a fairly simply archive, installing it should be a snap. Just
+do the following:
+X
+X1. Compile it - Do whatever it takes.  If this involves dancing around in a
+X   circle for 5 minutes, then do it.  Actually typing `make', may be much
+X   easier however.
+X
+X2. Put the resulting binary in a bin directory somewhere. /usr/local/bin is
+X   a good place to put it.  You'll probably need your Sys-admin to help out
+X   with this and the next three steps.  If he doesn't care for low-life
+X   peons like you, then sacrifices of live pizza might be called for.
+X
+X3. Make an entry in /etc/shells for ssh.  Again you'll probably need the big
+X   guy to help out.
+X
+X4. Install a .sshrc file in /usr/etc (or if you changed shell.h, then to
+X   whatever path you changed it to, perhaps /usr/local/etc?).  This is the
+X   system startup file for ssh.  It will _always_ be sourced by ssh no
+X   matter what.
+X
+X5. Install the manual in /usr/man/manl/ or /usr/man/man1/, or wherever the
+X   sys admin wants it.
+X
+X6. Install your ssh .login and .sshrc files in your home directory and
+X   change your shell to ssh.
+X
+X7. Enjoy...
+X
+END_OF_FILE
+if test 1126 -ne `wc -c <'INSTALLING'`; then
+    echo shar: \"'INSTALLING'\" unpacked with wrong size!
+fi
+# end of 'INSTALLING'
+fi
+if test -f 'MANIFEST' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'MANIFEST'\"
+else
+echo shar: Extracting \"'MANIFEST'\" \(889 characters\)
+sed "s/^X//" >'MANIFEST' <<'END_OF_FILE'
+X   File Name		Archive #	Description
+X-----------------------------------------------------------
+X COPYING                    1	
+X DISTRIBUTION               1	
+X INSTALLING                 1	
+X MANIFEST                   1	This shipping list
+X MODS                       1	
+X Makefile                   1	
+X NOTES                      1	
+X README                     1	
+X alias.c                    1	
+X assign.c                   1	
+X cmds.h                     1	
+X eval.c                     2	
+X exe.c                      2	
+X file.c                     1	
+X init.c                     1	
+X key.c                      1	
+X parse.c                    1	
+X scripts                    1	
+X shcmds.c                   3	
+X shell.c                    1	
+X shell.h                    1	
+X ssh.1                      4	
+X stat.c                     1	
+X vars.c                     2	
+X wc.c                       1	
+END_OF_FILE
+if test 889 -ne `wc -c <'MANIFEST'`; then
+    echo shar: \"'MANIFEST'\" unpacked with wrong size!
+fi
+# end of 'MANIFEST'
+fi
+if test -f 'MODS' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'MODS'\"
+else
+echo shar: Extracting \"'MODS'\" \(123 characters\)
+sed "s/^X//" >'MODS' <<'END_OF_FILE'
+Steve Baker (ice@judy.indstate.edu) and
+Thomas Moore (dark@judy.indstate.edu)
+Ssh V1.7
+Ssh in its original incarnation...
+X
+END_OF_FILE
+if test 123 -ne `wc -c <'MODS'`; then
+    echo shar: \"'MODS'\" unpacked with wrong size!
+fi
+# end of 'MODS'
+fi
+if test -f 'Makefile' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'Makefile'\"
+else
+echo shar: Extracting \"'Makefile'\" \(2050 characters\)
+sed "s/^X//" >'Makefile' <<'END_OF_FILE'
+X# $Copyright:	$
+X# Copyright (c) 1991,1992,1993 by Steve Baker
+X# All rights reserved
+X#  
+X# This software is provided as is without any express or implied
+X# warranties, including, without limitation, the implied warranties
+X# of merchantability and fitness for a particular purpose.
+X#
+X#
+X# K&R compilers only for now:
+X# Making this program ANSI would be a good project for someone eh?
+X
+CC = cc
+X
+X#  Add these defines if required:
+X#	-DCANNOT_ALLOCA		- Set it anyway
+X#	-DNOSETENV		- For OS's with no setenv function like NeXT's
+X#	-DBSD4			- obvious
+X
+X#CFLAGS = -O0 -s -DCANNOT_ALLOCA
+CFLAGS = -g -DCANNOT_ALLOCA -DBSD4
+X#CFLAGS = -g -DCANNOT_ALLOCA -DNOSETENV
+X#CFLAGS = -g -DDEBUG -DCANNOT_ALLOCA
+X
+ARCHIVE = Makefile ssh.1 NOTES COPYING README MODS DISTRIBUTION INSTALLING \
+X	  alias.c assign.c init.c key.c parse.c exe.c shcmds.c stat.c \
+X	  shell.c wc.c vars.c eval.c file.c shell.h cmds.h scripts
+X
+OFILES = alias.o assign.o init.o key.o parse.o exe.o shcmds.o stat.o \
+X	  shell.o wc.o vars.o eval.o file.o
+X
+LFILES = alias.c assign.c init.c key.c parse.c exe.c shcmds.c stat.c \
+X	 shell.c wc.c vars.c eval.c file.c
+X
+X# These files are for debugging, you don't have these, so don't worry about
+X# it.
+X# mem/mem.o mem/smem.o mem/malloc.o
+X
+LIBS = -ltermcap
+X
+X# shells initial destination location and name before installing.
+DEST = ssh
+X
+X# Shells final destination.
+BINDEST = /usr/local/bin/ssh
+X
+X# manuals destination:
+MANFILE = ssh.1
+MAN = ssh.man
+MANDEST = /usr/man/man1/ssh.1
+X
+X# Archive filenames for lha and tar format.
+LHAFILE = ssh.v1.7.lha
+TARFILE = ssh.v1.7.tar
+X
+all:	ssh man
+X
+X
+ssh:	$(OFILES)
+X	$(CC) $(CFLAGS) -o $(DEST) $(OFILES) $(LIBS)
+X
+X
+man:
+X	nroff -man $(MANFILE) > $(MAN)
+X
+X
+install:
+X	cp $(DEST) $(BINDEST)
+X	cp $(MAN) $(MANDEST)
+X
+X
+clean:
+X	rm -f $(OFILES) $(DEST) $(MAN)
+X
+X
+X#
+X#
+X
+X$(OFILES):	shell.h
+X
+X
+X# Run lint on the bugger...
+lint:
+X	lint -v $(LFILES)
+X
+X
+X# Make the tar file...
+tar:
+X	tar cf $(TARFILE) $(ARCHIVE)
+X	compress $(TARFILE)
+X
+X# Make the LHA file...
+lha:
+X	lha cv $(LHAFILE) $(ARCHIVE)
+X
+X# Make silly shar files...
+shar:
+X	makekit -s60k $(ARCHIVE)
+END_OF_FILE
+if test 2050 -ne `wc -c <'Makefile'`; then
+    echo shar: \"'Makefile'\" unpacked with wrong size!
+fi
+# end of 'Makefile'
+fi
+if test -f 'NOTES' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'NOTES'\"
+else
+echo shar: Extracting \"'NOTES'\" \(6845 characters\)
+sed "s/^X//" >'NOTES' <<'END_OF_FILE'
+X                    -= NOTES TO PROGRAMMERS/HACKERS =-
+X
+Wishing to see the shell developed and not die a quick and dirty death, I
+submit some pointers to would be developers:
+X
+Status switches can easily be added in `stat.c' by adding new entries in
+the switch statement. Shell builtins are defined in the files `shcmds.c',
+X`alias.c', `vars.c', `assign.c' and `file.c'.  They are defined much like
+a C-program in and of themselves, with the number of arguments, the argument
+array and the input and output descriptors being passed to the function. Use
+of the global variables is not recommended unless you are knowledgeable in the
+operation of the shell.  Care should be taken with the use of the global
+variables `buf' and `path', as many of ssh's functions use them.
+X
+To add builtins, a define should be added to the enum in `cmds.h' and the
+NUM_CMDS should be incremented. Also an entry in the command list found at
+the start of `parse.c' needs to be inserted in the correct alphabetic
+location, then a case statement in shcmds.c which will allow the new command
+function to be invoked. One should be able to gleam the calling mechanisms
+from the given functions. Someone may want to take the time to remove the
+switch altogether and simply put the address of the function to call in the
+table in `parse.c' and remove the need for the defines and switch all
+together.  If I only had the time, I'd re-write the whole damn thing.
+X
+Anyways, for the wretched undergrad with too much time on his hands, here's
+a rundown of files and functions in brief:
+X
+alias.c
+X	All of the alias stuff, including the alias and unalias commands.
+X
+assign.c
+X	All of the assign stuff, including the assign and unassign commands.
+X
+eval.c
+X	The expression parser and tokenizer.  Needs to have the order of
+X	precedence of operators made the same as with C.  The parser is
+X	recursive decent and pretty easy to follow.  Might also want to
+X	integrate getnext() into the evaluator.
+X
+exe.c
+X	Where all the fun stuff happens. This is where shell redirection,
+X	piping, and execution happens.  It's a major chunk of the real
+X	shell.  I don't think this stuff could be improved dramatically.
+X
+file.c
+X	This is where all the file commands are defined.
+X
+init.c
+X	All the initialization functions.
+X
+key.c
+X	The command line input routines.  Serious improvement possible
+X	here.  Too much time is wasted checking if a key belongs to a macro
+X	in my humble opinion.  Just typing shouldn't eat up so much CPU
+X	time.  A hash table lookup perhaps?
+X
+parse.c
+X	Functions to split up a line into little words the shell can deal
+X	with. Command strings `...` are parsed and executed here as well.
+X
+shcmds.c
+X	The builtin-invoker and most of the builtin commands are defined
+X	here.
+X
+shell.c
+X	The other big chunk of the real shell. Command line args are parsed
+X	here. Sourcing and command execution is overseen here as well as
+X	the all-important SIGCHLD handler.
+X
+stat.c
+X	The routines to parse the status switches.
+X
+vars.c
+X	The routines to parse variables and the set and unset commands.
+X
+wc.c
+X	Toms wildcard routines, these are fine, don't touch them unless you
+X	know what you are doing.  Lots of useful routines in here if you
+X	can figure out how to extract them.  Feel free to import them into
+X	your own programs, but remember to give credit where credit is due.
+X
+cmds.h
+X	Defines for all the commands.
+X
+shell.h
+X	Pretty much all the structures that the shell uses are defined
+X	here.  Not all of them, but a good lot of 'em.
+X
+X
+Here's a few things I think that should be done straight away:
+X
+Tokenize everything and keep it that way until it's time to execute the
+command.  Would cut down tremendously on the number of strlen()'s and
+strcmp()'s done (profile it sometime, you'll be amazed!). Or maybe just
+figure out how to malloc less.  Exe.c is about the only file I feel is
+truly optimized in the scope of the current shell, although I think I
+could probably remove mallocing in exe.c altogether.  Even simple
+tokenization (like remembering that a word is really a string, but have the
+quotes stripped off already, this would eliminate quite a few mallocs when it
+comes time to execute the command).
+X
+key.c could stand to be re-written entirely, but keep the macro support
+similar to what it is, I don't like the idea of making your shell emulate
+emacs or vi, for crying out loud, you don't need a freaking editor built
+into your shell, it just makes the shell much larger for very little gain.
+Besides, I don't think emacs or vi is as intuitive as my macro setup.
+X
+Speed and size are essential.  A special printf should be made for the
+shell.  I don't need all the features of printf, just %s, %d and %c.
+XFormatting options can be gotten around.  Many printf's can probably be
+exchanged for puts()'s and fputs()'s.
+X
+Some alias behavior needs to be fixed with reguards to alias substitution
+of words in a pipeline while enclosed in parens.  It shouldn't do it.  By
+the same token, perhaps it would be best to recursive alias parse, like csh.
+X
+The variable stuff could stand to be made more "robust" and the set command
+should be made to set individual words in a string var and maybe even
+individual characters.  Should probably figure out a way to keep the
+recursive stuff from recursing too much.  Perhaps a maximum of 10-20 levels
+of recursion.
+X
+The command substitution (`...`) needs to be moved out of the split-line()
+function and into it's own section, so that it will work properly in shell
+scripts without a lot of paren and eval hokus-pokus.  Also since shell level
+pipes are a reality in this final version, the way `...` works should
+probably be made more along those lines. i.e. remove `...` altogether and
+make something like:
+X
+X	pwd >% xx &! set wd = $<% xx
+X
+Where $<% places the output of pwd on the command line for the set command.
+Which I would think would be far less kludgy and certainly would work in a
+script file. As far as I'm concerned, I don't care about csh compatibility
+anymore.  You can do more in ssh...
+X
+The secondary password support is far to easily circumvented on machines
+with ftp access.  Should be encrypted at least.  Perhaps the secondary
+password could be put in a root write only file with a setuid program to
+set the password, like passwd works.  Could be made fairly simply.  A
+secondary password is perhaps pointless anyway.
+X
+Amazing as it may seem, I'm not entirely unhappy with the shell as it is,
+in fact I'm fairly pleased with it. One is just never really done with these
+projects you know, and who knows, maybe somehow I'll manage to find a way to
+update all of this stuff myself.
+X
+Well, if you have questions and/or ideas, by all means drop me a line. I can
+be reached for the time being at ice@judy.indstate.edu... If I've moved on
+try contacting dark@judy.indstate.edu.  If all else fails figure it out
+yourself.
+X
+Have fun!
+X
+X							- Steve Baker
+END_OF_FILE
+if test 6845 -ne `wc -c <'NOTES'`; then
+    echo shar: \"'NOTES'\" unpacked with wrong size!
+fi
+# end of 'NOTES'
+fi
+if test -f 'README' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'README'\"
+else
+echo shar: Extracting \"'README'\" \(2337 characters\)
+sed "s/^X//" >'README' <<'END_OF_FILE'
+X  This is ssh V1.7, a unix shell, written over the period of some 2 years on
+and off by Steve Baker with help from Thomas Moore who wrote the wildcarding
+routines for this shell.
+X
+X  This shell is public domain and may be copied and distributed and further
+developed under the guidelines set forth in the file COPYING.  Further
+development and modifications to the shell are strongly encouraged.
+X
+X  Ssh sports these features among others:
+X
+X  1. Job control (&, &!, jobs, fg, bg, stop)
+X  2. String, numeric and null variables w/ variable protection.
+X  3. Recursive string variable insertion.
+X  4. Advanced alias argument placement. (%- %+ %% %n %n-m).
+X  5. Logical assignments for abbreviated paths and files.
+X  6. Advanced wild card support (~*?[^-]{^})
+X  7. Advanced redirection and piping
+X     (< <% <<% > >% >> >>% >! >!% >>! >>!% >& >&% >>& >>&% | |! |&)
+X  8. C like expressions w/ the full set of C operators, including
+X     pre/post incrementing/deincrementing.
+X  9. Shell history save file (w/ auto set history size).
+X 10. Secondary password support
+X 11. Advanced key macro support w/ gold key support
+X 12. Command line editing
+X 13. Status line support
+X 14. New mail check
+X 15. Idle timeout
+X 16. Structured scripting language.
+X 17. 50+ builtin commands.
+X
+X  This shell has been compiled and tested on the following machines (future
+developers, please add machines that you have tested it on to this list):
+X
+X  A Sequent symmetry system running Dynix V3.2.0
+X  A Tatung Sun clone running SunOS V4.1.1
+X  A Sun running SunOS V4.1.1
+X  A NeXT running NeXTStep V3.0
+X  A DECstation running Ultrix 4.2A
+X  A 486 PC running BSDI BSD/386 V1.0
+X
+X  It is unlikely that all bugs have been worked out, but hopefully it's a
+fairly solid little shell.  If problems do arise while trying to compile
+this program, by all means contact me and I will attempt to help you (and
+perhaps release a fixed version).  I am sure that this program will not
+compile on all machines.
+X
+X  If you like ssh, and feel it in your heart to help out a starving
+programmer, please show your appreciation by sending a small donation to:
+X
+X  Steve Baker
+X  1600 S. Center St. Apt #1
+X  Terre Haute, IN 47802
+X
+X  You are under no obligation to send a donation, but by doing so, your
+kindness will be remembered... (no telling what that may mean... =)
+X
+X  Enjoy!
+X
+X							- Steve Baker
+END_OF_FILE
+if test 2337 -ne `wc -c <'README'`; then
+    echo shar: \"'README'\" unpacked with wrong size!
+fi
+# end of 'README'
+fi
+if test -f 'alias.c' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'alias.c'\"
+else
+echo shar: Extracting \"'alias.c'\" \(7501 characters\)
+sed "s/^X//" >'alias.c' <<'END_OF_FILE'
+X/* $Copyright:	$
+X * Copyright (c) 1991,1992,1993 by Steve Baker
+X * All rights reserved
+X *  
+X * This software is provided as is without any express or implied
+X * warranties, including, without limitation, the implied warranties
+X * of merchantability and fitness for a particular purpose.
+X */
+X#include "shell.h"
+X
+extern struct _alias *alias[128];
+extern char buf[1025], path[1025];
+extern int a,b,c,d;
+X
+char ***parse_alias(), **exchange_alias(), **evalwrd(), *sub_parse();
+struct _alias *find_alias();
+X
+char ***parse_alias(arg)
+char ***arg;
+X{
+X  int i;
+X
+X  for(i=0;arg[i];i++)
+X    arg[i] = (char **)exchange_alias(arg[i]);
+X
+X  return arg;
+X}
+X
+char **exchange_alias(arg)
+char **arg;
+X{
+X  int twd,wrd,nt,i,j,max;
+X  char **tmp, **ptmp, **etmp, *flg, used;
+X  struct _alias *ALIAS;
+X
+X  tmp = (char **)calloc(nt = 5,sizeof(char *));
+X
+X  twd = wrd = 0;
+X  while(arg[wrd]) {
+X    ALIAS = find_alias(arg[wrd]);
+X
+X    if (!ALIAS) {
+X      while(arg[wrd] && arg[wrd][0] != '|') {
+X	if (twd == nt) tmp = (char **)realloc(tmp,sizeof(char *) * (nt += 5));
+X	tmp[twd++] = arg[wrd++];
+X      }
+X      if (!arg[wrd]) continue;
+X      /* we got a | if we got this far */
+X      if (twd == nt) tmp = (char **)realloc(tmp,sizeof(char *) * (nt += 5));
+X      tmp[twd++] = arg[wrd++];
+X      continue;
+X    }
+X    /* Our word was an alias, now we have to build up a subwordlist. */
+X    i = wrd;
+X    while (arg[wrd] && arg[wrd][0] != '|') wrd++;
+X    ptmp = (char **)calloc((wrd-i)+1, sizeof(char *));
+X    for(j=0;j<(wrd-i);j++) ptmp[j] = arg[j+i];
+X    ptmp[j] = NULL;
+X
+X    /*
+X     * got our subwordlist, now we make a flag list.  This should be done
+X     * in a binary fashion.  Use bits instead of whole bytes.
+X     */
+X    flg = (char *)malloc(j+1);
+X    bzero(flg,j+1);
+X    flg[j] = -1;
+X    max = j;
+X    used = FALSE;
+X
+X    /* Now we evaluate our alias, one word at a time */
+X    for(i=0;ALIAS->wrd[i];i++) {
+X      etmp = (char **)evalwrd(ALIAS->wrd[i],ptmp,flg,max,&used);
+X      if (!etmp) continue;
+X      for(j=0;etmp[j];j++) {
+X	if (twd == nt) tmp = (char **)realloc(tmp,sizeof(char *) * (nt += 5));
+X	tmp[twd++] = etmp[j];
+X      }
+X      free(etmp);
+X    }
+X
+X/* check if any args used, if not tack them on to the end of the word list */
+X
+X    if (!used) {	/* no args used */
+X      for(i=1;ptmp[i];i++) {
+X	if (twd == nt) tmp = (char **)realloc(tmp,sizeof(char *) * (nt += 5));
+X	tmp[twd++] = ptmp[i];
+X      }
+X      free(ptmp[0]);
+X    } else for(i=0;ptmp[i];i++) free(ptmp[i]);
+X    free(ptmp);
+X    free(flg);
+X    if (arg[wrd] && arg[wrd][0] == '|') {
+X      if (twd == nt) tmp = (char **)realloc(tmp,sizeof(char *) * (nt += 5));
+X      tmp[twd++] = arg[wrd++];
+X    }
+X  }
+X  if (twd == nt) tmp = (char **)realloc(tmp,sizeof(char *) * (nt += 1));
+X  tmp[twd] = NULL;
+X  free(arg);
+X  return (char **)tmp;
+X}
+X
+X
+char **evalwrd(pat,arg,flg,max,used)
+char *pat, **arg, *flg, *used;
+int max;
+X{
+X  char **tmp, **sav, *s, c;
+X  int n,m,i,j,nt,bp,pos;
+X
+X  pos = bp = 0;
+X  tmp = (char **)malloc(sizeof(char *) * (nt = 2));
+X
+X  while(*pat) {
+X    switch(*pat++) {
+X      case '%':
+X        if (*pat == '-' || *pat == '+' || *pat == '%' || isdigit(*pat)) {
+X	  c = *pat;
+X	  if (isdigit(c)) {
+X	    s = pat;
+X	    while(isdigit(*pat)) pat++;
+X	    m = n = atoi(s);
+X	    if (n >= max) m = max - 1;
+X	    if (*pat == '-' && isdigit(*(pat+1))) {
+X	      s = ++pat;
+X	      while(isdigit(*pat)) pat++;
+X	      m = atoi(s);
+X	      if (m < n) {
+X	        i = n;
+X		n = m;
+X		m = i;
+X	      }
+X	      if (m >= max) m = max - 1;
+X	    }
+X	    pat--;
+X	  } else {
+X	    n = 1;
+X	    m = max - 1;
+X	  }
+X	  buf[bp++] = 0;
+X	  s = (char *)strcpy((char *)malloc(bp),buf);
+X	  pat++;
+X	  sav = evalwrd(pat,arg,flg,max,used);
+X	  if (sav) {
+X	    for(i=n;i <= m;i++) {
+X	      if ((c == '-' && flg[i]) || (c == '+' && !flg[i])) continue;
+X	      for(j=0;sav[j];j++) {
+X		if (pos == nt) tmp = (char **)realloc(tmp,sizeof(char *) * (nt += 5));
+X		tmp[pos] = (char *)malloc(bp+strlen(arg[i])+strlen(sav[j]));
+X		sprintf(tmp[pos++],"%s%s%s",s,arg[i],sav[j]);
+X		}
+X	      flg[i] = TRUE;
+X	    }
+X	    free_list(sav);  
+X	  } else {
+X	    for(i=n;i <= m;i++) {
+X	      if ((c == '-' && flg[i]) || (c == '+' && !flg[i])) continue;
+X	      if (pos == nt) tmp = (char **)realloc(tmp,sizeof(char *) * (nt += 5));
+X	      tmp[pos] = (char *)malloc(bp+strlen(arg[i]));
+X	      sprintf(tmp[pos++],"%s%s",s,arg[i]);
+X	      flg[i] = TRUE;
+X	    }
+X	  }
+X	  free(s);
+X	  *used = TRUE;
+X	  if (pos == nt) tmp = (char **)realloc(tmp,sizeof(char *) * (nt += 1));
+X	  tmp[pos] = NULL;
+X	  return tmp;
+X	} else if (*pat == '#') {
+X	  buf[bp] = 0;
+X	  sprintf(buf,"%s%d",buf,max);
+X	  bp = strlen(buf);
+X	  pat++;
+X	} else buf[bp++] = '%';
+X	break;
+X      case '\\':
+X	if (*pat) {
+X	  buf[bp++] = *pat++;
+X	  break;
+X	}
+X	continue;
+X      default:
+X	buf[bp++] = *(pat-1);
+X	break;
+X    }
+X  }
+X  if (!bp) {
+X    free(tmp);
+X    return NULL;
+X  }
+X  buf[bp++] = 0;
+X  tmp[0] = (char *)strcpy((char *)malloc(bp),buf);
+X  tmp[1] = NULL;
+X  return (char **)tmp;
+X}
+X
+X
+ALIAS(n,arg,in,out,err)
+int n;
+char **arg;
+XFILE *in,*out,*err;
+X{
+X  char *tmp, **wrd;
+X  struct _alias *t;
+X
+X  if (n == 1) {
+X    for(a=0;a<128;a++) {
+X      t = alias[a];
+X      while(t != NULL) {
+X	fprt(out,t->cmd);
+X	putc('\t',out);
+X	tmp = (char *)string(t->wrd);
+X	fprt(out,tmp);
+X	putc('\n',out);
+X	free(tmp);
+X	t = t->nxt;
+X      }
+X    }
+X    return 0;
+X  }
+X  if (n == 2) {
+X    if (isregex(arg[1])) {
+X      for(a=0;a<128;a++) {
+X	t = alias[a];
+X	while(t != NULL) {
+X	  if (patmatch(t->cmd,arg[1])) {
+X	    fprt(out,t->cmd);
+X	    putc('\t',out);
+X	    tmp = (char *)string(t->wrd);
+X	    fprt(out,tmp);
+X	    putc('\n',out);
+X	    free(tmp);
+X	  }
+X	  t = t->nxt;
+X	}
+X      }
+X    } else {
+X      if (!(t = find_alias(arg[1]))) return 1;
+X      fprt(out,t->cmd);
+X      putc('\t',out);
+X      tmp = (char *)string(t->wrd);
+X      fprt(out,tmp);
+X      putc('\n',out);
+X      free(tmp);
+X    }
+X    return 0;
+X  }
+X  tmp = (char *)malloc(strlen(arg[1])+1);
+X  strcpy(tmp,arg[1]);
+X  wrd = (char **)calloc(n-1,sizeof(char *));
+X  for(a=2;arg[a];a++) {
+X    wrd[a-2] = (char *)malloc(strlen(arg[a])+1);
+X    strcpy(wrd[a-2],arg[a]);
+X  }
+X  wrd[a-2] = NULL;
+X  add_alias(tmp,wrd);
+X  return 0;
+X}
+X
+UNALIAS(n,arg,in,out,err)
+int n;
+char **arg;
+XFILE *in,*out,*err;
+X{
+X  struct _alias *t;
+X
+X  if (n == 1) return 0;
+X  for(a=1;arg[a];a++) {
+X    if (isregex(arg[a])) {
+X      for(b=0;b<128;b++) {
+X	t = alias[b];
+X	while(t != NULL) {
+X	  if (patmatch(t->cmd,arg[a])) remove_alias(t->cmd);
+X	  t = t->nxt;
+X	}
+X      }
+X    } else remove_alias(arg[a]);
+X  }
+X  return 0;
+X}
+X
+X
+struct _alias *find_alias(pat)
+char *pat;
+X{
+X  char i,hf = *pat & 127;
+X  struct _alias *p;
+X
+X  p = alias[hf];
+X
+X  while(p) {
+X    if (!(i = strcmp(pat,p->cmd))) return p;
+X    if (i < 0) return NULL;
+X    p = p->nxt;
+X  }
+X  return NULL;
+X}
+X
+remove_alias(pat)
+char *pat;
+X{
+X  char i, hf = *pat & 127;
+X  struct _alias *p = alias[hf], *s;
+X
+X  s = p;
+X  while(p) {
+X    if (!(i = strcmp(pat,p->cmd))) {
+X      if (p == alias[hf]) alias[hf] = p->nxt;
+X      else s->nxt = p->nxt;
+X      free_list(p->wrd);
+X      free(p->cmd);
+X      free(p);
+X      return TRUE;
+X    }
+X    if (i < 0) return FALSE;
+X    s = p;
+X    p = p->nxt;
+X  }
+X  return FALSE;
+X}
+X
+add_alias(cmd,wrd)
+char *cmd, **wrd;
+X{
+X  char i, hf = *cmd & 127;
+X  struct _alias *p = alias[hf], *s, *t;
+X
+X  s = p;
+X  while(p) {
+X    if (!(i = strcmp(cmd,p->cmd))) {
+X      free(cmd);
+X      free_list(p->wrd);
+X      p->wrd = wrd;
+X      return 0;
+X    }
+X    if (i < 0) break;
+X    s = p;
+X    p = p->nxt;
+X  }
+X  t = (struct _alias *)malloc(sizeof(struct _alias));
+X  t->cmd = cmd;
+X  t->wrd = wrd;
+X  t->nxt = p;
+X  if (p == alias[hf] && s == alias[hf]) alias[hf] = t;
+X  else s->nxt = t;
+X  return 0;
+X}
+END_OF_FILE
+if test 7501 -ne `wc -c <'alias.c'`; then
+    echo shar: \"'alias.c'\" unpacked with wrong size!
+fi
+# end of 'alias.c'
+fi
+if test -f 'assign.c' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'assign.c'\"
+else
+echo shar: Extracting \"'assign.c'\" \(3669 characters\)
+sed "s/^X//" >'assign.c' <<'END_OF_FILE'
+X/* $Copyright:	$
+X * Copyright (c) 1991,1992,1993 by Steve Baker
+X * All rights reserved
+X *  
+X * This software is provided as is without any express or implied
+X * warranties, including, without limitation, the implied warranties
+X * of merchantability and fitness for a particular purpose.
+X */
+X
+X#include "shell.h"
+X
+X#define hash(x)	(isalpha(x)? (x & 31) + 10 : isdigit(x)? x - '0' : x == '_' ? 10 : -1)
+X
+struct _assign {
+X  char *name;
+X  char *path;
+X  struct _assign *next;
+X} *assign[37];
+X
+char *malloc(), *strcpy(), *evalassign(), **eval_assigns();
+extern char buf[1025],path[1025];
+extern int a,b,c,d;
+X
+char ***parse_assigns(arg)
+char ***arg;
+X{
+X  int i;
+X
+X  for(i=0;arg[i];i++)
+X    arg[i] = eval_assigns(arg[i]);
+X
+X  return arg;
+X}
+X
+char **eval_assigns(arg)
+char **arg;
+X{
+X  int i,n = 0;
+X
+X  for(i=0;arg[i];i++) {
+X    if (*arg[i] == '(' && !arg[i][1]) n++;
+X    if (*arg[i] == ')' && !arg[i][1]) n -= (n?1:0);
+X    if (!n) arg[i] = evalassign(arg[i]);
+X  }
+X  return arg;
+X}
+X
+char *evalassign(w)
+char *w;
+X{
+X  int i;
+X  char *p, *s = w, *tmp;
+X  struct _assign *ptr;
+X
+X  if (*w == '\'' || *w == '"') return w;
+X
+X  if (!(p = (char *)index(w,':'))) return w;
+X  for(i=0;w < p;i++) buf[i] = *w++;
+X  buf[i] = 0;
+X  w++;
+X  ptr = assign[hash(*buf)];
+X  while (ptr) {
+X    if (!strcmp(ptr->name,buf)) break;
+X    ptr = ptr->next;
+X  }
+X  if (!ptr) return s;
+X  tmp = strcpy((char *)malloc(strlen(ptr->path)+strlen(w)+1),ptr->path);
+X  strcat(tmp,w);
+X  free(s);
+X  return tmp;
+X}
+X
+ASSIGN(n,arg,fout,ferr)
+int n;
+char **arg;
+XFILE *fout,*ferr;
+X{
+X  struct _assign *p, *t, *s;
+X  struct stat st;
+X
+X  if (n == 1) {
+X    for(a=0;a<37;a++) {
+X      p = assign[a];
+X      while (p != NULL) {
+X	fprintf(fout,"%s:\t%s\n",p->name,p->path);
+X	p = p->next;
+X      }
+X    }
+X    return 0;
+X  }
+X  if (n == 2) {
+X    if ((a = hash(*arg[1])) < 0) return 1;
+X    p = assign[a];
+X    while (p != NULL) {
+X      if (!strcmp(p->name,arg[1])) {
+X	fprintf(fout,"%s:\t%s\n",p->name,p->path);
+X	return 0;
+X      }
+X      p = p->next;
+X    }
+X    return 0;
+X  }
+X
+X  if (n > 3) {
+X    fprintf(ferr,"assign: too many arguments.\n");
+X    return 1;
+X  }
+X  if (!(a = strlen(arg[1])) || !(b = strlen(arg[2]))) {
+X    fprintf(ferr,"assign: invalid null assignment.\n");
+X    return 1;
+X  }
+X  if (a > 80) {
+X    fprintf(ferr,"assign: assignment name too long.\n");
+X    return 1;
+X  }
+X  if (arg[1][a-1] == ':') arg[1][--a] = 0;
+X  for(d=0;arg[1][d];d++)
+X    if (hash(arg[1][d]) < 0) {
+X      fprintf(ferr,"assign: illegal assignment name %s.\n",arg[1]);
+X      return 1;
+X    }
+X
+X  t = (struct _assign *)malloc(sizeof(struct _assign));
+X  t->name = strcpy(malloc(strlen(arg[1])+1),arg[1]);
+X  stat(arg[2],&st);
+X  if ((st.st_mode & S_IFMT) == S_IFDIR && arg[2][b-1] != '/') {
+X    t->path = strcpy(malloc(strlen(arg[2])+2),arg[2]);
+X    strcat(t->path,"/");
+X  } else t->path = strcpy(malloc(strlen(arg[2])+1),arg[2]);
+X
+X  s = p =  assign[b = hash(*arg[1])];
+X  while(p) {
+X    if (!(a=strcmp(p->name,t->name))) {
+X      free(p->path);
+X      p->path = t->path;
+X      free(t->name);
+X      free(t);
+X      return 0;
+X    }
+X    if (a < 0) break;
+X    s = p;
+X    p = p->next;
+X  }
+X  t->next = p;
+X  if (p == assign[b] && s == assign[b]) assign[b] = t;
+X  else s->next = t;
+X  return 0;  
+X}
+X
+UNASSIGN(n,arg,fout,ferr)
+int n;
+char **arg;
+XFILE *fout,*ferr;
+X{
+X  struct _assign *p, *s;
+X  if (n == 1) {
+X    fprintf(ferr,"unassign: not enough arguments.\n");
+X    return 1;
+X  }
+X  for(a=1;arg[a];a++) {
+X    s = p = assign[c = hash(*arg[a])];
+X    while (p) {
+X      if (!(b = strcmp(p->name,arg[a]))) {
+X	if (s == assign[c]) assign[c] = p->next;
+X	else s->next = p->next;
+X	free(p->name);
+X	free(p->path);
+X	free(p);
+X	break;
+X      }
+X      if (b < 0) break;
+X      s = p;
+X      p = p->next;
+X    }
+X  }
+X  return 0;
+X}
+END_OF_FILE
+if test 3669 -ne `wc -c <'assign.c'`; then
+    echo shar: \"'assign.c'\" unpacked with wrong size!
+fi
+# end of 'assign.c'
+fi
+if test -f 'cmds.h' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'cmds.h'\"
+else
+echo shar: Extracting \"'cmds.h'\" \(1013 characters\)
+sed "s/^X//" >'cmds.h' <<'END_OF_FILE'
+X/* $Copyright:	$
+X * Copyright (c) 1991,1992,1993 by Steve Baker
+X * All rights reserved
+X *  
+X * This software is provided as is without any express or implied
+X * warranties, including, without limitation, the implied warranties
+X * of merchantability and fitness for a particular purpose.
+X */
+enum {
+X  CMD_CD = 1, CMD_ALIAS, CMD_SET, CMD_KEY, CMD_LIMIT, CMD_UNALIAS, CMD_UNSET,
+X  CMD_UNKEY, CMD_UNLIMIT, CMD_UMASK, CMD_HISTORY, CMD_JOBS, CMD_LOGOUT,
+X  CMD_EXIT, CMD_FG, CMD_BG, CMD_SOURCE, CMD_STOP, CMD_SETENV, CMD_UNSETENV,
+X  CMD_VERSION, CMD_IF, CMD_ELSE, CMD_ENDIF, CMD_INPUT, CMD_LOGIN, CMD_SECHO,
+X  CMD_WHILE, CMD_WEND, CMD_REPEAT, CMD_UNTIL, CMD_BREAK, CMD_CONTINUE,
+X  CMD_LABEL, CMD_GOTO, CMD_INC, CMD_DEC, CMD_EVAL, CMD_EXEC, CMD_FOREACH,
+X  CMD_ENDFOR, CMD_FOR, CMD_NEXT, CMD_SWITCH, CMD_ENDSW, CMD_USAGE, CMD_INTR,
+X  CMD_TERM, CMD_PROTECT, CMD_ASSIGN, CMD_UNASSIGN, CMD_SHIFT, CMD_SOPEN,
+X  CMD_SCLOSE, CMD_SREAD, CMD_SWRITE, CMD_SSEEK
+X};
+X
+X#define MAX_CMD		57
+X
+struct command {
+X  char *cmd;
+X  char val;
+X};
+END_OF_FILE
+if test 1013 -ne `wc -c <'cmds.h'`; then
+    echo shar: \"'cmds.h'\" unpacked with wrong size!
+fi
+# end of 'cmds.h'
+fi
+if test -f 'file.c' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'file.c'\"
+else
+echo shar: Extracting \"'file.c'\" \(8413 characters\)
+sed "s/^X//" >'file.c' <<'END_OF_FILE'
+X/* $Copyright:	$
+X * Copyright (c) 1991,1992,1993 by Steve Baker
+X * All rights reserved
+X *  
+X * This software is provided as is without any express or implied
+X * warranties, including, without limitation, the implied warranties
+X * of merchantability and fitness for a particular purpose.
+X */
+X#include "shell.h"
+X#include <fcntl.h>
+X
+X#define MAX_FILES	10
+X
+extern char buf[1024],path[1024];
+X
+struct _FILES FILES[MAX_FILES];
+X
+X/* sopen
+X * sopen <desc>
+X * sopen <desc> <file> <mode> [<mode> .. <mode>]
+X *    modes:
+X *	READ		reading
+X *	WRITE		writing
+X *	APPEND		appended to file
+X *	TRUNCATE	truncate on open
+X *	PIPE		Open a pipe descriptor for READ and WRITE.
+X */
+SOPEN(n,arg,fout,ferr)
+int n;
+char **arg;
+XFILE *fout, *ferr;
+X{
+X  static char *fmts[] = {"READ","WRITE","APPEND","TRUNCATE","PIPE",0};
+X  char i,j, p = -1;
+X  int fmt, pd[2];
+X
+X  if (n == 1) {
+X    for(i=0;i<MAX_FILES;i++) {
+X      if (FILES[i].name)
+X        fprintf(fout,"%s [%s] is open for %s%s%s.\n",FILES[i].name,FILES[i].file,FILES[i].read?"reading":"",(FILES[i].read && FILES[i].write)?" and ":"",FILES[i].write?"writing":"");
+X    }
+X    return 0;
+X  }
+X  if (n == 2) {
+X    for(i=0;i<MAX_FILES;i++) {
+X      if (FILES[i].name && !strcmp(arg[1],FILES[i].name)) {
+X        fprintf(fout,"%s [%s] is open for %s%s%s.\n",FILES[i].name,FILES[i].file,FILES[i].read?"reading":"",FILES[i].read && FILES[i].write?" and ":"",FILES[i].write?"writing":"");
+X	return 0;
+X      }
+X    }
+X    return 0;
+X  }
+X  for(i=0;i<MAX_FILES;i++) {
+X    if (FILES[i].name && !strcmp(arg[1],FILES[i].name)) {
+X      fprintf(ferr,"sopen: descriptor %s already references file %s.\n",FILES[i].name,FILES[i].file);
+X      return 1;
+X    }
+X    if (p < 0 && !FILES[i].name) p = i;
+X  }
+X  if (p < 0) {
+X    fprintf(ferr,"sopen: file descriptor table full.\n");
+X    return 1;
+X  }
+X  FILES[p].pread = FILES[p].pwrite = 0;
+X  FILES[p].ispipe = FILES[p].pipe = FILES[p].read = FILES[p].write = 0;
+X  fmt = O_CREAT;
+X  if (n > 3) {
+X    for(i=3;i<n;i++) {
+X      for(j=0;fmts[j];j++)
+X	if (!strcmp(fmts[j],arg[i])) break;
+X      if (fmts[j]) {
+X	switch(j) {
+X	  case 0:
+X	    if (FILES[p].write) {
+X	      fmt &= ~O_WRONLY;
+X	      fmt |= O_RDWR;
+X	    } else fmt |= O_RDONLY;
+X	    FILES[p].read = 1;	
+X	    break;
+X	  case 1:
+X	    if (FILES[p].read) {
+X	      fmt &= ~O_RDONLY;
+X	      fmt |= O_RDWR;
+X	    } else fmt |= O_WRONLY;
+X	    FILES[p].write = 1;
+X	    break;
+X	  case 2:
+X	    fmt |= O_APPEND;
+X	    FILES[p].write = 1;
+X	    break;
+X	  case 3:
+X	    fmt |= O_TRUNC;
+X	    FILES[p].write = 1;
+X	    break;
+X	  case 4:
+X	    FILES[p].ispipe = 1;
+X	    break;
+X	}
+X      }
+X    }
+X  } else {
+X    fmt |= O_RDONLY;
+X    FILES[p].read = 1;
+X  }
+X  if (FILES[p].ispipe) {
+X    FILES[p].read = FILES[p].write = 1;
+X    if (pipe(pd) < 0) {
+X      fprintf(ferr,"sopen: error opening pipe %s.\n",arg[1]);
+X      return 1;
+X    }
+X    FILES[p].pipe = pd[0];
+X    FILES[p].desc = pd[1];
+X    fcntl(FILES[p].pipe,F_SETFD,1);
+X  } else if ((FILES[p].desc = open(arg[2],fmt,0777)) < 0) {
+X    fprintf(ferr,"sopen: error opening file %s for %s.\n",arg[3],FILES[p].read?"reading":"writing");
+X    return 1;
+X  }
+X  fcntl(FILES[p].desc,F_SETFD,1);
+X  FILES[p].name = SCOPY(arg[1]);
+X  FILES[p].file = SCOPY(arg[2]);
+X  return 0;
+X}
+X
+X/*
+X * sclose <desc> [<desc> ... <desc>]
+X */
+SCLOSE(n,arg,ferr)
+int n;
+char **arg;
+XFILE *ferr;
+X{
+X  int i,j;
+X
+X  if (n < 2) {
+X    fprintf(ferr,"sclose: missing file descriptor specification.\n");
+X    return 1;
+X  }
+X  for(i=1;i<n;i++) {
+X    for(j=0;j<MAX_FILES;j++)
+X      if (!strcmp(FILES[j].name,arg[i])) break;
+X    if (j < MAX_FILES) {
+X      if (FILES[j].pipe) close(FILES[j].pipe);
+X      close(FILES[j].desc);
+X      free(FILES[j].name);
+X      FILES[j].name = NULL;
+X      free(FILES[j].file);
+X    } else {
+X      fprintf(ferr,"sclose: invalid file descriptor '%s'.\n",arg[i]);
+X    }
+X  }
+X  return 0;
+X}
+X
+X/* sseek <desc> <mode> <expression>
+X * mode:
+X *   INCR
+X *   SET
+X *   XTND
+X */
+X
+SSEEK(n,arg,ferr)
+int n;
+char **arg;
+XFILE *ferr;
+X{
+X  static char *modes[] = {"INCR","SET","XTND",0};
+X  char *ex;
+X  BYTE f;
+X  int i,mode;
+X  long pos,rpos;
+X
+X  if (n < 4) {
+X    fprintf(ferr,"sseek: Not enough arguments.\n");
+X    return 1;
+X  }
+X
+X  for(f=0;f<MAX_FILES;f++)
+X    if (!strcmp(arg[1],FILES[f].name)) break;
+X
+X  if (f == MAX_FILES) {
+X    fprintf(ferr,"sseek: %s not a valid open file descriptor.\n",arg[1]);
+X    return 1;
+X  }
+X  if (FILES[f].ispipe) {
+X    fprintf(ferr,"sseek: seeks not allowed on pipes.\n");
+X    return 1;
+X  }
+X  for(i=0;modes[i];i++)
+X    if (!strcmp(modes[i],arg[2])) break;
+X
+X  if (!modes[i]) {
+X    fprintf(ferr,"sseek: invalid seek operation '%s'.\n",arg[2]);
+X    return 1;
+X  }
+X  if (!i) mode = L_INCR;
+X  else if (i == 1) mode = L_SET;
+X  else mode = L_XTND;
+X  ex = (char *)grab(arg,3,NULL,&i);
+X  if (!ex) {
+X    fprintf(ferr,"sseek: expected expression.\n");
+X    return 1;
+X  }
+X  pos = expr(ex);
+X  free(ex);
+X  rpos = lseek(FILES[f].desc,pos,mode);
+X  makenvar("filepos",rpos);
+X  return 0;
+X}
+X
+X/*
+X * swrite <desc> [-n] <data>
+X */
+X
+SWRITE(n,arg,ferr)
+int n;
+char **arg;
+XFILE *ferr;
+X{
+X  BYTE f,b,flg = FALSE;
+X  int i;
+X  char *res;
+X
+X  if (n < 3) {
+X    fprintf(ferr,"swrite: Not enough arguments.\n");
+X    return 1;
+X  }
+X  for(f=0;f<MAX_FILES;f++)
+X    if (!strcmp(FILES[f].name,arg[1])) break;
+X  if (f == MAX_FILES) {
+X    fprintf(ferr,"swrite: unknown file descriptor '%s'.\n",arg[1]);
+X    return 1;
+X  }
+X  if (!FILES[f].write) {
+X    fprintf(ferr,"swrite: '%s' not open for writing.  Operation aborted.\n",FILES[f].name);
+X    return 1;
+X  }
+X  if (FILES[f].ispipe && FILES[f].read && FILES[f].write) {
+X    FILES[f].read = 0;
+X    close(FILES[f].pipe);
+X    FILES[f].pipe = 0;
+X  }
+X  for(b=TRUE,i=2;i<n;i++) {
+X    if (arg[i][0] == '-' && arg[i][1] == 'n' && !arg[i][2]) b = FALSE;
+X    else {
+X      res = (char *)pline(arg[i],1023,1023);
+X      if (flg) {
+X	if (write(FILES[f].desc," ",1) < 0) {
+X	  fprintf(stderr,"swrite: Error writing to file %s [%s].\n",FILES[f].name,FILES[f].file);
+X	  return 1;
+X	}
+X      }
+X      if (write(FILES[f].desc,res,strlen(res)) < 0) {
+X	fprintf(stderr,"swrite: Error writing to file %s [%s].\n",FILES[f].name,FILES[f].file);
+X	return 1;
+X      } else flg = TRUE;
+X    }
+X  }
+X  if (b) if (write(FILES[f].desc,"\n",1) < 0) {
+X    fprintf(stderr,"swrite: Error writing to file %s [%s].\n",FILES[f].name,FILES[f].file);
+X    return 1;
+X  }
+X  return 0;
+X}
+X
+X/*
+X * sread <desc> [-c] [-l] [-w] [-bn] <var>
+X *  -l	Read in a line.
+X *  -w	Read in a line, breaking it up into words.
+X *  -c	Read in a character.
+X *  -bn	Read in n characters.
+X */
+SREAD(n,arg,ferr)
+int n;
+char **arg;
+XFILE *ferr;
+X{
+X  BYTE f, mode = 0;
+X  WORD i, j, k, res;
+X
+X  if (n < 3) {
+X    fprintf(ferr,"read: not enough arguments.\n");
+X    return 1;
+X  }
+X  for(f=0;f<MAX_FILES;f++)
+X    if (!strcmp(arg[1],FILES[f].name)) break;
+X  if (f == MAX_FILES) {
+X    fprintf(ferr,"sread: invalid file descriptor '%s'.\n",arg[1]);
+X    return 1;
+X  }
+X  if (!FILES[f].read) {
+X    fprintf(ferr,"sread: '%s' not open for reading.  Operation aborted.\n",FILES[f].name);
+X    return 1;
+X  }
+X  if (FILES[f].ispipe && FILES[f].write && FILES[f].read) {
+X    FILES[f].write = 0;
+X    close(FILES[f].desc);
+X    FILES[f].desc = FILES[f].pipe;
+X    FILES[f].pipe = 0;
+X  }
+X
+X  for(i=2;i<n;i++) {
+X    if (arg[i][0] == '-') {
+X      switch(arg[i][1]) {
+X	case 'l':
+X	  mode = 0;
+X	  break;
+X	case 'w':
+X	  mode = 1;
+X	  break;
+X	case 'c':
+X	  mode = 2;
+X	  break;
+X	case 'b':
+X	  mode = 3;
+X	  k = atoi(arg[i]+2);
+X	  break;
+X	default:
+X	  fprintf(stderr,"sread: '%s' invalid option.\n",arg[i]);
+X	  return 1;
+X      }
+X      continue;
+X    }
+X    switch(mode) {
+X      case 0:
+X      case 1:
+X	for(j=0;;j++) {
+X	  if ((res = read(FILES[f].desc,buf+j,1)) < 0) {
+X	    fprintf(ferr,"sread: error reading from %s [%s].\n",FILES[f].name,FILES[f].file);
+X	    return 1;
+X	  }
+X	  if (!res) {
+X	    buf[j] = 0;
+X	    makeset(arg[i],buf);
+X	    makeset("EOF",FILES[f].name);
+X	    return 0;
+X	  }
+X	  if (buf[j] == '\n') break;
+X	}
+X	buf[j] = 0;
+X	if (mode) makewset(arg[i],buf);
+X	else makeset(arg[i],buf);
+X	break;
+X      case 2:
+X	if ((res = read(FILES[f].desc,buf,1)) < 0) {
+X	  fprintf(ferr,"sread: error reading from %s [%s].\n",FILES[f].name,FILES[f].file);
+X	  return 1;
+X	}
+X	if (!res) {
+X	  makeset("EOF",FILES[f].name);
+X	  return 0;
+X	}
+X	buf[1] = 0;
+X	makeset(arg[i],buf);
+X	break;
+X      case 3:
+X	if (read(FILES[f].desc,buf,k) < 0) {
+X	  fprintf(ferr,"sread: error reading from %s [%s].\n",FILES[f].name,FILES[f].file);
+X	  return 1;
+X	}
+X	if (!res) {
+X	  makeset("EOF",FILES[f].name);
+X	  return 0;
+X	}
+X	buf[k] = 0;
+X	makeset(arg[i],buf);
+X	break;
+X    }
+X  }
+X  return 0;
+X}
+END_OF_FILE
+if test 8413 -ne `wc -c <'file.c'`; then
+    echo shar: \"'file.c'\" unpacked with wrong size!
+fi
+# end of 'file.c'
+fi
+if test -f 'init.c' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'init.c'\"
+else
+echo shar: Extracting \"'init.c'\" \(4644 characters\)
+sed "s/^X//" >'init.c' <<'END_OF_FILE'
+X/* $Copyright:	$
+X * Copyright (c) 1991,1992,1993 by Steve Baker
+X * All rights reserved
+X *  
+X * This software is provided as is without any express or implied
+X * warranties, including, without limitation, the implied warranties
+X * of merchantability and fitness for a particular purpose.
+X */
+X#include "shell.h"
+X#include <utmp.h>
+X#include <pwd.h>
+X#include <sgtty.h>
+X
+extern char **PATH;
+extern struct proc_tab *proc;
+extern int max_ent,_pgrp;
+extern char **history;
+extern int _maxhist;
+extern char *_prompt,*_home,*_mbox, *getenv();
+extern char _loginshell, _echo, _verbose, _willecho, _willverbose;
+extern char *_term[11];
+extern char *_kbuf[MAX_GLVL], _kmax[MAX_GLVL];
+extern struct _alias *alias[128];
+extern struct custom_keys **keys[MAX_GLVL];
+struct _setvar *sets[37], *statvar;
+struct sgttyb OTTY;
+struct sgttyb STTY;
+X
+extern char *gettime();
+struct _setvar *makeset(), *makenvar(), *add_var();
+X
+extern char buf[1025], path[1025];
+X
+X
+init()
+X{
+X  int i,j,k;
+X  char *tmp;
+X  struct utmp utmp;
+X  struct passwd *pwd;
+X  struct _setvar *VAR;
+X
+X  i = NTTYDISC;
+X  ioctl(TTY,TIOCSETD,&i);
+X
+X  for(i=0;i<128;i++) alias[i] = NULL;
+X  proc = (struct proc_tab *)calloc(10, sizeof(struct proc_tab));
+X  for(i=0;i<10;i++) proc[i].pid = 0;
+X  max_ent = 10;
+X  history = (char **)calloc(_maxhist, sizeof(char *));
+X  makenvar("history",30);
+X  makenvar("pid",getpid());
+X  if (getuid()) makeset("prompt","> ");
+X  else makeset("prompt","# ");
+X
+X  _kmax[0] = 0;
+X  _kbuf[0] = (char *)malloc(1);
+X  _kbuf[0][0] = 0;
+X
+X  makeset("cwd",getwd(path));
+X  statvar = makenvar("status",0);
+X  statvar->protect = 1;
+X
+X  pwd = getpwuid(getuid());
+X  _home = (char*)malloc(strlen(pwd->pw_dir)+1);
+X  strcpy(_home,pwd->pw_dir);
+X  makeset("home",_home);
+X
+X  _pgrp = getpgrp(0);
+X  
+X  makeset("tty",tmp = (char *)ttyname(0));
+X  i = open("/etc/utmp",O_RDONLY);
+X  while(read(i,&utmp,sizeof(utmp)) > 0) {
+X    if (!strncmp(utmp.ut_line,tmp+5,8)) {
+X      if (utmp.ut_host[0]) {
+X        strncpy(buf,utmp.ut_host,16);
+X	buf[16] = 0;
+X        makeset("remotehost",buf);
+X      }
+X      break;
+X    }
+X  }
+X  close(i);
+X
+X  gethostname(buf,&i);
+X  makeset("host",buf);
+X  makeset("user",getenv("USER"));
+X  makenull("insert");
+X  if (_echo) makenull("echo");
+X  if (_verbose) makenull("verbose");
+X
+X  strcpy(path,getenv("PATH"));
+X  VAR = makeset("path",".");
+X  PATH = VAR->sv.wrd;
+X  j = k = 0;
+X  free(PATH[0]);
+X  for(i=0;path[i];i++) if (path[i] == ':') k++;
+X  if (i > 0 && path[i-1] != ':') k++;
+X  PATH = (char **)realloc(PATH,sizeof(char *) * (k+2));
+X  k = 0;
+X  for(i=0;path[i];i++) {
+X    if (path[i] == ':') {
+X      buf[k] = 0;
+X      k = 0;
+X      PATH[j] = (char *)malloc(strlen(buf)+1);
+X      strcpy(PATH[j++],buf);
+X    } else buf[k++] = path[i];
+X  }
+X  buf[k] = 0;
+X  if (k != 0) {
+X    PATH[j] = (char *)malloc(strlen(buf)+1);
+X    strcpy(PATH[j++],buf);
+X  }
+X  PATH[j] = NULL;
+X  VAR->nwrds = j;
+X  VAR->sv.wrd = PATH;
+X  export(VAR);
+X}
+X
+init_term()
+X{
+X  char i;
+X
+X  for(i=0;i<11;i++) _term[i] = NULL;
+X  makeset("term",getenv("TERM"));
+X}
+X
+set_term(term)
+char *term;
+X{
+X  char *area = path, i;
+X  static char *info[11] = {"so","se","ce","ks","ke","dc","ic","ds","ts","fs",0};
+X
+X  if (tgetent(buf,term) < 0) return -1;
+X
+X  for(i=0;info[i];i++) {
+X    if (_term[i]) free(_term[i]);
+X    _term[i] = (char *)tgetstr(info[i],&area);
+X    if (!_term[i]) continue;
+X    while(isdigit(*_term[i])) _term[i]++;
+X    _term[i] = (char *)strcpy((char *)malloc(strlen(_term[i])+1),_term[i]);
+X  }
+X  _term[HS] = (char *)tgetflag("hs");
+X  return 0;
+X}
+X
+second_pass()
+X{
+X  FILE *fd, *fopen();
+X  int i;
+X  char pass[21],tmp[21];
+X
+X  sprintf(path,"%s/%s",_home,SECOND_PASS);
+X  if ((fd = fopen(path,"r")) == NULL) return;
+X  fgets(pass,20,fd);
+X  fclose(fd);
+X  pass[20] = 0;
+X  noecho();
+X  printf("\nSecondary password: ");
+X  fgets(tmp,20,stdin);
+X  echo();
+X  putchar('\n');
+X  sprintf(path,"%s/%s",_home,WARNING);
+X
+X  if (strcmp(pass,tmp)) {
+X    if ((fd = fopen(path,"a")) == NULL) exit(0);
+X    chmod(path,0600);
+X    fprintf(fd,"failed login attempt at %s ",gettime(0));
+X    fprintf(fd,"%s ",gettime(3));
+X    fprintf(fd,"%s ",gettime(2));
+X    fprintf(fd,"%s on %s : %s",gettime(4),ttyname(0),tmp);
+X    fclose(fd);
+X    exit(0);
+X  }
+X
+X  if ((fd = fopen(path,"r")) == NULL) return;
+X  for(i=0;fgets(buf,256,fd);i++);
+X  fprintf(stderr,"\007There have been %d failed login attempts.\n",i);
+X  fclose(fd);  
+X}
+X
+load_hist()
+X{
+X  char l;
+X  FILE *fd;
+X
+X  sprintf(path,"%s/%s",_home,HIST_SAVE);
+X  if ((fd = fopen(path,"r")) == NULL) return -1;
+X  fgets(buf,256,fd);
+X  buf[strlen(buf)-1] = 0;
+X  makenvar("history",atoi(buf));
+X  while(fgets(buf,256,fd) != NULL) {
+X    l = strlen(buf) - 1;
+X    if (buf[l] == '\n') buf[l] = 0;
+X    add_history(buf);
+X  }
+X  fclose(fd);
+X  return 0;
+X}
+END_OF_FILE
+if test 4644 -ne `wc -c <'init.c'`; then
+    echo shar: \"'init.c'\" unpacked with wrong size!
+fi
+# end of 'init.c'
+fi
+if test -f 'key.c' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'key.c'\"
+else
+echo shar: Extracting \"'key.c'\" \(11531 characters\)
+sed "s/^X//" >'key.c' <<'END_OF_FILE'
+X/* $Copyright:	$
+X * Copyright (c) 1991,1992,1993 by Steve Baker
+X * All rights reserved
+X *  
+X * This software is provided as is without any express or implied
+X * warranties, including, without limitation, the implied warranties
+X * of merchantability and fitness for a particular purpose.
+X */
+X#include "shell.h"
+X#include <sgtty.h>
+X
+extern char *_prompt, *_statline, **history, *_kbuf[MAX_GLVL], _kmax[MAX_GLVL];
+extern char _insert, _glvl, _verbose, _notypeahead, _glob, *_term[11];
+extern int _maxhist, curhist, err;
+extern struct custom_keys **keys[MAX_GLVL];
+extern char buf[1025], *errstr, *erru, _noassigns;
+X
+struct sgttyb OTTY, STTY;
+char **files, **dirget();
+X
+char str[256], prompt[81], *pline(), *index();
+int pos, len, refresh();
+extern struct timeval *_timeout;
+X
+char *getline()
+X{
+X  char tstr[2], prefix[20], flg, fk = 0, ic = 0, bs = 0, *ptr = NULL;
+X  char ***arg;
+X  short hist = curhist;
+X  int i, j, x, s, e, r, kp = 0, ch;
+X  struct custom_keys *KEY;
+X
+X  tstr[1] = 0;
+X  pos = len = 0;
+X
+X  noecho();
+X
+X  if (_statline && _term[HS]) printf("%s%s%s%s%s",_term[DS],_term[TS],pline(_statline,1023,1023),_term[CE],_term[FS]);
+X  strcpy(prompt,pline(_prompt,80,80));
+X  printf("\r%s",prompt);
+X
+X  do {
+X    if (_timeout) {
+X      j = 1;
+X      i = select(1,&j,NULL,NULL,_timeout);
+X      if (!i) {
+X	printf("\r%slogout%s\n",prompt,_term[CE]);
+X	files = (char **)calloc(2,sizeof(char *));
+X	files[0] = "logout";
+X	files[1] = NULL;
+X	logout(1,files);
+X      }
+X    }
+X    if ((ch = getchar()) == EOF) cleanup();
+X
+X    if (bs) {
+X      tstr[0] = ch;
+X      insertstr(tstr);
+X      bs = ch = 0;
+X      continue;
+X    }
+X    if (ic) {
+X      if (ch >= '@' && ch <= '_') tstr[0] = ch - '@';
+X      else if (ch >= 'a' && ch <= 'z') tstr[0] = (ch - 'a')+1;
+X      else tstr[0] = ch;
+X      insertstr(tstr);
+X      ic = ch = 0;
+X      continue;
+X    }
+X    if (fk == 0 && (ptr = index(_kbuf[_glvl],ch)) && _kmax[_glvl] > 0) {
+X      kp = (int)(ptr - _kbuf[_glvl]);
+X      if (!keys[_glvl][kp]->key[1]) goto PROCESS;
+X      else {
+X	prefix[fk++] = ch;
+X	prefix[fk] = ch = 0;
+X	if (fk == _kmax[_glvl]) {
+X	  insertstr(prefix);
+X	  fk = 0;
+X	}
+X	continue;
+X      }
+X    } else if (fk == 0) {
+X      if (ch == '\n' || ch == '\r') break;
+X      tstr[0] = ch;
+X      insertstr(tstr);
+X      ch = 0;
+X      continue;
+X    }
+X    if (fk > 0 && fk <= _kmax[_glvl]) {
+X      prefix[fk++] = ch;
+X      prefix[fk] = 0;
+X      flg = TRUE;
+X      for(i=kp;i<strlen(_kbuf[_glvl]);i++) {
+X	if (strlen(keys[_glvl][i]->key) == fk && !strcmp(keys[_glvl][i]->key,prefix)) {
+X	  kp = i;
+X	  goto PROCESS;
+X	}
+X	if (keys[_glvl][i]->key[fk-1] == prefix[fk-1]) flg = FALSE;
+X      }
+X      if (flg || fk == _kmax[_glvl]) {
+X	insertstr(prefix);
+X	kp = prefix[0] = fk = ch = 0;
+X	continue;
+X      }
+X    }
+X    continue;
+X  
+PROCESS:
+X    prefix[0] = fk = 0;
+X    KEY = keys[_glvl][kp];
+X    if (KEY->func > 0) {
+X      switch(KEY->func) {
+X	case 1:		/* up */
+X	  if (hist > 0) {
+X	    hist--;
+X	    strcpy(str,history[hist]);
+X	    pos = len = strlen(history[hist]);
+X	    printf("\r%s%s",prompt,_term[CE]);
+X	    output(str);
+X	  } else {
+X	    hist = -1;
+X	    if (str[0]) printf("\r%s%s",prompt,_term[CE]);
+X	    str[0] = len = pos = 0;
+X	  }
+X	  break;
+X	case 2:		/* down */
+X	  if (hist < curhist-1) {
+X	    hist++;
+X	    strcpy(str,history[hist]);
+X	    pos = len = strlen(history[hist]);
+X	    printf("\r%s%s",prompt,_term[CE]);
+X	    output(str);
+X	  } else {
+X	    hist = curhist;
+X	    if (str[0]) printf("\r%s%s",prompt,_term[CE]);
+X	    str[0] = 0;
+X	    len = pos = 0;
+X	  }
+X	  break;
+X	case 3:		/* left */
+X	  if (pos > 0) {
+X	    putchar('\b');
+X	    pos--;
+X	  }
+X	  break;
+X	case 4:		/* right */
+X	  if (pos < len) outch(str[pos++]);
+X	  break;
+X	case 5:		/* delete / backspace */
+X	  delch();
+X	  break;
+X	case 6:		/* toggle insert/overwrite */
+X	  _insert ^= 1;
+X	  break;
+X	case 7:		/* move to beginning of line */
+X	  if (pos > 0) {
+X	    printf("\r%s",prompt);
+X	    pos = 0;
+X	  }
+X	  break;
+X	case 8:		/* delete to the right */
+X	  if (pos < len) {
+X	    outch(str[pos++]);
+X	    delch();
+X	  }
+X	  break;
+X	case 9:		/* move to EOL */
+X	  if(pos < len) {
+X	    str[len] = 0;
+X	    output(str+pos);
+X	    pos = len;
+X	  }
+X	  break;
+X	case 10:	/* kill to EOL */
+X	  if (pos < len) {
+X	    printf("%s",_term[CE]);
+X	    str[len = pos] = 0;
+X	  }
+X	  break;
+X	case 11:	/* restore line */
+X	  str[pos = len]=0;
+X	  printf("\r%s%s",prompt,_term[CE]);
+X	  output(str);
+X	  break;
+X	case 12:	/* Kill line */
+X	  if (len>0) printf("\r%s%s",prompt,_term[CE]);
+X	  str[len = pos = 0] = 0;
+X	  break;
+X	case 13:	/* quoted insert */
+X	  bs = 1;
+X	  break;
+X	case 14:	/* find matching history */
+X	  if (len == 0) break;
+X	  str[len] = 0;
+X	  for(i=hist-1;i>=0;i--) {
+X	    for(j=0;str[j] && str[j] == history[i][j];) j++;
+X	    if (str[j]) continue;
+X	    strcpy(str,history[hist = i]);
+X	    pos = len = strlen(str);
+X	    printf("\r%s%s",prompt,_term[CE]);
+X	    output(str);
+X	    break;
+X	  }
+X	  if (i < 0) putchar('\007');
+X	  break;
+X	case 15:	/* kill to BOL */
+X	  if (pos > 0) {
+X	    str[len] = 0;
+X	    for(i=pos;i<=len;i++) str[i-pos] = str[i];
+X 	    len -= pos;
+X	    pos = 0;
+X	    printf("\r%s",prompt);
+X	    if (len > 0) {
+X	      output(str);
+X	      printf("%s\r%s",_term[CE],prompt);
+X	    } else printf("%s",_term[CE]);
+X	  }
+X	  break;
+X	case 16:	/* filename completion */
+X	  str[len] = 0;
+X	  i = isspace(str[pos]) || !str[pos]? pos-1 : pos;
+X	  if (isspace(str[i]) || !str[i]) {
+X	    putchar('\007');
+X	    break;
+X	  }
+X	  while(!isspace(str[i]) && i > 0) i--;
+X	  if (isspace(str[i])) s = ++i;
+X	  else s = i;
+X	  j = 0;
+X	  while(!isspace(str[i]) && str[i]) buf[j++] = str[i++];
+X	  e = i;
+X	  buf[j] = 0;
+X	  if (!(r = (isregex(buf)==2))) {
+X	    buf[j++] = '*';
+X	    buf[j] = 0;
+X	  }
+X	  files = (char **)calloc(5,sizeof(char *));
+X	  i = 1;
+X	  files[1] = NULL;
+X	  files = dirget(buf,files,&i,0,NULL,r == 1,0);
+X	  if (!i || err) {
+X	    putchar('\007');
+X	    if (err == ERR_NO_USER) free(erru);
+X	    else if (err == ERR_NO_MATCH) free(errstr);
+X	    err = 0;
+X	    break;
+X	  }
+X	  if (!isspace(pos))
+X	    for(i=pos;!isspace(i) && str[i];i++,pos++) outch(str[i]);
+X	  for(i=0;str[i+(e-1)];i++) str[s+i] = str[i+e];
+X	  if (pos == len) for(i=0;i<(e-s);i++) printf("\b \b");
+X	  else for(i=0;i<(e-s);i++) delch();
+X	  len -= e-s;
+X	  str[len] = 0;
+X	  pos = s;
+X	  if (pos == len) {
+X	    strcat(str,files[0]);
+X	    output(files[0]);
+X	    len += strlen(files[0]);
+X	    pos += strlen(files[0]);
+X	  } else insertstr(files[0]);
+X	  free_list(files);
+X	  break;
+X	case 17:	/* word left */
+X	  if (pos > 0) {
+X	    while(pos > 0 && isspace(str[pos])) {
+X	      putchar('\b');
+X	      pos--;
+X	    }
+X	    while(pos > 0 && !isspace(str[pos])) {
+X	      putchar('\b');
+X	      pos--;
+X	    }
+X	  }
+X	  break;
+X	case 18:	/* word right */
+X	  if (pos < len) {
+X	    while(pos < len && isspace(str[pos])) outch(str[pos++]);
+X	    while(pos < len && !isspace(str[pos])) outch(str[pos++]);
+X	  }
+X	  break;
+X	case 19:	/* Expand line */
+X	  str[len] = 0;
+X	  arg = (char ***)split_line(str);
+X	  arg = (char ***)parse_alias(arg);
+X	  arg = (char ***)parse_shellvars(arg);
+X	  if (!_noassigns) arg = (char ***)parse_assigns(arg);
+X	  if (_glob) arg = (char ***)parse_wildcards(arg);
+X	  if (err) {
+X	    free_arg(arg);
+X	    putchar('\007');
+X	    break;
+X	  }
+X	  pos = 0;
+X	  for(i=0;arg[i];i++) {
+X	    for(j=0;arg[i][j];j++) {
+X	      if ((pos+strlen(arg[i][j])) > 254) {
+X		str[len = --pos] = 0;
+X		printf("\r%s%s",prompt,_term[CE]);
+X		output(str);
+X		free_arg(arg);
+X		return str;
+X	      }
+X	      for(x=0;arg[i][j][x];x++)
+X		str[pos++] = arg[i][j][x];
+X	      str[pos++] = ' ';
+X	    }
+X	    if (arg[i+1]) {
+X	      str[pos++] = ';';
+X	      str[pos++] = ' ';
+X	    }
+X	  }
+X	  str[len = --pos] = 0;
+X	  printf("\r%s%s",prompt,_term[CE]);
+X	  output(str);	  
+X	  free_arg(arg);
+X	  break;
+X	case 20:	/* kill word */
+X	  if (len > 0) {
+X	    str[len] = 0;
+X	    if (!isspace(str[pos]))
+X	      for(;pos<len && !isspace(str[pos]);pos++) outch(str[pos]);
+X	    if (pos > 0 && isspace(str[pos-1]))
+X	      for(;pos>0 && isspace(str[pos]);pos--) putchar('\b');
+X	    if (pos > 0) {
+X	      if (pos == len) {
+X		for(;pos > 0 && !isspace(str[pos]);pos--) printf("\b \b");
+X		str[len = pos] = 0;
+X	      } else {
+X		for(i=pos-1; i> 0 && !isspace(str[i]); i--) delch();
+X		delch();
+X		for(j=0;str[pos+j];j++) str[i+j] = str[pos+j];
+X		str[len = (i+j)] = 0;
+X		pos = i;
+X	      }
+X	    }
+X	  }
+X	  break;
+X	case 21:	/* Make next char a control char */
+X	  ic = 1;
+X	  break;
+X	default:
+X	  putchar('\007');
+X	  break;
+X      }
+X    } else if (KEY->gold) {
+X      _glvl = KEY->glvl;
+X    } else {
+X      if (KEY->clr) {
+X	if (pos || (!pos && len)) printf("\r%s%s",prompt,_term[CE]);
+X	str[len = pos = 0] = 0;
+X      }
+X      insertstr(KEY->cmd);
+X      if (KEY->rtn) break;
+X      ch = 0;
+X    }
+X  } while(ch != '\n' && ch != '\r');
+X  echo();
+X  putchar('\n');
+X  str[len] = 0;
+X  if (str[0] == '!') {	/* uh oh... we got a csh user on our hands! */
+X    if (!str[1]) return str;	/* just a measly ! */
+X    if (str[1] == '!') {
+X      strcpy(str,history[curhist-1]);
+X      if (_verbose) puts(str);
+X      return str;
+X    }
+X    for(i=1;isdigit(str[i]);i++);
+X    if (str[i]) {	/* has to be a string */
+X      for(i=curhist-1;i>=0;i--) {
+X	for(j=0;str[j+1] && str[j+1] == history[i][j];) j++;
+X	if (str[j+1]) continue;
+X	strcpy(str,history[i]);
+X	if (_verbose) puts(str);
+X	return str;
+X      }
+X      /* no match, just return as is */
+X    } else {		/* has to be a number */
+X      i = atoi(str+1);
+X      if (i < 0 || i >= curhist) return str;
+X      strcpy(str,history[i]);
+X      if (_verbose) puts(str);
+X      return str;
+X    }
+X  }
+X  return str;
+X}
+X
+insertstr(istr)
+char *istr;
+X{
+X  int i,j = strlen(istr);
+X
+X  if (_insert && pos < len) {
+X    str[len] = 0;
+X    if (_term[IC]) {
+X      for(i=len;i>=pos;i--) str[i+j] = str[i];
+X      for(i=0;istr[i];i++) {
+X	if (len >= 254) {
+X	  putchar('\007');
+X	  return;
+X	}
+X	printf("%s",_term[IC]);
+X	outch(istr[i]);
+X	str[pos] = istr[i];
+X	pos++;
+X	len++;
+X      }
+X    } else {
+X      for(i=len;i>=pos;i--) str[i+j] = str[i];
+X      str[pos] = 0;
+X      output(istr);
+X      output(str+pos+j);
+X      printf("\r%s",prompt);
+X      if (pos > 0) output(str);
+X      for(i=0;istr[i];i++) {
+X	if (len >= 254) {
+X	  putchar('\007');
+X	  return;
+X	}
+X	outch(istr[i]);
+X	str[pos] = istr[i];
+X	pos++;
+X	len++;
+X      }
+X    }
+X  } else
+X    for(i=0;istr[i];i++) {
+X      if (len >= 254) {
+X	putchar('\007');
+X	return;
+X      }
+X      outch(istr[i]);
+X      str[pos] = istr[i];
+X      if(pos==len) len++;
+X      pos++;
+X    }
+X}
+X
+output(str)
+char *str;
+X{
+X  int i=0;
+X  while(str[i]) outch(str[i++]);
+X  return;
+X}
+X
+outch(ch)
+char ch;
+X{
+X  if (ch > 127) ch -= 128;
+X  if (ch<32) {
+X    if (_term[SO]) printf("%s%c%s",_term[SO],ch+64,_term[SE]);
+X    else printf("^%c",ch+64);
+X  } else if (ch == 127) {
+X    if (_term[SO]) printf("%s?%s",_term[SO],_term[SE]);
+X    else printf("^?");
+X  } else putchar(ch);
+X}
+X
+noecho()
+X{
+X  ioctl(0,TIOCGETP,&OTTY);
+X  bcopy(&OTTY,&STTY,sizeof(struct sgttyb));
+X  OTTY.sg_flags |= CBREAK;		/* RAW */
+X  OTTY.sg_flags &= ~ECHO;
+X  if (_notypeahead) ioctl(0,TIOCSETP,&OTTY);
+X  else ioctl(0,TIOCSETN,&OTTY);
+X}
+X
+echo()
+X{
+X  OTTY.sg_flags &= ~CBREAK;	/* RAW */
+X  OTTY.sg_flags |= ECHO;
+X  ioctl(0,TIOCSETN,&OTTY);
+X}
+X
+delch()
+X{
+X  char e;
+X  int i;
+X
+X  if(pos > 0) {
+X    e = (str[pos-1]<32 && !_term[SO])? 2 : 1;
+X    str[len] = 0;
+X    while(e) {
+X      if (_insert) {
+X	if (pos < len) {
+X	  if (_term[DC]) printf("\b%s",_term[DC]);
+X	  else {
+X	    str[pos-1] = 0;
+X	    fputc('\b',stdout);
+X	    output(str+pos);
+X	    printf(" \r%s",prompt);
+X	    output(str);
+X	  }
+X	  for(i=pos;i<len;i++) str[i-1] = str[i];
+X	  len--; pos--;
+X	} else {
+X	  str[pos = --len] = 0;
+X	  fputs("\b \b",stdout);
+X	}
+X      }	else {
+X	printf("\b \b");
+X	str[--pos] = ' ';
+X      }
+X      e--;
+X    }
+X  }
+X}
+END_OF_FILE
+if test 11531 -ne `wc -c <'key.c'`; then
+    echo shar: \"'key.c'\" unpacked with wrong size!
+fi
+# end of 'key.c'
+fi
+if test -f 'parse.c' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'parse.c'\"
+else
+echo shar: Extracting \"'parse.c'\" \(8680 characters\)
+sed "s/^X//" >'parse.c' <<'END_OF_FILE'
+X/* $Copyright:	$
+X * Copyright (c) 1991,1992,1993 by Steve Baker
+X * All rights reserved
+X *  
+X * This software is provided as is without any express or implied
+X * warranties, including, without limitation, the implied warranties
+X * of merchantability and fitness for a particular purpose.
+X */
+X#include "shell.h"
+X#include "cmds.h"
+X#include <pwd.h>
+X
+X/* this ought to be put in a header file */
+struct command cmds[] = {
+X  {"alias",CMD_ALIAS},
+X  {"assign",CMD_ASSIGN},
+X  {"bg",CMD_BG},
+X  {"break",CMD_BREAK},
+X  {"cd",CMD_CD},
+X  {"continue",CMD_CONTINUE},
+X  {"dec",CMD_DEC},
+X  {"else",CMD_ELSE},
+X  {"endfor",CMD_ENDFOR},
+X  {"endif",CMD_ENDIF},
+X  {"endsw",CMD_ENDSW},
+X  {"eval",CMD_EVAL},
+X  {"exec",CMD_EXEC},
+X  {"exit",CMD_EXIT},
+X  {"fg",CMD_FG},
+X  {"for",CMD_FOR},
+X  {"foreach",CMD_FOREACH},
+X  {"goto",CMD_GOTO},
+X  {"history",CMD_HISTORY},
+X  {"if",CMD_IF},
+X  {"inc",CMD_INC},
+X  {"input",CMD_INPUT},
+X  {"intr",CMD_INTR},
+X  {"jobs",CMD_JOBS},
+X  {"key",CMD_KEY},
+X  {"label",CMD_LABEL},
+X  {"limit",CMD_LIMIT},
+X  {"login",CMD_LOGIN},
+X  {"logout",CMD_LOGOUT},
+X  {"next",CMD_NEXT},
+X  {"nset",CMD_SET},
+X  {"protect",CMD_PROTECT},
+X  {"repeat",CMD_REPEAT},
+X  {"sclose",CMD_SCLOSE},
+X  {"secho",CMD_SECHO},
+X  {"set",CMD_SET},
+X  {"setenv",CMD_SETENV},
+X  {"shift",CMD_SHIFT},
+X  {"sopen",CMD_SOPEN},
+X  {"source",CMD_SOURCE},
+X  {"sread",CMD_SREAD},
+X  {"sseek",CMD_SSEEK},
+X  {"stop",CMD_STOP},
+X  {"switch",CMD_SWITCH},
+X  {"swrite",CMD_SWRITE},
+X  {"term",CMD_TERM},
+X  {"umask",CMD_UMASK},
+X  {"unalias",CMD_UNALIAS},
+X  {"unassign",CMD_UNASSIGN},
+X  {"unkey",CMD_UNKEY},
+X  {"unlimit",CMD_UNLIMIT},
+X  {"unset",CMD_UNSET},
+X  {"unsetenv",CMD_UNSETENV},
+X  {"until",CMD_UNTIL},
+X  {"usage",CMD_USAGE},
+X  {"version",CMD_VERSION},
+X  {"wend",CMD_WEND},
+X  {"while",CMD_WHILE}
+X};
+char *getword(), **evalwrd(), **exe(), *malloc(), *strcpy();
+extern int _maxhist, curhist, _status, _pgrp, max_ent;
+extern char **history, str[256], _loginshell, _inpipe;
+extern struct proc_tab *proc;
+extern struct set_vars **set;
+extern char buf[1025],path[1025];
+X
+char flg;
+X
+add_history(str)
+char *str;
+X{
+X  int i;
+X
+X  if ((strlen(str) == 0) || (curhist > 0 && !strcmp(str,history[curhist-1]))) return;
+X  if (curhist == _maxhist) {
+X    free(history[0]);
+X    for(i=0;i<_maxhist-1;i++) history[i] = history[i+1];
+X    curhist--;
+X  }
+X  history[curhist++] = strcpy(malloc(strlen(str)+1),str);
+X}
+X
+X/*
+X *  Parse out our line to break it up into itty-bitty words we can deal with.
+X */
+X
+char ***split_line(str)
+char *str;
+X{
+X  char ***tmp = NULL,*stmp=str, **t;
+X  int i,x = 0, y = 0, max;
+X
+X  flg = 0;
+X  tmp = (char ***)malloc(sizeof(char **) * 2);	/* # of sentences */
+X  tmp[0] = (char **)calloc(max = 3, sizeof(char *));	/* # of words in sentence */
+X
+X  buf[0] = 0;
+X  do {
+X    stmp = getword(buf,stmp);
+X    if (!*buf) continue;
+X    if (!strcmp("(",buf)) flg++;
+X    if (!strcmp(")",buf) && flg) flg--;
+X    if (buf[0] == '`') {
+X      if (!(t = (char **)exe(buf))) continue;
+X      for(i=0;t[i];i++);
+X      if (y+i >= (max-1)) tmp[x] = (char **)realloc(tmp[x],sizeof(char *) * (max=y+i+4));
+X      for (i=0;t[i];i++) tmp[x][y++] = t[i];
+X      free(t);
+X      continue;
+X    }
+X    if (!strcmp(";",buf) && !flg) {
+X      if (y == 0) continue;
+X      tmp[x++][y] = NULL;
+X      tmp = (char ***)realloc(tmp,sizeof(char **) * (x+2));
+X      y = 0;
+X      tmp[x] = (char **)malloc(sizeof(char *) * (max = 3));
+X    } else {
+X      if (y == (max-1)) tmp[x] = (char **)realloc(tmp[x],sizeof(char *) * (max+=4));
+X      tmp[x][y] = (char *)malloc(strlen(buf)+1);
+X      strcpy(tmp[x][y++],buf);
+X      if (buf[0] == '&' && (!buf[1] || buf[1] == '!') && !flg) {
+X        tmp[x++][y] = NULL;
+X	tmp = (char ***)realloc(tmp,sizeof(char **) * (x+2));
+X	y = 0;
+X	tmp[x] = (char **)malloc(sizeof(char *) * (max = 3));
+X      }
+X    }
+X  } while (*stmp);
+X  tmp[x++][y] = NULL;
+X  tmp[x] = NULL;
+X  return tmp;
+X}
+X
+char *getword(wrd,s)
+char *wrd,*s;
+X{
+X  char t=0;
+X
+X  while(*s == ' ' || *s == '\t') s++;
+X  switch (*wrd++ = *s++) {
+X    case ';':
+X    case '(':
+X    case ')':
+X      *wrd = 0;
+X      return s;
+X    case 0:
+X      return --s;
+X    case '&':
+X      if (*s == '!' || *s == '&' || *s == '=') *wrd++ = *s++;
+X      *wrd = 0;
+X      return s;
+X    case '|':
+X      if (*s == '!' || *s == '&' || *s == '|' || *s == '=') *wrd++ = *s++;
+X      *wrd = 0;
+X      return s;
+X    case '>':
+X      t = FALSE;
+X      if (*s != '=') {
+X        if (*s == '%') {
+X	  *wrd++ = *s++;
+X	  *wrd = 0;
+X	  return s;
+X	}
+X	if (*s == '>') *wrd++ = *s++;
+X	if (*s == '!' || *s == '&' || *s == '=') *wrd++ = *s++;
+X	if (*s == '%') *wrd++ = *s++;
+X      } else *wrd++ = *s++;
+X      *wrd = 0;
+X      return s;
+X    case '"':
+X    case '`':
+X    case '\'':
+X      t = *(s-1);
+X      while(*wrd = *s++) {
+X	if (*wrd == '\\') {
+X	  if (t != '`') {
+X	    switch(*s++) {
+X	      case 'e':
+X		*wrd = '\033';
+X		break;
+X	      case 'n':
+X		*wrd = '\n';
+X		break;
+X	      case 'r':
+X		*wrd = '\r';
+X		break;
+X	      case 't':
+X		*wrd = '\t';
+X		break;
+X	      case 'b':
+X		*wrd = '\b';
+X		break;
+X	      case 'a':
+X		*wrd = '\007';
+X		break;
+X	      case 'f':
+X		*wrd = '\014';
+X		break;
+X	      case '0':
+X		*wrd = 0;
+X		while (*s >= '0' && *s <= '7') {
+X		  *wrd <<= 3;
+X		  *wrd |= *s++ - '0';
+X		}
+X		if (!*wrd) --wrd;
+X		break;
+X	      case '$':
+X		if (t == '"') *wrd++ = '\\';
+X		*wrd = '$';
+X		break;
+X	      default:
+X		*wrd = *(s-1);
+X		break;
+X	    }
+X	  } else *wrd = *(s-1);
+X	}
+X	else if(*wrd == t) {
+X	  *++wrd = 0;
+X	  return s;
+X	}
+X	if (!*wrd) break;
+X	wrd++;
+X      }
+X      *wrd++ = t;
+X      *wrd = 0;
+X      return --s;
+X    case '<':
+X      if (*s == '<') *wrd++ = *s++;
+X      if (*s == '%') {
+X	*wrd++ = *s++;
+X	*wrd = 0;
+X	return s;
+X      }
+X    case '=':
+X      if (*s == '=') *wrd++ = *s++;
+X      *wrd = 0;
+X      return s;
+X    case '$':
+X      if (*s == '<') *wrd++ = *s++;
+X      break;
+X    case '#':
+X      if (!flg) {
+X	*--wrd = 0;
+X	*s = 0;
+X	return s;
+X      }
+X      break;
+X    case '!':
+X      if (*s == '=') {
+X        *wrd++ = *s++;
+X	*wrd = 0;
+X	return s;
+X      }
+X      break;
+X    case '\\':
+X      *wrd--;
+X      *wrd++ = *s++;
+X      break;
+X  }
+X  while(*wrd = *s++){
+X    switch(*wrd) {
+X      case ';':
+X      case '&':
+X      case '|':
+X      case '<':
+X      case '>':
+X      case ' ':
+X      case '(':
+X      case ')':
+X      case '\t':
+X	*wrd = 0;
+X	return --s;
+X      case '\\':
+X	*wrd = *s++;
+X	break;
+X      default:
+X	break;
+X    }
+X    wrd++;
+X  }
+X  return --s;
+X}
+X
+X/*
+X * check for builtin commands here...
+X */
+X
+parse_arg(cmd,in,inf,out,outf,outa,err,errf,erra,bg)
+char **cmd, *inf, *outf, *errf, outa, erra, bg;
+int in, out, err;
+X{
+X  int i,pid,ent;
+X  int start=0,end=MAX_CMD,mid=MAX_CMD/2,found=FALSE;
+X
+X  while(start<=end) {
+X    if (!(i = strcmp(cmd[0],cmds[mid].cmd))) {
+X      found = TRUE;
+X      break;
+X    }
+X    if (i<0) end = mid-1;
+X    else start = mid+1;
+X    mid = (start+end)/2;
+X  }
+X
+X  if (!found) return NORMAL_COMMAND;
+X
+X  pid = execute(cmds[mid].val,cmd,in,inf,out,outf,outa,err,errf,erra,bg);
+X  if (pid > 0) {
+X    ent = get_proc_ent(pid,TRUE);
+X    proc[ent].cmd = (char *)malloc(strlen(cmd[0])+1);
+X    strcpy(proc[ent].cmd,cmd[0]);
+X    printf(" [%d] (%d) %s\n",ent,pid,cmd[0]);
+X  }
+X  return SHELL_COMMAND;
+X}
+X
+free_arg(arg)
+char ***arg;
+X{
+X  int i,j;
+X  if (!arg) return;
+X  for(i=0;arg[i];i++) {
+X    for(j=0;arg[i][j];j++) free(arg[i][j]);
+X    free(arg[i]);
+X  }
+X  free(arg);
+X}
+X
+free_list(lst)
+char **lst;
+X{
+X  int i;
+X  for(i=0;lst[i];i++) free(lst[i]);
+X  free(lst);
+X}
+X
+X/*
+X * This is bad... needs to be replaced to use to the shells run2() command
+X * somehow...  probably by using shell level pipes eh?
+X */
+char **exe(cmd)
+char *cmd;
+X{
+X  char *c, *s, **t;
+X  int n,i,j,p[2];
+X  union wait status;
+X
+X  pipe(p);
+X  if ((i = fork()) < 0) return NULL;
+X  if (i) {
+X    close(p[1]);
+X    s = (char *)malloc(1025);
+X    i = 0;
+X    while((n = read(p[0],buf,1024)) > 0) {
+X      buf[n] = 0;
+X      for(j=0;j<n;j++) if (buf[j] == '\n') buf[j] = ' ';
+X      if (i) s = (char *)realloc(s,i+n+1);
+X      strcpy(s+i,buf);
+X      i += n;
+X    }
+X    s[i] = 0;
+X    close(p[0]);
+X    c = s;
+X    t = (char **)calloc(n=5,sizeof(char *));
+X    i = 0;
+X    flg = 1;
+X    do {
+X      s = getword(buf,s);
+X      if (!*buf) continue;
+X      if (i == n) t = (char **)realloc(t,sizeof(char *) * (n += 5));
+X      t[i++] = (char *)strcpy((char *)malloc(strlen(buf)+1),buf);
+X    } while (*s);
+X    if (i == n) t = (char **)realloc(t,sizeof(char *) * (++n));
+X    t[i] = NULL;
+X    free(c);
+X    wait(&status);
+X    return t;
+X  } else {
+X    _inpipe = TRUE;
+X    _pgrp = getpgrp(0);
+X    _loginshell = FALSE;
+X    for(i=0;i<max_ent;i++)
+X      if (proc[i].pid) {
+X	if (proc[i].cmd) free(proc[i].cmd);
+X	proc[i].pid = 0;
+X      }
+X    close(1);
+X    close(2);
+X    dup(p[1]);
+X    dup(p[1]);
+X    close(p[1]);
+X    c = (char *)strcpy((char *)malloc(strlen(cmd)),cmd+1);
+X    c[strlen(c)-1] = 0;
+X    run2(c);
+X    close(1);
+X    close(2);
+X    exit(_status);
+X  }
+X}
+END_OF_FILE
+if test 8680 -ne `wc -c <'parse.c'`; then
+    echo shar: \"'parse.c'\" unpacked with wrong size!
+fi
+# end of 'parse.c'
+fi
+if test ! -d 'scripts' ; then
+    echo shar: Creating directory \"'scripts'\"
+    mkdir 'scripts'
+fi
+if test -f 'shell.c' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'shell.c'\"
+else
+echo shar: Extracting \"'shell.c'\" \(10557 characters\)
+sed "s/^X//" >'shell.c' <<'END_OF_FILE'
+X/* $Copyright:	$
+X * Copyright (c) 1991,1992,1993 by Steve Baker
+X * All rights reserved
+X *  
+X * This software is provided as is without any express or implied
+X * warranties, including, without limitation, the implied warranties
+X * of merchantability and fitness for a particular purpose.
+X */
+X#include "shell.h"
+X
+char *exit_val[] = {
+X  "Done", "Hangup", "Interrupted", "Quit", "Illegal Instruction",
+X  "Trace Trap", "IOT", "EMT", "FP Exception", "Killed", "Bus Error",
+X  "Segmentation Fault", "Bad Arg", "Broken pipe", "Alarm Clock", "Terminated",
+X  0, "Stopped (signal)", "Stopped", 0, 0, "Stopped (TTY input)",
+X  "Stopped (TTY output)", 0, "CPU Time Limit Expired",
+X  "Filesize Limit Exceeded", "Virtual Time Alarm", "Profiler Timer Alarm",
+X  0, "USR 1", "USR 2"
+X};
+X
+X#ifdef NOSETENV
+X  extern char **environ;
+X#endif
+X
+void check_children(), cleanup(), *malloc();
+char *getline(),***split_line(),***parse_alias(), ***parse_wildcards();
+char ***parse_shellvars(), ***parse_assigns();
+X
+char **history, **_mailnotice = NULL, **_homedirs, **_cdpath;
+char _source = FALSE, newmail = TRUE, _insert = TRUE, _notypeahead = FALSE;
+char *_prompt, *_statline, *_home, **_mbox, **PATH, _nohup = FALSE;
+char _loginshell = FALSE, _killjobs = FALSE, _inpipe = FALSE;
+char _restricted = FALSE;
+int _maxhist = 30, curhist = 0, _joblimit = 0, _failat = 1, _mailchkint = 60;
+int _statint = 30;
+char _verbose = FALSE, _willverbose = FALSE, _interactive = TRUE;
+char _echo = FALSE, _willecho = FALSE, _noexec = FALSE, _oneline = FALSE;
+char _fast = FALSE, _terminate = FALSE, _nobgnull = FALSE, _nofork = FALSE;
+char _glob = TRUE, _nonomatch = FALSE, _nodots = FALSE;
+char _noclobber = FALSE, _noassigns = FALSE, *_sourcefile = NULL, *_term[11];
+struct timeval *_timeout = NULL, timeout;
+X
+struct _setvar *sets[37], *statvar;
+struct _alias *alias[128];
+char _glvl = 0, *_kbuf[MAX_GLVL], _kmax[MAX_GLVL];
+struct custom_keys **keys[MAX_GLVL];
+int max_ent, _pgrp, _status = 0;
+unsigned long SIGMASK = ~sigmask(SIGPIPE), TIMEON;
+struct proc_tab *proc;
+X
+char ***file;
+int fptr,err;
+X
+char buf[1025],path[1025];
+X
+main(argc,argv,env)
+int argc;
+char **argv;
+char **env;
+X{
+X  char *str,i;
+X
+X/* NeXT hack for giving us an environment we can work with. */
+X#ifdef NOSETENV
+X  char **en;
+X
+X  for(i=0;environ[i];i++);
+X  en = (char **)malloc(sizeof(char **) * i+1);
+X  for(i=0;environ[i];i++) en[i] = SCOPY(environ[i]);
+X  en[i] = NULL;
+X  environ = en;
+X#endif
+X
+X  for(i=0;i<32;i++) signal(i,SIG_IGN);
+X  signal(SIGCHLD,check_children);
+X  signal(SIGHUP,cleanup);
+X  signal(SIGSEGV,cleanup);
+X
+X  setbuf(stdin,NULL);
+X  setbuf(stdout,NULL);
+X  setbuf(stderr,NULL);
+X  TIMEON = time(0);
+X  parse_args(argc,argv);
+X  init();
+X  init_term();
+X  if (_interactive) source(GLOBAL_INIT);
+X  check_mail(TRUE);
+X  if (argv[0][0] == '-' || !strcmp(argv[0],"su")) second_pass();
+X  if (argv[0][0] == '-') {
+X    _loginshell = TRUE;
+X    sprintf(path,"%s/%s",_home,SHELL_LOGIN);
+X    source(path);
+X    load_hist();
+X  }
+X  if (!_fast) {
+X    sprintf(path,"%s/%s",_home,SHELL_INIT);
+X    source(path);
+X  }
+X
+X  if (_willverbose) makenull("verbose");
+X  if (_willecho) makenull("echo");
+X
+X  if (_interactive && _term[KS]) fputs(_term[KS],stdout);
+X  if (_sourcefile) {
+X    source(_sourcefile);
+X    exit(0);
+X  }
+X
+X  for(;;) {
+X    err = 0;
+X    str = getline();
+X    add_history(str);
+X    i = run2(str);
+X    if (_oneline) exit(0);
+X    check_mail(FALSE);
+X    if (_term[KS]) fputs(_term[KS],stdout);
+X  }
+X}
+X
+source(fil)
+char *fil;
+X{
+X  char ***arg = NULL, *str, *p, flg = TRUE;
+X  int d, i, j, nt;
+X  FILE *in, *fdopen();
+X
+X  if (fil) {
+X    if ((d = open(fil,O_RDONLY)) < 0) return -1;
+X    in = fdopen(d,"r");
+X  } else {
+X    p = _prompt;
+X    _prompt = "? ";
+X  }
+X
+X  _source = TRUE;
+X  err = fptr = j = path[1025] = 0;
+X  file = (char ***)calloc(nt=5,sizeof(char **));
+X  while(flg) {
+X    if (fil) {
+X      if (!fgets(path,1024,in)) break;
+X      i = strlen(path);
+X      if (path[i-1] == '\n') path[i-1] = 0;
+X      arg = split_line(path);
+X    } else {
+X      str = getline();
+X      arg = split_line(str);
+X    }
+X    for(i=0;arg[i];i++) {
+X      if (j == nt) file = (char ***)realloc(file,sizeof(char **) * (nt+=5));
+X      file[j++] = arg[i];
+X      if (!fil && !strcmp(arg[i][0],"exit")) flg = FALSE;
+X    }
+X    free(arg);
+X  }
+X  if (j == nt) file = (char ***)realloc(file,sizeof(char **) * (++nt));
+X  file[j] = NULL;
+X  if (fil) {
+X    fclose(in);
+X    close(d);
+X  }
+X
+X  while(file[fptr]) {
+X    run(fptr);
+X    if (err < 0) {
+X      switch (err) {
+X        case ERR_BREAK:
+X	  fprintf(stderr,"break: break outside of loop or switch.\n");
+X	  break;
+X	case ERR_CONTINUE:
+X	  fprintf(stderr,"continue: continue outside of loop.\n");
+X	  break;
+X	case ERR_GOTO:
+X	  err = 0;
+X	  break;
+X      }
+X    }
+X    if (err || badstat(_status)) break;
+X    fptr++;
+X  }
+X  _source = FALSE;
+X  free_arg(file);
+X  if (!fil) _prompt = p;
+X  return 0;
+X}
+X
+X/*
+X * This routine makes a process table entry for our process.
+X * Called by exec only, so we won't block SIGCHLD here, cause it already
+X * will be by the time it's called.
+X */
+get_proc_ent()
+X{
+X  short i,j;
+X
+X  for(i=0;i<max_ent;i++)
+X    if (proc[i].pid == 0) return i;
+X  i = max_ent;
+X  proc = (struct proc_tab *)realloc(proc,(max_ent += 2) * sizeof(struct proc_tab));
+X  for(j=i;j<max_ent;j++) proc[j].pid = 0;
+X  return i;
+X}
+X
+X/*
+X * This is surprisingly where most of the job control lies.  The rest is
+X * just waking up and stopping processes.
+X */
+void check_children()
+X{
+X  int pid,i,j,tpgrp,flg;
+X  union wait st;
+X  char tmp[40];
+X
+X  while ((pid = wait3(&st,WNOHANG | WUNTRACED,NULL)) > 0) {
+X    for(i=0;i<max_ent;i++)
+X      if (pid == proc[i].pid) {
+X	flg = TRUE;
+X	if (proc[i].bg) flg = FALSE;
+X	else if (proc[i].pipe) {
+X	  for(j=0;j<max_ent;j++)
+X	    if (j != i && proc[j].pid && proc[j].pipe == proc[i].pipe && !proc[j].status) {
+X	      flg = FALSE;
+X	      break;
+X	    }
+X	}
+X	if (WIFSTOPPED(st)) {
+X	  if (flg) tcsetpgrp(TTY,_pgrp);
+X	  switch(st.w_stopsig) {
+X	    case SIGTTIN:
+X	    case SIGTTOU:
+X	    case SIGSTOP:
+X	    case SIGTSTP:
+X	      tpgrp = tcgetpgrp(TTY);
+X	      if (tpgrp == _pgrp && (!proc[i].pipe || proc[i].pipe == proc[i].pid))
+X	        printf("\n [%d] (%d) %-30s %s\n",i,pid,exit_val[st.w_stopsig],proc[i].cmd);
+X	      proc[i].status = st.w_stopsig;
+X	      break;
+X	  }
+X	} else if (WIFEXITED(st)) {
+X	  if (flg) tcsetpgrp(TTY,_pgrp);
+X	  tpgrp = tcgetpgrp(TTY);
+X	  if (proc[i].bg && tpgrp == _pgrp && (!proc[i].pipe || proc[i].pipe == proc[i].pid))
+X	    printf("\n [%d] (%d) %-30s %s\n",i,pid,exit_val[st.w_termsig],proc[i].cmd);
+X	  _status = st.w_termsig? st.w_termsig<<8 : st.w_retcode;
+X	  proc[i].pid = 0;
+X	  free(proc[i].cmd);
+X	} else if (WIFSIGNALED(st)) {
+X	  switch(st.w_termsig) {
+X	    case SIGCONT:
+X	      proc[i].status = STAT_RUNNING;
+X	      tcsetpgrp(TTY,proc[i].pgrp);
+X	      return;
+X	    default:
+X	      if (flg) tcsetpgrp(TTY,_pgrp);
+X	      tpgrp = tcgetpgrp(TTY);
+X	      if (_pgrp == tpgrp) {
+X		sprintf(tmp,"%s%s",exit_val[st.w_termsig],(st.w_coredump?" (core dumped)":""));
+X		if (proc[i].bg && (!proc[i].pipe || proc[i].pipe == proc[i].pid))
+X		  printf("\n [%d] (%d) %-30s %s\n",i,pid,tmp,proc[i].cmd);
+X		else if (st.w_termsig) printf("%s\n",tmp);
+X	      }
+X	      proc[i].pid = 0;
+X	      free(proc[i].cmd);
+X	      _status = st.w_termsig? st.w_termsig<<8 : st.w_retcode;
+X	      break;
+X	  }
+X	}
+X      }
+X  }
+X  return;
+X}
+X
+check_mail(f)
+char f;
+X{
+X  static int i;
+X  static time_t last = 0;
+X  struct stat lbuf;
+X
+X  if (!_mbox) {
+X    newmail = FALSE;
+X    return;
+X  }
+X  if (!f && last+_mailchkint > time(0)) return;
+X  last = time(0);
+X  for(i=0;_mbox[i];i++) {
+X    stat(_mbox[i],&lbuf);
+X    if (((lbuf.st_mtime > lbuf.st_atime) && (lbuf.st_size != 0))) {
+X      if (!newmail) {
+X	if (_mailnotice) printf("\n%s",_mailnotice[0]);
+X	else printf("\nYou have new mail");
+X	if (i) printf(" in %s.\n",_mbox[i]);
+X	else puts(".");
+X	newmail = TRUE;
+X      }
+X    } else newmail = FALSE;
+X  }
+X}
+X
+X/*
+X * Called if we have an error we can't deal with. Give a very detailed
+X * error message so the user knows what's going on.
+X */
+void cleanup()
+X{
+X  printf("oops...\n");
+X  exit(0);
+X}
+X
+parse_args(n,arg)
+int n;
+char **arg;
+X{
+X  char ***tmp;
+X  int i=1,x;
+X
+X  while(arg[i]) {
+X    if (arg[i][0] == '-') {
+X      for(x=1;arg[i][x];x++) {
+X	switch(arg[i][x]) {
+X	  case 'c':			/* ignores other args */
+X	    if (!arg[i+1]) exit(1);
+X	    init();
+X	    init_term();
+X	    if (!_fast) {
+X	      sprintf(path,"%s/%s",_home,SHELL_INIT);
+X	      source(path);
+X	    }
+X	    tmp = split_line(arg[i+1]);
+X	    tmp = parse_alias(tmp);
+X	    tmp = parse_shellvars(tmp);
+X	    if (!_noassigns) tmp = parse_assigns(tmp);
+X	    if (_glob) tmp = parse_wildcards(tmp);
+X	    for(x=0;tmp[x];x++) {
+X	      EXEC(tmp[x]);
+X	      pwait();
+X	    }
+X	    exit(0);
+X	  case 'e':
+X	    _terminate = TRUE;		/* only when sourcing! */
+X	    break;
+X	  case 'f':
+X	    _fast = TRUE;
+X	    break;
+X	  case 'i':
+X	    _interactive = TRUE;	/* redundant */
+X	    break;
+X	  case 'n':
+X	    _noexec = TRUE;
+X	    break;
+X	  case 's':
+X	    _interactive = FALSE;
+X	    break;
+X	  case 't':
+X	    _oneline = TRUE;
+X	    break;
+X	  case 'v':
+X	    _willverbose = TRUE;
+X	    break;
+X	  case 'V':
+X	    _verbose = TRUE;
+X	    break;
+X	  case 'x':
+X	    _willecho = TRUE;
+X	    break;
+X	  case 'X':
+X	    _echo = TRUE;
+X	    break;
+X	}
+X      }
+X    } else {
+X      if (_sourcefile) {
+X        fprintf(stderr,"ssh: Too many arguments\n");
+X	exit(1);
+X      }
+X      _sourcefile = arg[i];
+X    }
+X    i++;
+X  }
+X}
+X
+run(line)
+int line;
+X{
+X  char **arg;
+X  int i;
+X
+X  if (_verbose) {
+X    for(i=0;file[line][i];i++) {
+X      fputs(file[line][i],stdout);
+X      if (file[line][i+1]) fputc(' ',stdout);
+X    }
+X    fputc('\n',stdout);
+X  } else for(i=0;file[line][i];i++);
+X  arg = (char **)malloc(sizeof(char *) * (i+1));
+X  for(i=0;file[line][i];i++)
+X    arg[i] = (char *)strcpy(malloc(strlen(file[line][i])+1),file[line][i]);
+X  arg[i] = NULL;
+X
+X  arg = (char **)exchange_alias(arg);
+X  arg = (char **)evalvars(arg);
+X  if (!_noassigns) arg = (char **)eval_assigns(arg);
+X  if (_glob) arg = (char **)match_wildcards(arg);
+X  EXEC(arg);
+X  pwait();
+X  statvar->sv.val = _status;
+X  free_list(arg);
+X  return 0;
+X}
+X
+run2(s)
+char *s;
+X{
+X  char ***arg;
+X  int i;
+X
+X  if (_verbose) puts(s);
+X  arg = split_line(s);
+X  arg = parse_alias(arg);
+X  arg = parse_shellvars(arg);
+X  if (!_noassigns) arg = parse_assigns(arg);
+X  if (_glob) arg = parse_wildcards(arg);
+X  if (err) {
+X    free_arg(arg);
+X    statvar->sv.val = _status = err;
+X    return -1;
+X  }
+X  if (arg[0][0] == NULL) {
+X    free_arg(arg);
+X    return -1;
+X  }
+X  for(i=0;arg[i];i++) {
+X    EXEC(arg[i]);
+X    pwait();
+X    statvar->sv.val = _status;
+X    if (badstat(_status)) {
+X      free_arg(arg);
+X      return -1;
+X    }
+X  }
+X  free_arg(arg);
+X  return 0;
+X}
+END_OF_FILE
+if test 10557 -ne `wc -c <'shell.c'`; then
+    echo shar: \"'shell.c'\" unpacked with wrong size!
+fi
+# end of 'shell.c'
+fi
+if test -f 'shell.h' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'shell.h'\"
+else
+echo shar: Extracting \"'shell.h'\" \(2911 characters\)
+sed "s/^X//" >'shell.h' <<'END_OF_FILE'
+X/* $Copyright:	$
+X * Copyright (c) 1991,1992,1993 by Steve Baker
+X * All rights reserved
+X *  
+X * This software is provided as is without any express or implied
+X * warranties, including, without limitation, the implied warranties
+X * of merchantability and fitness for a particular purpose.
+X */
+X#ifdef DEBUG
+X#include "mem/mem.h"
+X#endif DEBUG
+X
+X#include <stdio.h>
+X#include <signal.h>
+X#include <ctype.h>
+X#include <sys/ioctl.h>
+X#include <sys/wait.h>
+X#include <sys/time.h>
+X#include <sys/resource.h>
+X#include <sys/file.h>
+X#include <sys/types.h>
+X#include <sys/stat.h>
+X
+X#define BYTE		unsigned char
+X#define WORD		unsigned short
+X#define LONG		unsigned long
+X#define GLOBAL_INIT	"/etc/.sshrc"
+X#define SHELL_LOGIN	".login"
+X#define SHELL_INIT	".sshrc"
+X#define SHELL_EXIT	".logout"
+X#define HIST_SAVE	".hist"
+X#define SECOND_PASS	".second"
+X#define WARNING		".warning"
+X#define NULL_DEV	"/dev/null"
+X
+X#define SHELL_COMMAND	1
+X#define NORMAL_COMMAND	0
+X#define TTY		0
+X#define TRUE		1
+X#define FALSE		0
+X
+X#define ERR_NO_USER	1
+X#define ERR_NO_MATCH	2
+X#define ERR_BREAK	-1
+X#define ERR_CONTINUE	-2
+X#define ERR_GOTO	-3
+X#define ERR_EXIT	-4
+X
+X#define RET_MASK	0x00FF
+X#define TERM_MASK	0xFF00
+X
+X#ifndef sigmask
+X#define sigmask(x)	(1<<(x))
+X#endif
+X
+X#define calloc(x,y)	malloc((x)*(y))
+X#define	_ret(x)		((x)&RET_MASK)
+X#define _trm(x)		(((x)&TERM_MASK)>>8)
+X#define badstat(x)	((x) && ((_ret(x)>=_failat) || (_trm(x) && (SIGMASK&sigmask(_trm(x))))))
+X#define SCOPY(x)	((char *)strcpy((char *)malloc(strlen(x)+1),(x)))
+X
+enum {SO,SE,CE,KS,KE,DC,IC,DS,TS,FS,HS};
+X
+X#define T_STRING	0
+X#define T_INTEGER	1
+X#define T_NULL		2
+X
+union setval {
+X  long val;
+X  char **wrd;
+X};
+X
+struct _setvar {
+X  char *var;
+X  struct _setvar *nxt;
+X  union setval sv;
+X  WORD nwrds;
+X  BYTE protect : 1;	/* 1 = Cannot change or remove this variable */
+X  BYTE type    : 2;	/* 0 = string, 1 = numeric, 2 = null var */
+X};
+X
+struct _alias {
+X  char *cmd;
+X  char **wrd;
+X  struct _alias *nxt;
+X};
+X
+struct _proc {
+X  char *name;
+X  char ***cmd;
+X  struct _proc *nxt;
+X};
+X
+X#define MAX_GLVL	10
+struct custom_keys {
+X  char *key;
+X  char *cmd;
+X  BYTE clr  : 1;	/* clear line? */
+X  BYTE rtn  : 1;	/* auto-execute line? */
+X  BYTE gold : 1;	/* gold key? */
+X  BYTE glvl : 4;	/* level that gold key goes to */
+X  BYTE func : 5;	/* function key? */
+X};
+X
+X#define STAT_RUNNING	0
+X
+struct proc_tab {
+X  char *cmd;
+X  WORD pid;
+X  WORD pgrp;
+X  WORD pipe;
+X  BYTE status : 7;
+X  BYTE bg     : 1;
+X};
+X
+X#ifndef __bsdi__
+struct dirent {
+X  struct dirent *next;
+X  char *entry;
+X};
+X#endif
+X
+X#ifdef CANNOT_ALLOCA
+X#define ALLOCA(x)   malloc(x)
+X#define FREEA(x)    free(x)
+X#else CAN_ALLOCA
+X#define ALLOCA(x)   alloca(x)
+X#define FREEA(x)    /* automatically freed */
+X#endif CAN_ALLOCA
+X
+X#define MAX_FILES	10
+X
+struct _FILES {
+X  char *name;
+X  char *file;
+X  BYTE read : 1;
+X  BYTE write : 1;
+X  BYTE ispipe : 1;
+X  BYTE pread : 1;	/* Pipes need to have only one writer period */
+X  BYTE pwrite : 1;
+X  char pipe;	/* Temp for pipes */
+X  char desc;
+X};
+END_OF_FILE
+if test 2911 -ne `wc -c <'shell.h'`; then
+    echo shar: \"'shell.h'\" unpacked with wrong size!
+fi
+# end of 'shell.h'
+fi
+if test -f 'stat.c' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'stat.c'\"
+else
+echo shar: Extracting \"'stat.c'\" \(5124 characters\)
+sed "s/^X//" >'stat.c' <<'END_OF_FILE'
+X/* $Copyright:	$
+X * Copyright (c) 1991,1992,1993 by Steve Baker
+X * All rights reserved
+X *  
+X * This software is provided as is without any express or implied
+X * warranties, including, without limitation, the implied warranties
+X * of merchantability and fitness for a particular purpose.
+X */
+X#include <sys/types.h>
+X#include <utmp.h>
+X#include <pwd.h>
+X#include "shell.h"
+X
+char *getnjobs(), **getusers(), *gettime();
+X
+extern struct proc_tab *proc;
+extern int max_ent;
+extern char newmail, **_mailnotice, *_home, **_homedirs, *_term[11];
+extern char buf[1024], path[1024];
+extern long TIMEON;
+X
+static int p, a, pmax,amax;
+X
+char *pline(s,m,n)
+char *s;
+short m,n;
+X{
+X  static char *tc[12] = {"SO","SE","CE","KS","KE","DC","IC","DS","TC","FS","HS",0};
+X  int i, j, users = 0;
+X  char *jobs = NULL;
+X  char **user = NULL;
+X  char *t;
+X
+X  amax = m > 1023? 1023 : m;
+X  pmax = n > 1023? 1023 : n;
+X
+X  p = a = 0;
+X  do {
+X    if (*s == '%') {
+X      if (isupper(*(s+1)) && isupper(*(s+2))) {
+X        j = FALSE;
+X	path[0] = *(s+1);
+X	path[1] = *(s+2);
+X	path[2] = 0;
+X	for(i=0;tc[i];i++)
+X	  if (!strcmp(path,tc[i])) {
+X	    insert(_term[i]);
+X	    s += 2;
+X	    j = TRUE;
+X	    break;
+X	  }
+X	if (j) continue;
+X      }
+X      switch(*++s) {
+X	case 't':
+X	  insert(gettime(0));
+X	  break;
+X	case 'w':
+X	  insert(gettime(1));
+X	  break;
+X	case 'd':
+X	  insert(gettime(2));
+X	  break;
+X	case 'm':
+X	  insert(gettime(3));
+X	  break;
+X	case 'y':
+X	  insert(gettime(4));
+X	  break;
+X	case 'M':
+X	  insert(gettime(5));
+X	  break;
+X	case 'T':
+X	  i = time(0) - TIMEON;
+X	  sprintf(path,"%d:%02d",i/3600,(i%3600)/60);
+X	  insert(path);
+X	  break;
+X	case 'j':
+X	  if (!jobs) jobs = getnjobs();
+X	  insert(jobs);
+X	  break;
+X	case '~':
+X	  getwd(path);
+X	  j = strlen(_home);
+X	  if (!strncmp(_home,path,j)) {
+X	    insert("~");
+X	    if (strlen(path) == j) break;
+X	    insert(path+j);
+X	    break;
+X	  }
+X	  for(i=0;_homedirs[i];i++) {
+X	    j = strlen(_homedirs[i]);
+X	    if (!strncmp(_homedirs[i],path,j)) {
+X	      if (strlen(path) == j) continue;
+X	      insert("~");
+X	      insert(path+j+(_homedirs[i][j-1]=='/'?0:1));
+X	      break;
+X	    }
+X	  }
+X	  if (!_homedirs[i]) insert(path);
+X	  break;
+X	case 'p':
+X	  getwd(path);
+X	  insert(path);
+X	  break;
+X	case 'P':
+X	  getwd(path);
+X	  for(i=strlen(path);i>=0 && path[i] != '/'; i--);
+X	  insert(path+i+1);
+X	  break;
+X	case 'u':
+X	  if (!users) user = getusers(&users);
+X	  sprintf(path,"%d",users);
+X	  insert(path);
+X	  break;
+X	case 'U':
+X	  if (!user) user = getusers(&users);
+X	  for(i=0;user[i];i++) insert(user[i]);
+X	  break;
+X	case 'l':
+X	  t = (char *)getenv("USER");
+X	  if (!users) user = getusers(&users);
+X	  for(i=j=0;user[i];i++) if (!strncmp(user[i],t,strlen(user[i])-1)) j++;
+X	  free(t);
+X	  sprintf(path,"%d",j);
+X	  insert(path);
+X	  break;
+X	case 'n':
+X	  if (newmail){
+X	    if (_mailnotice) {
+X	      if (_mailnotice[1]) insert(_mailnotice[1]);
+X	      else insert(" New mail ");
+X	    } else insert(" New mail ");
+X	  }
+X	  break;
+X	case 'i':
+X	  for(i=0;_term[SO][i];i++) buf[p++] = _term[SO][i];
+X	  break;
+X	case 'I':
+X	  for(i=0;_term[SE][i];i++) buf[p++] = _term[SE][i];
+X	  break;
+X	case '%':
+X	  buf[p++] = '%';
+X	  a++;
+X	  break;
+X	default:
+X	  buf[p++] = '%';
+X	  buf[p++] = *s;
+X	  a += 2;
+X	  break;
+X      }
+X    } else {
+X      buf[p++] = *s;
+X      a++;
+X    }
+X  } while (*s++ && a < amax && p < pmax);
+X  if (p > pmax) p = pmax;
+X  buf[p] = 0;
+X  if (user) {
+X    for(i=0;user[i];i++) free(user[i]);
+X    free(user);
+X  }
+X  return buf;
+X}
+X
+char *gettime(fmt)
+char fmt;
+X{
+X  time_t tp;
+X  struct tm *ti;
+X  static char str[30];
+X  static char *month[12] = {"Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"};
+X  static char *day[7] = {"Sun","Mon","Tue","Wed","Thu","Fri","Sat"};
+X
+X  time(&tp);
+X  ti = localtime(&tp);
+X  switch(fmt) {
+X    case 0:
+X      sprintf(str,"%d:%02d %s",(ti->tm_hour>12?ti->tm_hour-12:ti->tm_hour),ti->tm_min,(ti->tm_hour>11?"pm":"am"));
+X      break;
+X    case 1:
+X      sprintf(str,"%s",day[ti->tm_wday]);
+X      break;
+X    case 2:
+X      sprintf(str,"%d",ti->tm_mday);
+X      break;
+X    case 3:
+X      sprintf(str,"%s",month[ti->tm_mon]);
+X      break;
+X    case 4:
+X      sprintf(str,"%d",1900+ti->tm_year);
+X      break;
+X    case 5:
+X      sprintf(str,"%d:%02d",ti->tm_hour,ti->tm_min);
+X      break;
+X  }
+X  return str;
+X}
+X
+char **getusers(nusers)
+int *nusers;
+X{
+X  char **users = (char **)malloc(sizeof(char *));
+X  int fd;
+X  struct utmp utmp;
+X
+X  fd=open("/etc/utmp",O_RDONLY);
+X  for (;;) {
+X    if(read(fd,&utmp,sizeof(utmp)) <= 0) {
+X      close(fd);
+X      users[*nusers] = NULL;
+X      users[*nusers-1][strlen(users[*nusers-1])-1] = 0;
+X      return users;
+X    }
+X    if(utmp.ut_name[0] == '\0') continue;
+X    users = (char **)realloc(users, sizeof(char *) * (*nusers + 2));
+X    users[*nusers] = (char *)malloc(strlen(utmp.ut_name)+2);
+X    strcpy(users[*nusers],utmp.ut_name);
+X    strcat(users[*nusers]," ");
+X    *nusers += 1;
+X  }
+X}
+X
+char *getnjobs()
+X{
+X  unsigned long mask;
+X  int i,j = 0;
+X  char tmp[4];
+X
+X  mask = sigblock(sigmask(SIGCHLD));
+X  for(i=0;i<max_ent;i++) if (proc[i].pid) j++;
+X  sigsetmask(mask);
+X  sprintf(tmp,"%d",j);
+X  return tmp;
+X}
+X
+insert(str)
+char *str;
+X{
+X  while(*str && a < amax && p < pmax) {
+X    buf[p++] = *str++;
+X    a++;
+X  }
+X}
+END_OF_FILE
+if test 5124 -ne `wc -c <'stat.c'`; then
+    echo shar: \"'stat.c'\" unpacked with wrong size!
+fi
+# end of 'stat.c'
+fi
+if test -f 'wc.c' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'wc.c'\"
+else
+echo shar: Extracting \"'wc.c'\" \(10859 characters\)
+sed "s/^X//" >'wc.c' <<'END_OF_FILE'
+X/* $Copyright:	$
+X * Copyright (c) 1991,1992,1993 by Thomas Moore and Steve Baker
+X * All rights reserved
+X *
+X * This software is provided as is without any express or implied
+X * warranties, including, without limitation, the implied warranties
+X * of merchantability and fitness for a particular purpose.
+X */
+X
+X/* Main entry points:
+X *
+X * parse_wildcards()  -- substitute all wildcards in entire command line
+X * match_wildcards()  -- substitute all wildcards in arglist
+X * isregex()          -- check if string contains ~ or {[*?
+X * dirget()           -- replace one wildcard in arglist
+X * patmatch()         -- check if string matches wildcard
+X */
+X
+X#include "shell.h"
+X#include <sys/types.h>
+X#include <sys/dir.h>
+X#include <pwd.h>
+X
+extern int err;
+char *errstr,*erru;
+X
+extern char _nonomatch;	  /* TRUE: don't crash on no match */
+extern char _nodots;	  /* TRUE: don't include dot-files in search unless explicit */
+extern char *_home;	  /* contains the name of user's home dir */
+X
+void *malloc();
+char **dirget(), **_dirget();
+char *index(),*strcat();
+X
+char ***parse_wildcards(), **match_wildcards(), **insertelt(), **delelt();
+X
+static struct stat ST;
+X
+char ***parse_wildcards(arg)
+char ***arg;
+X{
+X  int i;
+X
+X  for(i=0;arg[i];i++)
+X    arg[i] = (char **)match_wildcards(arg[i]);
+X  return (char ***)arg;
+X}
+X
+char **match_wildcards(arg)
+char **arg;
+X{
+X  int i,j,cnt,lvl=0,match=2,k;
+X  char *p;
+X
+X  for(cnt = 0;arg[cnt];cnt++);
+X  for(i=0;arg[i];i++) {
+X    if (arg[i][0] == '(') lvl++;
+X    if (arg[i][0] == ')') lvl--;
+X    if (!err && !lvl && (j=isregex(arg[i]))) {
+X      k = cnt;
+X      p = arg[i];
+X      arg = dirget(p,arg,&cnt,i,NULL,j==1,0);
+X      if(k<=cnt){ /* the pattern was replaced */
+X	if(!match)
+X	  free(errstr);
+X	match = 1;
+X	free(p);
+X      }
+X      else {
+X	if(_nonomatch){
+X	  j = i - 1;
+X	  arg = insertelt(arg,p,i,&j,&cnt);
+X	}
+X	else {
+X	  if(match == 2){
+X	    errstr = p;
+X	    match = 0;
+X	  }
+X	  else
+X	    free(p);
+X	}
+X      }
+X      i += (cnt-k);
+X    }
+X  }
+X  if(err == ERR_NO_USER) {
+X    fprintf(stderr,"No such user: %s.\n",erru);
+X    free(erru);
+X  } else if(!match && !_nonomatch){
+X    err = ERR_NO_MATCH;
+X    fprintf(stderr,"No match: %s.\n",errstr);
+X  }
+X  if(!match)
+X    free(errstr);
+X  return arg;
+X}
+X
+X/****************************************************************/
+X
+isregex(s)
+char *s;
+X{
+X  int r= 0;
+X
+X  if (*s == '"' || *s == '\'' || *s == '$') return FALSE;
+X  if (*s == '~') r = 1;
+X  while(*s) {
+X    switch(*s++) {
+X      case '*':
+X      case '[':
+X      case '?':
+X      case '{':
+X	return 2;
+X      case '\\':
+X	if(*s)
+X	  s++;
+X    }
+X  }
+X  return r;
+X}
+X
+X/****************************************************************/
+X
+X/*  handle { both here and in patmatch so that dirs are handled here and
+X    patmatch still handles {}
+X
+X    Handling {^..} was considered at length.
+X    Several options were available:
+X    a) assume {^a/b} meant a/{^b} (as in AmigaDOS)
+X    b) use same procedure as patmatch
+X    c) assume {^a/b} meant {^a}/{^b} (gad...)
+X
+X    Due to the complexity of implementing a) and c), I decided to let
+X    the user do the {^} replacements for those cases himself.  Therefore
+X    '/' is not really handled in {^} (or in [] and [^], for that matter)
+X*/
+X
+char **dirget(pat,argarray,arglen,reppos,_repend,just_tilde,wc)
+char *pat, **argarray,just_tilde,wc;
+int *arglen, *_repend;
+X{
+X  int pl,nl,mpl = 0,al;
+X  char *moreloc = NULL,*stmp,*tp,*ne,*path = NULL,*n=NULL;
+X  struct passwd *pass = NULL;
+X  int repend = reppos;
+X
+X  if(!_repend) {
+X    _repend = &repend;
+X    delelt(argarray,reppos,_repend,arglen);
+X  }
+X  if(!just_tilde) {
+X    for(n=pat;*n && *n != '{';n++)
+X      if(*n == '\\' && n[1])
+X	n++;
+X    if(!*n || n[1] == '^')
+X      n = NULL;
+X  }
+X  if(al = !n && *pat == '~') {
+X    if(moreloc = index(pat,'/'))
+X      *moreloc = 0;
+X    if(isregex(pat+1) != 2) {
+X      n = (char *)malloc(strlen(pat));
+X      for(stmp=n,ne=pat+1;*ne;ne++,stmp++) {
+X	if(*ne == '\\') { /* get rid of backslashes */
+X	  if(*stmp = ne[1])
+X	    ne++;
+X	} else
+X	  *stmp = *ne;
+X      }
+X      *stmp = 0;
+X      if(*n) {
+X	if(!(pass=getpwnam(n))) {
+X	  if(wc) {
+X	    free(n);
+X	    return argarray;
+X	  }
+X	  erru = n;
+X	  err = ERR_NO_USER;
+X	  return argarray;
+X	}
+X	free(n);
+X	n = pass->pw_dir;
+X      } else {
+X	free(n);
+X	n = _home;
+X      }
+X      pl = strlen(n);
+X      if(just_tilde){
+X	mpl = pl > 1 || *stmp != '/'; /* home != root dir */
+X	/* if root dir, delete excess '/' */
+X	nl = moreloc?strlen(moreloc+1)+mpl:0;
+X	stmp = (char *)malloc(pl + 1 + nl);
+X	strcpy(stmp,n);
+X	if(moreloc) {
+X	  if(mpl)
+X	    stmp[pl] = '/';
+X	  strcpy(stmp+pl+mpl,moreloc+1);
+X	}
+X	if(!wc || !al)
+X	  argarray = insertelt(argarray,stmp,reppos,_repend,arglen);
+X	else {
+X	  argarray = _dirget(stmp+1,"/",argarray,arglen,reppos,_repend);
+X	  free(stmp);
+X	}
+X	if(moreloc)
+X	  *moreloc = '/';
+X	return argarray;
+X      } else { /* moreloc must != NULL */
+X	*moreloc = '/';
+X	pat = moreloc+1;
+X	path = (char *)ALLOCA(pl+2);
+X	strcpy(path,n);
+X	if(pl>1 || *path != '/'){
+X	  path[pl+1] = 0;
+X	  path[pl] = '/';
+X	}
+X      }
+X    } else {
+X      nl = strlen(moreloc+1);
+X      setpwent();
+X      for(pass=getpwent();pass;pass=getpwent()) {
+X	if(!patmatch(pass->pw_name,pat+1))
+X	   continue;
+X	n = pass->pw_dir;
+X	pl = strlen(n);
+X	if(moreloc && n[pl-1] == '/')
+X	   pl--;
+X	n = (char *)malloc(pl+2);
+X	bcopy(pass->pw_dir,n,pl);
+X	if(moreloc) {
+X	  n[pl++] = '/';
+X	}
+X	n[pl] = 0;
+X	if(moreloc && moreloc[1]) {
+X	  argarray = _dirget(moreloc+1,n,argarray,arglen,reppos,_repend); /* was pat+1 as 1st arg */
+X	  free(n);
+X	} else
+X	  argarray = insertelt(argarray,n,reppos,_repend,arglen);
+X      }
+X      endpwent();
+X      if(moreloc)
+X	*moreloc = '/';
+X      return argarray;
+X    }
+X  } else {
+X    if(n) {
+X      nl = n-pat;
+X      moreloc = ++n;
+X      for(pl=0;(*moreloc != '}' || pl) && *moreloc;moreloc++){
+X	if(*moreloc == '{') pl++;
+X	if(*moreloc == '}') pl--;
+X	if(*moreloc == '\\' && moreloc[1]) moreloc++;
+X      }
+X      if(!*moreloc++)
+X	return argarray;
+X      al = moreloc - n - 1;
+X      tp = stmp = (char *)ALLOCA(al+1);
+X      bcopy(n,stmp,al);
+X      stmp[al] = 0;
+X      mpl = strlen(moreloc);
+X      n = (char *)ALLOCA(nl+mpl+al+1);
+X      bcopy(pat,n,nl);
+X      while(*stmp){
+X	for(pl=al=0;(stmp[al] != ',' || pl) && stmp[al];al++){
+X	  if(stmp[al] == '{') pl++;
+X	  if(stmp[al] == '}') pl--;
+X	  if(*stmp == '\\' && stmp[1]) stmp++;
+X	}
+X	bcopy(stmp,n+nl,al);
+X	bcopy(moreloc,n+al+nl,mpl);
+X	n[al+mpl+nl] = 0;
+X	if(!(just_tilde = isregex(n)) && !wc) {
+X	  ne = (char *)malloc(strlen(n)+1);
+X	  strcpy(ne,n);
+X	  argarray = insertelt(argarray,ne,reppos,_repend,arglen);
+X	}
+X	else
+X	    argarray = dirget(n,argarray,arglen,reppos,_repend,just_tilde==1,1);
+X	if(*(stmp += al))
+X	  stmp++;
+X      }
+X      FREEA(tp);
+X      FREEA(n);
+X      return argarray;
+X    }
+X    if(*pat == '/') {
+X      path = "/";
+X      pat++;
+X    } else path = "";
+X  }
+X  argarray = _dirget(pat,path,argarray,arglen,reppos,_repend);
+X  if(al)
+X    FREEA(path);
+X  return argarray;
+X}
+X
+char **_dirget(pat,path,argarray,arglen,repstart,repend)
+char *pat,*path,**argarray;
+int *arglen,*repend;
+X{
+X  DIR *curdir;
+X  struct direct *curent;
+X  int pl,nl,mpl = 0;
+X  char *moreloc,*stmp,*n;
+X
+X  if(moreloc = index(pat,'/'))
+X    *moreloc++ = 0;
+X  if(!(curdir = opendir(path))){
+X    if(moreloc)
+X      *--moreloc = '/';
+X    return argarray;
+X  }
+X  if(*pat != '.' || (pat[1]&&pat[1] != '.'||pat[2])){
+X    readdir(curdir);
+X    readdir(curdir);
+X  }
+X  while(curent = readdir(curdir)){
+X    n = curent->d_name;
+X    if((*n != '.' || *pat == '.' || !_nodots) && patmatch(n,pat)) {
+X      pl = strlen(path);
+X      nl = strlen(n);
+X      if(moreloc) {
+X	if(pl+nl+2 > mpl){
+X	  if(mpl)
+X	    FREEA(stmp);
+X	  mpl = ((pl+nl+6)/5)*5;
+X	  stmp = (char *)ALLOCA(mpl);
+X	}
+X	strcpy(stmp,path);
+X	strcpy(stmp+pl,n);
+X	stat(stmp,&ST);
+X	if((ST.st_mode&S_IFMT) == S_IFDIR){/* || (ST.st_mode&S_IFMT) == S_IFLNK){*/
+X	  strcpy(stmp+pl+nl,"/");
+X	  if(!*moreloc)
+X	    argarray = insertelt(argarray,(char *)strcpy(malloc(pl+nl+2),stmp),repstart,repend,arglen);
+X	  else
+X	    argarray = _dirget(moreloc,stmp,argarray,arglen,repstart,repend);
+X	}
+X      }
+X      else{
+X	stmp = (char *)malloc(pl+nl+1);
+X	strcpy(stmp,path);
+X	strcpy(stmp+pl,n);
+X	argarray = insertelt(argarray,stmp,repstart,repend,arglen);
+X      }
+X    }
+X  }
+X  if(moreloc){
+X    *--moreloc = '/';
+X    if(mpl)
+X      FREEA(stmp);
+X  }
+X  closedir(curdir);
+X  return argarray;
+X}
+X
+char **insertelt(argarray,p,s,repend,cnt)
+char **argarray;
+char *p;
+int *repend,*cnt;
+X{
+X  int m,c,e = *repend;
+X
+X  if(s>e){
+X    c = 0;
+X    m = s;
+X  }
+X  else
+X    while(s<=e){
+X      m = (s + e) >> 1;
+X      c = strcmp(p,argarray[m]);
+X      if(!c){
+X	free(p);
+X	return argarray;
+X      }
+X      if(c<0)
+X	e = m - 1;
+X      else
+X	s = m + 1;
+X    }
+X  if(c>0)
+X    m++;
+X  (*cnt)++;
+X  (*repend)++;
+X  if(!(*cnt%5))
+X    argarray = (char **)realloc(argarray,(*cnt+5)*sizeof(*argarray));
+X  for(s = *cnt;s>m;s--)
+X    argarray[s] = argarray[s-1];
+X  argarray[m] = p;
+X  return argarray;
+X}
+X
+X
+char **delelt(argarray,m,repend,cnt)
+char **argarray;
+int *repend,*cnt;
+X{
+X  int e = *repend;
+X
+X  if(m>e)
+X    return NULL;
+X  (*cnt)--;
+X  (*repend)--;
+X  e = *cnt;
+X  for(;m<=e;m++)
+X    argarray[m] = argarray[m+1];
+X  if(*cnt%5== 4)
+X    argarray = (char **)realloc(argarray,(*cnt+1)*sizeof(*argarray));
+X  return argarray;
+X}
+X
+X/****************************************************************/
+X
+patmatch(buf,pat)
+char *buf,*pat;
+X{
+X  int match = 1,m,n,l,tm;
+X  char *p,*t,*tp;
+X
+X  while(*pat && match) {
+X    switch(*pat) {
+X      case '[':
+X	pat++;
+X	if(*pat != '^') {
+X	  n = 1;
+X	  match = 0;
+X	} else {
+X	  pat++;
+X	  n = 0;
+X	}
+X	while(*pat != ']'){
+X	  if(*pat == '\\') pat++;
+X	  if(!*pat /* || *pat == '/' */ ) return -1;
+X	  if(pat[1] == '-'){
+X	    m = *pat;
+X	    pat += 2;
+X	    if(*pat == '\\' && *pat)
+X		pat++;
+X	    if(*buf >= m && *buf <= *pat)
+X		match = n;
+X	    if(!*pat)
+X		pat--;
+X	  } else if(*buf == *pat) match = n;
+X	  pat++;
+X	}
+X	buf++;
+X	break;
+X      case '{':
+X	p = ++pat;
+X	if(*p == '^'){
+X	  p = ++pat;
+X	  tm = 0;
+X	} else tm = 1;
+X	n = l = 0;
+X	while((*pat != '}' || l) && *pat){
+X	  if(*pat == '{') l++;
+X	  if(*pat == '}') l--;
+X	  n++;
+X	  pat++;
+X	}
+X	if(!*pat++)
+X	  return -1;
+X	t = (char *)ALLOCA(n+1);
+X	bcopy(p,t,n);
+X	t[n] = 0;
+X	tp = t;
+X	m = strlen(pat);
+X	n += !m; /* if no chars to match, make sure there's room for a '*' */
+X	p = (char *)ALLOCA(m+n+1);
+X	while(*t){
+X	  for(n=0;(t[n] != ',' || l) && t[n];n++){
+X	    if(t[n] == '{') l++;
+X	    if(t[n] == '}') l--;
+X	  }
+X	  bcopy(t,p,n);
+X	  bcopy(pat,p+n,m);
+X	  p[n+m] = 0;
+X	  if(patmatch(buf,p)){
+X	    FREEA(p);
+X	    FREEA(tp);
+X	    return tm;
+X	  }
+X	  if(*(t += n))
+X	    t++;
+X	}
+X	FREEA(tp);
+X	if(tm ^= 1){
+X	  *p = '*';
+X	  bcopy(pat,p+1,m);
+X	  p[m+1] = 0;
+X	  tm = patmatch(buf,p);
+X	}
+X	FREEA(p);
+X	return tm;
+X      case '*':
+X	pat++;
+X	if(!*pat) return 1;
+X	while(*buf && !(match = patmatch(buf++,pat)));
+X	return match;
+X      case '?':
+X	if(!*buf) return 0;
+X	buf++;
+X	break;
+X      case '\\':
+X	if(*pat)
+X	    pat++;
+X      default:
+X	match = (*buf++ == *pat);
+X	break;
+X    }
+X    pat++;
+X    if(match<1) return match;
+X  }
+X  if(!*buf) return match;
+X  return 0;
+X}
+X
+END_OF_FILE
+if test 10859 -ne `wc -c <'wc.c'`; then
+    echo shar: \"'wc.c'\" unpacked with wrong size!
+fi
+# end of 'wc.c'
+fi
+echo shar: End of archive 1 \(of 4\).
+cp /dev/null ark1isdone
+MISSING=""
+for I in 1 2 3 4 ; do
+    if test ! -f ark${I}isdone ; then
+	MISSING="${MISSING} ${I}"
+    fi
+done
+if test "${MISSING}" = "" ; then
+    echo You have unpacked all 4 archives.
+    rm -f ark[1-9]isdone
+else
+    echo You still need to unpack the following archives:
+    echo "        " ${MISSING}
+fi
+##  End of shell archive.
+exit 0

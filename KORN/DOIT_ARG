@@ -1,0 +1,15 @@
+#!/bin/ksh
+# Usage: doit [args]
+
+while (( $# > 0 ))
+	 do
+print $*
+shift
+done
+	(The Command Line)
+	$ doit a b c d e
+	a b c d e
+	b c d e
+	c d e
+	d e
+	e 

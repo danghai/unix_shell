@@ -1,0 +1,90 @@
+Shell Version 2.2	CHANGES				December 1993
+
+ MS-DOS SHELL - Copyright (c) 1990,3 Data Logic Limited and Charles Forsyth
+
+ This code is based on (in part) the shell program written by Charles
+ Forsyth and is subject to the following copyright restrictions:
+
+ 1.  Redistribution and use in source and binary forms are permitted
+     provided that the above copyright notice is duplicated in the
+     source form and the copyright notice in file sh6.c is displayed
+     on entry to the program.
+
+ 2.  The sources (or parts thereof) or objects generated from the
+     sources (or parts of sources) cannot be sold under any circumstances.
+
+    $Header: /usr/users/istewart/shell/sh2.3/Release/RCS/Changes,v 2.2 1993/12/03 13:32:52 istewart Exp $
+
+    $Log: Changes,v $
+	Revision 2.2  1993/12/03  13:32:52  istewart
+	Release 2.2
+
+	Revision 2.1  1992/12/14  11:13:55  istewart
+	BETA 215 Fixes and 2.1 Release
+
+	Revision 2.0  1992/04/13  17:40:33  Ian_Stewartson
+	MS-Shell 2.0 Baseline release
+
+	
+________________________________________________________________________________
+
+We have standardised our MSDOS and Unix include files such that the same
+include file exists our Unix system and MSDOS systems.  This makes porting
+a lot easier.  If you don't want to edit the standard include files, you will
+have to generate an new include file for the shell and include it as the first
+include in all the C sources for the additional library functions and the
+Shell itself.
+
+These are the changes to the Microsoft C 5.1 and 6.0 include files.
+
+The files changed are:
+
+    limits.h - add missing definitions
+    sys/stat.h - add missing definitions
+    sys/types.h - add missing definitions
+
+1.	limits.h
+
+#ifdef OS2
+#define NAME_MAX	63		/* Maximum file name length	*/
+#define PATH_MAX	256		/* Maximum path name length	*/
+#else
+#define NAME_MAX	13		/* Maximum file name length	*/
+#define PATH_MAX	128		/* Maximum path name length	*/
+#endif
+
+2.	sys/stat.h
+
+#define S_ISDIR(m)	((((m) & S_IFMT) == S_IFDIR))
+#define S_ISCHR(m)	((((m) & S_IFMT) == S_IFCHR))
+#define S_ISREG(m)	((((m) & S_IFMT) == S_IFREG))
+#define S_ISBLK(m)	((((m) & S_IFMT) == S_IFBLK))
+
+extern mode_t _FAR_ _cdecl	umask (mode_t);
+
+3.	sys/types.h
+
+/*
+ * Additional typedefs
+ */
+
+typedef unsigned char	bool;	/* Boolean: 0 = false, 1 = true		*/
+typedef unsigned short	ushort;	/* 2-byte unsigned			*/
+typedef ushort		u_short;
+typedef ushort		mode_t;
+typedef short		nlink_t;
+typedef int		pid_t;
+typedef ushort		uid_t;
+typedef ushort		gid_t;
+typedef short		nlink_t;
+
+/*
+ * System Constants
+ */
+
+#ifndef FALSE
+#define FALSE	((bool)0)	/* Boolean 'false'			*/
+#endif
+#ifndef TRUE
+#define TRUE	((bool)1)	/* Boolean 'true'			*/
+#endif

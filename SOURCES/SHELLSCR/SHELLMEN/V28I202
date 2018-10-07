@@ -1,0 +1,1057 @@
+From: how%milhow1@uunet.uu.net (Mike Howard)
+Newsgroups: comp.sources.unix
+Subject: v28i202: simple_menu-3.1 - a simple shell-level menu system, V3.1->V3.2, Patch03
+Date: 22 Nov 1994 01:10:04 -0800
+Organization: Vixie Enterprises
+Sender: vixie@vix.com
+Approved: vixie@gw.home.vix.com
+Message-ID: <3aschc$sar@gw.home.vix.com>
+
+Submitted-By: how%milhow1@uunet.uu.net (Mike Howard)
+Posting-Number: Volume 28, Issue 202
+Archive-Name: simple_menu-3.1/patch03
+
+This is part 3 of 3 patches which take simple_menu-3.1 to simple_menu-3.2.
+All changes relate to compilation problems encountered on various systems.
+
+You need to unshar this with patch01 and patch02 and then read "Instructions".
+
+#! /bin/sh
+# This is a shell archive.  Remove anything before this line, then unpack
+# it by saving it into a file and typing "sh file".  To overwrite existing
+# files, type "sh file -c".  You can also feed this as standard input via
+# unshar, or by typing "sh <file", e.g..  If this archive is complete, you
+# will see the following message at the end:
+#		"End of archive 3 (of 3)."
+# Contents:  patches.ad
+# Wrapped by mike@clove2 on Thu Nov 17 12:40:36 1994
+PATH=/bin:/usr/bin:/usr/ucb ; export PATH
+if test -f 'patches.ad' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'patches.ad'\"
+else
+echo shar: Extracting \"'patches.ad'\" \(32401 characters\)
+sed "s/^X//" >'patches.ad' <<'END_OF_FILE'
+X***************
+X*** 498,582 ****
+X  years, to give any third party, for a charge no more than your
+X  cost of physically performing source distribution, a complete
+X  machine-readable copy of the corresponding source code, to be
+X- distributed under the terms of Sections 1 and 2 above on a medium
+X- customarily used for software interchange; or,
+X- .IP
+X- .IP 3.\ 
+X- Accompany it with the information you received as to the offer
+X- to distribute corresponding source code.  (This alternative is
+X- allowed only for noncommercial distribution and only if you
+X- received the program in object code or executable form with such
+X- an offer, in accord with Subsection b above.)
+X- .RE
+X- .IP
+X- The source code for a work means the preferred form of the work for
+X- making modifications to it.  For an executable work, complete source
+X- code means all the source code for all modules it contains, plus any
+X- associated interface definition files, plus the scripts used to
+X- control compilation and installation of the executable.  However, as a
+X- special exception, the source code distributed need not include
+X- anything that is normally distributed (in either source or binary
+X- form) with the major components (compiler, kernel, and so on) of the
+X- operating system on which the executable runs, unless that component
+X- itself accompanies the executable.
+X- .IP
+X- If distribution of executable or object code is made by offering
+X- access to copy from a designated place, then offering equivalent
+X- access to copy the source code from the same place counts as
+X- distribution of the source code, even though third parties are not
+X- compelled to copy the source along with the object code.
+X- .IP
+X- .IP 5.\ 
+X- You may not copy, modify, sublicense, or distribute the Program
+X- except as expressly provided under this License.  Any attempt
+X- otherwise to copy, modify, sublicense or distribute the Program is
+X- void, and will automatically terminate your rights under this License.
+X- However, parties who have received copies, or rights, from you under
+X- this License will not have their licenses terminated so long as such
+X- parties remain in full compliance.
+X- .IP
+X- .IP 6.\ 
+X- You are not required to accept this License, since you have not
+X- signed it.  However, nothing else grants you permission to modify or
+X- distribute the Program or its derivative works.  These actions are
+X- prohibited by law if you do not accept this License.  Therefore, by
+X- modifying or distributing the Program (or any work based on the
+X- Program), you indicate your acceptance of this License to do so, and
+X- all its terms and conditions for copying, distributing or modifying
+X- the Program or works based on it.
+X- .IP
+X- .IP 7.\ 
+X- Each time you redistribute the Program (or any work based on the
+X- Program), the recipient automatically receives a license from the
+X- original licensor to copy, distribute or modify the Program subject to
+X- these terms and conditions.  You may not impose any further
+X- restrictions on the recipients' exercise of the rights granted herein.
+X- You are not responsible for enforcing compliance by third parties to
+X- this License.
+X- .IP
+X- .IP 8.\ 
+X- If, as a consequence of a court judgment or allegation of patent
+X- infringement or for any other reason (not limited to patent issues),
+X- conditions are imposed on you (whether by court order, agreement or
+X- otherwise) that contradict the conditions of this License, they do not
+X- excuse you from the conditions of this License.  If you cannot
+X- distribute so as to satisfy simultaneously your obligations under this
+X- License and any other pertinent obligations, then as a consequence you
+X- may not distribute the Program at all.  For example, if a patent
+X- license would not permit royalty-free redistribution of the Program by
+X- all those who receive copies directly or indirectly through you, then
+X- the only way you could satisfy both it and this License would be to
+X- refrain entirely from distribution of the Program.
+X- .IP
+X- If any portion of this section is held invalid or unenforceable under
+X- any particular circumstance, the balance of the section is intended to
+X- apply and the section as a whole is intended to apply in other
+X- circumstances.
+X- .IP
+X- It is not the purpose of this section to induce you to infringe any
+X- patents or other property right claims or to contest validity of any
+X- such claims; this section has the sole purpose of protecting the
+X- integrity of the free software distribution system, which is
+X- implemented by public license practices.  Many people have made
+X- generous contributions to the wide range of software distributed
+X- through that system in reliance on consistent application of that
+X--- 666,668 ----
+X*** Release-3.1/doc/s_menu.msad	Wed Sep 28 06:55:38 1994
+X--- Release-3.2/doc/s_menu.msad	Tue Nov  8 08:53:53 1994
+X***************
+X*** 1,3 ****
+X--- 1,85 ----
+X+ distributed under the terms of Sections 1 and 2 above on a medium
+X+ customarily used for software interchange; or,
+X+ .IP
+X+ .IP 3.\ 
+X+ Accompany it with the information you received as to the offer
+X+ to distribute corresponding source code.  (This alternative is
+X+ allowed only for noncommercial distribution and only if you
+X+ received the program in object code or executable form with such
+X+ an offer, in accord with Subsection b above.)
+X+ .RE
+X+ .IP
+X+ The source code for a work means the preferred form of the work for
+X+ making modifications to it.  For an executable work, complete source
+X+ code means all the source code for all modules it contains, plus any
+X+ associated interface definition files, plus the scripts used to
+X+ control compilation and installation of the executable.  However, as a
+X+ special exception, the source code distributed need not include
+X+ anything that is normally distributed (in either source or binary
+X+ form) with the major components (compiler, kernel, and so on) of the
+X+ operating system on which the executable runs, unless that component
+X+ itself accompanies the executable.
+X+ .IP
+X+ If distribution of executable or object code is made by offering
+X+ access to copy from a designated place, then offering equivalent
+X+ access to copy the source code from the same place counts as
+X+ distribution of the source code, even though third parties are not
+X+ compelled to copy the source along with the object code.
+X+ .IP
+X+ .IP 5.\ 
+X+ You may not copy, modify, sublicense, or distribute the Program
+X+ except as expressly provided under this License.  Any attempt
+X+ otherwise to copy, modify, sublicense or distribute the Program is
+X+ void, and will automatically terminate your rights under this License.
+X+ However, parties who have received copies, or rights, from you under
+X+ this License will not have their licenses terminated so long as such
+X+ parties remain in full compliance.
+X+ .IP
+X+ .IP 6.\ 
+X+ You are not required to accept this License, since you have not
+X+ signed it.  However, nothing else grants you permission to modify or
+X+ distribute the Program or its derivative works.  These actions are
+X+ prohibited by law if you do not accept this License.  Therefore, by
+X+ modifying or distributing the Program (or any work based on the
+X+ Program), you indicate your acceptance of this License to do so, and
+X+ all its terms and conditions for copying, distributing or modifying
+X+ the Program or works based on it.
+X+ .IP
+X+ .IP 7.\ 
+X+ Each time you redistribute the Program (or any work based on the
+X+ Program), the recipient automatically receives a license from the
+X+ original licensor to copy, distribute or modify the Program subject to
+X+ these terms and conditions.  You may not impose any further
+X+ restrictions on the recipients' exercise of the rights granted herein.
+X+ You are not responsible for enforcing compliance by third parties to
+X+ this License.
+X+ .IP
+X+ .IP 8.\ 
+X+ If, as a consequence of a court judgment or allegation of patent
+X+ infringement or for any other reason (not limited to patent issues),
+X+ conditions are imposed on you (whether by court order, agreement or
+X+ otherwise) that contradict the conditions of this License, they do not
+X+ excuse you from the conditions of this License.  If you cannot
+X+ distribute so as to satisfy simultaneously your obligations under this
+X+ License and any other pertinent obligations, then as a consequence you
+X+ may not distribute the Program at all.  For example, if a patent
+X+ license would not permit royalty-free redistribution of the Program by
+X+ all those who receive copies directly or indirectly through you, then
+X+ the only way you could satisfy both it and this License would be to
+X+ refrain entirely from distribution of the Program.
+X+ .IP
+X+ If any portion of this section is held invalid or unenforceable under
+X+ any particular circumstance, the balance of the section is intended to
+X+ apply and the section as a whole is intended to apply in other
+X+ circumstances.
+X+ .IP
+X+ It is not the purpose of this section to induce you to infringe any
+X+ patents or other property right claims or to contest validity of any
+X+ such claims; this section has the sole purpose of protecting the
+X+ integrity of the free software distribution system, which is
+X+ implemented by public license practices.  Many people have made
+X+ generous contributions to the wide range of software distributed
+X+ through that system in reliance on consistent application of that
+X  system; it is up to the author/donor to decide if he or she is willing
+X  to distribute software through any other system and a licensee cannot
+X  impose that choice.
+X*** Release-3.1/incl/patchlevel.h	Wed Sep 21 14:22:19 1994
+X--- Release-3.2/incl/patchlevel.h	Thu Oct 20 16:42:05 1994
+X***************
+X*** 1,3 ****
+X  #define VERSION    3
+X! #define PATCHLEVEL 1
+X! #define RELEASE Release-3.1
+X--- 1,3 ----
+X  #define VERSION    3
+X! #define PATCHLEVEL 2
+X! #define RELEASE Release-3.2
+X*** Release-3.1/incl/prototypes.h	Mon Sep 26 16:14:03 1994
+X--- Release-3.2/incl/prototypes.h	Thu Oct 20 17:32:57 1994
+X***************
+X*** 7,24 ****
+X  
+X  /* scanner.c */
+X  int match_token P_((char *s));
+X! int make_lower P_((int c));
+X  int yylex P_((void));
+X  int scan_in_token_state P_((void));
+X  int scan_in_name_state P_((void));
+X  int scan_in_string_state P_((void));
+X  int scan_in_text_state P_((void));
+X  int scan_in_old_text_state P_((void));
+X! void unget_char P_((int c));
+X  int next_char P_((int fd));
+X! void flush_char_input P_((void));
+X! void add_char P_((int c));
+X! void strip_white_space P_((void));
+X  char *take_saved_text P_((void));
+X  
+X  /* grammar.c */
+X--- 7,24 ----
+X  
+X  /* scanner.c */
+X  int match_token P_((char *s));
+X! int make_lower P_((char c));
+X  int yylex P_((void));
+X  int scan_in_token_state P_((void));
+X  int scan_in_name_state P_((void));
+X  int scan_in_string_state P_((void));
+X  int scan_in_text_state P_((void));
+X  int scan_in_old_text_state P_((void));
+X! VOID_TYPE unget_char P_((char c));
+X  int next_char P_((int fd));
+X! VOID_TYPE flush_char_input P_((void));
+X! VOID_TYPE add_char P_((char c));
+X! VOID_TYPE strip_white_space P_((void));
+X  char *take_saved_text P_((void));
+X  
+X  /* grammar.c */
+X***************
+X*** 26,35 ****
+X  
+X  /* simple_menu.c */
+X  int menu_main P_((int argc, char **argv));
+X! void display_parsed_menus P_((void));
+X! void init P_((int argc, char **argv));
+X  struct prompt_string *make_new_prompt_string P_((int segment_type, char *fragment));
+X! void eval_prompt_string P_((struct prompt_string *ps_ptr));
+X  struct parm *make_new_parm P_((int flag, char *identifier, struct prompt_string *prompt, char *def_or_evname));
+X  struct item *make_new_item P_((struct prompt_string *prompt, char *command, struct parm *parms, int action));
+X  struct action_list *make_new_action_list P_((struct item *item));
+X--- 26,35 ----
+X  
+X  /* simple_menu.c */
+X  int menu_main P_((int argc, char **argv));
+X! VOID_TYPE display_parsed_menus P_((void));
+X! VOID_TYPE init P_((int argc, char **argv));
+X  struct prompt_string *make_new_prompt_string P_((int segment_type, char *fragment));
+X! VOID_TYPE eval_prompt_string P_((struct prompt_string *ps_ptr));
+X  struct parm *make_new_parm P_((int flag, char *identifier, struct prompt_string *prompt, char *def_or_evname));
+X  struct item *make_new_item P_((struct prompt_string *prompt, char *command, struct parm *parms, int action));
+X  struct action_list *make_new_action_list P_((struct item *item));
+X***************
+X*** 38,100 ****
+X  struct ev_var *make_new_ev_var P_((int flag, char *identifier, char *deflt, char *fname));
+X  struct ev_var_val *make_new_ev_var_val P_((char *identifier, char *value, char *script, int flag));
+X  char *get_ev_val_from_file P_((struct ev_var *ev_ptr, char *fname));
+X! void reset_ev_vars P_((struct ev_var_val *ev_val_list));
+X! void reset_ev_var P_((struct ev_var_val *evv_ptr));
+X! void init_ev_vars P_((void));
+X! void push_environment P_((void));
+X! void pop_environment P_((void));
+X  struct ev_var *find_ev_var_by_name P_((char *name));
+X! void init_item_parm_defaults P_((struct item *i_ptr));
+X  int privileged_user P_((char *s));
+X! void push_menu P_((struct menu *menu_ptr));
+X  int pop_menu P_((void));
+X  struct menu *find_menu P_((char *name));
+X  int check_menu P_((void));
+X  int check_items P_((struct item *item_ptr, char *menu_name, int *errorcount_ptr));
+X  int do_menu P_((void));
+X! void do_item P_((struct item *selected_item, int item_parent));
+X! void do_shell_script P_((struct item *selected_item));
+X  char *output_of_shell P_((char *script));
+X! void output_var_asg P_((FILE *file, char *identifier, char *value));
+X! void do_prelude P_((void));
+X! void do_epilogue P_((void));
+X! void fatal P_((char *s));
+X! void trapoid P_((int sig));
+X! void do_longjmp P_((int sig));
+X! void wait_for_child P_((pid_t pid));
+X! void set_signals P_((int flag));
+X! void reset_signals P_((void));
+X  int open_menu_file P_((void));
+X  int search_menu_path P_((char *path, char *fname));
+X  char *Malloc P_((unsigned size));
+X  char *Realloc P_((char *ptr, unsigned size));
+X! void Free P_((char *ptr));
+X! void yyerror P_((char *s));
+X! void prt_item P_((struct item *item_ptr, int action_list_idx));
+X! void prt_prompt_string P_((struct prompt_string *p_ptr, int action_list_idx));
+X! int prt_command P_((char *cmd, int action_list_idx));
+X! void prt_evv_ptr P_((struct ev_var_val *evv_ptr, int action_list_idx));
+X! void simple_menu_exit P_((int code));
+X  
+X  /* port.c */
+X! char* tempname P_((char*, char*));
+X  
+X  /* generic_dsp.c */
+X! void init_terminal P_((void));
+X! void prepare_for_subshell P_((void));
+X! void return_from_subshell P_((void));
+X! void close_terminal P_((void));
+X! void init_menu P_((struct menu *menu_ptr));
+X! void close_menu P_((struct menu *menu_ptr));
+X! void display_menu P_((void));
+X! void re_paginate_menu P_((void));
+X! void change_menu_page_next P_((void));
+X! void change_menu_page_previous P_((void));
+X  int get_user_rsp P_((void));
+X  char *get_variable_value P_((char *prompt, char *deflt));
+X! void do_pause P_((int flag));
+X! void display_msg P_((char *text));
+X! void undisplay_msg P_((void));
+X! void beep P_((void));
+X  
+X  #undef P_
+X--- 38,102 ----
+X  struct ev_var *make_new_ev_var P_((int flag, char *identifier, char *deflt, char *fname));
+X  struct ev_var_val *make_new_ev_var_val P_((char *identifier, char *value, char *script, int flag));
+X  char *get_ev_val_from_file P_((struct ev_var *ev_ptr, char *fname));
+X! VOID_TYPE reset_ev_vars P_((struct ev_var_val *ev_val_list));
+X! VOID_TYPE reset_ev_var P_((struct ev_var_val *evv_ptr));
+X! VOID_TYPE init_ev_vars P_((void));
+X! VOID_TYPE push_environment P_((void));
+X! VOID_TYPE pop_environment P_((void));
+X  struct ev_var *find_ev_var_by_name P_((char *name));
+X! VOID_TYPE init_item_parm_defaults P_((struct item *i_ptr));
+X  int privileged_user P_((char *s));
+X! VOID_TYPE push_menu P_((struct menu *menu_ptr));
+X  int pop_menu P_((void));
+X  struct menu *find_menu P_((char *name));
+X  int check_menu P_((void));
+X  int check_items P_((struct item *item_ptr, char *menu_name, int *errorcount_ptr));
+X  int do_menu P_((void));
+X! VOID_TYPE do_item P_((struct item *selected_item, int item_parent));
+X! VOID_TYPE do_shell_script P_((struct item *selected_item));
+X  char *output_of_shell P_((char *script));
+X! VOID_TYPE output_var_asg P_((FILE *file, char *identifier, char *value));
+X! VOID_TYPE do_prelude P_((void));
+X! VOID_TYPE do_epilogue P_((void));
+X! VOID_TYPE fatal P_((char *s));
+X! RETSIGTYPE trapoid P_((int sig));
+X! RETSIGTYPE do_longjmp P_((int sig));
+X! VOID_TYPE wait_for_child P_((pid_t pid));
+X! VOID_TYPE set_signals P_((int flag));
+X! VOID_TYPE reset_signals P_((void));
+X  int open_menu_file P_((void));
+X  int search_menu_path P_((char *path, char *fname));
+X  char *Malloc P_((unsigned size));
+X  char *Realloc P_((char *ptr, unsigned size));
+X! VOID_TYPE Free P_((char *ptr));
+X! VOID_TYPE yyerror P_((char *s));
+X! VOID_TYPE prt_item P_((struct item *item_ptr, int action_list_idx));
+X! VOID_TYPE prt_prompt_string P_((struct prompt_string *p_ptr, int action_list_idx));
+X! VOID_TYPE prt_command P_((char *cmd, int action_list_idx));
+X! VOID_TYPE prt_evv_ptr P_((struct ev_var_val *evv_ptr, int action_list_idx));
+X! VOID_TYPE simple_menu_exit P_((int code));
+X  
+X  /* port.c */
+X! #ifndef HAVE_TEMPNAM
+X! char *tempnam P_((char *dir, char *prf));
+X! #endif /* HAVE_TEMPNAM */
+X  
+X  /* generic_dsp.c */
+X! VOID_TYPE init_terminal P_((void));
+X! VOID_TYPE prepare_for_subshell P_((void));
+X! VOID_TYPE return_from_subshell P_((void));
+X! VOID_TYPE close_terminal P_((void));
+X! VOID_TYPE init_menu P_((struct menu *menu_ptr));
+X! VOID_TYPE close_menu P_((struct menu *menu_ptr));
+X! VOID_TYPE display_menu P_((void));
+X! VOID_TYPE re_paginate_menu P_((void));
+X! VOID_TYPE change_menu_page_next P_((void));
+X! VOID_TYPE change_menu_page_previous P_((void));
+X  int get_user_rsp P_((void));
+X  char *get_variable_value P_((char *prompt, char *deflt));
+X! VOID_TYPE do_pause P_((int flag));
+X! VOID_TYPE display_msg P_((char *text));
+X! VOID_TYPE undisplay_msg P_((void));
+X! VOID_TYPE do_beep P_((void));
+X  
+X  #undef P_
+X*** Release-3.1/incl/simple_menu.h	Wed Sep 21 14:26:39 1994
+X--- Release-3.2/incl/simple_menu.h	Tue Oct 18 15:03:13 1994
+X***************
+X*** 1,8 ****
+X  /*
+X!   $Id: simple_menu.h,v 3.2 1994/09/21 18:26:04 mike Exp $
+X    $Author: mike $
+X!   $Date: 1994/09/21 18:26:04 $
+X    $Log: simple_menu.h,v $
+X   * Revision 3.2  1994/09/21  18:26:04  mike
+X   * changed VOID to VOID_TYPE to avoid conflict with SunOS curses
+X   * added get_user_rsp() returns for next/previous page
+X--- 1,11 ----
+X  /*
+X!   $Id: simple_menu.h,v 3.3 1994/10/18 19:02:41 mike Exp $
+X    $Author: mike $
+X!   $Date: 1994/10/18 19:02:41 $
+X    $Log: simple_menu.h,v $
+X+  * Revision 3.3  1994/10/18  19:02:41  mike
+X+  * release 3.2 prototypes
+X+  *
+X   * Revision 3.2  1994/09/21  18:26:04  mike
+X   * changed VOID to VOID_TYPE to avoid conflict with SunOS curses
+X   * added get_user_rsp() returns for next/previous page
+X***************
+X*** 48,53 ****
+X--- 51,59 ----
+X    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+X  */
+X  
+X+ #ifndef _simple_include_
+X+ #define _simple_include_ 1
+X+ 
+X  /* #define VOID  void or int is expected to occur in the compilation line */
+X  #ifndef VOID_TYPE
+X  # define VOID_TYPE void
+X***************
+X*** 262,265 ****
+X  extern char *use_msg;
+X  #endif
+X  
+X! #include "prototypes.h"
+X--- 268,271 ----
+X  extern char *use_msg;
+X  #endif
+X  
+X! #endif /* _simple_include_ */
+X*** Release-3.1/tty_src/tty_display.c	Mon Sep 26 15:40:15 1994
+X--- Release-3.2/tty_src/tty_display.c	Thu Oct 20 17:44:14 1994
+X***************
+X*** 1,8 ****
+X! /* $Id: tty_display.c,v 3.3 1994/09/26 19:39:46 mike Exp $ 
+X  
+X     $Author: mike $
+X!    $Date: 1994/09/26 19:39:46 $
+X     $Log: tty_display.c,v $
+X   * Revision 3.3  1994/09/26  19:39:46  mike
+X   * moved cur_page to part of the menu_stack structure so that
+X   * pop_menu_foo() brings back the previous context
+X--- 1,13 ----
+X! /* $Id: tty_display.c,v 3.4 1994/10/18 16:25:39 mike Exp mike $ 
+X  
+X     $Author: mike $
+X!    $Date: 1994/10/18 16:25:39 $
+X     $Log: tty_display.c,v $
+X+  * Revision 3.4  1994/10/18  16:25:39  mike
+X+  * added conditionals for various compilers
+X+  * bug in page_info use.  added mask so checks for alpha flag work
+X+  * changed ^N and ^P to N and P
+X+  *
+X   * Revision 3.3  1994/09/26  19:39:46  mike
+X   * moved cur_page to part of the menu_stack structure so that
+X   * pop_menu_foo() brings back the previous context
+X***************
+X*** 64,70 ****
+X  		    a menu
+X     display_msg(char *) - displays a message until cleared
+X     undisplay_msg() - clears the previously displayed message
+X!    beep() - beep's
+X  */
+X  
+X  #include <includes.h>
+X--- 69,75 ----
+X  		    a menu
+X     display_msg(char *) - displays a message until cleared
+X     undisplay_msg() - clears the previously displayed message
+X!    do_beep() - beep's
+X  */
+X  
+X  #include <includes.h>
+X***************
+X*** 101,110 ****
+X--- 106,121 ----
+X  static struct tty_menu_stack* menu_stack;
+X  static int line_limit;
+X  
+X+ #if defined(__STDC__) || defined(__cplusplus)
+X+ static struct tty_menu_item* create_tty_menu_item(int item_number,
+X+ 						  int action,
+X+ 						  struct prompt_string* prompt)
+X+ #else
+X  static struct tty_menu_item* create_tty_menu_item(item_number, action, prompt)
+X  int item_number;
+X  int action;
+X  struct prompt_string* prompt;
+X+ #endif
+X  {
+X    struct tty_menu_item* ptr
+X      = (struct tty_menu_item*)Malloc(sizeof(struct tty_menu_item));
+X***************
+X*** 117,124 ****
+X--- 128,139 ----
+X    return ptr;
+X  }
+X  
+X+ #if defined(__STDC__) || defined(__cplusplus)
+X+ static int lines_in_prompt(struct prompt_string* prompt)
+X+ #else
+X  static int lines_in_prompt(prompt)
+X  struct prompt_string* prompt;
+X+ #endif
+X  {
+X    int count = 1;
+X    char* cp;
+X***************
+X*** 148,155 ****
+X--- 163,174 ----
+X    return ptr;
+X  }
+X  
+X+ #if defined(__STDC__) || defined(__cplusplus)
+X+ static VOID_TYPE destroy_tty_menu_page(struct tty_menu_page* ptr)
+X+ #else
+X  static VOID_TYPE destroy_tty_menu_page(ptr)
+X  struct tty_menu_page* ptr;
+X+ #endif
+X  {
+X    struct tty_menu_item* iptr;
+X    if (!ptr)
+X***************
+X*** 178,185 ****
+X--- 197,208 ----
+X      menu_stack->cur_page = menu_stack->cur_page->previous;
+X  }
+X  
+X+ #if defined(__STDC__) || defined(__cplusplus)
+X+ static VOID_TYPE push_menu_stack(struct tty_menu_page* ptr)
+X+ #else
+X  static VOID_TYPE push_menu_stack(ptr)
+X  struct tty_menu_page* ptr;
+X+ #endif
+X  {
+X    struct tty_menu_stack* sptr
+X      = (struct tty_menu_stack*)Malloc(sizeof(struct tty_menu_stack));
+X***************
+X*** 218,225 ****
+X--- 241,252 ----
+X  extern int LINES;
+X  #endif /* HAVE_TERMINFO */
+X  
+X+ #if defined(__STDC__) || defined(__cplusplus)
+X+ static VOID_TYPE paginate_menu(struct menu* menu_ptr)
+X+ #else
+X  static VOID_TYPE paginate_menu(menu_ptr)
+X  struct menu* menu_ptr;
+X+ #endif
+X  {
+X    struct tty_menu_item* iptr;
+X    struct tty_menu_page* pptr;
+X***************
+X*** 269,275 ****
+X  	    tmp = tmp->next;
+X  	    tmp->page_number = tmp->previous->page_number + 1;
+X  	    tmp->items = iptr;
+X! 	    tmp->page_info = PAGE_INFO_LAST_PAGE | Once_Flag;
+X  	    prev_ptr = iptr;
+X  	  }
+X  	else
+X--- 296,303 ----
+X  	    tmp = tmp->next;
+X  	    tmp->page_number = tmp->previous->page_number + 1;
+X  	    tmp->items = iptr;
+X! 	    tmp->page_info = PAGE_INFO_LAST_PAGE | Once_Flag
+X! 		| Always_Display_Flag;
+X  	    prev_ptr = iptr;
+X  	  }
+X  	else
+X***************
+X*** 281,287 ****
+X    }
+X  
+X    if (!pptr->next)
+X!     pptr->page_info = PAGE_INFO_ONLY_PAGE | Once_Flag;
+X  
+X    push_menu_stack(pptr);
+X  }
+X--- 309,316 ----
+X    }
+X  
+X    if (!pptr->next)
+X!     pptr->page_info = PAGE_INFO_ONLY_PAGE | Once_Flag
+X! 		| Always_Display_Flag;
+X  
+X    push_menu_stack(pptr);
+X  }
+X***************
+X*** 299,307 ****
+X--- 328,340 ----
+X  
+X  /* main routine */
+X  
+X+ #if defined(__STDC__) || defined(__cplusplus)
+X+ main(int argc, char **argv)
+X+ #else
+X  main(argc, argv)
+X  int argc;
+X  char **argv;
+X+ #endif
+X  {
+X    menu_main(argc, argv);
+X    /* not reached */
+X***************
+X*** 312,321 ****
+X     line menu-items */
+X  
+X  
+X! static VOID_TYPE
+X! display_item_value(cp, indent)
+X  char *cp;
+X  int indent;
+X  {
+X    char c;
+X  
+X--- 345,357 ----
+X     line menu-items */
+X  
+X  
+X! #if defined(__STDC__) || defined(__cplusplus)
+X! static VOID_TYPE display_item_value(char *cp, int indent)
+X! #else
+X! static VOID_TYPE display_item_value(cp, indent)
+X  char *cp;
+X  int indent;
+X+ #endif
+X  {
+X    char c;
+X  
+X***************
+X*** 345,359 ****
+X  char *UP;
+X  short ospeed;
+X  
+X! int
+X! outc(c)
+X       int c;
+X  {
+X    putc(c, stdout);
+X  }
+X  
+X! VOID_TYPE
+X! init_terminal()
+X  {
+X    char *getenv();
+X    char *tty_type = getenv("TERM");
+X--- 381,397 ----
+X  char *UP;
+X  short ospeed;
+X  
+X! #if defined(__STDC__) || defined(__cplusplus)
+X! int outc(int c)
+X! #else
+X! int outc(c)
+X       int c;
+X+ #endif
+X  {
+X    putc(c, stdout);
+X  }
+X  
+X! VOID_TYPE init_terminal()
+X  {
+X    char *getenv();
+X    char *tty_type = getenv("TERM");
+X***************
+X*** 417,455 ****
+X    flush_char_input();
+X  }
+X  
+X! VOID_TYPE
+X! close_terminal()
+X  {
+X    putchar('\n');
+X    fflush(stdout);
+X  }
+X  
+X! VOID_TYPE
+X! prepare_for_subshell()
+X  {
+X  }
+X  
+X! VOID_TYPE
+X! return_from_subshell()
+X  {
+X  }
+X  
+X! VOID_TYPE
+X! init_menu(menu_ptr)
+X  struct menu *menu_ptr;
+X  {
+X    paginate_menu(menu_ptr);
+X  }
+X  
+X! VOID_TYPE
+X! close_menu(menu_ptr)
+X  struct menu *menu_ptr;
+X  {
+X    pop_menu_stack();
+X  }
+X  
+X! VOID_TYPE
+X! display_menu()
+X  {
+X    struct tty_menu_item *ptr;
+X    char* fmt;
+X--- 455,495 ----
+X    flush_char_input();
+X  }
+X  
+X! VOID_TYPE close_terminal()
+X  {
+X    putchar('\n');
+X    fflush(stdout);
+X  }
+X  
+X! VOID_TYPE prepare_for_subshell()
+X  {
+X  }
+X  
+X! VOID_TYPE return_from_subshell()
+X  {
+X  }
+X  
+X! #if defined(__STDC__) || defined(__cplusplus)
+X! VOID_TYPE init_menu(struct menu *menu_ptr)
+X! #else
+X! VOID_TYPE init_menu(menu_ptr)
+X  struct menu *menu_ptr;
+X+ #endif
+X  {
+X    paginate_menu(menu_ptr);
+X  }
+X  
+X! #if defined(__STDC__) || defined(__cplusplus)
+X! VOID_TYPE close_menu(struct menu *menu_ptr)
+X! #else
+X! VOID_TYPE close_menu(menu_ptr)
+X  struct menu *menu_ptr;
+X+ #endif
+X  {
+X    pop_menu_stack();
+X  }
+X  
+X! VOID_TYPE display_menu()
+X  {
+X    struct tty_menu_item *ptr;
+X    char* fmt;
+X***************
+X*** 493,499 ****
+X  	  putchar('\n');
+X  	break;
+X        default:
+X! 	if (menu_stack->cur_page->page_info == PAGE_INFO_ONLY_PAGE
+X  	    && Alpha_Flag) {
+X  	  printf("%c. ", 'A' + ptr->item_number - 1);
+X  	  display_item_value(ptr->prompt->value, 3);
+X--- 533,539 ----
+X  	  putchar('\n');
+X  	break;
+X        default:
+X! 	if ((menu_stack->cur_page->page_info & 0x3) == PAGE_INFO_ONLY_PAGE
+X  	    && Alpha_Flag) {
+X  	  printf("%c. ", 'A' + ptr->item_number - 1);
+X  	  display_item_value(ptr->prompt->value, 3);
+X***************
+X*** 514,526 ****
+X        fmt = "Q) to End, ?) for Menu - choice? ";
+X        break;
+X      case PAGE_INFO_FIRST_PAGE:
+X!       fmt = "Q) to End, Ctl N next page, ?) for Menu - choice? ";
+X        break;
+X      case PAGE_INFO_INTERIOR_PAGE:
+X!       fmt = "Q) to End, Ctl N next page, Ctl P previous, ?) for Menu - choice? ";
+X        break;
+X      case PAGE_INFO_LAST_PAGE:
+X!       fmt = "Q) to End, Ctl P previous, ?) for Menu - choice? ";
+X        break;
+X      case PAGE_INFO_ONLY_PAGE | ONCE_FLAG:
+X      case PAGE_INFO_ONLY_PAGE | ONCE_FLAG | ALWAYS_DISPLAY_FLAG:
+X--- 554,566 ----
+X        fmt = "Q) to End, ?) for Menu - choice? ";
+X        break;
+X      case PAGE_INFO_FIRST_PAGE:
+X!       fmt = "Q) to End, N next page, ?) for Menu - choice? ";
+X        break;
+X      case PAGE_INFO_INTERIOR_PAGE:
+X!       fmt = "Q) to End, N next page, P previous, ?) for Menu - choice? ";
+X        break;
+X      case PAGE_INFO_LAST_PAGE:
+X!       fmt = "Q) to End, P previous, ?) for Menu - choice? ";
+X        break;
+X      case PAGE_INFO_ONLY_PAGE | ONCE_FLAG:
+X      case PAGE_INFO_ONLY_PAGE | ONCE_FLAG | ALWAYS_DISPLAY_FLAG:
+X***************
+X*** 542,554 ****
+X        fmt = "Q) to End - choice? ";
+X        break;
+X      case PAGE_INFO_FIRST_PAGE | ALWAYS_DISPLAY_FLAG:
+X!       fmt = "Q) to End, Ctl N next page - choice? ";
+X        break;
+X      case PAGE_INFO_INTERIOR_PAGE | ALWAYS_DISPLAY_FLAG:
+X!       fmt = "Q) to End, Ctl N next page, Ctl P previous - choice? ";
+X        break;
+X      case PAGE_INFO_LAST_PAGE | ALWAYS_DISPLAY_FLAG:
+X!       fmt = "Q) to End, Ctl P previous - choice? ";
+X        break;
+X      }
+X  
+X--- 582,594 ----
+X        fmt = "Q) to End - choice? ";
+X        break;
+X      case PAGE_INFO_FIRST_PAGE | ALWAYS_DISPLAY_FLAG:
+X!       fmt = "Q) to End, N next page - choice? ";
+X        break;
+X      case PAGE_INFO_INTERIOR_PAGE | ALWAYS_DISPLAY_FLAG:
+X!       fmt = "Q) to End, N next page, P previous - choice? ";
+X        break;
+X      case PAGE_INFO_LAST_PAGE | ALWAYS_DISPLAY_FLAG:
+X!       fmt = "Q) to End, P previous - choice? ";
+X        break;
+X      }
+X  
+X***************
+X*** 567,574 ****
+X  #include <term.h>
+X  #endif /* SCO_XENIX */
+X  
+X! VOID_TYPE
+X! init_terminal()
+X  {
+X    /* check to make sure stdout is a tty */
+X    if (!isatty(1))
+X--- 607,613 ----
+X  #include <term.h>
+X  #endif /* SCO_XENIX */
+X  
+X! VOID_TYPE init_terminal()
+X  {
+X    /* check to make sure stdout is a tty */
+X    if (!isatty(1))
+X***************
+X*** 597,604 ****
+X    flush_char_input();
+X  }
+X  
+X! VOID_TYPE
+X! close_terminal()
+X  {
+X    if (havecalled_setupterm)
+X      resetterm();
+X--- 636,642 ----
+X    flush_char_input();
+X  }
+X  
+X! VOID_TYPE close_terminal()
+X  {
+X    if (havecalled_setupterm)
+X      resetterm();
+X***************
+X*** 606,641 ****
+X    fflush(stdout);
+X  }
+X  
+X! VOID_TYPE
+X! prepare_for_subshell()
+X  {
+X    if (havecalled_setupterm)
+X      resetterm();
+X  }
+X  
+X! VOID_TYPE
+X! return_from_subshell()
+X  {
+X    if (havecalled_setupterm)
+X      fixterm();
+X  }
+X  
+X! VOID_TYPE
+X! init_menu(menu_ptr)
+X  struct menu *menu_ptr;
+X  {
+X    paginate_menu(menu_ptr);
+X  }
+X  
+X! VOID_TYPE
+X! close_menu(menu_ptr)
+X  struct menu *menu_ptr;
+X  {
+X    pop_menu_stack();
+X  }
+X  
+X! VOID_TYPE
+X! display_menu()
+X  {
+X    struct tty_menu_item *ptr;
+X    char* fmt;
+X--- 644,682 ----
+X    fflush(stdout);
+X  }
+X  
+X! VOID_TYPE prepare_for_subshell()
+X  {
+X    if (havecalled_setupterm)
+X      resetterm();
+X  }
+X  
+X! VOID_TYPE return_from_subshell()
+X  {
+X    if (havecalled_setupterm)
+X      fixterm();
+X  }
+X  
+X! #if defined(__STDC__) || defined(__cplusplus)
+X! VOID_TYPE init_menu(struct menu *menu_ptr)
+X! #else
+X! VOID_TYPE init_menu(menu_ptr)
+X  struct menu *menu_ptr;
+X+ #endif
+X  {
+X    paginate_menu(menu_ptr);
+X  }
+X  
+X! #if defined(__STDC__) || defined(__cplusplus)
+X! VOID_TYPE close_menu(struct menu *menu_ptr)
+X! #else
+X! VOID_TYPE close_menu(menu_ptr)
+X  struct menu *menu_ptr;
+X+ #endif
+X  {
+X    pop_menu_stack();
+X  }
+X  
+X! VOID_TYPE display_menu()
+X  {
+X    struct tty_menu_item *ptr;
+X    char* fmt;
+X***************
+X*** 679,685 ****
+X  	  putchar('\n');
+X  	break;
+X        default:
+X! 	if (menu_stack->cur_page->page_info == PAGE_INFO_ONLY_PAGE
+X  	    && Alpha_Flag) {
+X  	  printf("%c. ", 'A' + ptr->item_number - 1);
+X  	  display_item_value(ptr->prompt->value, 3);
+X--- 720,726 ----
+X  	  putchar('\n');
+X  	break;
+X        default:
+X! 	if ((menu_stack->cur_page->page_info & 0x3) == PAGE_INFO_ONLY_PAGE
+X  	    && Alpha_Flag) {
+X  	  printf("%c. ", 'A' + ptr->item_number - 1);
+X  	  display_item_value(ptr->prompt->value, 3);
+X***************
+X*** 700,712 ****
+X        fmt = "Q) to End, ?) for Menu - choice? ";
+X        break;
+X      case PAGE_INFO_FIRST_PAGE:
+X!       fmt = "Q) to End, Ctl N next page, ?) for Menu - choice? ";
+X        break;
+X      case PAGE_INFO_INTERIOR_PAGE:
+X!       fmt = "Q) to End, Ctl N next page, Ctl P previous, ?) for Menu - choice? ";
+X        break;
+X      case PAGE_INFO_LAST_PAGE:
+X!       fmt = "Q) to End, Ctl P previous, ?) for Menu - choice? ";
+X        break;
+X      case PAGE_INFO_ONLY_PAGE | ONCE_FLAG:
+X      case PAGE_INFO_ONLY_PAGE | ONCE_FLAG | ALWAYS_DISPLAY_FLAG:
+X--- 741,753 ----
+X        fmt = "Q) to End, ?) for Menu - choice? ";
+X        break;
+X      case PAGE_INFO_FIRST_PAGE:
+X!       fmt = "Q) to End, N next page, ?) for Menu - choice? ";
+X        break;
+X      case PAGE_INFO_INTERIOR_PAGE:
+X!       fmt = "Q) to End, N next page, P previous, ?) for Menu - choice? ";
+X        break;
+X      case PAGE_INFO_LAST_PAGE:
+X!       fmt = "Q) to End, P previous, ?) for Menu - choice? ";
+X        break;
+X      case PAGE_INFO_ONLY_PAGE | ONCE_FLAG:
+X      case PAGE_INFO_ONLY_PAGE | ONCE_FLAG | ALWAYS_DISPLAY_FLAG:
+X***************
+X*** 728,740 ****
+X        fmt = "Q) to End - choice? ";
+X        break;
+X      case PAGE_INFO_FIRST_PAGE | ALWAYS_DISPLAY_FLAG:
+X!       fmt = "Q) to End, Ctl N next page - choice? ";
+X        break;
+X      case PAGE_INFO_INTERIOR_PAGE | ALWAYS_DISPLAY_FLAG:
+X!       fmt = "Q) to End, Ctl N next page, Ctl P previous - choice? ";
+X        break;
+X      case PAGE_INFO_LAST_PAGE | ALWAYS_DISPLAY_FLAG:
+X!       fmt = "Q) to End, Ctl P previous - choice? ";
+X        break;
+X      }
+X  
+X--- 769,781 ----
+END_OF_FILE
+if test 32401 -ne `wc -c <'patches.ad'`; then
+    echo shar: \"'patches.ad'\" unpacked with wrong size!
+fi
+# end of 'patches.ad'
+fi
+echo shar: End of archive 3 \(of 3\).
+cp /dev/null ark3isdone
+MISSING=""
+for I in 1 2 3 ; do
+    if test ! -f ark${I}isdone ; then
+	MISSING="${MISSING} ${I}"
+    fi
+done
+if test "${MISSING}" = "" ; then
+    echo You have unpacked all 3 archives.
+    rm -f ark[1-9]isdone
+else
+    echo You still need to unpack the following archives:
+    echo "        " ${MISSING}
+fi
+##  End of shell archive.
+exit 0
+

@@ -1,0 +1,25 @@
+LI version 1.33; 12 May, 1996
+Copyright Jeff Lundblad, 1991-96
+
+LI is a Windows file viewer/finder/editor/deleter/launcher/printer.  The 
+basic operation of the program is designed to be easy for the moderately 
+experienced Windows user.
+
+Details of the capabilities of LI are available through the Help
+menu. The documentation file is provided when you
+register the program.
+
+LI is shareware and may be distributed to others as long as all files
+are included and no charge is made other than media charges.
+
+Feel free to use LI on a 30 day trial basis.  If you find the program
+of value and/or continue to use it after 30 days, please register by
+sending in payment with the registration form found in the LIREG.TXT file 
+or in the help system under "Registration:Registration form".
+
+
+Third Millennium Technologies
+P.O. Box 852382
+Mesquite TX 75185
+
+73537.1203@compuserve.com

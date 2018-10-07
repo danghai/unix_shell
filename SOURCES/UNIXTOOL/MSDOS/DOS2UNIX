@@ -1,0 +1,34 @@
+DOS to UNIX Translation
+
+A quick reference for users of DOS who are moving to UNIX. Look for a task
+or DOS command and then select the UNIX command for further details.
+
+To ...                                          DOS                             UNIX
+
+___________________________________________________________
+
+display list of files       dir/w dir               ls
+                            dir                     ls -l
+display contents of file    type                    cat
+display file with pauses    type filename | more    more
+
+copy file                   copy                    cp
+find string in file         find                    grep
+                                                    fgrep
+compare files               comp                    diff
+rename file                 rename OR ren           mv
+delete file                 erase OR del            rm
+delete directory            rmdir OR rd             rmdir
+change file protection      attrib                  chmod
+create directory            mkdir OR md             mkdir
+change working directory    chdir OR cd             cd
+get help                    help                    man
+                                                    apropos
+display date and time       date, time              date
+display free disk space     chkdsk                  df
+print file                  print                   lpr
+display print queue         print                   lpq
+
+___________________________________________________________
+
+---------------------------------------------------------------------------

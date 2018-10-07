@@ -1,0 +1,44 @@
+; MS-DOS SHELL - OS/2 Definition File
+;
+; MS-DOS SHELL - Copyright (c) 1992,4 Data Logic Limited
+;
+; This code is based on (in part) the shell program written by Charles
+; Forsyth and is subject to the following copyright restrictions:
+;
+; 1.  Redistribution and use in source and binary forms are permitted
+;     provided that the above copyright notice is duplicated in the
+;     source form and the copyright notice in file sh6.c is displayed
+;     on entry to the program.
+;
+; 2.  The sources (or parts thereof) or objects generated from the sources
+;     (or parts of sources) cannot be sold under any circumstances.
+;
+;    $Header: /usr/users/istewart/shell/sh2.3/Release/RCS/sh.def,v 2.2 1994/08/25 20:58:47 istewart Exp $
+;
+;    $Log: sh.def,v $
+;	Revision 2.2  1994/08/25  20:58:47  istewart
+;	MS Shell 2.3 Release
+;
+;	Revision 2.1  1993/06/02  09:58:12  istewart
+;	Shell 223 Beta Release - see Notes file
+;
+;	Revision 2.0  1992/04/13  17:40:33  Ian_Stewartson
+;	MS-Shell 2.0 Baseline release
+;
+;	
+;
+NAME		MSShell WINDOWCOMPAT NEWFILES
+DESCRIPTION	'MS Shell for OS/2 and MSDOS'
+EXETYPE		OS2 
+STACKSIZE	32672
+PROTMODE
+
+IMPORTS	DOSFLAGPROCESS=DOSCALLS.15
+IMPORTS DOSGETPRTY=DOSCALLS.9
+IMPORTS DOSQPROCSTATUS=DOSCALLS.154
+
+SEGMENTS
+	'_MSGSEG' CLASS 'CODE'
+	'_MSGSEG32' CLASS 'CODE'
+ 
+

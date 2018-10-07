@@ -1,0 +1,1531 @@
+From: rsalz@uunet.uu.net (Rich Salz)
+Newsgroups: comp.sources.unix
+Subject: v22i091:  GNU AWK, version 2.11, Part05/16
+Message-ID: <2624@litchi.bbn.com>
+Date: 6 Jun 90 16:36:27 GMT
+Approved: rsalz@uunet.UU.NET
+
+Submitted-by: "Arnold D. Robbins" <arnold@unix.cc.emory.edu>
+Posting-number: Volume 22, Issue 91
+Archive-name: gawk2.11/part05
+
+#! /bin/sh
+# This is a shell archive.  Remove anything before this line, then feed it
+# into a shell via "sh file" or similar.  To overwrite existing files,
+# type "sh file -c".
+# The tool that generated this appeared in the comp.sources.unix newsgroup;
+# send mail to comp-sources-unix@uunet.uu.net if you want that tool.
+# Contents:  ./gawk.texinfo.02 ./regex.c.02
+# Wrapped by rsalz@litchi.bbn.com on Wed Jun  6 12:24:49 1990
+PATH=/bin:/usr/bin:/usr/ucb ; export PATH
+echo If this archive is complete, you will see the following message:
+echo '          "shar: End of archive 5 (of 16)."'
+if test -f './gawk.texinfo.02' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'./gawk.texinfo.02'\"
+else
+  echo shar: Extracting \"'./gawk.texinfo.02'\" \(49665 characters\)
+  sed "s/^X//" >'./gawk.texinfo.02' <<'END_OF_FILE'
+XThe input is read in units called @dfn{records}, and processed by the
+Xrules one record at a time.  By default, each record is one line.  Each
+Xrecord read is split automatically into @dfn{fields}, to make it more
+Xconvenient for a rule to work on parts of the record under
+Xconsideration.
+X
+XOn rare occasions you will need to use the @code{getline} command,
+Xwhich can do explicit input from any number of files (@pxref{Getline}).
+X
+X@menu
+X* Records::             Controlling how data is split into records.
+X* Fields::              An introduction to fields.
+X* Non-Constant Fields:: Non-constant Field Numbers.
+X* Changing Fields::     Changing the Contents of a Field.
+X* Field Separators::    The field separator and how to change it.
+X* Multiple Line::       Reading multi-line records.
+X
+X* Getline::             Reading files under explicit program control
+X                        using the @code{getline} function.
+X
+X* Close Input::         Closing an input file (so you can read from
+X                        the beginning once more).
+X@end menu
+X
+X@node Records, Fields, Reading Files, Reading Files
+X@section How Input is Split into Records
+X
+X@cindex record separator
+XThe @code{awk} language divides its input into records and fields.
+XRecords are separated by a character called the @dfn{record separator}.
+XBy default, the record separator is the newline character.  Therefore,
+Xnormally, a record is a line of text.@refill
+X
+X@c @cindex changing the record separator
+X@vindex RS
+XSometimes you may want to use a different character to separate your
+Xrecords.  You can use different characters by changing the built-in
+Xvariable @code{RS}.  
+X
+XThe value of @code{RS} is a string that says how to separate records;
+Xthe default value is @code{"\n"}, the string of just a newline
+Xcharacter.  This is why records are, by default, single lines.
+X
+X@code{RS} can have any string as its value, but only the first character
+Xof the string is used as the record separator.  The other characters are
+Xignored.  @code{RS} is exceptional in this regard; @code{awk} uses the
+Xfull value of all its other built-in variables.@refill
+X
+X@ignore
+XSomeday this should be true!
+X
+XThe value of @code{RS} is not limited to a one-character string.  It can
+Xbe any regular expression (@pxref{Regexp}).  In general, each record
+Xends at the next string that matches the regular expression; the next
+Xrecord starts at the end of the matching string.  This general rule is
+Xactually at work in the usual case, where @code{RS} contains just a
+Xnewline: a record ends at the beginning of the next matching string (the
+Xnext newline in the input) and the following record starts just after
+Xthe end of this string (at the first character of the following line).
+XThe newline, since it matches @code{RS}, is not part of either record.
+X@end ignore
+X
+XYou can change the value of @code{RS} in the @code{awk} program with the
+Xassignment operator, @samp{=} (@pxref{Assignment Ops}).  The new
+Xrecord-separator character should be enclosed in quotation marks to make
+Xa string constant.  Often the right time to do this is at the beginning
+Xof execution, before any input has been processed, so that the very
+Xfirst record will be read with the proper separator.  To do this, use
+Xthe special @code{BEGIN} pattern (@pxref{BEGIN/END}).  For
+Xexample:@refill
+X
+X@example
+Xawk 'BEGIN @{ RS = "/" @} ; @{ print $0 @}' BBS-list
+X@end example
+X
+X@noindent
+Xchanges the value of @code{RS} to @code{"/"}, before reading any input.
+XThis is a string whose first character is a slash; as a result, records
+Xare separated by slashes.  Then the input file is read, and the second
+Xrule in the @code{awk} program (the action with no pattern) prints each
+Xrecord.  Since each @code{print} statement adds a newline at the end of
+Xits output, the effect of this @code{awk} program is to copy the input
+Xwith each slash changed to a newline.
+X
+XAnother way to change the record separator is on the command line,
+Xusing the variable-assignment feature (@pxref{Command Line}).
+X
+X@example
+Xawk '@dots{}' RS="/" @var{source-file}
+X@end example
+X
+X@noindent
+XThis sets @code{RS} to @samp{/} before processing @var{source-file}.
+X
+XThe empty string (a string of no characters) has a special meaning
+Xas the value of @code{RS}: it means that records are separated only
+Xby blank lines.  @xref{Multiple Line}, for more details.
+X
+X@cindex number of records, @code{NR} or @code{FNR}
+X@vindex NR
+X@vindex FNR
+XThe @code{awk} utility keeps track of the number of records that have
+Xbeen read so far from the current input file.  This value is stored in a
+Xbuilt-in variable called @code{FNR}.  It is reset to zero when a new
+Xfile is started.  Another built-in variable, @code{NR}, is the total
+Xnumber of input records read so far from all files.  It starts at zero
+Xbut is never automatically reset to zero.
+X
+XIf you change the value of @code{RS} in the middle of an @code{awk} run,
+Xthe new value is used to delimit subsequent records, but the record
+Xcurrently being processed (and records already finished) are not
+Xaffected.
+X
+X@node Fields, Non-Constant Fields, Records, Reading Files
+X@section Examining Fields
+X
+X@cindex examining fields
+X@cindex fields
+X@cindex accessing fields
+XWhen @code{awk} reads an input record, the record is
+Xautomatically separated or @dfn{parsed} by the interpreter into pieces
+Xcalled @dfn{fields}.  By default, fields are separated by whitespace,
+Xlike words in a line.
+XWhitespace in @code{awk} means any string of one or more spaces and/or
+Xtabs; other characters such as newline, formfeed, and so on, that are
+Xconsidered whitespace by other languages are @emph{not} considered
+Xwhitespace by @code{awk}.
+X
+XThe purpose of fields is to make it more convenient for you to refer to
+Xthese pieces of the record.  You don't have to use them---you can
+Xoperate on the whole record if you wish---but fields are what make
+Xsimple @code{awk} programs so powerful.
+X
+X@cindex @code{$} (field operator)
+X@cindex operators, @code{$}
+XTo refer to a field in an @code{awk} program, you use a dollar-sign,
+X@samp{$}, followed by the number of the field you want.  Thus, @code{$1}
+Xrefers to the first field, @code{$2} to the second, and so on.  For
+Xexample, suppose the following is a line of input:@refill
+X
+X@example
+XThis seems like a pretty nice example.
+X@end example
+X
+X@noindent
+XHere the first field, or @code{$1}, is @samp{This}; the second field, or
+X@code{$2}, is @samp{seems}; and so on.  Note that the last field,
+X@code{$7}, is @samp{example.}.  Because there is no space between the
+X@samp{e} and the @samp{.}, the period is considered part of the seventh
+Xfield.@refill
+X
+XNo matter how many fields there are, the last field in a record can be
+Xrepresented by @code{$NF}.  So, in the example above, @code{$NF} would
+Xbe the same as @code{$7}, which is @samp{example.}.  Why this works is
+Xexplained below (@pxref{Non-Constant Fields}).  If you try to refer to a
+Xfield beyond the last one, such as @code{$8} when the record has only 7
+Xfields, you get the empty string.
+X
+X@vindex NF
+X@cindex number of fields, @code{NF}
+XPlain @code{NF}, with no @samp{$}, is a built-in variable whose value
+Xis the number of fields in the current record.
+X
+X@code{$0}, which looks like an attempt to refer to the zeroth field, is
+Xa special case: it represents the whole input record.  This is what you
+Xwould use when you aren't interested in fields.
+X
+XHere are some more examples:
+X
+X@example
+Xawk '$1 ~ /foo/ @{ print $0 @}' BBS-list
+X@end example
+X
+X@noindent
+XThis example prints each record in the file @file{BBS-list} whose first
+Xfield contains the string @samp{foo}.  The operator @samp{~} is called a
+X@dfn{matching operator} (@pxref{Comparison Ops}); it tests whether a
+Xstring (here, the field @code{$1}) contains a match for a given regular
+Xexpression.@refill
+X
+XBy contrast, the following example:
+X
+X@example
+Xawk '/foo/ @{ print $1, $NF @}' BBS-list
+X@end example
+X
+X@noindent
+Xlooks for @samp{foo} in @emph{the entire record} and prints the first
+Xfield and the last field for each input record containing a
+Xmatch.@refill
+X
+X@node Non-Constant Fields, Changing Fields, Fields, Reading Files
+X@section Non-constant Field Numbers
+X
+XThe number of a field does not need to be a constant.  Any expression in
+Xthe @code{awk} language can be used after a @samp{$} to refer to a
+Xfield.  The value of the expression specifies the field number.  If the
+Xvalue is a string, rather than a number, it is converted to a number.
+XConsider this example:@refill
+X
+X@example
+Xawk '@{ print $NR @}'
+X@end example
+X
+X@noindent
+XRecall that @code{NR} is the number of records read so far: 1 in the
+Xfirst record, 2 in the second, etc.  So this example prints the first
+Xfield of the first record, the second field of the second record, and so
+Xon.  For the twentieth record, field number 20 is printed; most likely,
+Xthe record has fewer than 20 fields, so this prints a blank line.
+X
+XHere is another example of using expressions as field numbers:
+X
+X@example
+Xawk '@{ print $(2*2) @}' BBS-list
+X@end example
+X
+XThe @code{awk} language must evaluate the expression @code{(2*2)} and use
+Xits value as the number of the field to print.  The @samp{*} sign
+Xrepresents multiplication, so the expression @code{2*2} evaluates to 4.
+XThe parentheses are used so that the multiplication is done before the
+X@samp{$} operation; they are necessary whenever there is a binary
+Xoperator in the field-number expression.  This example, then, prints the
+Xhours of operation (the fourth field) for every line of the file
+X@file{BBS-list}.@refill
+X
+XIf the field number you compute is zero, you get the entire record.
+XThus, @code{$(2-2)} has the same value as @code{$0}.  Negative field
+Xnumbers are not allowed.
+X
+XThe number of fields in the current record is stored in the built-in
+Xvariable @code{NF} (@pxref{Built-in Variables}).  The expression
+X@code{$NF} is not a special feature: it is the direct consequence of
+Xevaluating @code{NF} and using its value as a field number.
+X
+X@node Changing Fields, Field Separators, Non-Constant Fields, Reading Files
+X@section Changing the Contents of a Field
+X
+X@cindex field, changing contents of
+X@cindex changing contents of a field
+X@cindex assignment to fields
+XYou can change the contents of a field as seen by @code{awk} within an
+X@code{awk} program; this changes what @code{awk} perceives as the
+Xcurrent input record.  (The actual input is untouched: @code{awk} never
+Xmodifies the input file.)
+X
+XLook at this example:
+X
+X@example
+Xawk '@{ $3 = $2 - 10; print $2, $3 @}' inventory-shipped
+X@end example
+X
+X@noindent
+XThe @samp{-} sign represents subtraction, so this program reassigns
+Xfield three, @code{$3}, to be the value of field two minus ten,
+X@code{$2 - 10}.  (@xref{Arithmetic Ops}.)  Then field two, and the
+Xnew value for field three, are printed.  
+X
+XIn order for this to work, the text in field @code{$2} must make sense
+Xas a number; the string of characters must be converted to a number in
+Xorder for the computer to do arithmetic on it.  The number resulting
+Xfrom the subtraction is converted back to a string of characters which
+Xthen becomes field three.  @xref{Conversion}.
+X
+XWhen you change the value of a field (as perceived by @code{awk}), the
+Xtext of the input record is recalculated to contain the new field where
+Xthe old one was.  Therefore, @code{$0} changes to reflect the altered
+Xfield.  Thus,
+X
+X@example
+Xawk '@{ $2 = $2 - 10; print $0 @}' inventory-shipped
+X@end example
+X
+X@noindent
+Xprints a copy of the input file, with 10 subtracted from the second
+Xfield of each line.
+X
+XYou can also assign contents to fields that are out of range.  For
+Xexample:
+X
+X@example
+Xawk '@{ $6 = ($5 + $4 + $3 + $2) ; print $6 @}' inventory-shipped
+X@end example
+X
+X@noindent
+XWe've just created @code{$6}, whose value is the sum of fields
+X@code{$2}, @code{$3}, @code{$4}, and @code{$5}.  The @samp{+} sign
+Xrepresents addition.  For the file @file{inventory-shipped}, @code{$6}
+Xrepresents the total number of parcels shipped for a particular month.
+X
+XCreating a new field changes the internal @code{awk} copy of the current
+Xinput record---the value of @code{$0}.  Thus, if you do @samp{print $0}
+Xafter adding a field, the record printed includes the new field, with
+Xthe appropriate number of field separators between it and the previously
+Xexisting fields.
+X
+XThis recomputation affects and is affected by several features not yet
+Xdiscussed, in particular, the @dfn{output field separator}, @code{OFS},
+Xwhich is used to separate the fields (@pxref{Output Separators}), and
+X@code{NF} (the number of fields; @pxref{Fields}).  For example, the
+Xvalue of @code{NF} is set to the number of the highest field you
+Xcreate.@refill
+X
+XNote, however, that merely @emph{referencing} an out-of-range field
+Xdoes @emph{not} change the value of either @code{$0} or @code{NF}.
+XReferencing an out-of-range field merely produces a null string.  For
+Xexample:@refill
+X
+X@example
+Xif ($(NF+1) != "")
+X    print "can't happen"
+Xelse
+X    print "everything is normal"
+X@end example
+X
+X@noindent
+Xshould print @samp{everything is normal}, because @code{NF+1} is certain
+Xto be out of range.  (@xref{If Statement}, for more information about
+X@code{awk}'s @code{if-else} statements.)
+X
+X@node Field Separators, Multiple Line, Changing Fields, Reading Files
+X@section Specifying How Fields Are Separated
+X@vindex FS
+X@cindex fields, separating
+X@cindex field separator, @code{FS}
+X@cindex @samp{-F} option
+X
+XThe way @code{awk} splits an input record into fields is controlled by
+Xthe @dfn{field separator}, which is a single character or a regular
+Xexpression.  @code{awk} scans the input record for matches for the
+Xseparator; the fields themselves are the text between the matches.  For
+Xexample, if the field separator is @samp{oo}, then the following line:
+X
+X@example
+Xmoo goo gai pan
+X@end example
+X
+X@noindent
+Xwould be split into three fields: @samp{m}, @samp{@ g} and @samp{@ gai@ 
+Xpan}.
+X
+XThe field separator is represented by the built-in variable @code{FS}.
+XShell programmers take note!  @code{awk} does not use the name
+X@code{IFS} which is used by the shell.@refill
+X
+XYou can change the value of @code{FS} in the @code{awk} program with the
+Xassignment operator, @samp{=} (@pxref{Assignment Ops}).  Often the right
+Xtime to do this is at the beginning of execution, before any input has
+Xbeen processed, so that the very first record will be read with the
+Xproper separator.  To do this, use the special @code{BEGIN} pattern
+X(@pxref{BEGIN/END}).  For example, here we set the value of @code{FS} to
+Xthe string @code{","}:
+X
+X@example
+Xawk 'BEGIN @{ FS = "," @} ; @{ print $2 @}'
+X@end example
+X
+X@noindent
+XGiven the input line,
+X
+X@example
+XJohn Q. Smith, 29 Oak St., Walamazoo, MI 42139
+X@end example
+X
+X@noindent
+Xthis @code{awk} program extracts the string @samp{29 Oak St.}.
+X
+X@cindex field separator, choice of
+X@cindex regular expressions as field separators
+XSometimes your input data will contain separator characters that don't
+Xseparate fields the way you thought they would.  For instance, the
+Xperson's name in the example we've been using might have a title or
+Xsuffix attached, such as @samp{John Q. Smith, LXIX}.  From input
+Xcontaining such a name:
+X
+X@example
+XJohn Q. Smith, LXIX, 29 Oak St., Walamazoo, MI 42139
+X@end example
+X
+X@noindent
+Xthe previous sample program would extract @samp{LXIX}, instead of
+X@samp{29 Oak St.}.  If you were expecting the program to print the
+Xaddress, you would be surprised.  So choose your data layout and
+Xseparator characters carefully to prevent such problems.
+X
+XAs you know, by default, fields are separated by whitespace sequences
+X(spaces and tabs), not by single spaces: two spaces in a row do not
+Xdelimit an empty field.  The default value of the field separator is a
+Xstring @w{@code{" "}} containing a single space.  If this value were
+Xinterpreted in the usual way, each space character would separate
+Xfields, so two spaces in a row would make an empty field between them.
+XThe reason this does not happen is that a single space as the value of
+X@code{FS} is a special case: it is taken to specify the default manner
+Xof delimiting fields.
+X
+XIf @code{FS} is any other single character, such as @code{","}, then
+Xeach occurrence of that character separates two fields.  Two consecutive
+Xoccurrences delimit an empty field.  If the character occurs at the
+Xbeginning or the end of the line, that too delimits an empty field.  The
+Xspace character is the only single character which does not follow these
+Xrules.
+X
+XMore generally, the value of @code{FS} may be a string containing any
+Xregular expression.  Then each match in the record for the regular
+Xexpression separates fields.  For example, the assignment:@refill
+X
+X@example
+XFS = ", \t"
+X@end example
+X
+X@noindent
+Xmakes every area of an input line that consists of a comma followed by a
+Xspace and a tab, into a field separator.  (@samp{\t} stands for a
+Xtab.)@refill
+X
+XFor a less trivial example of a regular expression, suppose you want
+Xsingle spaces to separate fields the way single commas were used above.
+XYou can set @code{FS} to @w{@code{"[@ ]"}}.  This regular expression
+Xmatches a single space and nothing else.
+X
+X@cindex field separator, setting on command line
+X@cindex command line, setting @code{FS} on
+X@code{FS} can be set on the command line.  You use the @samp{-F} argument to
+Xdo so.  For example:
+X
+X@example
+Xawk -F, '@var{program}' @var{input-files}
+X@end example
+X
+X@noindent
+Xsets @code{FS} to be the @samp{,} character.  Notice that the argument uses
+Xa capital @samp{F}.  Contrast this with @samp{-f}, which specifies a file
+Xcontaining an @code{awk} program.  Case is significant in command options:
+Xthe @samp{-F} and @samp{-f} options have nothing to do with each other.
+XYou can use both options at the same time to set the @code{FS} argument
+X@emph{and} get an @code{awk} program from a file.
+X
+XAs a special case, in compatibility mode (@pxref{Command Line}), if the
+Xargument to @samp{-F} is @samp{t}, then @code{FS} is set to the tab
+Xcharacter.  (This is because if you type @samp{-F\t}, without the quotes,
+Xat the shell, the @samp{\} gets deleted, so @code{awk} figures that you
+Xreally want your fields to be separated with tabs, and not @samp{t}s.
+XUse @samp{FS="t"} on the command line if you really do want to separate
+Xyour fields with @samp{t}s.)
+X
+XFor example, let's use an @code{awk} program file called @file{baud.awk}
+Xthat contains the pattern @code{/300/}, and the action @samp{print $1}.
+XHere is the program:
+X
+X@example
+X/300/   @{ print $1 @}
+X@end example
+X
+XLet's also set @code{FS} to be the @samp{-} character, and run the
+Xprogram on the file @file{BBS-list}.  The following command prints a
+Xlist of the names of the bulletin boards that operate at 300 baud and
+Xthe first three digits of their phone numbers:@refill
+X
+X@example
+Xawk -F- -f baud.awk BBS-list
+X@end example
+X
+X@noindent
+XIt produces this output:
+X
+X@example
+Xaardvark     555
+Xalpo
+Xbarfly       555
+Xbites        555
+Xcamelot      555
+Xcore         555
+Xfooey        555
+Xfoot         555
+Xmacfoo       555
+Xsdace        555
+Xsabafoo      555
+X@end example
+X
+X@noindent
+XNote the second line of output.  If you check the original file, you will
+Xsee that the second line looked like this:
+X
+X@example
+Xalpo-net     555-3412     2400/1200/300     A
+X@end example
+X
+XThe @samp{-} as part of the system's name was used as the field
+Xseparator, instead of the @samp{-} in the phone number that was
+Xoriginally intended.  This demonstrates why you have to be careful in
+Xchoosing your field and record separators.
+X
+XThe following program searches the system password file, and prints
+Xthe entries for users who have no password:
+X
+X@example
+Xawk -F: '$2 == ""' /etc/passwd
+X@end example
+X
+X@noindent
+XHere we use the @samp{-F} option on the command line to set the field
+Xseparator.  Note that fields in @file{/etc/passwd} are separated by
+Xcolons.  The second field represents a user's encrypted password, but if
+Xthe field is empty, that user has no password.
+X
+X@node Multiple Line, Getline, Field Separators, Reading Files
+X@section Multiple-Line Records
+X
+X@cindex multiple line records
+X@cindex input, multiple line records
+X@cindex reading files, multiple line records
+X@cindex records, multiple line
+XIn some data bases, a single line cannot conveniently hold all the
+Xinformation in one entry.  In such cases, you can use multi-line
+Xrecords.
+X
+XThe first step in doing this is to choose your data format: when records
+Xare not defined as single lines, how do you want to define them?
+XWhat should separate records?
+X
+XOne technique is to use an unusual character or string to separate
+Xrecords.  For example, you could use the formfeed character (written
+X@samp{\f} in @code{awk}, as in C) to separate them, making each record
+Xa page of the file.  To do this, just set the variable @code{RS} to
+X@code{"\f"} (a string containing the formfeed character).  Any
+Xother character could equally well be used, as long as it won't be part
+Xof the data in a record.
+X
+X@ignore
+XAnother technique is to have blank lines separate records.  The string
+X@code{"^\n+"} is a regular expression that matches any sequence of
+Xnewlines starting at the beginning of a line---in other words, it
+Xmatches a sequence of blank lines.  If you set @code{RS} to this string,
+Xa record always ends at the first blank line encountered.  In
+Xaddition, a regular expression always matches the longest possible
+Xsequence when there is a choice.  So the next record doesn't start until
+Xthe first nonblank line that follows---no matter how many blank lines
+Xappear in a row, they are considered one record-separator.
+X@end ignore
+X
+XAnother technique is to have blank lines separate records.  By a special
+Xdispensation, a null string as the value of @code{RS} indicates that
+Xrecords are separated by one or more blank lines.  If you set @code{RS}
+Xto the null string, a record always ends at the first blank line
+Xencountered.  And the next record doesn't start until the first nonblank
+Xline that follows---no matter how many blank lines appear in a row, they
+Xare considered one record-separator.
+X
+XThe second step is to separate the fields in the record.  One way to do
+Xthis is to put each field on a separate line: to do this, just set the
+Xvariable @code{FS} to the string @code{"\n"}.  (This simple regular
+Xexpression matches a single newline.)
+X
+XAnother idea is to divide each of the lines into fields in the normal
+Xmanner.  This happens by default as a result of a special feature: when
+X@code{RS} is set to the null string, the newline character @emph{always}
+Xacts as a field separator.  This is in addition to whatever field
+Xseparations result from @code{FS}.
+X
+XThe original motivation for this special exception was probably so that
+Xyou get useful behavior in the default case (i.e., @w{@code{FS == "
+X"}}).  This feature can be a problem if you really don't want the
+Xnewline character to separate fields, since there is no way to
+Xprevent it.  However, you can work around this by using the @code{split}
+Xfunction to break up the record manually (@pxref{String Functions}).
+X
+X@ignore
+XHere are two ways to use records separated by blank lines and break each
+Xline into fields normally:
+X
+X@example
+Xawk 'BEGIN @{ RS = ""; FS = "[ \t\n]+" @} @{ print $1 @}' BBS-list
+X
+X@exdent @r{or}
+X
+Xawk 'BEGIN @{ RS = "^\n+"; FS = "[ \t\n]+" @} @{ print $1 @}' BBS-list
+X@end example
+X@end ignore
+X
+X@ignore
+XHere is how to use records separated by blank lines and break each
+Xline into fields normally:
+X
+X@example
+Xawk 'BEGIN @{ RS = ""; FS = "[ \t\n]+" @} ; @{ print $1 @}' BBS-list
+X@end example
+X@end ignore
+X
+X@node Getline, Close Input, Multiple Line, Reading Files
+X@section Explicit Input with @code{getline}
+X
+X@findex getline
+X@cindex input, explicit
+X@cindex explicit input
+X@cindex input, @code{getline} command
+X@cindex reading files, @code{getline} command
+XSo far we have been getting our input files from @code{awk}'s main
+Xinput stream---either the standard input (usually your terminal) or the
+Xfiles specified on the command line.  The @code{awk} language has a
+Xspecial built-in command called @code{getline} that
+Xcan be used to read input under your explicit control.
+X
+XThis command is quite complex and should @emph{not} be used by
+Xbeginners.  It is covered here because this is the chapter on input.
+XThe examples that follow the explanation of the @code{getline} command
+Xinclude material that has not been covered yet.  Therefore, come back
+Xand study the @code{getline} command @emph{after} you have reviewed the
+Xrest of this manual and have a good knowledge of how @code{awk} works.
+X
+X@code{getline} returns 1 if it finds a record, and 0 if the end of the
+Xfile is encountered.  If there is some error in getting a record, such
+Xas a file that cannot be opened, then @code{getline} returns @minus{}1.
+X
+XIn the following examples, @var{command} stands for a string value that
+Xrepresents a shell command.
+X
+X@table @code
+X@item getline
+XThe @code{getline} command can be used without arguments to read input
+Xfrom the current input file.  All it does in this case is read the next
+Xinput record and split it up into fields.  This is useful if you've
+Xfinished processing the current record, but you want to do some special
+Xprocessing @emph{right now} on the next record.  Here's an
+Xexample:@refill
+X
+X@example
+Xawk '@{
+X     if (t = index($0, "/*")) @{
+X          if(t > 1)
+X               tmp = substr($0, 1, t - 1)
+X          else
+X               tmp = ""
+X          u = index(substr($0, t + 2), "*/")
+X          while (! u) @{
+X               getline
+X               t = -1
+X               u = index($0, "*/")
+X          @}
+X          if(u <= length($0) - 2)
+X               $0 = tmp substr($0, t + u + 3)
+X          else
+X               $0 = tmp
+X     @}
+X     print $0
+X@}'
+X@end example
+X
+XThis @code{awk} program deletes all comments, @samp{/* @dots{}
+X*/}, from the input.  By replacing the @samp{print $0} with other
+Xstatements, you could perform more complicated processing on the
+Xdecommented input, such as searching it for matches for a regular
+Xexpression.
+X
+XThis form of the @code{getline} command sets @code{NF} (the number of
+Xfields; @pxref{Fields}), @code{NR} (the number of records read so far;
+X@pxref{Records}), @code{FNR} (the number of records read from this input
+Xfile), and the value of @code{$0}.
+X
+X@strong{Note:} the new value of @code{$0} is used in testing
+Xthe patterns of any subsequent rules.  The original value
+Xof @code{$0} that triggered the rule which executed @code{getline}
+Xis lost.  By contrast, the @code{next} statement reads a new record
+Xbut immediately begins processing it normally, starting with the first
+Xrule in the program.  @xref{Next Statement}.
+X
+X@item getline @var{var}
+XThis form of @code{getline} reads a record into the variable @var{var}.
+XThis is useful when you want your program to read the next record from
+Xthe current input file, but you don't want to subject the record to the
+Xnormal input processing.
+X
+XFor example, suppose the next line is a comment, or a special string,
+Xand you want to read it, but you must make certain that it won't trigger
+Xany rules.  This version of @code{getline} allows you to read that line
+Xand store it in a variable so that the main
+Xread-a-line-and-check-each-rule loop of @code{awk} never sees it.
+X
+XThe following example swaps every two lines of input.  For example, given:
+X
+X@example
+Xwan
+Xtew
+Xfree
+Xphore
+X@end example
+X
+X@noindent
+Xit outputs:
+X
+X@example
+Xtew
+Xwan
+Xphore
+Xfree
+X@end example
+X
+X@noindent
+XHere's the program:
+X
+X@example
+Xawk '@{
+X     if ((getline tmp) > 0) @{
+X          print tmp
+X          print $0
+X     @} else
+X          print $0
+X@}'
+X@end example
+X
+XThe @code{getline} function used in this way sets only the variables
+X@code{NR} and @code{FNR} (and of course, @var{var}).  The record is not
+Xsplit into fields, so the values of the fields (including @code{$0}) and
+Xthe value of @code{NF} do not change.@refill
+X
+X@item getline < @var{file}
+X@cindex input redirection
+X@cindex redirection of input
+XThis form of the @code{getline} function takes its input from the file
+X@var{file}.  Here @var{file} is a string-valued expression that
+Xspecifies the file name.  @samp{< @var{file}} is called a @dfn{redirection}
+Xsince it directs input to come from a different place.
+X
+XThis form is useful if you want to read your input from a particular
+Xfile, instead of from the main input stream.  For example, the following
+Xprogram reads its input record from the file @file{foo.input} when it
+Xencounters a first field with a value equal to 10 in the current input
+Xfile.@refill
+X
+X@example
+Xawk '@{
+Xif ($1 == 10) @{
+X     getline < "foo.input"
+X     print
+X@} else
+X     print
+X@}'
+X@end example
+X
+XSince the main input stream is not used, the values of @code{NR} and
+X@code{FNR} are not changed.  But the record read is split into fields in
+Xthe normal manner, so the values of @code{$0} and other fields are
+Xchanged.  So is the value of @code{NF}.
+X
+XThis does not cause the record to be tested against all the patterns
+Xin the @code{awk} program, in the way that would happen if the record
+Xwere read normally by the main processing loop of @code{awk}.  However
+Xthe new record is tested against any subsequent rules, just as when
+X@code{getline} is used without a redirection.
+X
+X@item getline @var{var} < @var{file}
+XThis form of the @code{getline} function takes its input from the file
+X@var{file} and puts it in the variable @var{var}.  As above, @var{file}
+Xis a string-valued expression that specifies the file to read from.
+X
+XIn this version of @code{getline}, none of the built-in variables are
+Xchanged, and the record is not split into fields.  The only variable
+Xchanged is @var{var}.
+X
+XFor example, the following program copies all the input files to the
+Xoutput, except for records that say @w{@samp{@@include @var{filename}}}.
+XSuch a record is replaced by the contents of the file
+X@var{filename}.@refill
+X
+X@example
+Xawk '@{
+X     if (NF == 2 && $1 == "@@include") @{
+X          while ((getline line < $2) > 0)
+X               print line
+X          close($2)
+X     @} else
+X          print
+X@}'
+X@end example
+X
+XNote here how the name of the extra input file is not built into
+Xthe program; it is taken from the data, from the second field on
+Xthe @samp{@@include} line.
+X
+XThe @code{close} function is called to ensure that if two identical
+X@samp{@@include} lines appear in the input, the entire specified file is
+Xincluded twice.  @xref{Close Input}.
+X
+XOne deficiency of this program is that it does not process nested
+X@samp{@@include} statements the way a true macro preprocessor would.
+X
+X@item @var{command} | getline
+XYou can @dfn{pipe} the output of a command into @code{getline}.  A pipe is
+Xsimply a way to link the output of one program to the input of another.  In
+Xthis case, the string @var{command} is run as a shell command and its output
+Xis piped into @code{awk} to be used as input.  This form of @code{getline}
+Xreads one record from the pipe.
+X
+XFor example, the following program copies input to output, except for lines
+Xthat begin with @samp{@@execute}, which are replaced by the output produced by
+Xrunning the rest of the line as a shell command:
+X
+X@example
+Xawk '@{
+X     if ($1 == "@@execute") @{
+X          tmp = substr($0, 10)
+X          while ((tmp | getline) > 0)
+X               print
+X          close(tmp)
+X     @} else
+X          print
+X@}'
+X@end example
+X
+X@noindent
+XThe @code{close} function is called to ensure that if two identical
+X@samp{@@execute} lines appear in the input, the command is run again for
+Xeach one.  @xref{Close Input}.
+X
+XGiven the input:
+X
+X@example
+Xfoo
+Xbar
+Xbaz
+X@@execute who
+Xbletch
+X@end example
+X
+X@noindent
+Xthe program might produce:
+X
+X@example
+Xfoo
+Xbar
+Xbaz
+Xhack     ttyv0   Jul 13 14:22
+Xhack     ttyp0   Jul 13 14:23     (gnu:0)
+Xhack     ttyp1   Jul 13 14:23     (gnu:0)
+Xhack     ttyp2   Jul 13 14:23     (gnu:0)
+Xhack     ttyp3   Jul 13 14:23     (gnu:0)
+Xbletch
+X@end example
+X
+X@noindent
+XNotice that this program ran the command @code{who} and printed the result.
+X(If you try this program yourself, you will get different results, showing
+Xyou logged in.)
+X
+XThis variation of @code{getline} splits the record into fields, sets the
+Xvalue of @code{NF} and recomputes the value of @code{$0}.  The values of
+X@code{NR} and @code{FNR} are not changed.
+X
+X@item @var{command} | getline @var{var}
+XThe output of the command @var{command} is sent through a pipe to
+X@code{getline} and into the variable @var{var}.  For example, the
+Xfollowing program reads the current date and time into the variable
+X@code{current_time}, using the utility called @code{date}, and then
+Xprints it.@refill
+X
+X@group
+X@example
+Xawk 'BEGIN @{
+X     "date" | getline current_time
+X     close("date")
+X     print "Report printed on " current_time
+X@}'
+X@end example
+X@end group
+X
+XIn this version of @code{getline}, none of the built-in variables are
+Xchanged, and the record is not split into fields.
+X@end table
+X
+X@node Close Input,, Getline, Reading Files
+X@section Closing Input Files and Pipes
+X@cindex closing input files and pipes
+X@findex close
+X
+XIf the same file name or the same shell command is used with
+X@code{getline} more than once during the execution of an @code{awk}
+Xprogram, the file is opened (or the command is executed) only the first time.
+XAt that time, the first record of input is read from that file or command.
+XThe next time the same file or command is used in @code{getline}, another
+Xrecord is read from it, and so on.
+X
+XThis implies that if you want to start reading the same file again from
+Xthe beginning, or if you want to rerun a shell command (rather that
+Xreading more output from the command), you must take special steps.
+XWhat you can do is use the @code{close} function, as follows:
+X
+X@example
+Xclose(@var{filename})
+X@end example
+X
+X@noindent
+Xor
+X
+X@example
+Xclose(@var{command})
+X@end example
+X
+XThe argument @var{filename} or @var{command} can be any expression.  Its
+Xvalue must exactly equal the string that was used to open the file or
+Xstart the command---for example, if you open a pipe with this:
+X
+X@example
+X"sort -r names" | getline foo
+X@end example
+X
+X@noindent
+Xthen you must close it with this:
+X
+X@example
+Xclose("sort -r names")
+X@end example
+X
+XOnce this function call is executed, the next @code{getline} from that
+Xfile or command will reopen the file or rerun the command.
+X
+X@node Printing, One-liners, Reading Files, Top
+X@chapter Printing Output
+X
+X@cindex printing
+X@cindex output
+XOne of the most common things that actions do is to output or @dfn{print}
+Xsome or all of the input.  For simple output, use the @code{print}
+Xstatement.  For fancier formatting use the @code{printf} statement.
+XBoth are described in this chapter.
+X
+X@menu
+X* Print::              The @code{print} statement.
+X* Print Examples::     Simple examples of @code{print} statements.
+X* Output Separators::  The output separators and how to change them.
+X* Printf::             The @code{printf} statement.
+X* Redirection::        How to redirect output to multiple files and pipes.
+X* Special Files::      File name interpretation in @code{gawk}.  @code{gawk}
+X                       allows access to inherited file descriptors.
+X@end menu
+X
+X@node Print, Print Examples, Printing, Printing
+X@section The @code{print} Statement
+X@cindex @code{print} statement
+X
+XThe @code{print} statement does output with simple, standardized
+Xformatting.  You specify only the strings or numbers to be printed, in a
+Xlist separated by commas.  They are output, separated by single spaces,
+Xfollowed by a newline.  The statement looks like this:
+X
+X@example
+Xprint @var{item1}, @var{item2}, @dots{}
+X@end example
+X
+X@noindent
+XThe entire list of items may optionally be enclosed in parentheses.  The
+Xparentheses are necessary if any of the item expressions uses a
+Xrelational operator; otherwise it could be confused with a redirection
+X(@pxref{Redirection}).  The relational operators are @samp{==},
+X@samp{!=}, @samp{<}, @samp{>}, @samp{>=}, @samp{<=}, @samp{~} and
+X@samp{!~} (@pxref{Comparison Ops}).@refill
+X
+XThe items printed can be constant strings or numbers, fields of the
+Xcurrent record (such as @code{$1}), variables, or any @code{awk}
+Xexpressions.  The @code{print} statement is completely general for
+Xcomputing @emph{what} values to print.  With one exception
+X(@pxref{Output Separators}), what you can't do is specify @emph{how} to
+Xprint them---how many columns to use, whether to use exponential
+Xnotation or not, and so on.  For that, you need the @code{printf}
+Xstatement (@pxref{Printf}).
+X
+XThe simple statement @samp{print} with no items is equivalent to
+X@samp{print $0}: it prints the entire current record.  To print a blank
+Xline, use @samp{print ""}, where @code{""} is the null, or empty,
+Xstring.
+X
+XTo print a fixed piece of text, use a string constant such as
+X@w{@code{"Hello there"}} as one item.  If you forget to use the
+Xdouble-quote characters, your text will be taken as an @code{awk}
+Xexpression, and you will probably get an error.  Keep in mind that a
+Xspace is printed between any two items.
+X
+XMost often, each @code{print} statement makes one line of output.  But it
+Xisn't limited to one line.  If an item value is a string that contains a
+Xnewline, the newline is output along with the rest of the string.  A
+Xsingle @code{print} can make any number of lines this way.
+X
+X@node Print Examples, Output Separators, Print, Printing
+X@section Examples of @code{print} Statements
+X
+XHere is an example of printing a string that contains embedded newlines:
+X
+X@example
+Xawk 'BEGIN @{ print "line one\nline two\nline three" @}'
+X@end example
+X
+X@noindent
+Xproduces output like this:
+X
+X@example
+Xline one
+Xline two
+Xline three
+X@end example
+X
+XHere is an example that prints the first two fields of each input record,
+Xwith a space between them:
+X
+X@example
+Xawk '@{ print $1, $2 @}' inventory-shipped
+X@end example
+X
+X@noindent
+XIts output looks like this:
+X
+X@example
+XJan 13
+XFeb 15
+XMar 15
+X@dots{}
+X@end example
+X
+XA common mistake in using the @code{print} statement is to omit the comma
+Xbetween two items.  This often has the effect of making the items run
+Xtogether in the output, with no space.  The reason for this is that
+Xjuxtaposing two string expressions in @code{awk} means to concatenate
+Xthem.  For example, without the comma:
+X
+X@example
+Xawk '@{ print $1 $2 @}' inventory-shipped
+X@end example
+X
+X@noindent
+Xprints:
+X
+X@example
+XJan13
+XFeb15
+XMar15
+X@dots{}
+X@end example
+X
+XNeither example's output makes much sense to someone unfamiliar with the
+Xfile @file{inventory-shipped}.  A heading line at the beginning would make
+Xit clearer.  Let's add some headings to our table of months (@code{$1}) and
+Xgreen crates shipped (@code{$2}).  We do this using the @code{BEGIN} pattern
+X(@pxref{BEGIN/END}) to cause the headings to be printed only once:
+X
+X@c the formatting is strange here because the @{ becomes just a brace.
+X@example
+Xawk 'BEGIN @{  print "Month Crates"
+X              print "----- ------" @}
+X           @{  print $1, $2 @}' inventory-shipped
+X@end example
+X
+X@noindent
+XDid you already guess what happens?  This program prints the following:
+X
+X@group
+X@example
+XMonth Crates
+X----- ------
+XJan 13
+XFeb 15
+XMar 15
+X@dots{}
+X@end example
+X@end group
+X
+X@noindent
+XThe headings and the table data don't line up!  We can fix this by printing
+Xsome spaces between the two fields:
+X
+X@example
+Xawk 'BEGIN @{ print "Month Crates"
+X             print "----- ------" @}
+X           @{ print $1, "     ", $2 @}' inventory-shipped
+X@end example
+X
+XYou can imagine that this way of lining up columns can get pretty
+Xcomplicated when you have many columns to fix.  Counting spaces for two
+Xor three columns can be simple, but more than this and you can get
+X``lost'' quite easily.  This is why the @code{printf} statement was
+Xcreated (@pxref{Printf}); one of its specialties is lining up columns of
+Xdata.
+X
+X@node Output Separators, Printf, Print Examples, Printing
+X@section Output Separators
+X
+X@cindex output field separator, @code{OFS}
+X@vindex OFS
+X@vindex ORS
+X@cindex output record separator, @code{ORS}
+XAs mentioned previously, a @code{print} statement contains a list
+Xof items, separated by commas.  In the output, the items are normally
+Xseparated by single spaces.  But they do not have to be spaces; a
+Xsingle space is only the default.  You can specify any string of
+Xcharacters to use as the @dfn{output field separator} by setting the
+Xbuilt-in variable @code{OFS}.  The initial value of this variable
+Xis the string @w{@code{" "}}.
+X
+XThe output from an entire @code{print} statement is called an
+X@dfn{output record}.  Each @code{print} statement outputs one output
+Xrecord and then outputs a string called the @dfn{output record separator}.
+XThe built-in variable @code{ORS} specifies this string.  The initial
+Xvalue of the variable is the string @code{"\n"} containing a newline
+Xcharacter; thus, normally each @code{print} statement makes a separate line.
+X
+XYou can change how output fields and records are separated by assigning
+Xnew values to the variables @code{OFS} and/or @code{ORS}.  The usual
+Xplace to do this is in the @code{BEGIN} rule (@pxref{BEGIN/END}), so
+Xthat it happens before any input is processed.  You may also do this
+Xwith assignments on the command line, before the names of your input
+Xfiles.
+X
+XThe following example prints the first and second fields of each input
+Xrecord separated by a semicolon, with a blank line added after each
+Xline:@refill
+X
+X@example
+Xawk 'BEGIN @{ OFS = ";"; ORS = "\n\n" @}
+X           @{ print $1, $2 @}'  BBS-list
+X@end example
+X
+XIf the value of @code{ORS} does not contain a newline, all your output
+Xwill be run together on a single line, unless you output newlines some
+Xother way.
+X
+X@node Printf, Redirection, Output Separators, Printing
+X@section Using @code{printf} Statements For Fancier Printing
+X@cindex formatted output
+X@cindex output, formatted
+X
+XIf you want more precise control over the output format than
+X@code{print} gives you, use @code{printf}.  With @code{printf} you can
+Xspecify the width to use for each item, and you can specify various
+Xstylistic choices for numbers (such as what radix to use, whether to
+Xprint an exponent, whether to print a sign, and how many digits to print
+Xafter the decimal point).  You do this by specifying a string, called
+Xthe @dfn{format string}, which controls how and where to print the other
+Xarguments.
+X
+X@menu
+X* Basic Printf::       Syntax of the @code{printf} statement.
+X* Control Letters::    Format-control letters.
+X* Format Modifiers::   Format-specification modifiers.
+X* Printf Examples::    Several examples.
+X@end menu
+X
+X@node Basic Printf, Control Letters, Printf, Printf
+X@subsection Introduction to the @code{printf} Statement
+X
+X@cindex @code{printf} statement, syntax of
+XThe @code{printf} statement looks like this:@refill
+X
+X@example
+Xprintf @var{format}, @var{item1}, @var{item2}, @dots{}
+X@end example
+X
+X@noindent
+XThe entire list of items may optionally be enclosed in parentheses.  The
+Xparentheses are necessary if any of the item expressions uses a
+Xrelational operator; otherwise it could be confused with a redirection
+X(@pxref{Redirection}).  The relational operators are @samp{==},
+X@samp{!=}, @samp{<}, @samp{>}, @samp{>=}, @samp{<=}, @samp{~} and
+X@samp{!~} (@pxref{Comparison Ops}).@refill
+X
+X@cindex format string
+XThe difference between @code{printf} and @code{print} is the argument
+X@var{format}.  This is an expression whose value is taken as a string; its
+Xjob is to say how to output each of the other arguments.  It is called
+Xthe @dfn{format string}.
+X
+XThe format string is essentially the same as in the C library function
+X@code{printf}.  Most of @var{format} is text to be output verbatim.
+XScattered among this text are @dfn{format specifiers}, one per item.
+XEach format specifier says to output the next item at that place in the
+Xformat.@refill
+X
+XThe @code{printf} statement does not automatically append a newline to its
+Xoutput.  It outputs nothing but what the format specifies.  So if you want
+Xa newline, you must include one in the format.  The output separator
+Xvariables @code{OFS} and @code{ORS} have no effect on @code{printf}
+Xstatements.
+X
+X@node Control Letters, Format Modifiers, Basic Printf, Printf
+X@subsection Format-Control Letters
+X@cindex @code{printf}, format-control characters
+X@cindex format specifier
+X
+XA format specifier starts with the character @samp{%} and ends with a
+X@dfn{format-control letter}; it tells the @code{printf} statement how
+Xto output one item.  (If you actually want to output a @samp{%}, write
+X@samp{%%}.)  The format-control letter specifies what kind of value to
+Xprint.  The rest of the format specifier is made up of optional
+X@dfn{modifiers} which are parameters such as the field width to use.
+X
+XHere is a list of the format-control letters:
+X
+X@table @samp
+X@item c
+XThis prints a number as an ASCII character.  Thus, @samp{printf "%c",
+X65} outputs the letter @samp{A}.  The output for a string value is
+Xthe first character of the string.
+X
+X@item d
+XThis prints a decimal integer.
+X
+X@item i
+XThis also prints a decimal integer.
+X
+X@item e
+XThis prints a number in scientific (exponential) notation.
+XFor example,
+X
+X@example
+Xprintf "%4.3e", 1950
+X@end example
+X
+X@noindent
+Xprints @samp{1.950e+03}, with a total of 4 significant figures of
+Xwhich 3 follow the decimal point.  The @samp{4.3} are @dfn{modifiers},
+Xdiscussed below.
+X
+X@item f
+XThis prints a number in floating point notation.
+X
+X@item g
+XThis prints either scientific notation or floating point notation, whichever
+Xis shorter.
+X
+X@item o
+XThis prints an unsigned octal integer.
+X
+X@item s
+XThis prints a string.
+X
+X@item x
+XThis prints an unsigned hexadecimal integer.
+X
+X@item X
+XThis prints an unsigned hexadecimal integer.  However, for the values 10
+Xthrough 15, it uses the letters @samp{A} through @samp{F} instead of
+X@samp{a} through @samp{f}.
+X
+X@item %
+XThis isn't really a format-control letter, but it does have a meaning
+Xwhen used after a @samp{%}: the sequence @samp{%%} outputs one
+X@samp{%}.  It does not consume an argument.
+X@end table
+X
+X@node Format Modifiers, Printf Examples, Control Letters, Printf
+X@subsection Modifiers for @code{printf} Formats
+X
+X@cindex @code{printf}, modifiers
+X@cindex modifiers (in format specifiers)
+XA format specification can also include @dfn{modifiers} that can control
+Xhow much of the item's value is printed and how much space it gets.  The
+Xmodifiers come between the @samp{%} and the format-control letter.  Here
+Xare the possible modifiers, in the order in which they may appear:
+X
+X@table @samp
+X@item -
+XThe minus sign, used before the width modifier, says to left-justify
+Xthe argument within its specified width.  Normally the argument
+Xis printed right-justified in the specified width.  Thus,
+X
+X@example
+Xprintf "%-4s", "foo"
+X@end example
+X
+X@noindent
+Xprints @samp{foo }.
+X
+X@item @var{width}
+XThis is a number representing the desired width of a field.  Inserting any
+Xnumber between the @samp{%} sign and the format control character forces the
+Xfield to be expanded to this width.  The default way to do this is to
+Xpad with spaces on the left.  For example,
+X
+X@example
+Xprintf "%4s", "foo"
+X@end example
+X
+X@noindent
+Xprints @samp{ foo}.
+X
+XThe value of @var{width} is a minimum width, not a maximum.  If the item
+Xvalue requires more than @var{width} characters, it can be as wide as
+Xnecessary.  Thus,
+X
+X@example
+Xprintf "%4s", "foobar"
+X@end example
+X
+X@noindent
+Xprints @samp{foobar}.  Preceding the @var{width} with a minus sign causes
+Xthe output to be padded with spaces on the right, instead of on the left.
+X
+X@item .@var{prec}
+XThis is a number that specifies the precision to use when printing.
+XThis specifies the number of digits you want printed to the right of the
+Xdecimal point.  For a string, it specifies the maximum number of
+Xcharacters from the string that should be printed.
+X@end table
+X
+XThe C library @code{printf}'s dynamic @var{width} and @var{prec}
+Xcapability (for example, @code{"%*.*s"}) is not yet supported.  However, it can
+Xeasily be simulated using concatenation to dynamically build the
+Xformat string.@refill
+X
+X@node Printf Examples, , Format Modifiers, Printf
+X@subsection Examples of Using @code{printf}
+X
+XHere is how to use @code{printf} to make an aligned table:
+X
+X@example
+Xawk '@{ printf "%-10s %s\n", $1, $2 @}' BBS-list
+X@end example
+X
+X@noindent
+Xprints the names of bulletin boards (@code{$1}) of the file
+X@file{BBS-list} as a string of 10 characters, left justified.  It also
+Xprints the phone numbers (@code{$2}) afterward on the line.  This
+Xproduces an aligned two-column table of names and phone numbers:
+X
+X@example
+Xaardvark   555-5553
+Xalpo-net   555-3412
+Xbarfly     555-7685
+Xbites      555-1675
+Xcamelot    555-0542
+Xcore       555-2912
+Xfooey      555-1234
+Xfoot       555-6699
+Xmacfoo     555-6480
+Xsdace      555-3430
+Xsabafoo    555-2127
+X@end example
+X
+XDid you notice that we did not specify that the phone numbers be printed
+Xas numbers?  They had to be printed as strings because the numbers are
+Xseparated by a dash.  This dash would be interpreted as a minus sign if
+Xwe had tried to print the phone numbers as numbers.  This would have led
+Xto some pretty confusing results.
+X
+XWe did not specify a width for the phone numbers because they are the
+Xlast things on their lines.  We don't need to put spaces after them.
+X
+XWe could make our table look even nicer by adding headings to the tops
+Xof the columns.  To do this, use the @code{BEGIN} pattern
+X(@pxref{BEGIN/END}) to cause the header to be printed only once, at the
+Xbeginning of the @code{awk} program:
+X
+X@example
+Xawk 'BEGIN @{ print "Name      Number"
+X             print "----      ------" @}
+X     @{ printf "%-10s %s\n", $1, $2 @}' BBS-list
+X@end example
+X
+XDid you notice that we mixed @code{print} and @code{printf} statements in
+Xthe above example?  We could have used just @code{printf} statements to get
+Xthe same results:
+X
+X@example
+Xawk 'BEGIN @{ printf "%-10s %s\n", "Name", "Number"
+X             printf "%-10s %s\n", "----", "------" @}
+X     @{ printf "%-10s %s\n", $1, $2 @}' BBS-list
+X@end example
+X
+X@noindent
+XBy outputting each column heading with the same format specification
+Xused for the elements of the column, we have made sure that the headings
+Xare aligned just like the columns.
+X
+XThe fact that the same format specification is used three times can be
+Xemphasized by storing it in a variable, like this:
+X
+X@example
+Xawk 'BEGIN @{ format = "%-10s %s\n"
+X             printf format, "Name", "Number"
+END_OF_FILE
+  if test 49665 -ne `wc -c <'./gawk.texinfo.02'`; then
+    echo shar: \"'./gawk.texinfo.02'\" unpacked with wrong size!
+  fi
+  # end of './gawk.texinfo.02'
+fi
+if test -f './regex.c.02' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'./regex.c.02'\"
+else
+  echo shar: Extracting \"'./regex.c.02'\" \(2044 characters\)
+  sed "s/^X//" >'./regex.c.02' <<'END_OF_FILE'
+X    0360, 0361, 0362, 0363, 0364, 0365, 0366, 0367,
+X    0370, 0371, 0372, 0373, 0374, 0375, 0376, 0377
+X  };
+X
+Xmain (argc, argv)
+X     int argc;
+X     char **argv;
+X{
+X  char pat[80];
+X  struct re_pattern_buffer buf;
+X  int i;
+X  char c;
+X  char fastmap[(1 << BYTEWIDTH)];
+X
+X  /* Allow a command argument to specify the style of syntax.  */
+X  if (argc > 1)
+X    obscure_syntax = atoi (argv[1]);
+X
+X  buf.allocated = 40;
+X  buf.buffer = (char *) malloc (buf.allocated);
+X  buf.fastmap = fastmap;
+X  buf.translate = upcase;
+X
+X  while (1)
+X    {
+X      gets (pat);
+X
+X      if (*pat)
+X	{
+X          re_compile_pattern (pat, strlen(pat), &buf);
+X
+X	  for (i = 0; i < buf.used; i++)
+X	    printchar (buf.buffer[i]);
+X
+X	  putchar ('\n');
+X
+X	  printf ("%d allocated, %d used.\n", buf.allocated, buf.used);
+X
+X	  re_compile_fastmap (&buf);
+X	  printf ("Allowed by fastmap: ");
+X	  for (i = 0; i < (1 << BYTEWIDTH); i++)
+X	    if (fastmap[i]) printchar (i);
+X	  putchar ('\n');
+X	}
+X
+X      gets (pat);	/* Now read the string to match against */
+X
+X      i = re_match (&buf, pat, strlen (pat), 0, 0);
+X      printf ("Match value %d.\n", i);
+X    }
+X}
+X
+X#ifdef NOTDEF
+Xprint_buf (bufp)
+X     struct re_pattern_buffer *bufp;
+X{
+X  int i;
+X
+X  printf ("buf is :\n----------------\n");
+X  for (i = 0; i < bufp->used; i++)
+X    printchar (bufp->buffer[i]);
+X  
+X  printf ("\n%d allocated, %d used.\n", bufp->allocated, bufp->used);
+X  
+X  printf ("Allowed by fastmap: ");
+X  for (i = 0; i < (1 << BYTEWIDTH); i++)
+X    if (bufp->fastmap[i])
+X      printchar (i);
+X  printf ("\nAllowed by translate: ");
+X  if (bufp->translate)
+X    for (i = 0; i < (1 << BYTEWIDTH); i++)
+X      if (bufp->translate[i])
+X	printchar (i);
+X  printf ("\nfastmap is%s accurate\n", bufp->fastmap_accurate ? "" : "n't");
+X  printf ("can %s be null\n----------", bufp->can_be_null ? "" : "not");
+X}
+X#endif
+X
+Xprintchar (c)
+X     char c;
+X{
+X  if (c < 041 || c >= 0177)
+X    {
+X      putchar ('\\');
+X      putchar (((c >> 6) & 3) + '0');
+X      putchar (((c >> 3) & 7) + '0');
+X      putchar ((c & 7) + '0');
+X    }
+X  else
+X    putchar (c);
+X}
+X
+X#endif /* test */
+END_OF_FILE
+  if test 2044 -ne `wc -c <'./regex.c.02'`; then
+    echo shar: \"'./regex.c.02'\" unpacked with wrong size!
+  fi
+  # end of './regex.c.02'
+fi
+echo shar: End of archive 5 \(of 16\).
+cp /dev/null ark5isdone
+MISSING=""
+for I in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 ; do
+    if test ! -f ark${I}isdone ; then
+	MISSING="${MISSING} ${I}"
+    fi
+done
+if test "${MISSING}" = "" ; then
+    echo You have unpacked all 16 archives.
+    rm -f ark[1-9]isdone ark[1-9][0-9]isdone
+else
+    echo You still must unpack the following archives:
+    echo "        " ${MISSING}
+fi
+exit 0
+exit 0 # Just in case...
+-- 
+Please send comp.sources.unix-related mail to rsalz@uunet.uu.net.
+Use a domain-based address or give alternate paths, or you may lose out.

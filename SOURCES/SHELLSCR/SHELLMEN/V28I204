@@ -1,0 +1,2455 @@
+From: how%milhow1@uunet.uu.net (Mike Howard)
+Newsgroups: comp.sources.unix
+Subject: v28i204: simple_menu-3.1 - a simple shell-level menu system, V3.1->V3.2, Patch01
+Date: 22 Nov 1994 01:10:11 -0800
+Organization: Vixie Enterprises
+Sender: vixie@vix.com
+Approved: vixie@gw.home.vix.com
+Message-ID: <3aschj$scc@gw.home.vix.com>
+
+Submitted-By: how%milhow1@uunet.uu.net (Mike Howard)
+Posting-Number: Volume 28, Issue 204
+Archive-Name: simple_menu-3.1/patch01
+
+This is part 1 of 3 patches which take simple_menu-3.1 to simple_menu-3.2.
+All changes relate to compilation problems encountered on various systems.
+
+You need to unshar this with patch02 and patch03 and then read "Instructions".
+
+#! /bin/sh
+# This is a shell archive.  Remove anything before this line, then unpack
+# it by saving it into a file and typing "sh file".  To overwrite existing
+# files, type "sh file -c".  You can also feed this as standard input via
+# unshar, or by typing "sh <file", e.g..  If this archive is complete, you
+# will see the following message at the end:
+#		"End of archive 1 (of 3)."
+# Contents:  Instructions MANIFEST patches.aa patches.ab patches.ae
+# Wrapped by mike@clove2 on Thu Nov 17 12:40:36 1994
+PATH=/bin:/usr/bin:/usr/ucb ; export PATH
+if test -f 'Instructions' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'Instructions'\"
+else
+echo shar: Extracting \"'Instructions'\" \(291 characters\)
+sed "s/^X//" >'Instructions' <<'END_OF_FILE'
+Xto create Patches file execute: 'cat patches.a* >patches'
+XTo apply patches:
+X1. cd to the root directory for simple_menu
+X2. using Larry Wall's patch program: execute 'patch -p1 <patches'.
+X   The original files are saved as X.orig.
+X3. rebuild
+X4. If it all works ok, remove the '.orig' files
+X
+X
+END_OF_FILE
+if test 291 -ne `wc -c <'Instructions'`; then
+    echo shar: \"'Instructions'\" unpacked with wrong size!
+fi
+# end of 'Instructions'
+fi
+if test -f 'MANIFEST' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'MANIFEST'\"
+else
+echo shar: Extracting \"'MANIFEST'\" \(331 characters\)
+sed "s/^X//" >'MANIFEST' <<'END_OF_FILE'
+X   File Name		Archive #	Description
+X-----------------------------------------------------------
+X Instructions               1	
+X MANIFEST                   1	This shipping list
+X patches.aa                 1	
+X patches.ab                 1	
+X patches.ac                 2	
+X patches.ad                 3	
+X patches.ae                 1	
+END_OF_FILE
+if test 331 -ne `wc -c <'MANIFEST'`; then
+    echo shar: \"'MANIFEST'\" unpacked with wrong size!
+fi
+# end of 'MANIFEST'
+fi
+if test -f 'patches.aa' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'patches.aa'\"
+else
+echo shar: Extracting \"'patches.aa'\" \(25147 characters\)
+sed "s/^X//" >'patches.aa' <<'END_OF_FILE'
+X*** Release-3.1/Makefile.in	Wed Sep 28 06:55:53 1994
+X--- Release-3.2/Makefile.in	Tue Nov  8 08:54:07 1994
+X***************
+X*** 41,46 ****
+X--- 41,47 ----
+X  	COPYING-2 \
+X  	ChangeLog \
+X  	README	\
+X+ 	INSTALL \
+X  	install.sh
+X  SUBDIRS = common_src doc incl tty_src
+X  #	 curses_src Xaw_src
+X***************
+X*** 87,104 ****
+X  mostlyclean: clean
+X  
+X  distclean:
+X- 	rm -f Makefile config.status
+X  	$(MAKE) clean
+X  	for DIR in $(SUBDIRS) ; do \
+X  	( cd $$DIR ; $(MAKE) distclean ) ; \
+X  	done
+X  
+X! realclean: distclean
+X  	rm -f TAGS
+X  	for DIR in $(SUBDIRS) ; do \
+X  	( cd $$DIR ; $(MAKE) realclean ; ) ; \
+X  	done
+X! 
+X  dist:
+X  	echo $(TOP_LIST) >dist.filelist
+X  	@rm -f samples/*~
+X--- 88,105 ----
+X  mostlyclean: clean
+X  
+X  distclean:
+X  	$(MAKE) clean
+X  	for DIR in $(SUBDIRS) ; do \
+X  	( cd $$DIR ; $(MAKE) distclean ) ; \
+X  	done
+X+ 	rm -f Makefile config.status
+X  
+X! realclean:
+X  	rm -f TAGS
+X  	for DIR in $(SUBDIRS) ; do \
+X  	( cd $$DIR ; $(MAKE) realclean ; ) ; \
+X  	done
+X! 	$(MAKE) distclean
+X  dist:
+X  	echo $(TOP_LIST) >dist.filelist
+X  	@rm -f samples/*~
+X*** Release-3.1/configure	Wed Sep 21 14:36:20 1994
+X--- Release-3.2/configure	Fri Oct 21 13:29:34 1994
+X***************
+X*** 340,345 ****
+X--- 340,361 ----
+X  done
+X  test -n "$YACC" || YACC="yacc"
+X  
+X+ 
+X+ # check whether --enable-CFLAGS was given
+X+ enableval="$enable_CFLAGS"
+X+ if test -n "$enableval"; then
+X+   
+X+ case $enableval in
+X+   yes) copts=-O ;;
+X+   no) copts= ;;
+X+   *) copts="`echo $enableval | sed -e 's/,/ /g'`" ;;
+X+ esac
+X+ 
+X+ else
+X+   copts= 
+X+ fi
+X+ 
+X+ test -n "$verbose" && echo "	setting CFLAGS to $copts"
+X  if test -z "$CC"; then
+X    # Extract the first word of `gcc', so it can be a program name with args.
+X    set ac_dummy gcc; ac_word=$2
+X***************
+X*** 829,899 ****
+X  fi
+X  rm -fr conftest*
+X  
+X- LIBS_SAVE=$LIBS
+X  TERMLIBS=
+X! LIBS=-lcurses
+X! test -n "$silent" || echo "checking for terminfo"
+X! cat > conftest.${ac_ext} <<EOF
+X! #include "confdefs.h"
+X! #include <curses.h>
+X! int main() { return 0; }
+X! int t() { 
+X!   { initscr(); } ; return 0; }
+X! EOF
+X! if eval $ac_compile; then
+X!   rm -rf conftest*
+X!   TERMLIBS=TERMINFO
+X! 
+X! fi
+X! rm -f conftest*
+X! 
+X! if test -z "$TERMLIBS" ; then
+X! LIBS='-ltermcap'
+X! test -n "$silent" || echo "checking for termcap"
+X! cat > conftest.${ac_ext} <<EOF
+X! #include "confdefs.h"
+X! #include <curses.h>
+X! int main() { return 0; }
+X! int t() { 
+X!   { char *bp, *tm; tgetent(bp, tm); }
+X!  ; return 0; }
+X! EOF
+X! if eval $ac_compile; then
+X!   rm -rf conftest*
+X!   TERMLIBS=TERMCAP
+X! 
+X! fi
+X! rm -f conftest*
+X! 
+X! fi
+X! case $TERMLIBS in
+X!   TERMCAP)
+X!     
+X! {
+X! test -n "$verbose" && \
+X! echo "	defining" CURSESLIBS to be "-lcurses -ltermcap"
+X! echo "#define" CURSESLIBS "-lcurses -ltermcap" >> confdefs.h
+X! DEFS="$DEFS -DCURSESLIBS=-lcurses -ltermcap"
+X! ac_sed_defs="${ac_sed_defs}\${ac_dA}CURSESLIBS\${ac_dB}CURSESLIBS\${ac_dC}-lcurses -ltermcap\${ac_dD}
+X! \${ac_uA}CURSESLIBS\${ac_uB}CURSESLIBS\${ac_uC}-lcurses -ltermcap\${ac_uD}
+X! \${ac_eA}CURSESLIBS\${ac_eB}CURSESLIBS\${ac_eC}-lcurses -ltermcap\${ac_eD}
+X! "
+X! }
+X! 
+X!     CURSESLIBS='-lcurses -ltermcap'
+X!     
+X! {
+X! test -n "$verbose" && \
+X! echo "	defining" TERMLIB to be "-ltermcap"
+X! echo "#define" TERMLIB "-ltermcap" >> confdefs.h
+X! DEFS="$DEFS -DTERMLIB=-ltermcap"
+X! ac_sed_defs="${ac_sed_defs}\${ac_dA}TERMLIB\${ac_dB}TERMLIB\${ac_dC}-ltermcap\${ac_dD}
+X! \${ac_uA}TERMLIB\${ac_uB}TERMLIB\${ac_uC}-ltermcap\${ac_uD}
+X! \${ac_eA}TERMLIB\${ac_eB}TERMLIB\${ac_eC}-ltermcap\${ac_eD}
+X! "
+X! }
+X! 
+X!     TERMLIB='-ltermcap'
+X      
+X  {
+X  test -n "$verbose" && \
+X--- 845,863 ----
+X  fi
+X  rm -fr conftest*
+X  
+X  TERMLIBS=
+X! # check whether --with-termcap or --without-termcap was given.
+X! withval="$with_termcap"
+X! if test -n "$withval"; then
+X!   
+X! LIBS_SAVE=$LIBS
+X! TERMLIBS=TERMCAP
+X! case $withval in
+X!   yes) CURSESLIBS='-lcurses -ltermcap' ; TERMLIB='-ltermcap' ;;
+X!   *) TERMLIB="`echo $withval | awk -F, ' { print $1 }' -`"
+X!      CURSESLIBS="`echo $withval | awk -F, ' NF == 1 { print $1 } NF == 2 { print $2 }' -`"
+X!   ;;
+X! esac
+X      
+X  {
+X  test -n "$verbose" && \
+X***************
+X*** 906,913 ****
+X  "
+X  }
+X  
+X    ;;
+X!   TERMINFO)
+X      for ac_hdr in term.h 
+X  do
+X  ac_tr_hdr=HAVE_`echo $ac_hdr | tr '[a-z]./' '[A-Z]__'`
+X--- 870,889 ----
+X  "
+X  }
+X  
+X+ 
+X+ fi
+X+ 
+X+ # check whether --with-terminfo or --without-terminfo was given.
+X+ withval="$with_terminfo"
+X+ if test -n "$withval"; then
+X+   
+X+ TERMLIBS=TERMINFO
+X+ case $withval in
+X+   yes) CURSESLIBS='-lcurses' ; TERMLIB='-lcurses' ;;
+X+   *) TERMLIB="`echo $withval | awk -F, ' { print $1 }' -`"
+X+      CURSESLIBS="`echo $withval | awk -F, ' NF == 1 { print $1 } NF == 2 { print $2 }' -`"
+X    ;;
+X! esac
+X      for ac_hdr in term.h 
+X  do
+X  ac_tr_hdr=HAVE_`echo $ac_hdr | tr '[a-z]./' '[A-Z]__'`
+X***************
+X*** 941,968 ****
+X      
+X  {
+X  test -n "$verbose" && \
+X! echo "	defining" CURSESLIBS to be "-lcurses"
+X! echo "#define" CURSESLIBS "-lcurses" >> confdefs.h
+X! DEFS="$DEFS -DCURSESLIBS=-lcurses"
+X! ac_sed_defs="${ac_sed_defs}\${ac_dA}CURSESLIBS\${ac_dB}CURSESLIBS\${ac_dC}-lcurses\${ac_dD}
+X! \${ac_uA}CURSESLIBS\${ac_uB}CURSESLIBS\${ac_uC}-lcurses\${ac_uD}
+X! \${ac_eA}CURSESLIBS\${ac_eB}CURSESLIBS\${ac_eC}-lcurses\${ac_eD}
+X  "
+X  }
+X  
+X!     CURSESLIBS='-lcurses'
+X!     
+X  {
+X  test -n "$verbose" && \
+X! echo "	defining" TERMLIB to be "-lcurses"
+X! echo "#define" TERMLIB "-lcurses" >> confdefs.h
+X! DEFS="$DEFS -DTERMLIB=-lcurses"
+X! ac_sed_defs="${ac_sed_defs}\${ac_dA}TERMLIB\${ac_dB}TERMLIB\${ac_dC}-lcurses\${ac_dD}
+X! \${ac_uA}TERMLIB\${ac_uB}TERMLIB\${ac_uC}-lcurses\${ac_uD}
+X! \${ac_eA}TERMLIB\${ac_eB}TERMLIB\${ac_eC}-lcurses\${ac_eD}
+X  "
+X  }
+X  
+X      TERMLIB='-lcurses'
+X      
+X  {
+X--- 917,978 ----
+X      
+X  {
+X  test -n "$verbose" && \
+X! echo "	defining HAVE_TERMINFO"
+X! echo "#define" HAVE_TERMINFO "1" >> confdefs.h
+X! DEFS="$DEFS -DHAVE_TERMINFO=1"
+X! ac_sed_defs="${ac_sed_defs}\${ac_dA}HAVE_TERMINFO\${ac_dB}HAVE_TERMINFO\${ac_dC}1\${ac_dD}
+X! \${ac_uA}HAVE_TERMINFO\${ac_uB}HAVE_TERMINFO\${ac_uC}1\${ac_uD}
+X! \${ac_eA}HAVE_TERMINFO\${ac_eB}HAVE_TERMINFO\${ac_eC}1\${ac_eD}
+X  "
+X  }
+X  
+X! 
+X! fi
+X! 
+X! if test -z "$TERMLIBS" ; then
+X! LIBS=-lcurses
+X! test -n "$silent" || echo "checking for terminfo"
+X! cat > conftest.${ac_ext} <<EOF
+X! #include "confdefs.h"
+X! #include <curses.h>
+X! int main() { return 0; }
+X! int t() { 
+X!   { initscr(); } ; return 0; }
+X! EOF
+X! if eval $ac_compile; then
+X!   rm -rf conftest*
+X!   TERMLIBS=TERMINFO
+X!     for ac_hdr in term.h 
+X! do
+X! ac_tr_hdr=HAVE_`echo $ac_hdr | tr '[a-z]./' '[A-Z]__'`
+X! test -n "$silent" || echo "checking for ${ac_hdr}"
+X! cat > conftest.${ac_ext} <<EOF
+X! #include "confdefs.h"
+X! #include <${ac_hdr}>
+X! EOF
+X! # Some shells (Coherent) do redirections in the wrong order, so need
+X! # the parens.
+X! ac_err=`eval "($ac_cpp conftest.${ac_ext} >/dev/null) 2>&1"`
+X! if test -z "$ac_err"; then
+X!   rm -rf conftest*
+X!   
+X  {
+X  test -n "$verbose" && \
+X! echo "	defining ${ac_tr_hdr}"
+X! echo "#define" ${ac_tr_hdr} "1" >> confdefs.h
+X! DEFS="$DEFS -D${ac_tr_hdr}=1"
+X! ac_sed_defs="${ac_sed_defs}\${ac_dA}${ac_tr_hdr}\${ac_dB}${ac_tr_hdr}\${ac_dC}1\${ac_dD}
+X! \${ac_uA}${ac_tr_hdr}\${ac_uB}${ac_tr_hdr}\${ac_uC}1\${ac_uD}
+X! \${ac_eA}${ac_tr_hdr}\${ac_eB}${ac_tr_hdr}\${ac_eC}1\${ac_eD}
+X  "
+X  }
+X  
+X+ 
+X+ fi
+X+ rm -f conftest*
+X+ done
+X+ 
+X+     CURSESLIBS='-lcurses'
+X      TERMLIB='-lcurses'
+X      
+X  {
+X***************
+X*** 976,981 ****
+X--- 986,1058 ----
+X  "
+X  }
+X  
+X+ 
+X+ 
+X+ fi
+X+ rm -f conftest*
+X+ 
+X+ fi
+X+ if test -z "$TERMLIBS" ; then
+X+ LIBS='-ltermcap'
+X+ test -n "$silent" || echo "checking for termcap"
+X+ cat > conftest.${ac_ext} <<EOF
+X+ #include "confdefs.h"
+X+ #include <curses.h>
+X+ int main() { return 0; }
+X+ int t() { 
+X+   { char *bp, *tm; tgetent(bp, tm); }
+X+  ; return 0; }
+X+ EOF
+X+ if eval $ac_compile; then
+X+   rm -rf conftest*
+X+   TERMLIBS=TERMCAP
+X+     CURSESLIBS='-lcurses -ltermcap'
+X+     TERMLIB='-ltermcap'
+X+     
+X+ {
+X+ test -n "$verbose" && \
+X+ echo "	defining HAVE_TERMCAP"
+X+ echo "#define" HAVE_TERMCAP "1" >> confdefs.h
+X+ DEFS="$DEFS -DHAVE_TERMCAP=1"
+X+ ac_sed_defs="${ac_sed_defs}\${ac_dA}HAVE_TERMCAP\${ac_dB}HAVE_TERMCAP\${ac_dC}1\${ac_dD}
+X+ \${ac_uA}HAVE_TERMCAP\${ac_uB}HAVE_TERMCAP\${ac_uC}1\${ac_uD}
+X+ \${ac_eA}HAVE_TERMCAP\${ac_eB}HAVE_TERMCAP\${ac_eC}1\${ac_eD}
+X+ "
+X+ }
+X+ 
+X+ 
+X+ 
+X+ fi
+X+ rm -f conftest*
+X+ 
+X+ fi
+X+ 
+X+ {
+X+ test -n "$verbose" && \
+X+ echo "	defining" CURSESLIBS to be ""$CURSESLIBS""
+X+ echo "#define" CURSESLIBS ""$CURSESLIBS"" >> confdefs.h
+X+ DEFS="$DEFS -DCURSESLIBS="$CURSESLIBS""
+X+ ac_sed_defs="${ac_sed_defs}\${ac_dA}CURSESLIBS\${ac_dB}CURSESLIBS\${ac_dC}\"\\\\\\\$CURSESLIBS\"\${ac_dD}
+X+ \${ac_uA}CURSESLIBS\${ac_uB}CURSESLIBS\${ac_uC}\"\\\\\\\$CURSESLIBS\"\${ac_uD}
+X+ \${ac_eA}CURSESLIBS\${ac_eB}CURSESLIBS\${ac_eC}\"\\\\\\\$CURSESLIBS\"\${ac_eD}
+X+ "
+X+ }
+X+ 
+X+ 
+X+ {
+X+ test -n "$verbose" && \
+X+ echo "	defining" TERMLIB to be ""$TERMLIB""
+X+ echo "#define" TERMLIB ""$TERMLIB"" >> confdefs.h
+X+ DEFS="$DEFS -DTERMLIB="$TERMLIB""
+X+ ac_sed_defs="${ac_sed_defs}\${ac_dA}TERMLIB\${ac_dB}TERMLIB\${ac_dC}\"\\\\\\\$TERMLIB\"\${ac_dD}
+X+ \${ac_uA}TERMLIB\${ac_uB}TERMLIB\${ac_uC}\"\\\\\\\$TERMLIB\"\${ac_uD}
+X+ \${ac_eA}TERMLIB\${ac_eB}TERMLIB\${ac_eC}\"\\\\\\\$TERMLIB\"\${ac_eD}
+X+ "
+X+ }
+X+ 
+X+ case $TERMLIBS in
+X+   TERMCAP|TERMINFO)
+X+     echo "Using $TERMLIBS for terminal screen control"
+X    ;;
+X    *)
+X      echo "Must have either TERMCAP or TERMINFO"
+X***************
+X*** 1046,1057 ****
+X  trap 'rm -fr Makefile \
+X   common_src/Makefile \
+X   tty_src/Makefile \
+X-  curses_src/Makefile \
+X-  Xaw_src/Makefile \
+X   doc/Makefile \
+X!  incl/Makefile incl/config.h conftest*; exit 1' 1 2 15
+X  PROGS='$PROGS'
+X  YACC='$YACC'
+X  CC='$CC'
+X  CPP='$CPP'
+X  AWK='$AWK'
+X--- 1123,1134 ----
+X  trap 'rm -fr Makefile \
+X   common_src/Makefile \
+X   tty_src/Makefile \
+X   doc/Makefile \
+X!  incl/Makefile \
+X!  incl/config.h conftest*; exit 1' 1 2 15
+X  PROGS='$PROGS'
+X  YACC='$YACC'
+X+ copts='$copts'
+X  CC='$CC'
+X  CPP='$CPP'
+X  AWK='$AWK'
+X***************
+X*** 1077,1086 ****
+X  CONFIG_FILES=${CONFIG_FILES-"Makefile \
+X   common_src/Makefile \
+X   tty_src/Makefile \
+X-  curses_src/Makefile \
+X-  Xaw_src/Makefile \
+X   doc/Makefile \
+X!  incl/Makefile"}
+X  for ac_file in .. ${CONFIG_FILES}; do if test "x$ac_file" != x..; then
+X    # Remove last slash and all that follows it.  Not all systems have dirname.
+X    ac_dir=`echo $ac_file|sed 's%/[^/][^/]*$%%'`
+X--- 1154,1162 ----
+X  CONFIG_FILES=${CONFIG_FILES-"Makefile \
+X   common_src/Makefile \
+X   tty_src/Makefile \
+X   doc/Makefile \
+X!  incl/Makefile \
+X! "}
+X  for ac_file in .. ${CONFIG_FILES}; do if test "x$ac_file" != x..; then
+X    # Remove last slash and all that follows it.  Not all systems have dirname.
+X    ac_dir=`echo $ac_file|sed 's%/[^/][^/]*$%%'`
+X***************
+X*** 1117,1122 ****
+X--- 1193,1199 ----
+X  $extrasub
+X  s%@PROGS@%$PROGS%g
+X  s%@YACC@%$YACC%g
+X+ s%@copts@%$copts%g
+X  s%@CC@%$CC%g
+X  s%@CPP@%$CPP%g
+X  s%@AWK@%$AWK%g
+X*** Release-3.1/ChangeLog	Fri Sep 23 13:12:26 1994
+X--- Release-3.2/ChangeLog	Wed Oct 12 12:38:03 1994
+X***************
+X*** 1,3 ****
+X--- 1,11 ----
+X+ Wed Oct 12 11:08:17 1994  Mike Howard  (mike@clove2)
+X+ 
+X+ 	* prototypes.h: VOID_TYPE fixes for void functions and RETSIGTYPE
+X+ 	for signal-type returning functions; tty_display.c:
+X+ 	arg for alarm_trap().  Thanks to Bruce <uunet!sj.unisys.com!bkorb>
+X+ 	* configure: added --with-termcap[=curses-lib[,termlib]] and
+X+ 	--with-terminfo[=curses-lib,[termlib] to configure script.
+X+ 
+X  Fri Sep 23 13:11:48 1994  Mike Howard  (mike@clove2)
+X  
+X  	* Release-3.1 submitted to comp.sources.unix
+X*** Release-3.1/README	Fri Sep 23 13:11:28 1994
+X--- Release-3.2/README	Fri Oct 21 13:25:48 1994
+X***************
+X*** 1,3 ****
+X--- 1,36 ----
+X+ Release-3.2 README
+X+   changes from release 3.1
+X+ 
+X+ * added hack to configure to allow manual modification of CFLAGS in
+X+ Makefiles.
+X+ 
+X+ * changed function beep() to do_beep() to avoid curses conflict.
+X+ 
+X+ * added a few script debugging hints to the documentation.
+X+ 
+X+ * added INSTALL file with installation instructions.
+X+ 
+X+ * added code to all function definitions to use ANSI style function
+X+ headers when __STDC__ or __cplusplus are defined, otherwise K+R.  This
+X+ compiles properly by gcc using either -pedantic-errors OR
+X+ '-pedantic-errors -traditional'.
+X+ 
+X+ *  Updated configure script to allow manually specifying termcap and
+X+ terminfo.  Use the options: --with-termcap or --with-terminfo.
+X+   --with-termcap defines TERMLIB as -ltermcap and CURSESLIB as
+X+ '-lcurses -l termcap'.
+X+   --with-terminfo defines TERMLIB and CURSESLIB as -lcurses.
+X+   The library definitions may be manually specified by using the form:
+X+ --with-termcap='<termlib>,<curseslib>', which defines TERMLIB as the
+X+ first string and CURSESLIB as the second.  The second string may be
+X+ omitted if they are both the same.  [don't forget to quot the strings
+X+ if they include blanks.
+X+ 
+X+ * corrected bugs in 'prototype.h' file and an argument omission from
+X+ 'tty_display.c' [thanks to Bruce <uunet!sj.unisys.com!bkorb>]
+X+ 
+X+ Release-3.1 README
+X+ 
+X    I wrote this program to make it easier to create, maintain, modify,
+X  and extend menus of common operating system tasks for our users.
+X  Typically, our users need to run fairly complex pipelines and/or shell
+X*** /dev/null	Thu Nov 17 11:24:05 1994
+X--- Release-3.2/INSTALL	Fri Oct 21 13:28:20 1994
+X***************
+X*** 0 ****
+X--- 1,109 ----
+X+ 
+X+ INSTALLATION: the package now uses GNU autoconf to produce automatic
+X+ configurations.
+X+   1. unpack the archives
+X+   2. type `./configure' [possibly with options - see below]
+X+   3. type 'make'
+X+   4. to test and play with samples: `./tty_src/simple_menu ./samples/menu.def'
+X+   5. type `make install' to install
+X+   6. read the doc.
+X+ 
+X+ ./configure options:
+X+   'configure' accepts double hyphen options - './configure --help'
+X+ produces a list of all the options which are accepted.  Unfortunately,
+X+ most are ignored.  The only ones which do anything for this configure
+X+ script are:
+X+ 
+X+ --help			print this message
+X+ --prefix=PREFIX		install host independent files in PREFIX [/usr/local]
+X+ -- quiet, --silent   do not print `checking for...' messages
+X+ --verbose		print results of checks
+X+ --version		print the version of autoconf that created configure
+X+ --with-PACKAGE[=ARG]	use PACKAGE [ARG=yes].  The only two PACKAGEs
+X+                         which are meaningful are 'termcap' and
+X+                         'terminfo'.  These are mutually exclusive, but
+X+                         this is not properly enforced
+X+ --without-PACKAGE	will produce an unbuildable configuration.
+X+ 
+X+ The configure script automatically analyzes your system and attempts
+X+ to produce appropriately configured Makefiles and configuration file
+X+ [incl/config.h].  It may fail, so the following overrides are
+X+ possible:
+X+ 
+X+ 
+X+ CFLAGS - if you don't like the CFLAGS set up by the program, you can
+X+ specify them when running configure:
+X+   ./configure --enable-CFLAGS=-foo,-bar,-xenix
+X+ NOTE: spaces are not allowed here: use commas (,), they are translated
+X+ into spaces by the configuration script.  [this is a feature of
+X+ `autoconf' which the authors recognize, warn about, and will probably
+X+ fix at some later date]
+X+ 
+X+ 
+X+ TERMCAP / TERMINFO - ./configure can't find either or can't figure out
+X+ which to use:
+X+   you may type
+X+      ./configure --with-termcap='-ltermcap,-lcurses -ltermcap'
+X+   or
+X+      ./configure --with-terminfo='-lcurses,-lcurses'
+X+ 
+X+   The string beginning with '=' is used to override the default
+X+ library selection.  The strings given above are default and are used
+X+ if the options given are: --with-termcap or --with-terminfo.  Use the
+X+ optional '=' string if you need to add some additional libraries.  The
+X+ first library [-ltermcap] is used when driving the terminal using
+X+ tputs() and friends; the second is intended for use with the 'curses'
+X+ API - but is really a placeholder.
+X+ 
+X+ You need a different CC than the one ./configure found:
+X+   The following is from FSF's Info File on 'autoconf'
+X+ 
+X+ File: autoconf.info,  Node: Overriding variables,  Next: Invoking config.status,  Up: Invoking configure
+X+ 
+X+ Overriding variables
+X+ ====================
+X+ 
+X+    On systems that require unusual options for compilation or linking
+X+ that the package's `configure' script does not know about, you can give
+X+ `configure' initial values for variables by setting them in the
+X+ environment.  In Bourne-compatible shells, you can do that on the
+X+ command line like this:
+X+ 
+X+      CC='gcc -traditional' LIBS=-lposix ./configure
+X+ 
+X+ On systems that have the `env' program, you can do it like this:
+X+ 
+X+      env CC='gcc -traditional' LIBS=-lposix ./configure
+X+ 
+X+    Here are the `make' variables that you might want to override with
+X+ environment variables when running `configure'.
+X+ 
+X+    For these variables, any value given in the environment overrides the
+X+ value that `configure' would choose:
+X+ 
+X+  - Variable: CC
+X+      C compiler program.  The default is `cc'.
+X+ 
+X+  - Variable: INSTALL
+X+      Program to use to install files.  The default is `install' if you
+X+      have it, `cp' otherwise.
+X+ 
+X+    For these variables, any value given in the environment is added to
+X+ the value that `configure' chooses:
+X+ 
+X+  - Variable: DEFS
+X+      Configuration options, in the form `-Dfoo -Dbar...'.  Do not use
+X+      this variable in packages that create a configuration header file.
+X+ 
+X+  - Variable: LIBS
+X+      Libraries to link with, in the form `-lfoo -lbar...'.
+X+ 
+X+    In the long term, most problems requiring manual intervention should
+X+ be fixed by updating either the Autoconf macros or the `configure.in'
+X+ file for that package.  *Note Making configure Scripts::, for a
+X+ discussion of that subject.
+X+ 
+X+ 
+X+ When all else fails - e-mail me
+X+ Mike Howard
+X+ how%milhow1@uunet.uu.net
+X*** Release-3.1/common_src/scanner.c	Wed Sep 21 14:19:41 1994
+X--- Release-3.2/common_src/scanner.c	Thu Oct 20 17:35:45 1994
+X***************
+X*** 1,8 ****
+X  /*
+X!   $Id: scanner.c,v 3.2 1994/09/21 18:19:26 mike Exp $
+X    $Author: mike $
+X!   $Date: 1994/09/21 18:19:26 $
+X    $Log: scanner.c,v $
+X   * Revision 3.2  1994/09/21  18:19:26  mike
+X   * changed VOID to VOID_TYPE to avoid clash with curses def on SunOS
+X   *
+X--- 1,11 ----
+X  /*
+X!   $Id: scanner.c,v 3.3 1994/10/18 16:24:23 mike Exp mike $
+X    $Author: mike $
+X!   $Date: 1994/10/18 16:24:23 $
+X    $Log: scanner.c,v $
+X+  * Revision 3.3  1994/10/18  16:24:23  mike
+X+  * added conditionals for various compilers
+X+  *
+X   * Revision 3.2  1994/09/21  18:19:26  mike
+X   * changed VOID to VOID_TYPE to avoid clash with curses def on SunOS
+X   *
+X***************
+X*** 109,117 ****
+X  "neq", NEQ,
+X  (char *)0, -1 };
+X  
+X! int
+X! match_token(s)
+X!      char *s;
+X  {
+X    int i;
+X  
+X--- 112,123 ----
+X  "neq", NEQ,
+X  (char *)0, -1 };
+X  
+X! #if defined(__STDC__) || defined(__cplusplus)
+X! int match_token(char *s)
+X! #else
+X! int match_token(s)
+X! char *s;
+X! #endif
+X  {
+X    int i;
+X  
+X***************
+X*** 124,140 ****
+X    return 0;
+X  }
+X  
+X! int
+X! make_lower(c)
+X  char c;
+X  {
+X    return isupper(c) ? tolower(c) : c;
+X  }
+X  
+X  /* this thing is a state machine - of sorts.  */
+X  
+X! int
+X! yylex()
+X  {
+X    char c;
+X  
+X--- 130,148 ----
+X    return 0;
+X  }
+X  
+X! #if defined(__STDC__) || defined(__cplusplus)
+X! int make_lower(char c)
+X! #else
+X! int make_lower(c)
+X  char c;
+X+ #endif
+X  {
+X    return isupper(c) ? tolower(c) : c;
+X  }
+X  
+X  /* this thing is a state machine - of sorts.  */
+X  
+X! int yylex()
+X  {
+X    char c;
+X  
+X***************
+X*** 177,189 ****
+X    }
+X  }
+X  
+X! int
+X! scan_in_token_state()
+X  {
+X    char c;
+X    int ret;
+X  
+X!   while (isalpha(c = make_lower(next_char(0))) || c == '-')
+X      add_char(c);
+X  
+X    unget_char(c);
+X--- 185,196 ----
+X    }
+X  }
+X  
+X! int scan_in_token_state()
+X  {
+X    char c;
+X    int ret;
+X  
+X!   while (isalpha(c = make_lower((char)next_char(0))) || c == '-')
+X      add_char(c);
+X  
+X    unget_char(c);
+X***************
+X*** 208,215 ****
+X    return word_list[ret].value;
+X  }
+X  
+X! int
+X! scan_in_name_state()
+X  {
+X    char c;
+X  
+X--- 215,221 ----
+X    return word_list[ret].value;
+X  }
+X  
+X! int scan_in_name_state()
+X  {
+X    char c;
+X  
+X***************
+X*** 308,315 ****
+X    }
+X  }
+X  
+X! int
+X! scan_in_old_text_state()
+X  {
+X    char c;
+X  
+X--- 314,320 ----
+X    }
+X  }
+X  
+X! int scan_in_old_text_state()
+X  {
+X    char c;
+X  
+X***************
+X*** 353,369 ****
+X  char unget_buf[UNGET_BUFSIZE];
+X  int unget_len;
+X  
+X! VOID_TYPE
+X! unget_char(c)
+X!      char c;
+X  {
+X    if ((unget_buf[unget_len++] = c) == '\n')
+X      line_number--;
+X  }
+X  
+X! int
+X! next_char(fd)
+X  int fd;
+X  {
+X    int c;
+X  
+X--- 358,380 ----
+X  char unget_buf[UNGET_BUFSIZE];
+X  int unget_len;
+X  
+X! #if defined(__STDC__) || defined(__cplusplus)
+X! VOID_TYPE unget_char(char c)
+X! #else
+X! VOID_TYPE unget_char(c)
+X! char c;
+X! #endif
+X  {
+X    if ((unget_buf[unget_len++] = c) == '\n')
+X      line_number--;
+X  }
+X  
+X! #if defined(__STDC__) || defined(__cplusplus)
+X! int next_char(int fd)
+X! #else
+X! int next_char(fd)
+X  int fd;
+X+ #endif
+X  {
+X    int c;
+X  
+X***************
+X*** 405,413 ****
+X  #define INC_SIZE	64
+X  
+X  
+X! VOID_TYPE
+X! add_char(c)
+X!      char c;
+X  {
+X    static int saved_length;
+X    static int room_left;
+X--- 416,427 ----
+X  #define INC_SIZE	64
+X  
+X  
+X! #if defined(__STDC__) || defined(__cplusplus)
+X! VOID_TYPE add_char(char c)
+X! #else
+X! VOID_TYPE add_char(c)
+X! char c;
+X! #endif
+X  {
+X    static int saved_length;
+X    static int room_left;
+X***************
+X*** 431,438 ****
+X  }
+X  
+X  
+X! VOID_TYPE
+X! strip_white_space()
+X  {
+X    char *cp;
+X    char *sp;
+X--- 445,451 ----
+X  }
+X  
+X  
+X! VOID_TYPE strip_white_space()
+X  {
+X    char *cp;
+X    char *sp;
+X***************
+X*** 472,479 ****
+X    saved_text = Realloc(saved_text, strlen(saved_text) + 1);
+X  }
+X  
+X! char *
+X! take_saved_text()
+X  {
+X    char *cp = saved_text;
+X  
+X--- 485,491 ----
+X    saved_text = Realloc(saved_text, strlen(saved_text) + 1);
+X  }
+X  
+X! char *take_saved_text()
+X  {
+X    char *cp = saved_text;
+X  
+X*** Release-3.1/common_src/simple_menu.c	Wed Sep 28 06:55:30 1994
+X--- Release-3.2/common_src/simple_menu.c	Thu Oct 20 17:37:18 1994
+X***************
+X*** 1,8 ****
+X  /*
+X!   $Id: simple_menu.c,v 3.4 1994/09/28 10:54:46 mike Exp $
+X    $Author: mike $
+X!   $Date: 1994/09/28 10:54:46 $
+X    $Log: simple_menu.c,v $
+X   * Revision 3.4  1994/09/28  10:54:46  mike
+X   * bug in prt_prompt_string().
+X   *
+X--- 1,12 ----
+X  /*
+X!   $Id: simple_menu.c,v 3.5 1994/10/18 16:24:55 mike Exp mike $
+X    $Author: mike $
+X!   $Date: 1994/10/18 16:24:55 $
+X    $Log: simple_menu.c,v $
+X+  * Revision 3.5  1994/10/18  16:24:55  mike
+X+  * added conditionals for various compilers
+X+  * cleaned up function declarations
+X+  *
+X   * Revision 3.4  1994/09/28  10:54:46  mike
+X   * bug in prt_prompt_string().
+X   *
+X***************
+X*** 68,77 ****
+X  #define MAIN
+X  #include <includes.h>
+X  
+X! int
+X! menu_main(argc, argv)
+X  int argc;
+X  char **argv;
+X  {
+X    init(argc, argv);
+X  
+X--- 72,84 ----
+X  #define MAIN
+X  #include <includes.h>
+X  
+X! #if defined(__STDC__) || defined(__cplusplus)
+X! int menu_main(int argc, char **argv)
+X! #else
+X! int menu_main(argc, argv)
+X  int argc;
+X  char **argv;
+X+ #endif
+X  {
+X    init(argc, argv);
+X  
+X***************
+X*** 98,105 ****
+X    simple_menu_exit(0);
+X  }
+X  
+X! VOID_TYPE
+X! display_parsed_menus()  
+X  {
+X    struct menu *menu_ptr;
+X    struct item *i_ptr;
+X--- 105,111 ----
+X    simple_menu_exit(0);
+X  }
+X  
+X! VOID_TYPE display_parsed_menus()  
+X  {
+X    struct menu *menu_ptr;
+X    struct item *i_ptr;
+X***************
+X*** 183,194 ****
+X  "interest in the program `simple_menu'  written by Mike Howard.",
+X  "",
+X  "Michael S. Howard, V.P., May 20, 1992",
+X  (char *)0 };
+X  
+X! VOID_TYPE
+X! init(argc, argv)
+X  int argc;
+X  char **argv;
+X  {
+X    int i;
+X    int c;
+X--- 189,207 ----
+X  "interest in the program `simple_menu'  written by Mike Howard.",
+X  "",
+X  "Michael S. Howard, V.P., May 20, 1992",
+X+ "Clove Consulting, Inc., hereby disclaims all copyright",
+X+ "interest in the program `simple_menu'  written by Mike Howard.",
+X+ "",
+X+ "Michael S. Howard, President., October 18, 1994",
+X  (char *)0 };
+X  
+X! #if defined(__STDC__) || defined(__cplusplus)
+X! VOID_TYPE init(int argc, char **argv)
+X! #else
+X! VOID_TYPE init(argc, argv)
+X  int argc;
+X  char **argv;
+X+ #endif
+X  {
+X    int i;
+X    int c;
+X***************
+X*** 262,271 ****
+X      make_new_ev_var(EV_GLOBAL, "USER_RESPONSE", (char *)0, (char *)0);
+X  }
+X  
+X! struct prompt_string *
+X! make_new_prompt_string(segment_type, fragment)
+X  int segment_type;
+X  char *fragment;
+X  {
+X    struct prompt_string *ps_ptr =
+X      (struct prompt_string *)Malloc(sizeof(struct prompt_string));
+X--- 275,287 ----
+X      make_new_ev_var(EV_GLOBAL, "USER_RESPONSE", (char *)0, (char *)0);
+X  }
+X  
+X! #if defined(__STDC__) || defined(__cplusplus)
+X! struct prompt_string *make_new_prompt_string(int segment_type, char *fragment)
+X! #else
+X! struct prompt_string *make_new_prompt_string(segment_type, fragment)
+X  int segment_type;
+X  char *fragment;
+X+ #endif
+X  {
+X    struct prompt_string *ps_ptr =
+X      (struct prompt_string *)Malloc(sizeof(struct prompt_string));
+X***************
+X*** 281,289 ****
+X  
+X  /* pass this guy the head of a prompt_string list and it will update
+X     the 'value' pointer for the head of the list */
+X! VOID_TYPE
+X! eval_prompt_string(ps_ptr)
+X  struct prompt_string *ps_ptr;
+X  {
+X    struct prompt_string *tmp_ptr;
+X    char *ret_string;
+X--- 297,308 ----
+X  
+X  /* pass this guy the head of a prompt_string list and it will update
+X     the 'value' pointer for the head of the list */
+X! #if defined(__STDC__) || defined(__cplusplus)
+END_OF_FILE
+if test 25147 -ne `wc -c <'patches.aa'`; then
+    echo shar: \"'patches.aa'\" unpacked with wrong size!
+fi
+# end of 'patches.aa'
+fi
+if test -f 'patches.ab' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'patches.ab'\"
+else
+echo shar: Extracting \"'patches.ab'\" \(19230 characters\)
+sed "s/^X//" >'patches.ab' <<'END_OF_FILE'
+X! VOID_TYPE eval_prompt_string(struct prompt_string *ps_ptr)
+X! #else
+X! VOID_TYPE eval_prompt_string(ps_ptr)
+X  struct prompt_string *ps_ptr;
+X+ #endif
+X  {
+X    struct prompt_string *tmp_ptr;
+X    char *ret_string;
+X***************
+X*** 330,341 ****
+X    return;
+X  }
+X  
+X! struct parm *
+X! make_new_parm(flag, identifier, prompt, def_or_evname)
+X       int flag;
+X       char *identifier;
+X       struct prompt_string *prompt;
+X       char *def_or_evname;
+X  {
+X    struct parm *parm_ptr = (struct parm *)Malloc(sizeof(struct parm));
+X  
+X--- 349,365 ----
+X    return;
+X  }
+X  
+X! #if defined(__STDC__) || defined(__cplusplus)
+X! struct parm *make_new_parm(int flag, char *identifier,
+X! 			   struct prompt_string *prompt,
+X! 			   char *def_or_evname)
+X! #else
+X! struct parm *make_new_parm(flag, identifier, prompt, def_or_evname)
+X       int flag;
+X       char *identifier;
+X       struct prompt_string *prompt;
+X       char *def_or_evname;
+X+ #endif
+X  {
+X    struct parm *parm_ptr = (struct parm *)Malloc(sizeof(struct parm));
+X  
+X***************
+X*** 359,370 ****
+X    return parm_ptr;
+X  }
+X  
+X! struct item *
+X! make_new_item(prompt, command, parms, action)
+X       struct prompt_string *prompt;
+X       char *command;
+X       struct parm *parms;
+X       int action;
+X  {
+X    struct item *item_ptr = (struct item *)Malloc(sizeof(struct item));
+X  
+X--- 383,399 ----
+X    return parm_ptr;
+X  }
+X  
+X! #if defined(__STDC__) || defined(__cplusplus)
+X! struct item *make_new_item(struct prompt_string *prompt,
+X! 			   char *command, struct parm *parms,
+X! 			   int action)
+X! #else
+X! struct item *make_new_item(prompt, command, parms, action)
+X       struct prompt_string *prompt;
+X       char *command;
+X       struct parm *parms;
+X       int action;
+X+ #endif
+X  {
+X    struct item *item_ptr = (struct item *)Malloc(sizeof(struct item));
+X  
+X***************
+X*** 382,390 ****
+X    return item_ptr;
+X  }
+X  
+X! struct action_list *
+X! make_new_action_list(item)
+X       struct item* item;
+X  {
+X    struct action_list *action_list_ptr =
+X      (struct action_list *)Malloc(sizeof(struct action_list));
+X--- 411,422 ----
+X    return item_ptr;
+X  }
+X  
+X! #if defined(__STDC__) || defined(__cplusplus)
+X! struct action_list *make_new_action_list(struct item* item)
+X! #else
+X! struct action_list *make_new_action_list(item)
+X       struct item* item;
+X+ #endif
+X  {
+X    struct action_list *action_list_ptr =
+X      (struct action_list *)Malloc(sizeof(struct action_list));
+X***************
+X*** 395,404 ****
+X    return action_list_ptr;
+X  }
+X  
+X! struct action_list *
+X! add_to_action_list(action_list, item)
+X       struct action_list* action_list;
+X       struct item* item;
+X  {
+X    action_list->tail->next = item;
+X    action_list->tail = item;
+X--- 427,440 ----
+X    return action_list_ptr;
+X  }
+X  
+X! #if defined(__STDC__) || defined(__cplusplus)
+X! struct action_list *add_to_action_list(struct action_list* action_list,
+X! 				       struct item* item)
+X! #else
+X! struct action_list *add_to_action_list(action_list, item)
+X       struct action_list* action_list;
+X       struct item* item;
+X+ #endif
+X  {
+X    action_list->tail->next = item;
+X    action_list->tail = item;
+X***************
+X*** 406,413 ****
+X    return action_list;
+X  }
+X  
+X! struct menu *
+X! make_new_menu()
+X  {
+X    struct menu *menu_ptr = (struct menu *)Malloc(sizeof(struct menu));
+X  
+X--- 442,448 ----
+X    return action_list;
+X  }
+X  
+X! struct menu *make_new_menu()
+X  {
+X    struct menu *menu_ptr = (struct menu *)Malloc(sizeof(struct menu));
+X  
+X***************
+X*** 427,438 ****
+X    return menu_ptr;
+X  }
+X  
+X! struct ev_var *
+X! make_new_ev_var(flag, identifier, deflt, fname)
+X       int   flag;
+X       char *identifier;
+X       char *deflt;
+X       char *fname;
+X  {
+X    struct ev_var *ev_ptr = (struct ev_var *)Malloc(sizeof(struct ev_var));
+X  
+X--- 462,477 ----
+X    return menu_ptr;
+X  }
+X  
+X! #if defined(__STDC__) || defined(__cplusplus)
+X! struct ev_var *make_new_ev_var(int   flag, char *identifier,
+X! 			       char *deflt, char *fname)
+X! #else
+X! struct ev_var *make_new_ev_var(flag, identifier, deflt, fname)
+X       int   flag;
+X       char *identifier;
+X       char *deflt;
+X       char *fname;
+X+ #endif
+X  {
+X    struct ev_var *ev_ptr = (struct ev_var *)Malloc(sizeof(struct ev_var));
+X  
+X***************
+X*** 448,459 ****
+X    return ev_ptr;
+X  }
+X  
+X! struct ev_var_val *
+X! make_new_ev_var_val(identifier, value, script, flag)
+X  char *identifier;
+X  char *value;
+X  char *script;
+X  int flag;
+X  {
+X    struct ev_var_val *evv_ptr =
+X      (struct ev_var_val *)Malloc(sizeof(struct ev_var_val));
+X--- 487,502 ----
+X    return ev_ptr;
+X  }
+X  
+X! #if defined(__STDC__) || defined(__cplusplus)
+X! struct ev_var_val *make_new_ev_var_val(char *identifier, char *value,
+X! 				       char *script, int flag)
+X! #else
+X! struct ev_var_val *make_new_ev_var_val(identifier, value, script, flag)
+X  char *identifier;
+X  char *value;
+X  char *script;
+X  int flag;
+X+ #endif
+X  {
+X    struct ev_var_val *evv_ptr =
+X      (struct ev_var_val *)Malloc(sizeof(struct ev_var_val));
+X***************
+X*** 467,476 ****
+X    return evv_ptr;
+X  }
+X  
+X! char *
+X! get_ev_val_from_file(ev_ptr, fname)
+X  struct ev_var *ev_ptr;
+X  char *fname;
+X  {
+X    int c;
+X    int fd;
+X--- 510,522 ----
+X    return evv_ptr;
+X  }
+X  
+X! #if defined(__STDC__) || defined(__cplusplus)
+X! char *get_ev_val_from_file(struct ev_var *ev_ptr, char *fname)
+X! #else
+X! char *get_ev_val_from_file(ev_ptr, fname)
+X  struct ev_var *ev_ptr;
+X  char *fname;
+X+ #endif
+X  {
+X    int c;
+X    int fd;
+X***************
+X*** 491,497 ****
+X        if (!c)
+X  	break;
+X        while (isalnum(c) || c == '_') {
+X! 	add_char(c);
+X  	c = next_char(fd);
+X        }
+X        /* if no token on line, then skip to end of line */
+X--- 537,543 ----
+X        if (!c)
+X  	break;
+X        while (isalnum(c) || c == '_') {
+X! 	add_char((char)c);
+X  	c = next_char(fd);
+X        }
+X        /* if no token on line, then skip to end of line */
+X***************
+X*** 512,518 ****
+X  	  break;
+X  	}
+X  	while ((c = next_char(fd)) && c != '\n')
+X! 	  add_char(c);
+X  	strip_white_space();
+X  	if (!(cp = take_saved_text())) {
+X  	  strcpy(cp = Malloc(strlen(null_value) + 1), null_value);
+X--- 558,564 ----
+X  	  break;
+X  	}
+X  	while ((c = next_char(fd)) && c != '\n')
+X! 	  add_char((char)c);
+X  	strip_white_space();
+X  	if (!(cp = take_saved_text())) {
+X  	  strcpy(cp = Malloc(strlen(null_value) + 1), null_value);
+X***************
+X*** 540,548 ****
+X  }
+X  
+X  #ifdef TEMP_SET_GLOBAL
+X! VOID_TYPE
+X! push_ev_vars(ev_val_list)
+X  struct ev_var_val *ev_val_list;
+X  {
+X    while (ev_val_list) {
+X      push_ev_var(ev_val_list);
+X--- 586,597 ----
+X  }
+X  
+X  #ifdef TEMP_SET_GLOBAL
+X! #if defined(__STDC__) || defined(__cplusplus)
+X! VOID_TYPE push_ev_vars(struct ev_var_val *ev_val_list)
+X! #else
+X! VOID_TYPE push_ev_vars(ev_val_list)
+X  struct ev_var_val *ev_val_list;
+X+ #endif
+X  {
+X    while (ev_val_list) {
+X      push_ev_var(ev_val_list);
+X***************
+X*** 550,558 ****
+X    }
+X  }
+X  
+X! VOID_TYPE
+X! push_ev_var(evv_ptr)
+X  struct ev_var_val *evv_ptr;
+X  {
+X    struct ev_var *ev_ptr;
+X    struct ev_var *new_ev_ptr = (struct ev_var *)Malloc(sizeof(struct ev_var));
+X--- 599,610 ----
+X    }
+X  }
+X  
+X! #if defined(__STDC__) || defined(__cplusplus)
+X! VOID_TYPE push_ev_var(struct ev_var_val *evv_ptr)
+X! #else
+X! VOID_TYPE push_ev_var(evv_ptr)
+X  struct ev_var_val *evv_ptr;
+X+ #endif
+X  {
+X    struct ev_var *ev_ptr;
+X    struct ev_var *new_ev_ptr = (struct ev_var *)Malloc(sizeof(struct ev_var));
+X***************
+X*** 598,606 ****
+X  }
+X  #endif /* TEMP_SET_GLOBAL */
+X  
+X! VOID_TYPE
+X! reset_ev_vars(ev_val_list)
+X  struct ev_var_val *ev_val_list;
+X  {
+X    VOID_TYPE reset_ev_var();
+X  
+X--- 650,661 ----
+X  }
+X  #endif /* TEMP_SET_GLOBAL */
+X  
+X! #if defined(__STDC__) || defined(__cplusplus)
+X! VOID_TYPE reset_ev_vars(struct ev_var_val *ev_val_list)
+X! #else
+X! VOID_TYPE reset_ev_vars(ev_val_list)
+X  struct ev_var_val *ev_val_list;
+X+ #endif
+X  {
+X    VOID_TYPE reset_ev_var();
+X  
+X***************
+X*** 610,618 ****
+X    }
+X  }
+X  
+X! VOID_TYPE
+X! reset_ev_var(evv_ptr)
+X  struct ev_var_val *evv_ptr;
+X  {
+X    struct ev_var *ev_ptr;
+X    char *tmp;
+X--- 665,676 ----
+X    }
+X  }
+X  
+X! #if defined(__STDC__) || defined(__cplusplus)
+X! VOID_TYPE reset_ev_var(struct ev_var_val *evv_ptr)
+X! #else
+X! VOID_TYPE reset_ev_var(evv_ptr)
+X  struct ev_var_val *evv_ptr;
+X+ #endif
+X  {
+X    struct ev_var *ev_ptr;
+X    char *tmp;
+X***************
+X*** 649,656 ****
+X    ev_ptr->value = tmp;
+X  }
+X  
+X! VOID_TYPE
+X! init_ev_vars()
+X  {
+X    struct ev_var *ev_ptr;
+X    int c;
+X--- 707,713 ----
+X    ev_ptr->value = tmp;
+X  }
+X  
+X! VOID_TYPE init_ev_vars()
+X  {
+X    struct ev_var *ev_ptr;
+X    int c;
+X***************
+X*** 688,695 ****
+X    }
+X  }
+X  
+X! VOID_TYPE
+X! push_environment()
+X  {
+X    struct ev_var **prev_ev_pptr = &environment_list;
+X    struct ev_var *ev_ptr;
+X--- 745,751 ----
+X    }
+X  }
+X  
+X! VOID_TYPE push_environment()
+X  {
+X    struct ev_var **prev_ev_pptr = &environment_list;
+X    struct ev_var *ev_ptr;
+X***************
+X*** 707,714 ****
+X    }
+X  }
+X  
+X! VOID_TYPE
+X! pop_environment()
+X  {
+X    struct ev_var **ev_pptr;
+X    struct ev_var *ev_ptr;
+X--- 763,769 ----
+X    }
+X  }
+X  
+X! VOID_TYPE pop_environment()
+X  {
+X    struct ev_var **ev_pptr;
+X    struct ev_var *ev_ptr;
+X***************
+X*** 723,731 ****
+X    }
+X  }
+X  
+X! struct ev_var *
+X! find_ev_var_by_name(name)
+X  char *name;
+X  {
+X    struct ev_var *ev_ptr = environment_list;
+X  
+X--- 778,789 ----
+X    }
+X  }
+X  
+X! #if defined(__STDC__) || defined(__cplusplus)
+X! struct ev_var *find_ev_var_by_name(char *name)
+X! #else
+X! struct ev_var *find_ev_var_by_name(name)
+X  char *name;
+X+ #endif
+X  {
+X    struct ev_var *ev_ptr = environment_list;
+X  
+X***************
+X*** 741,749 ****
+X  
+X  /* parm stuff */
+X  
+X! VOID_TYPE
+X! init_item_parm_defaults(i_ptr)
+X  struct item *i_ptr;
+X  {
+X    struct parm *p_ptr;
+X    struct ev_var *ev_ptr;
+X--- 799,810 ----
+X  
+X  /* parm stuff */
+X  
+X! #if defined(__STDC__) || defined(__cplusplus)
+X! VOID_TYPE init_item_parm_defaults(struct item *i_ptr)
+X! #else
+X! VOID_TYPE init_item_parm_defaults(i_ptr)
+X  struct item *i_ptr;
+X+ #endif
+X  {
+X    struct parm *p_ptr;
+X    struct ev_var *ev_ptr;
+X***************
+X*** 791,799 ****
+X  
+X  /* menu manipulation routines/ */
+X  
+X! VOID_TYPE
+X! push_menu(menu_ptr)
+X       struct menu *menu_ptr;
+X  {
+X    menu_ptr->menu_stack_ptr = active_menu;
+X    active_menu = menu_ptr;
+X--- 852,863 ----
+X  
+X  /* menu manipulation routines/ */
+X  
+X! #if defined(__STDC__) || defined(__cplusplus)
+X! VOID_TYPE push_menu(struct menu *menu_ptr)
+X! #else
+X! VOID_TYPE push_menu(menu_ptr)
+X       struct menu *menu_ptr;
+X+ #endif
+X  {
+X    menu_ptr->menu_stack_ptr = active_menu;
+X    active_menu = menu_ptr;
+X***************
+X*** 814,821 ****
+X    init_menu(active_menu);
+X  }
+X  
+X! int
+X! pop_menu()
+X  {
+X    close_menu(active_menu);
+X    pop_environment();
+X--- 878,884 ----
+X    init_menu(active_menu);
+X  }
+X  
+X! int pop_menu()
+X  {
+X    close_menu(active_menu);
+X    pop_environment();
+X***************
+X*** 827,835 ****
+X    return -1;
+X  }
+X  
+X! struct menu *
+X! find_menu(name)
+X       char *name;
+X  {
+X    struct menu *menu_ptr = menu_list_head;
+X  
+X--- 890,901 ----
+X    return -1;
+X  }
+X  
+X! #if defined(__STDC__) || defined(__cplusplus)
+X! struct menu *find_menu(char *name)
+X! #else
+X! struct menu *find_menu(name)
+X       char *name;
+X+ #endif
+X  {
+X    struct menu *menu_ptr = menu_list_head;
+X  
+X***************
+X*** 842,849 ****
+X    return (struct menu *)0;
+X  }
+X  
+X! int
+X! check_menu()
+X  {
+X    struct menu *menu_ptr;
+X    struct item *item_ptr;
+X--- 908,914 ----
+X    return (struct menu *)0;
+X  }
+X  
+X! int check_menu()
+X  {
+X    struct menu *menu_ptr;
+X    struct item *item_ptr;
+X***************
+X*** 865,875 ****
+X    return errorcount;
+X  }
+X  
+X! int
+X! check_items(item_ptr, menu_name, errorcount_ptr)
+X  struct item* item_ptr;
+X  char* menu_name;
+X  int* errorcount_ptr;
+X  {
+X    int item_idx = 0;
+X  
+X--- 930,943 ----
+X    return errorcount;
+X  }
+X  
+X! #if defined(__STDC__) || defined(__cplusplus)
+X! int check_items(struct item* item_ptr, char* menu_name, int* errorcount_ptr)
+X! #else
+X! int check_items(item_ptr, menu_name, errorcount_ptr)
+X  struct item* item_ptr;
+X  char* menu_name;
+X  int* errorcount_ptr;
+X+ #endif
+X  {
+X    int item_idx = 0;
+X  
+X***************
+X*** 902,909 ****
+X    return item_idx;
+X  }
+X  
+X! int
+X! do_menu()
+X  {
+X    int item_idx;
+X    struct item *i_ptr;
+X--- 970,976 ----
+X    return item_idx;
+X  }
+X  
+X! int do_menu()
+X  {
+X    int item_idx;
+X    struct item *i_ptr;
+X***************
+X*** 994,1003 ****
+X    }
+X  }
+X  
+X! VOID_TYPE
+X! do_item(selected_item, item_parent)
+X  struct item* selected_item;
+X  int item_parent;
+X  {
+X    /* do not do item if conditioning variable exists and is defined */
+X    if (selected_item->conditioning != CONDITION_NONE)
+X--- 1061,1073 ----
+X    }
+X  }
+X  
+X! #if defined(__STDC__) || defined(__cplusplus)
+X! VOID_TYPE do_item(struct item* selected_item, int item_parent)
+X! #else
+X! VOID_TYPE do_item(selected_item, item_parent)
+X  struct item* selected_item;
+X  int item_parent;
+X+ #endif
+X  {
+X    /* do not do item if conditioning variable exists and is defined */
+X    if (selected_item->conditioning != CONDITION_NONE)
+X***************
+X*** 1027,1033 ****
+X  
+X    switch (selected_item->action) {
+X    case ITEM_SKIP:
+X!     beep();
+X      break;
+X    case ITEM_MENU:
+X      push_menu(find_menu(selected_item->command));
+X--- 1097,1103 ----
+X  
+X    switch (selected_item->action) {
+X    case ITEM_SKIP:
+X!     do_beep();
+X      break;
+X    case ITEM_MENU:
+X      push_menu(find_menu(selected_item->command));
+X***************
+X*** 1075,1083 ****
+X  
+X  /* invoke a shell script */
+X  
+X! VOID_TYPE
+X! do_shell_script(selected_item)
+X       struct item *selected_item;
+X  {
+X    pid_t pid;
+X    struct parm *p_ptr;
+X--- 1145,1156 ----
+X  
+X  /* invoke a shell script */
+X  
+X! #if defined(__STDC__) || defined(__cplusplus)
+X! VOID_TYPE do_shell_script(struct item *selected_item)
+X! #else
+X! VOID_TYPE do_shell_script(selected_item)
+X       struct item *selected_item;
+X+ #endif
+X  {
+X    pid_t pid;
+X    struct parm *p_ptr;
+X***************
+X*** 1124,1132 ****
+X    tmp_fname = (char *)0;
+X  }
+X  
+X! char *
+X! output_of_shell(script)
+X  char *script;
+X  {
+X    pid_t pid;
+X    struct ev_var *ev_ptr;
+X--- 1197,1208 ----
+X    tmp_fname = (char *)0;
+X  }
+X  
+X! #if defined(__STDC__) || defined(__cplusplus)
+X! char *output_of_shell(char *script)
+X! #else
+X! char *output_of_shell(script)
+X  char *script;
+X+ #endif
+X  {
+X    pid_t pid;
+X    struct ev_var *ev_ptr;
+X***************
+X*** 1168,1174 ****
+X    close(pipe_fd[1]);
+X    Free(take_saved_text());
+X    while (c = next_char(pipe_fd[0]))
+X!     add_char(c);
+X    close(pipe_fd[0]);
+X    wait_for_child(pid);
+X    return_from_subshell();
+X--- 1244,1250 ----
+X    close(pipe_fd[1]);
+X    Free(take_saved_text());
+X    while (c = next_char(pipe_fd[0]))
+X!     add_char((char)c);
+X    close(pipe_fd[0]);
+X    wait_for_child(pid);
+X    return_from_subshell();
+X***************
+X*** 1179,1189 ****
+X    return take_saved_text();
+X  }
+X  
+X! VOID_TYPE
+X! output_var_asg(file, identifier, value)
+X  FILE *file;
+X  char *identifier;
+X  char *value;
+X  {
+X    char *cp = asg_fmt;
+X    char c;
+X--- 1255,1268 ----
+X    return take_saved_text();
+X  }
+X  
+X! #if defined(__STDC__) || defined(__cplusplus)
+X! VOID_TYPE output_var_asg(FILE *file, char *identifier, char *value)
+X! #else
+X! VOID_TYPE output_var_asg(file, identifier, value)
+X  FILE *file;
+X  char *identifier;
+X  char *value;
+X+ #endif
+X  {
+X    char *cp = asg_fmt;
+X    char c;
+X***************
+X*** 1206,1213 ****
+X    putc('\n', file);
+X  }
+X  
+X! VOID_TYPE
+X! do_prelude()
+X  {
+X    char *cp;
+X  
+X--- 1285,1291 ----
+X    putc('\n', file);
+X  }
+X  
+X! VOID_TYPE do_prelude()
+X  {
+X    char *cp;
+X  
+X***************
+X*** 1220,1227 ****
+X    }
+X  }
+X  
+X! VOID_TYPE
+X! do_epilogue()
+X  {
+X    char *cp;
+X  
+X--- 1298,1304 ----
+X    }
+X  }
+X  
+X! VOID_TYPE do_epilogue()
+X  {
+X    char *cp;
+X  
+X***************
+X*** 1234,1242 ****
+X    }
+X  }
+X  
+X! VOID_TYPE
+X! fatal(s)
+X       char *s;
+X  {
+X    extern int errno;
+X    int lerrno = errno;   /* save errno */
+X--- 1311,1322 ----
+X    }
+X  }
+X  
+X! #if defined(__STDC__) || defined(__cplusplus)
+X! VOID_TYPE fatal(char *s)
+X! #else
+X! VOID_TYPE fatal(s)
+X       char *s;
+X+ #endif
+X  {
+X    extern int errno;
+X    int lerrno = errno;   /* save errno */
+X***************
+X*** 1253,1261 ****
+X    simple_menu_exit(1);
+X  }
+X  
+X! RETSIGTYPE
+X! trapoid(sig)
+X       int sig;
+X  {
+X    if (tmp_fname)
+X      unlink(tmp_fname);
+X--- 1333,1344 ----
+X    simple_menu_exit(1);
+X  }
+X  
+X! #if defined(__STDC__) || defined(__cplusplus)
+X! RETSIGTYPE trapoid(int sig)
+X! #else
+X! RETSIGTYPE trapoid(sig)
+X       int sig;
+X+ #endif
+X  {
+X    if (tmp_fname)
+X      unlink(tmp_fname);
+X***************
+X*** 1263,1278 ****
+X    simple_menu_exit(sig);
+X  }
+X  
+X! RETSIGTYPE
+X! do_longjmp(sig)
+X       int sig;
+X  {
+X    longjmp(env, 0);
+X  }
+X  
+X! VOID_TYPE
+X! wait_for_child(pid)
+X       pid_t pid;
+X  {
+X    int wait_ret;
+X    int status;
+X--- 1346,1367 ----
+X    simple_menu_exit(sig);
+X  }
+X  
+X! #if defined(__STDC__) || defined(__cplusplus)
+X! RETSIGTYPE do_longjmp(int sig)
+X! #else
+X! RETSIGTYPE do_longjmp(sig)
+X       int sig;
+X+ #endif
+X  {
+X    longjmp(env, 0);
+X  }
+X  
+X! #if defined(__STDC__) || defined(__cplusplus)
+X! VOID_TYPE wait_for_child(pid_t pid)
+X! #else
+X! VOID_TYPE wait_for_child(pid)
+X       pid_t pid;
+X+ #endif
+X  {
+X    int wait_ret;
+X    int status;
+X***************
+X*** 1285,1293 ****
+X    }
+X  }
+X  
+X! VOID_TYPE
+X! set_signals(flag)
+X       int flag;
+X  {
+X    switch (flag) {
+X    case SIGS_FOR_JMP:
+X--- 1374,1385 ----
+X    }
+X  }
+X  
+X! #if defined(__STDC__) || defined(__cplusplus)
+X! VOID_TYPE set_signals(int flag)
+X! #else
+X! VOID_TYPE set_signals(flag)
+X       int flag;
+X+ #endif
+X  {
+X    switch (flag) {
+X    case SIGS_FOR_JMP:
+X***************
+X*** 1305,1312 ****
+X    }
+X  }
+X  
+X! VOID_TYPE
+X! reset_signals()
+X  {
+X    signal(SIGHUP, SIG_DFL);
+X    signal(SIGINT, SIG_DFL);
+X--- 1397,1403 ----
+X    }
+X  }
+X  
+X! VOID_TYPE reset_signals()
+X  {
+X    signal(SIGHUP, SIG_DFL);
+X    signal(SIGINT, SIG_DFL);
+X***************
+X*** 1315,1322 ****
+X    signal(SIGCLD, SIG_DFL);
+X  }
+X  
+X! int
+X! open_menu_file()
+X  {
+X    int menu_fd;
+X    char *getenv();
+X--- 1406,1412 ----
+X    signal(SIGCLD, SIG_DFL);
+X  }
+X  
+X! int open_menu_file()
+X  {
+X    int menu_fd;
+X    char *getenv();
+X***************
+X*** 1355,1364 ****
+X    }
+X  }
+X  
+X! int
+X! search_menu_path(path, fname)
+X       char *path;
+X       char *fname;
+X  {
+X    char *cp = path;
+X    int size = 256;
+X--- 1445,1457 ----
+X    }
+X  }
+X  
+X! #if defined(__STDC__) || defined(__cplusplus)
+X! int search_menu_path(char *path, char *fname)
+X! #else
+X! int search_menu_path(path, fname)
+X       char *path;
+X       char *fname;
+X+ #endif
+X  {
+X    char *cp = path;
+X    int size = 256;
+X***************
+X*** 1393,1401 ****
+X    fatal("cannot open menu definition");
+X  }
+X  
+X! char *
+X! Malloc(size)
+X       unsigned size;
+X  {
+X    char *malloc();
+X    char *cp = malloc(size);
+X--- 1486,1497 ----
+X    fatal("cannot open menu definition");
+X  }
+X  
+X! #if defined(__STDC__) || defined(__cplusplus)
+X! char *Malloc(unsigned size)
+X! #else
+X! char *Malloc(size)
+X       unsigned size;
+X+ #endif
+X  {
+X    char *malloc();
+X    char *cp = malloc(size);
+X***************
+X*** 1406,1415 ****
+X    return cp;
+X  }
+X  
+X! char *
+X! Realloc(ptr, size)
+X       char *ptr;
+X       unsigned size;
+X  {
+X    char *realloc();
+X    char *cp = realloc(ptr, size);
+X--- 1502,1514 ----
+X    return cp;
+X  }
+X  
+X! #if defined(__STDC__) || defined(__cplusplus)
+X! char *Realloc(char *ptr, unsigned size)
+X! #else
+X! char *Realloc(ptr, size)
+X       char *ptr;
+X       unsigned size;
+X+ #endif
+X  {
+X    char *realloc();
+X    char *cp = realloc(ptr, size);
+X***************
+X*** 1420,1436 ****
+X    return cp;
+X  }
+X  
+X! VOID_TYPE
+X! Free(ptr)
+X       char *ptr;
+X  {
+X    if (ptr)
+X      free(ptr);
+X  }
+END_OF_FILE
+if test 19230 -ne `wc -c <'patches.ab'`; then
+    echo shar: \"'patches.ab'\" unpacked with wrong size!
+fi
+# end of 'patches.ab'
+fi
+if test -f 'patches.ae' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'patches.ae'\"
+else
+echo shar: Extracting \"'patches.ae'\" \(7221 characters\)
+sed "s/^X//" >'patches.ae' <<'END_OF_FILE'
+X        fmt = "Q) to End - choice? ";
+X        break;
+X      case PAGE_INFO_FIRST_PAGE | ALWAYS_DISPLAY_FLAG:
+X!       fmt = "Q) to End, N next page - choice? ";
+X        break;
+X      case PAGE_INFO_INTERIOR_PAGE | ALWAYS_DISPLAY_FLAG:
+X!       fmt = "Q) to End, N next page, P previous - choice? ";
+X        break;
+X      case PAGE_INFO_LAST_PAGE | ALWAYS_DISPLAY_FLAG:
+X!       fmt = "Q) to End, P previous - choice? ";
+X        break;
+X      }
+X  
+X***************
+X*** 745,754 ****
+X  }
+X  #endif /* HAVE_TERMINFO */
+X  
+X! char *
+X! get_variable_value(prompt, deflt)
+X  char *prompt;
+X  char *deflt;
+X  {
+X    char *cp;
+X    int c;
+X--- 786,798 ----
+X  }
+X  #endif /* HAVE_TERMINFO */
+X  
+X! #if defined(__STDC__) || defined(__cplusplus)
+X! char * get_variable_value(char *prompt, char *deflt)
+X! #else
+X! char * get_variable_value(prompt, deflt)
+X  char *prompt;
+X  char *deflt;
+X+ #endif
+X  {
+X    char *cp;
+X    int c;
+X***************
+X*** 756,762 ****
+X    printf("%s[%s]: ", prompt, deflt ? deflt : "");
+X    fflush(stdout);
+X    while ((c = next_char(0)) && c != '\n')
+X!     add_char(c);
+X  
+X    if ((cp = take_saved_text()) && strlen(cp)) {
+X      return cp;
+X--- 800,806 ----
+X    printf("%s[%s]: ", prompt, deflt ? deflt : "");
+X    fflush(stdout);
+X    while ((c = next_char(0)) && c != '\n')
+X!     add_char((char)c);
+X  
+X    if ((cp = take_saved_text()) && strlen(cp)) {
+X      return cp;
+X***************
+X*** 773,780 ****
+X  }
+X  
+X  
+X! int
+X! get_user_rsp()
+X  {
+X    char c;
+X  
+X--- 817,823 ----
+X  }
+X  
+X  
+X! int get_user_rsp()
+X  {
+X    char c;
+X  
+X***************
+X*** 788,797 ****
+X      return c == '\n' ? MENU_NOP : MENU_EOINPUT;
+X  
+X    switch (user_rsp[0]) {
+X!   case 'N' & 0x1f:
+X!     return MENU_NEXT_PAGE;
+X!   case 'P' & 0x1f:
+X!     return MENU_PREV_PAGE;
+X    case 'q':
+X    case 'Q':
+X      return MENU_QUIT;
+X--- 831,842 ----
+X      return c == '\n' ? MENU_NOP : MENU_EOINPUT;
+X  
+X    switch (user_rsp[0]) {
+X!   case 'N':
+X!     return ((menu_stack->cur_page->page_info & 0x3) >= PAGE_INFO_ONLY_PAGE
+X!       && Alpha_Flag ) ? 'N' : MENU_NEXT_PAGE ;
+X!   case 'P':
+X!     return ((menu_stack->cur_page->page_info & 0x3) >= PAGE_INFO_ONLY_PAGE
+X!       && Alpha_Flag ) ? 'P' : MENU_PREV_PAGE;
+X    case 'q':
+X    case 'Q':
+X      return MENU_QUIT;
+X***************
+X*** 812,826 ****
+X    }
+X  }
+X  
+X! static VOID_TYPE
+X! alarm_trap()
+X  {
+X    return;
+X  }
+X  
+X! VOID_TYPE
+X! do_pause(flag)
+X       int flag;
+X  {
+X    char c;
+X  
+X--- 857,878 ----
+X    }
+X  }
+X  
+X! #if defined(__STDC__) || defined(__cplusplus)
+X! static VOID_TYPE alarm_trap(int sig_num)
+X! #else
+X! static VOID_TYPE alarm_trap(sig_num)
+X! int sig_num;
+X! #endif
+X  {
+X    return;
+X  }
+X  
+X! #if defined(__STDC__) || defined(__cplusplus)
+X! VOID_TYPE do_pause(int flag)
+X! #else
+X! VOID_TYPE do_pause(flag)
+X       int flag;
+X+ #endif
+X  {
+X    char c;
+X  
+X***************
+X*** 845,864 ****
+X    }
+X  }
+X  
+X! VOID_TYPE
+X! display_msg(text)
+X  char *text;
+X  {
+X    printf("%s\n", text);
+X  }
+X  
+X! VOID_TYPE
+X! undisplay_msg()
+X  {
+X  }
+X  
+X! VOID_TYPE
+X! beep()
+X  {
+X    printf("\007");
+X  }
+X--- 897,917 ----
+X    }
+X  }
+X  
+X! #if defined(__STDC__) || defined(__cplusplus)
+X! VOID_TYPE display_msg(char *text)
+X! #else
+X! VOID_TYPE display_msg(text)
+X  char *text;
+X+ #endif
+X  {
+X    printf("%s\n", text);
+X  }
+X  
+X! VOID_TYPE undisplay_msg()
+X  {
+X  }
+X  
+X! VOID_TYPE do_beep()
+X  {
+X    printf("\007");
+X  }
+X*** Release-3.1/tty_src/Makefile.in	Wed Sep 28 06:55:55 1994
+X--- Release-3.2/tty_src/Makefile.in	Tue Nov  8 08:54:08 1994
+X***************
+X*** 36,43 ****
+X  # bottom part of makefile - subdirectory specific
+X  
+X  incldir = @srcdir@/../incl
+X! CFLAGS = -g -I$(incldir)
+X! LFLAGS = -g
+X  
+X  DISPLAY_SRC = tty_display.c
+X  DISPLAY_OBJ = tty_display.o
+X--- 36,43 ----
+X  # bottom part of makefile - subdirectory specific
+X  
+X  incldir = @srcdir@/../incl
+X! CFLAGS = -I$(incldir) @copts@
+X! LFLAGS = @copts@
+X  
+X  DISPLAY_SRC = tty_display.c
+X  DISPLAY_OBJ = tty_display.o
+X*** Release-3.1/configure.in	Wed Sep 28 06:55:53 1994
+X--- Release-3.2/configure.in	Tue Nov  8 08:54:07 1994
+X***************
+X*** 5,10 ****
+X--- 5,19 ----
+X  dnl check for programs
+X  AC_SUBST(PROGS)dnl
+X  AC_PROG_YACC
+X+ AC_SUBST(copts)
+X+ AC_ENABLE(CFLAGS, [
+X+ case $enableval in
+X+   yes) copts=-O ;;
+X+   no) copts= ;;
+X+   *) copts="`echo $enableval | sed -e 's/,/ /g'`" ;;
+X+ esac
+X+ ], copts= )
+X+ AC_VERBOSE(setting CFLAGS to $copts)
+X  AC_PROG_CC
+X  AC_PROG_CPP
+X  AC_PROG_AWK
+X***************
+X*** 29,62 ****
+X  dnl check for OS services
+X  AC_RESTARTABLE_SYSCALLS
+X  dnl looking for Curses/Terminfo/Termcap
+X- LIBS_SAVE=$LIBS
+X  TERMLIBS=
+X  LIBS=-lcurses
+X  AC_COMPILE_CHECK(terminfo, [#include <curses.h>], [
+X    { initscr(); } ],
+X!  [TERMLIBS=TERMINFO])
+X  if test -z "$TERMLIBS" ; then
+X  LIBS='-ltermcap'
+X  AC_COMPILE_CHECK(termcap, [#include <curses.h>], [
+X    { char *bp, *tm; tgetent(bp, tm); }
+X   ],
+X!  [TERMLIBS=TERMCAP])
+X! fi
+X! case $TERMLIBS in
+X!   TERMCAP)
+X!     AC_DEFINE(CURSESLIBS, [-lcurses -ltermcap])
+X      CURSESLIBS='-lcurses -ltermcap'
+X-     AC_DEFINE(TERMLIB, [-ltermcap])
+X      TERMLIB='-ltermcap'
+X      AC_DEFINE(HAVE_TERMCAP)
+X!   ;;
+X!   TERMINFO)
+X!     AC_HAVE_HEADERS( term.h )
+X!     AC_DEFINE(CURSESLIBS, [-lcurses])
+X!     CURSESLIBS='-lcurses'
+X!     AC_DEFINE(TERMLIB, [-lcurses])
+X!     TERMLIB='-lcurses'
+X!     AC_DEFINE(HAVE_TERMINFO)
+X    ;;
+X    *)
+X      echo "Must have either TERMCAP or TERMINFO"
+X--- 38,93 ----
+X  dnl check for OS services
+X  AC_RESTARTABLE_SYSCALLS
+X  dnl looking for Curses/Terminfo/Termcap
+X  TERMLIBS=
+X+ AC_WITH(termcap, [
+X+ LIBS_SAVE=$LIBS
+X+ TERMLIBS=TERMCAP
+X+ case $withval in
+X+   yes) CURSESLIBS='-lcurses -ltermcap' ; TERMLIB='-ltermcap' ;;
+X+   *) TERMLIB="`echo $withval | awk -F, ' { print $1 }' -`"
+X+      CURSESLIBS="`echo $withval | awk -F, ' NF == 1 { print $1 } NF == 2 { print $2 }' -`"
+X+   ;;
+X+ esac
+X+     AC_DEFINE(HAVE_TERMCAP)
+X+ ])
+X+ AC_WITH(terminfo, [
+X+ TERMLIBS=TERMINFO
+X+ case $withval in
+X+   yes) CURSESLIBS='-lcurses' ; TERMLIB='-lcurses' ;;
+X+   *) TERMLIB="`echo $withval | awk -F, ' { print $1 }' -`"
+X+      CURSESLIBS="`echo $withval | awk -F, ' NF == 1 { print $1 } NF == 2 { print $2 }' -`"
+X+   ;;
+X+ esac
+X+     AC_HAVE_HEADERS( term.h )
+X+     AC_DEFINE(HAVE_TERMINFO)
+X+ ])
+X+ if test -z "$TERMLIBS" ; then
+X  LIBS=-lcurses
+X  AC_COMPILE_CHECK(terminfo, [#include <curses.h>], [
+X    { initscr(); } ],
+X!  [TERMLIBS=TERMINFO
+X!     AC_HAVE_HEADERS( term.h )
+X!     CURSESLIBS='-lcurses'
+X!     TERMLIB='-lcurses'
+X!     AC_DEFINE(HAVE_TERMINFO)
+X! ])
+X! fi
+X  if test -z "$TERMLIBS" ; then
+X  LIBS='-ltermcap'
+X  AC_COMPILE_CHECK(termcap, [#include <curses.h>], [
+X    { char *bp, *tm; tgetent(bp, tm); }
+X   ],
+X!  [TERMLIBS=TERMCAP
+X      CURSESLIBS='-lcurses -ltermcap'
+X      TERMLIB='-ltermcap'
+X      AC_DEFINE(HAVE_TERMCAP)
+X! ])
+X! fi
+X! AC_DEFINE(CURSESLIBS, ["$CURSESLIBS"])
+X! AC_DEFINE(TERMLIB, ["$TERMLIB"])
+X! case $TERMLIBS in
+X!   TERMCAP|TERMINFO)
+X!     echo "Using $TERMLIBS for terminal screen control"
+X    ;;
+X    *)
+X      echo "Must have either TERMCAP or TERMINFO"
+X***************
+X*** 70,76 ****
+X  AC_OUTPUT([Makefile \
+X   common_src/Makefile \
+X   tty_src/Makefile \
+X-  curses_src/Makefile \
+X-  Xaw_src/Makefile \
+X   doc/Makefile \
+X!  incl/Makefile])
+X--- 101,109 ----
+X  AC_OUTPUT([Makefile \
+X   common_src/Makefile \
+X   tty_src/Makefile \
+X   doc/Makefile \
+X!  incl/Makefile \
+X! ])
+X! dnl placeholders
+X! dnl curses_src/Makefile
+X! dnl Xaw_src/Makefile
+END_OF_FILE
+if test 7221 -ne `wc -c <'patches.ae'`; then
+    echo shar: \"'patches.ae'\" unpacked with wrong size!
+fi
+# end of 'patches.ae'
+fi
+echo shar: End of archive 1 \(of 3\).
+cp /dev/null ark1isdone
+MISSING=""
+for I in 1 2 3 ; do
+    if test ! -f ark${I}isdone ; then
+	MISSING="${MISSING} ${I}"
+    fi
+done
+if test "${MISSING}" = "" ; then
+    echo You have unpacked all 3 archives.
+    rm -f ark[1-9]isdone
+else
+    echo You still need to unpack the following archives:
+    echo "        " ${MISSING}
+fi
+##  End of shell archive.
+exit 0
+

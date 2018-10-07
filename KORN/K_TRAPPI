@@ -1,0 +1,20 @@
+#!/bin/ksh
+# Scriptname: trapping
+# Script to illustrate the trap command and signals
+# Can use the signal numbers or Ksh abbreviations seen
+# below.  Cannot use SIGINT, SIGQUIT, etc.
+
+trap 'print "Control-C will not terminate $0."' INT
+trap 'print "Control-\ will not terminate $0."' QUIT
+trap 'print "Control-Z will not terminate $0."' TSTP
+print "Enter any string after the prompt.
+	When you are ready to exit, type \"stop\"."
+while true
+	do
+		print -n "Go ahead...> "
+		read
+if [[ $REPLY = [Ss]top ]]
+       		then 
+break
+		fi
+	done	 

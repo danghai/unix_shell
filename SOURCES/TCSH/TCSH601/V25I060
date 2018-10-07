@@ -1,0 +1,3301 @@
+Newsgroups: comp.sources.unix
+From: christos@ee.cornell.edu (Christos Zoulas)
+Subject: v25i060: tcsh6.01 - a csh replacement with lots of extra goodies, Part07/18
+Message-ID: <1991Dec20.214109.6871@PA.dec.com>
+Date: Fri, 20 Dec 91 21:41:09 GMT
+Approved: vixie@pa.dec.com
+
+Submitted-By: christos@ee.cornell.edu (Christos Zoulas)
+Posting-Number: Volume 25, Issue 60
+Archive-Name: tcsh-6.01/part07
+
+#! /bin/sh
+# This is a shell archive.  Remove anything before this line, then unpack
+# it by saving it into a file and typing "sh file".  To overwrite existing
+# files, type "sh file -c".  You can also feed this as standard input via
+# unshar, or by typing "sh <file", e.g..  If this archive is complete, you
+# will see the following message at the end:
+#		"End of archive 7 (of 18)."
+# Contents:  ed.inputl.c ed.xmap.c glob.c sh.time.c tc.who.c
+# Wrapped by vixie@cognition.pa.dec.com on Fri Dec 20 13:29:26 1991
+PATH=/bin:/usr/bin:/usr/ucb ; export PATH
+if test -f 'ed.inputl.c' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'ed.inputl.c'\"
+else
+echo shar: Extracting \"'ed.inputl.c'\" \(17376 characters\)
+sed "s/^X//" >'ed.inputl.c' <<'END_OF_FILE'
+X/* $Header: /home/hyperion/mu/christos/src/sys/tcsh-6.01/RCS/ed.inputl.c,v 3.15 1991/12/19 22:34:14 christos Exp $ */
+X/*
+X * ed.inputl.c: Input line handling.
+X */
+X/*-
+X * Copyright (c) 1980, 1991 The Regents of the University of California.
+X * All rights reserved.
+X *
+X * Redistribution and use in source and binary forms, with or without
+X * modification, are permitted provided that the following conditions
+X * are met:
+X * 1. Redistributions of source code must retain the above copyright
+X *    notice, this list of conditions and the following disclaimer.
+X * 2. Redistributions in binary form must reproduce the above copyright
+X *    notice, this list of conditions and the following disclaimer in the
+X *    documentation and/or other materials provided with the distribution.
+X * 3. All advertising materials mentioning features or use of this software
+X *    must display the following acknowledgement:
+X *	This product includes software developed by the University of
+X *	California, Berkeley and its contributors.
+X * 4. Neither the name of the University nor the names of its contributors
+X *    may be used to endorse or promote products derived from this software
+X *    without specific prior written permission.
+X *
+X * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+X * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+X * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+X * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+X * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+X * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+X * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+X * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+X * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+X * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+X * SUCH DAMAGE.
+X */
+X#include "sh.h"
+X
+RCSID("$Id: ed.inputl.c,v 3.15 1991/12/19 22:34:14 christos Exp $")
+X
+X#include "ed.h"
+X#include "ed.defns.h"		/* for the function names */
+X#include "tw.h"			/* for twenex stuff */
+X
+X#define OKCMD (INBUFSIZE+INBUFSIZE)
+extern CCRETVAL e_up_hist();
+extern CCRETVAL e_expand_history();
+X
+X/* ed.inputl -- routines to get a single line from the input. */
+X
+extern bool tellwhat;
+extern bool MapsAreInited;
+extern bool Tty_raw_mode;
+X
+X/* mismatched first character */
+static Char mismatch[] = {'!', '\\', '^', '-', '%', '\0'};
+X
+static	int	GetNextCommand	__P((KEYCMD *, Char *));
+static	int	SpellLine	__P((int));
+static	void	RunCommand	__P((Char *));
+static void 	doeval1		__P((Char **));
+X
+X/* CCRETVAL */
+int
+Inputl()
+X{
+X    CCRETVAL retval;
+X    KEYCMD  cmdnum = 0;
+X    extern KEYCMD NumFuns;
+X    unsigned char tch;		/* the place where read() goes */
+X    Char    ch;
+X    int     num;		/* how many chars we have read at NL */
+X    int	    expnum;
+X    struct varent *crct = adrof(STRcorrect);
+X    struct varent *autol = adrof(STRautolist);
+X    struct varent *matchbeep = adrof(STRmatchbeep);
+X    struct varent *imode = adrof(STRinputmode);
+X    Char   *SaveChar, *CorrChar;
+X    Char    Origin[INBUFSIZE], Change[INBUFSIZE];
+X    int     matchval;		/* from tenematch() */
+X
+X    if (!MapsAreInited)		/* double extra just in case */
+X	ed_InitMaps();
+X
+X    ClearDisp();		/* reset the display stuff */
+X    ResetInLine();		/* reset the input pointers */
+X    if (GettingInput)
+X	MacroLvl = -1;		/* editor was interrupted during input */
+X
+X#ifdef FIONREAD
+X    if (!Tty_raw_mode && MacroLvl < 0) {
+X	long    chrs = 0;
+X
+X	(void) ioctl(SHIN, FIONREAD, (ioctl_t) & chrs);
+X	if (chrs == 0) {
+X	    if (Rawmode() < 0)
+X		return 0;
+X	}
+X    }
+X#endif
+X
+X    GettingInput = 1;
+X    NeedsRedraw = 0;
+X
+X    if (tellwhat) {
+X	copyn(InputBuf, WhichBuf, INBUFSIZE);
+X	LastChar = InputBuf + (LastWhich - WhichBuf);
+X	Cursor = InputBuf + (CursWhich - WhichBuf);
+X	tellwhat = 0;
+X	Hist_num = HistWhich;
+X    }
+X    if (Expand) {
+X	(void) e_up_hist(0);
+X	Expand = 0;
+X    }
+X    Refresh();			/* print the prompt */
+X
+X    for (num = OKCMD; num == OKCMD;) {	/* while still editing this line */
+X#ifdef DEBUG_EDIT
+X	if (Cursor > LastChar)
+X	    xprintf("Cursor > LastChar\r\n");
+X	if (Cursor < InputBuf)
+X	    xprintf("Cursor < InputBuf\r\n");
+X	if (Cursor > InputLim)
+X	    xprintf("Cursor > InputLim\r\n");
+X	if (LastChar > InputLim)
+X	    xprintf("LastChar > InputLim\r\n");
+X	if (InputLim != &InputBuf[INBUFSIZE - 2])
+X	    xprintf("InputLim != &InputBuf[INBUFSIZE-2]\r\n");
+X	if ((!DoingArg) && (Argument != 1))
+X	    xprintf("(!DoingArg) && (Argument != 1)\r\n");
+X	if (CcKeyMap[0] == 0)
+X	    xprintf("CcKeyMap[0] == 0 (maybe not inited)\r\n");
+X#endif
+X
+X	/* if EOF or error */
+X	if ((num = GetNextCommand(&cmdnum, &ch)) != OKCMD) {
+X	    break;
+X	}
+X
+X	if (cmdnum >= NumFuns) {/* BUG CHECK command */
+X#ifdef DEBUG_EDIT
+X	    xprintf("ERROR: illegal command from key 0%o\r\n", ch);
+X#endif
+X	    continue;		/* try again */
+X	}
+X
+X	/* now do the real command */
+X	retval = (*CcFuncTbl[cmdnum]) (ch);
+X
+X	/* save the last command here */
+X	LastCmd = cmdnum;
+X
+X	/* use any return value */
+X	switch (retval) {
+X
+X	case CC_REFRESH:
+X	    Refresh();
+X	    /* fall through */
+X	case CC_NORM:		/* normal char */
+X	    Argument = 1;
+X	    DoingArg = 0;
+X	    /* fall through */
+X	case CC_ARGHACK:	/* Suggested by Rich Salz */
+X	    /* <rsalz@pineapple.bbn.com> */
+X	    break;		/* keep going... */
+X
+X	case CC_EOF:		/* end of file typed */
+X#ifdef notdef
+X	    PromptBuf[0] = '\0';
+X#endif
+X	    num = 0;
+X	    break;
+X
+X	case CC_WHICH:		/* tell what this command does */
+X	    tellwhat = 1;
+X	    copyn(WhichBuf, InputBuf, INBUFSIZE);
+X	    LastWhich = WhichBuf + (LastChar - InputBuf);
+X	    CursWhich = WhichBuf + (Cursor - InputBuf);
+X	    *LastChar++ = '\n';	/* for the benifit of CSH */
+X	    HistWhich = Hist_num;
+X	    Hist_num = 0;	/* for the history commands */
+X	    num = LastChar - InputBuf;	/* number characters read */
+X#ifdef notdef
+X	    ResetInLine();	/* reset the input pointers */
+X#endif
+X	    break;
+X
+X	case CC_NEWLINE:	/* normal end of line */
+X	    if (crct && (!Strcmp(*(crct->vec), STRcmd) ||
+X			 !Strcmp(*(crct->vec), STRall))) {
+X		copyn(Origin, InputBuf, INBUFSIZE);
+X		SaveChar = LastChar;
+X		if (SpellLine(!Strcmp(*(crct->vec), STRcmd)) == 1) {
+X		    copyn(Change, InputBuf, INBUFSIZE);
+X		    *Strchr(Change, '\n') = '\0';
+X		    CorrChar = LastChar;	/* Save the corrected end */
+X		    LastChar = InputBuf;	/* Null the current line */
+X		    Beep();
+X		    printprompt(2, Change);
+X		    Refresh();
+X		    (void) read(SHIN, (char *) &tch, 1);
+X		    ch = tch;
+X		    if (ch == 'y' || ch == ' ') {
+X			LastChar = CorrChar;	/* Restore the corrected end */
+X			xprintf("yes\n");
+X		    }
+X		    else {
+X			(void) copyn(InputBuf, Origin, INBUFSIZE);
+X			LastChar = SaveChar;
+X			if (ch == 'e') {
+X			    xprintf("edit\n");
+X			    *LastChar-- = '\0';
+X			    Cursor = LastChar;
+X			    printprompt(3, NULL);
+X			    Refresh();
+X			    break;
+X			}
+X			xprintf("no\n");
+X		    }
+X		    flush();
+X		}
+X	    }			/* end CORRECT code */
+X	    tellwhat = 0;	/* just in case */
+X	    Hist_num = 0;	/* for the history commands */
+X	    num = LastChar - InputBuf;	/* return the number of chars read */
+X	    /*
+X	     * For continuation lines, we set the prompt to prompt 2
+X	     */
+X	    if (imode) {
+X		if (!Strcmp(*(imode->vec), STRinsert))
+X		    inputmode = MODE_INSERT;
+X		else if (!Strcmp(*(imode->vec), STRoverwrite))
+X		    inputmode = MODE_REPLACE;
+X	    }
+X	    printprompt(1, NULL);
+X#ifdef notdef
+X	    ResetInLine();	/* reset the input pointers */
+X	    PromptBuf[0] = '\0';
+X#endif
+X	    break;
+X
+X	case CC_CORRECT:
+X	    if (tenematch(InputBuf, INBUFSIZE, Cursor - InputBuf,
+X			  SPELL) < 0)
+X		Beep();		/* Beep = No match/ambiguous */
+X	    if (NeedsRedraw) {
+X		ClearLines();
+X		ClearDisp();
+X		NeedsRedraw = 0;
+X	    }
+X	    Refresh();
+X	    Argument = 1;
+X	    DoingArg = 0;
+X	    break;
+X
+X	case CC_CORRECT_L:
+X	    if (SpellLine(FALSE) < 0)
+X		Beep();		/* Beep = No match/ambiguous */
+X	    if (NeedsRedraw) {
+X		ClearLines();
+X		ClearDisp();
+X		NeedsRedraw = 0;
+X	    }
+X	    Refresh();
+X	    Argument = 1;
+X	    DoingArg = 0;
+X	    break;
+X
+X
+X	case CC_COMPLETE:
+X	    if (adrof(STRautoexpand))
+X		(void) e_expand_history(0);
+X	    /*
+X	     * Modified by Martin Boyer (gamin@ireq-robot.hydro.qc.ca):
+X	     * A separate variable now controls beeping after
+X	     * completion, independently of autolisting.
+X	     */
+X	    expnum = Cursor - InputBuf;
+X	    switch (matchval = 
+X		    tenematch(InputBuf, INBUFSIZE, Cursor-InputBuf, RECOGNIZE)) {
+X	    case 1:
+X		if (non_unique_match && matchbeep &&
+X		    (Strcmp(*(matchbeep->vec), STRnotunique) == 0))
+X		    Beep();
+X		break;
+X	    case 0:
+X		if (matchbeep) {
+X		    if (Strcmp(*(matchbeep->vec), STRnomatch) == 0 ||
+X			Strcmp(*(matchbeep->vec), STRambiguous) == 0 ||
+X			Strcmp(*(matchbeep->vec), STRnotunique) == 0)
+X			Beep();
+X		}
+X		else
+X		    Beep();
+X		break;
+X	    default:
+X		if (matchval < 0) {	/* Error from tenematch */
+X		    Beep();
+X		    break;
+X		}
+X		if (matchbeep) {
+X		    if ((Strcmp(*(matchbeep->vec), STRambiguous) == 0 ||
+X			 Strcmp(*(matchbeep->vec), STRnotunique) == 0))
+X			Beep();
+X		}
+X		else
+X		    Beep();
+X		/*
+X		 * Addition by David C Lawrence <tale@pawl.rpi.edu>: If an 
+X		 * attempted completion is ambiguous, list the choices.  
+X		 * (PWP: this is the best feature addition to tcsh I have 
+X		 * seen in many months.)
+X		 */
+X		if (autol && (Strcmp(*(autol->vec), STRambiguous) != 0 || 
+X				     expnum == Cursor - InputBuf)) {
+X		    PastBottom();
+X		    (void) tenematch(InputBuf, INBUFSIZE, Cursor-InputBuf, LIST);
+X		}
+X		break;
+X	    }
+X	    if (NeedsRedraw) {
+X		PastBottom();
+X		ClearLines();
+X		ClearDisp();
+X		NeedsRedraw = 0;
+X	    }
+X	    Refresh();
+X	    Argument = 1;
+X	    DoingArg = 0;
+X	    break;
+X
+X	case CC_LIST_CHOICES:
+X	    /* should catch ^C here... */
+X	    if (tenematch(InputBuf, INBUFSIZE, Cursor - InputBuf, LIST) < 0)
+X		Beep();
+X	    Refresh();
+X	    Argument = 1;
+X	    DoingArg = 0;
+X	    break;
+X
+X	case CC_LIST_GLOB:
+X	    if (tenematch(InputBuf, INBUFSIZE, Cursor - InputBuf, GLOB) < 0)
+X		Beep();
+X	    Refresh();
+X	    Argument = 1;
+X	    DoingArg = 0;
+X	    break;
+X
+X	case CC_EXPAND_GLOB:
+X	    if (tenematch(InputBuf, INBUFSIZE, Cursor - InputBuf,
+X			  GLOB_EXPAND) <= 0)
+X		Beep();		/* Beep = No match */
+X	    if (NeedsRedraw) {
+X		ClearLines();
+X		ClearDisp();
+X		NeedsRedraw = 0;
+X	    }
+X	    Refresh();
+X	    Argument = 1;
+X	    DoingArg = 0;
+X	    break;
+X
+X	case CC_NORMALIZE_PATH:
+X	    if (tenematch(InputBuf, INBUFSIZE, Cursor - InputBuf,
+X			  PATH_NORMALIZE) <= 0)
+X		Beep();		/* Beep = No match */
+X	    if (NeedsRedraw) {
+X		ClearLines();
+X		ClearDisp();
+X		NeedsRedraw = 0;
+X	    }
+X	    Refresh();
+X	    Argument = 1;
+X	    DoingArg = 0;
+X	    break;
+X
+X	case CC_EXPAND_VARS:
+X	    if (tenematch(InputBuf, INBUFSIZE, Cursor - InputBuf,
+X			  VARS_EXPAND) <= 0)
+X		Beep();		/* Beep = No match */
+X	    if (NeedsRedraw) {
+X		ClearLines();
+X		ClearDisp();
+X		NeedsRedraw = 0;
+X	    }
+X	    Refresh();
+X	    Argument = 1;
+X	    DoingArg = 0;
+X	    break;
+X
+X	case CC_HELPME:
+X	    xputchar('\n');
+X	    /* should catch ^C here... */
+X	    (void) tenematch(InputBuf, INBUFSIZE, LastChar - InputBuf,
+X			     PRINT_HELP);
+X	    Refresh();
+X	    Argument = 1;
+X	    DoingArg = 0;
+X	    break;
+X
+X	case CC_FATAL:		/* fatal error, reset to known state */
+X#ifdef DEBUG_EDIT
+X	    xprintf("*** editor fatal ERROR ***\r\n\n");
+X#endif				/* DEBUG_EDIT */
+X	    /* put (real) cursor in a known place */
+X	    ClearDisp();	/* reset the display stuff */
+X	    ResetInLine();	/* reset the input pointers */
+X	    Refresh();		/* print the prompt again */
+X	    Argument = 1;
+X	    DoingArg = 0;
+X	    break;
+X
+X	case CC_ERROR:
+X	default:		/* functions we don't know about */
+X	    DoingArg = 0;
+X	    Argument = 1;
+X	    Beep();
+X	    flush();
+X	    break;
+X	}
+X    }
+X    (void) Cookedmode();	/* make sure the tty is set up correctly */
+X    GettingInput = 0;
+X    flush();			/* flush any buffered output */
+X    return num;
+X}
+X
+void
+PushMacro(str)
+X    Char   *str;
+X{
+X    if (str != NULL && MacroLvl + 1 < MAXMACROLEVELS) {
+X	MacroLvl++;
+X	KeyMacro[MacroLvl] = str;
+X    }
+X    else {
+X	Beep();
+X	flush();
+X    }
+X}
+X
+X/*
+X * Like eval, only using the current file descriptors
+X */
+static Char **gv = NULL;
+X
+static void
+doeval1(v)
+X    Char **v;
+X{
+X    Char  **oevalvec;
+X    Char   *oevalp;
+X    int     my_reenter;
+X    Char  **savegv;
+X    jmp_buf osetexit;
+X
+X    oevalvec = evalvec;
+X    oevalp = evalp;
+X    savegv = gv;
+X
+X
+X    gflag = 0, tglob(v);
+X    if (gflag) {
+X	gv = v = globall(v);
+X	gargv = 0;
+X	if (v == 0)
+X	    stderror(ERR_NOMATCH);
+X	v = copyblk(v);
+X    }
+X    else {
+X	gv = NULL;
+X	v = copyblk(v);
+X	trim(v);
+X    }
+X
+X    getexit(osetexit);
+X
+X    /* PWP: setjmp/longjmp bugfix for optimizing compilers */
+X#ifdef cray
+X    my_reenter = 1;             /* assume non-zero return val */
+X    if (setexit() == 0) {
+X        my_reenter = 0;         /* Oh well, we were wrong */
+X#else /* !cray */
+X    if ((my_reenter = setexit()) == 0) {
+X#endif /* cray */
+X	evalvec = v;
+X	evalp = 0;
+X	process(0);
+X    }
+X
+X    evalvec = oevalvec;
+X    evalp = oevalp;
+X    doneinp = 0;
+X
+X    if (gv)
+X	blkfree(gv);
+X
+X    gv = savegv;
+X    resexit(osetexit);
+X    if (my_reenter)
+X	stderror(ERR_SILENT);
+X}
+X
+static void
+RunCommand(str)
+X    Char *str;
+X{
+X    Char *cmd[2];
+X
+X    xprintf("\n");	/* Start on a clean line */
+X
+X    cmd[0] = str;
+X    cmd[1] = NULL;
+X
+X    doeval1(cmd);
+X    
+X    ClearLines();
+X    ClearDisp();
+X    NeedsRedraw = 1;
+X    Refresh();
+X}
+X
+static int
+GetNextCommand(cmdnum, ch)
+X    KEYCMD *cmdnum;
+X    register Char *ch;
+X{
+X    KEYCMD  cmd = 0;
+X    int     num;
+X
+X    while (cmd == 0 || cmd == F_XKEY) {
+X	if ((num = GetNextChar(ch)) != 1) {	/* if EOF or error */
+X	    return num;
+X	}
+X#ifdef	KANJI
+X	if (*ch & META) {
+X	    MetaNext = 0;
+X	    cmd = CcViMap[' '];
+X	    break;
+X	}
+X	else
+X#endif /* KANJI */
+X	if (MetaNext) {
+X	    MetaNext = 0;
+X	    *ch |= META;
+X	}
+X	cmd = CurrentKeyMap[(unsigned char) *ch];
+X	if (cmd == F_XKEY) {
+X	    XmapVal val;
+X	    switch (GetXkey(ch, &val)) {
+X	    case XK_CMD:
+X		cmd = val.cmd;
+X		break;
+X	    case XK_STR:
+X		PushMacro(val.str);
+X		break;
+X	    case XK_EXE:
+X		RunCommand(val.str);
+X		break;
+X	    default:
+X		abort();
+X		break;
+X	    }
+X	}
+X	if (!AltKeyMap) 
+X	    CurrentKeyMap = CcKeyMap;
+X    }
+X    *cmdnum = cmd;
+X    return OKCMD;
+X}
+X
+int
+GetNextChar(cp)
+X    register Char *cp;
+X{
+X    register int num_read;
+X#if defined(EWOULDBLOCK) || (defined(POSIX) && defined(EAGAIN))
+X# if defined(FIONBIO) || (defined(F_SETFL) && defined(O_NDELAY))
+X#  define TRY_AGAIN
+X    int     tried = 0;
+X# endif /* FIONBIO || (F_SETFL && O_NDELAY) */
+X#endif /* EWOULDBLOCK || (POSIX && EAGAIN) */
+X    unsigned char tcp;
+X
+X    for (;;) {
+X	if (MacroLvl < 0) {
+X	    if (!Load_input_line())
+X		break;
+X	}
+X	if (*KeyMacro[MacroLvl] == 0) {
+X	    MacroLvl--;
+X	    continue;
+X	}
+X	*cp = *KeyMacro[MacroLvl]++ & CHAR;
+X	if (*KeyMacro[MacroLvl] == 0) {	/* Needed for QuoteMode On */
+X	    MacroLvl--;
+X	}
+X	return (1);
+X    }
+X
+X    if (Rawmode() < 0)		/* make sure the tty is set up correctly */
+X	return 0;		/* oops: SHIN was closed */
+X
+X    while ((num_read = read(SHIN, (char *) &tcp, 1)) == -1)
+X	switch (errno) {
+X	    /*
+X	     * Someone might have set our file descriptor to non blocking From
+X	     * Gray Watson (gray%antr.uucp@med.pitt.edu), Thanks!!!
+X	     */
+X#ifdef EWOULDBLOCK
+X	case EWOULDBLOCK:
+X#endif /* EWOULDBLOCK */
+X#if defined(POSIX) && defined(EAGAIN)
+X# if defined(EWOULDBLOCK) && EAGAIN != EWOULDBLOCK
+X	case EAGAIN:
+X# endif /* EWOULDBLOCK && EAGAIN != EWOULDBLOCK */
+X#endif /* POSIX && EAGAIN */
+X#ifdef TRY_AGAIN
+X	    if (!tried) {
+X# if defined(F_SETFL) && defined(O_NDELAY)
+X		(void) fcntl(SHIN, F_SETFL,
+X			     fcntl(SHIN, F_GETFL, 0) & ~O_NDELAY);
+X# endif /* F_SETFL && O_NDELAY */
+X# ifdef FIONBIO
+X		(void) ioctl(SHIN, FIONBIO, (ioctl_t) & tried);
+X# endif /* FIONBIO */
+X		tried = 1;
+X		break;
+X	    }
+X	    *cp = tcp;
+X	    return (num_read);
+X#endif /* TRY_AGAIN */
+X	case EINTR:
+X	    break;
+X	default:
+X#ifdef DEBUG_EDIT
+X	    xprintf("GetNextChar(): errno == %d\n", errno);
+X#endif /* DEBUG_EDIT */
+X	    *cp = tcp;
+X	    return num_read;
+X	}
+X    *cp = tcp;
+X    return num_read;
+X}
+X
+X/*
+X * SpellLine - do spelling correction on the entire command line
+X * (which may have trailing newline).
+X * If cmdonly is set, only check spelling of command words.
+X * Return value:
+X * -1: Something was incorrectible, and nothing was corrected
+X *  0: Everything was correct
+X *  1: Something was corrected
+X */
+static int
+SpellLine(cmdonly)
+X    int     cmdonly;
+X{
+X    int     endflag, matchval;
+X    Char   *argptr, *OldCursor, *OldLastChar;
+X
+X    OldLastChar = LastChar;
+X    OldCursor = Cursor;
+X    argptr = InputBuf;
+X    endflag = 1;
+X    matchval = 0;
+X    do {
+X	while (ismetahash(*argptr) || iscmdmeta(*argptr))
+X	    argptr++;
+X	for (Cursor = argptr;
+X	     *Cursor != '\0' && !ismetahash(*Cursor) && !iscmdmeta(*Cursor);
+X	     Cursor++);
+X	if (*Cursor == '\0') {
+X	    Cursor = LastChar;
+X	    if (LastChar[-1] == '\n')
+X		Cursor--;
+X	    endflag = 0;
+X	}
+X	if (!Strchr(mismatch, *argptr) &&
+X	    (!cmdonly || starting_a_command(argptr, InputBuf))) {
+X	    switch (tenematch(InputBuf, INBUFSIZE, Cursor - InputBuf, SPELL)) {
+X	    case 1:		/* corrected */
+X		matchval = 1;
+X		break;
+X	    case -1:		/* couldn't be corrected */
+X		if (!matchval)
+X		    matchval = -1;
+X		break;
+X	    default:		/* was correct */
+X		break;
+X	    }
+X	    if (LastChar != OldLastChar) {
+X		if (argptr < OldCursor)
+X		    OldCursor += (LastChar - OldLastChar);
+X		OldLastChar = LastChar;
+X	    }
+X	}
+X	argptr = Cursor;
+X    } while (endflag);
+X    Cursor = OldCursor;
+X    return matchval;
+X}
+END_OF_FILE
+if test 17376 -ne `wc -c <'ed.inputl.c'`; then
+    echo shar: \"'ed.inputl.c'\" unpacked with wrong size!
+fi
+# end of 'ed.inputl.c'
+fi
+if test -f 'ed.xmap.c' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'ed.xmap.c'\"
+else
+echo shar: Extracting \"'ed.xmap.c'\" \(15699 characters\)
+sed "s/^X//" >'ed.xmap.c' <<'END_OF_FILE'
+X/* $Header: /home/hyperion/mu/christos/src/sys/tcsh-6.01/RCS/ed.xmap.c,v 3.5 1991/11/26 04:28:26 christos Exp $ */
+X/*
+X * ed.xmap.c: This module contains the procedures for maintaining
+X *	      the extended-key map.
+X *
+X * 	      An extended-key (Xkey) is a sequence of keystrokes
+X *	      introduced with an sequence introducer and consisting
+X *	      of an arbitrary number of characters.  This module maintains
+X *	      a map (the Xmap) to convert these extended-key sequences
+X * 	      into input strings (XK_STR), editor functions (XK_CMD), or
+X *	      unix commands (XK_EXE). It contains the
+X *	      following externally visible functions.
+X *
+X *		int GetXkey(ch,val);
+X *		Char *ch;
+X *		XmapVal *val;
+X *
+X *	      Looks up *ch in map and then reads characters until a
+X *	      complete match is found or a mismatch occurs. Returns the
+X *	      type of the match found (XK_STR, XK_CMD, or XK_EXE).
+X *	      Returns NULL in val.str and XK_STR for no match.  
+X *	      The last character read is returned in *ch.
+X *
+X *		void AddXkey(Xkey, val, ntype);
+X *		Char *Xkey;
+X *		XmapVal *val;
+X *		int ntype;
+X *
+X *	      Adds Xkey to the Xmap and associates the value in val with it.
+X *	      If Xkey is already is in Xmap, the new code is applied to the
+X *	      existing Xkey. Ntype specifies if code is a command, an
+X *	      out string or a unix command.
+X *
+X *	        int DeleteXkey(Xkey);
+X *	        Char *Xkey;
+X *
+X *	      Delete the Xkey and all longer Xkeys staring with Xkey, if
+X *	      they exists.
+X *
+X *	      Warning:
+X *		If Xkey is a substring of some other Xkeys, then the longer
+X *		Xkeys are lost!!  That is, if the Xkeys "abcd" and "abcef"
+X *		are in Xmap, adding the key "abc" will cause the first two
+X *		definitions to be lost.
+X *
+X *		void ResetXmap();
+X *
+X *	      Removes all entries from Xmap and resets the defaults.
+X *
+X *		void PrintXkey(Xkey);
+X *		Char *Xkey;
+X *
+X *	      Prints all extended keys prefixed by Xkey and their associated
+X *	      commands.
+X *
+X *	      Restrictions:
+X *	      -------------
+X *	        1) It is not possible to have one Xkey that is a
+X *		   substring of another.
+X */
+X/*-
+X * Copyright (c) 1980, 1991 The Regents of the University of California.
+X * All rights reserved.
+X *
+X * Redistribution and use in source and binary forms, with or without
+X * modification, are permitted provided that the following conditions
+X * are met:
+X * 1. Redistributions of source code must retain the above copyright
+X *    notice, this list of conditions and the following disclaimer.
+X * 2. Redistributions in binary form must reproduce the above copyright
+X *    notice, this list of conditions and the following disclaimer in the
+X *    documentation and/or other materials provided with the distribution.
+X * 3. All advertising materials mentioning features or use of this software
+X *    must display the following acknowledgement:
+X *	This product includes software developed by the University of
+X *	California, Berkeley and its contributors.
+X * 4. Neither the name of the University nor the names of its contributors
+X *    may be used to endorse or promote products derived from this software
+X *    without specific prior written permission.
+X *
+X * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+X * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+X * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+X * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+X * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+X * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+X * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+X * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+X * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+X * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+X * SUCH DAMAGE.
+X */
+X#include "sh.h"
+X
+RCSID("$Id: ed.xmap.c,v 3.5 1991/11/26 04:28:26 christos Exp $")
+X
+X#include "ed.h"
+X#include "ed.defns.h"
+X
+X#ifndef NULL
+X#define NULL 0
+X#endif
+X
+X/* Internal Data types and declarations */
+X
+X/* The Nodes of the Xmap.  The Xmap is a linked list of these node
+X * elements
+X */
+typedef struct Xmapnode {
+X    Char    ch;			/* single character of Xkey */
+X    int     type;
+X    XmapVal val; 		/* command code or pointer to string, if this
+X				 * is a leaf */
+X    struct Xmapnode *next;	/* ptr to next char of this Xkey */
+X    struct Xmapnode *sibling;	/* ptr to another Xkey with same prefix */
+X} XmapNode;
+X
+static XmapNode *Xmap = NULL;	/* the current Xmap */
+X#define MAXXKEY 100		/* max length of a Xkey for print putposes */
+static Char printbuf[MAXXKEY];	/* buffer for printing */
+X
+X
+X/* Some declarations of procedures */
+static	int       TraverseMap	__P((XmapNode *, Char *, XmapVal *));
+static	int       TryNode	__P((XmapNode *, Char *, XmapVal *, int));
+static	XmapNode *GetFreeNode	__P((int));
+static	void	  PutFreeNode	__P((XmapNode *));
+static	int	  TryDeleteNode	__P((XmapNode **, Char *));
+static	int	  Lookup	__P((Char *, XmapNode *, int));
+static	int	  Enumerate	__P((XmapNode *, int));
+static	int	  printOne	__P((Char *, XmapVal *, int));
+static	int	  unparsech	__P((int, int));
+X
+X
+XXmapVal *
+XXmapCmd(cmd)
+X    int cmd;
+X{
+X    static XmapVal xm;
+X    xm.cmd = cmd;
+X    return &xm;
+X}
+X
+XXmapVal *
+XXmapStr(str)
+X    Char  *str;
+X{
+X    static XmapVal xm;
+X    xm.str = str;
+X    return &xm;
+X}
+X
+X/* ResetXmap():
+X *	Takes all nodes on Xmap and puts them on free list.  Then
+X *	initializes Xmap with arrow keys
+X */
+void
+ResetXmap(vi)
+X    int     vi;
+X{
+X    static Char strA[] = {033, '[', 'A', '\0'};
+X    static Char strB[] = {033, '[', 'B', '\0'};
+X    static Char strC[] = {033, '[', 'C', '\0'};
+X    static Char strD[] = {033, '[', 'D', '\0'};
+X    static Char stOA[] = {033, 'O', 'A', '\0'};
+X    static Char stOB[] = {033, 'O', 'B', '\0'};
+X    static Char stOC[] = {033, 'O', 'C', '\0'};
+X    static Char stOD[] = {033, 'O', 'D', '\0'};
+X
+X    PutFreeNode(Xmap);
+X    Xmap = NULL;
+X    AddXkey(strA, XmapCmd(F_UP_HIST),   XK_CMD);
+X    AddXkey(strB, XmapCmd(F_DOWN_HIST), XK_CMD);
+X    AddXkey(strC, XmapCmd(F_CHARFWD),   XK_CMD);
+X    AddXkey(strD, XmapCmd(F_CHARBACK),  XK_CMD);
+X    AddXkey(stOA, XmapCmd(F_UP_HIST),   XK_CMD);
+X    AddXkey(stOB, XmapCmd(F_DOWN_HIST), XK_CMD);
+X    AddXkey(stOC, XmapCmd(F_CHARFWD),   XK_CMD);
+X    AddXkey(stOD, XmapCmd(F_CHARBACK),  XK_CMD);
+X    if (vi) {
+X	AddXkey(&strA[1], XmapCmd(F_UP_HIST),   XK_CMD);
+X	AddXkey(&strB[1], XmapCmd(F_DOWN_HIST), XK_CMD);
+X	AddXkey(&strC[1], XmapCmd(F_CHARFWD),   XK_CMD);
+X	AddXkey(&strD[1], XmapCmd(F_CHARBACK),  XK_CMD);
+X	AddXkey(&stOA[1], XmapCmd(F_UP_HIST),   XK_CMD);
+X	AddXkey(&stOB[1], XmapCmd(F_DOWN_HIST), XK_CMD);
+X	AddXkey(&stOC[1], XmapCmd(F_CHARFWD),   XK_CMD);
+X	AddXkey(&stOD[1], XmapCmd(F_CHARBACK),  XK_CMD);
+X    }
+X    return;
+X}
+X
+X
+X/* GetXkey():
+X *	Calls the recursive function with entry point Xmap
+X */
+int
+GetXkey(ch, val)
+X    Char     *ch;
+X    XmapVal  *val;
+X{
+X    return (TraverseMap(Xmap, ch, val));
+X}
+X
+X/* TraverseMap():
+X *	recursively traverses node in tree until match or mismatch is
+X * 	found.  May read in more characters.
+X */
+static int
+TraverseMap(ptr, ch, val)
+X    XmapNode *ptr;
+X    Char     *ch;
+X    XmapVal  *val;
+X{
+X    Char    tch;
+X
+X    if (ptr->ch == *ch) {
+X	/* match found */
+X	if (ptr->next) {
+X	    /* Xkey not complete so get next char */
+X	    if (GetNextChar(&tch) != 1) {	/* if EOF or error */
+X		val->cmd = F_SEND_EOF;
+X		return XK_CMD;/* PWP: Pretend we just read an end-of-file */
+X	    }
+X	    *ch = tch;
+X	    return (TraverseMap(ptr->next, ch, val));
+X	}
+X	else {
+X	    *val = ptr->val;
+X	    if (ptr->type != XK_CMD)
+X		*ch = '\0';
+X	    return ptr->type;
+X	}
+X    }
+X    else {
+X	/* no match found here */
+X	if (ptr->sibling) {
+X	    /* try next sibling */
+X	    return (TraverseMap(ptr->sibling, ch, val));
+X	}
+X	else {
+X	    /* no next sibling -- mismatch */
+X	    val->str = NULL;
+X	    return XK_STR;
+X	}
+X    }
+X}
+X
+void
+AddXkey(Xkey, val, ntype)
+X    Char    *Xkey;
+X    XmapVal *val;
+X    int      ntype;
+X{
+X    if (Xkey[0] == '\0') {
+X	xprintf("AddXkey: Null extended-key not allowed.\n");
+X	return;
+X    }
+X
+X    if (ntype == XK_CMD && val->cmd == F_XKEY) {
+X	xprintf("AddXkey: sequence-lead-in command not allowed\n");
+X	return;
+X    }
+X
+X    if (Xmap == NULL)
+X	/* tree is initially empty.  Set up new node to match Xkey[0] */
+X	Xmap = GetFreeNode(Xkey[0]);	/* it is properly initialized */
+X
+X    /* Now recurse through Xmap */
+X    (void) TryNode(Xmap, Xkey, val, ntype);	
+X    return;
+X}
+X
+static int
+TryNode(ptr, string, val, ntype)
+X    XmapNode *ptr;
+X    Char     *string;
+X    XmapVal  *val;
+X    int       ntype;
+X{
+X    /*
+X     * Find a node that matches *string or allocate a new one
+X     */
+X    if (ptr->ch != *string) {
+X	XmapNode *xm;
+X
+X	for (xm = ptr; xm->sibling != NULL; xm = xm->sibling)
+X	    if (xm->sibling->ch == *string)
+X		break;
+X	if (xm->sibling == NULL)
+X	    xm->sibling = GetFreeNode(*string);	/* setup new node */
+X	ptr = xm->sibling;
+X    }
+X
+X    if (*++string == '\0') {
+X	/* we're there */
+X	if (ptr->next != NULL) {
+X	    PutFreeNode(ptr->next);	/* lose longer Xkeys with this prefix */
+X	    ptr->next = NULL;
+X	}
+X	switch (ptr->type = ntype) {
+X	case XK_CMD:
+X	    ptr->val = *val;
+X	    break;
+X	case XK_STR:
+X	case XK_EXE:
+X	    if (ptr->val.str)
+X		xfree((ptr_t) ptr->val.str);
+X	    ptr->val.str = Strsave(val->str);
+X	    break;
+X	default:
+X	    abort();
+X	    break;
+X	}
+X    }
+X    else {
+X	/* still more chars to go */
+X	if (ptr->next == NULL)
+X	    ptr->next = GetFreeNode(*string);	/* setup new node */
+X	(void) TryNode(ptr->next, string, val, ntype);
+X    }
+X    return (0);
+X}
+X
+void
+ClearXkey(map, in)
+X    KEYCMD *map;
+X    Char   *in;
+X{
+X    if ((map[(unsigned char) *in] == F_XKEY) &&
+X	((map == CcKeyMap && CcAltMap[(unsigned char) *in] != F_XKEY) ||
+X	 (map == CcAltMap && CcKeyMap[(unsigned char) *in] != F_XKEY)))
+X	(void) DeleteXkey(in);
+X}
+X
+int
+DeleteXkey(Xkey)
+X    Char   *Xkey;
+X{
+X    if (Xkey[0] == '\0') {
+X	xprintf("DeleteXkey: Null extended-key not allowed.\n");
+X	return (-1);
+X    }
+X
+X    if (Xmap == NULL)
+X	return (0);
+X
+X    (void) TryDeleteNode(&Xmap, Xkey);
+X    return (0);
+X}
+X
+static int
+TryDeleteNode(inptr, string)
+X    XmapNode **inptr;
+X    Char   *string;
+X{
+X    XmapNode *ptr;
+X    XmapNode *prev_ptr = NULL;
+X
+X    ptr = *inptr;
+X    /*
+X     * Find a node that matches *string or allocate a new one
+X     */
+X    if (ptr->ch != *string) {
+X	XmapNode *xm;
+X
+X	for (xm = ptr; xm->sibling != NULL; xm = xm->sibling)
+X	    if (xm->sibling->ch == *string)
+X		break;
+X	if (xm->sibling == NULL)
+X	    return (0);
+X	prev_ptr = xm;
+X	ptr = xm->sibling;
+X    }
+X
+X    if (*++string == '\0') {
+X	/* we're there */
+X	if (prev_ptr == NULL)
+X	    *inptr = ptr->sibling;
+X	else
+X	    prev_ptr->sibling = ptr->sibling;
+X	ptr->sibling = NULL;
+X	PutFreeNode(ptr);
+X	return (1);
+X    }
+X    else if (ptr->next != NULL && TryDeleteNode(&ptr->next, string) == 1) {
+X	if (ptr->next != NULL)
+X	    return (0);
+X	if (prev_ptr == NULL)
+X	    *inptr = ptr->sibling;
+X	else
+X	    prev_ptr->sibling = ptr->sibling;
+X	ptr->sibling = NULL;
+X	PutFreeNode(ptr);
+X	return (1);
+X    }
+X    else {
+X	return (0);
+X    }
+X}
+X
+X/* PutFreeNode():
+X *	Puts a tree of nodes onto free list using free(3).
+X */
+static void
+PutFreeNode(ptr)
+X    XmapNode *ptr;
+X{
+X    if (ptr == NULL)
+X	return;
+X
+X    if (ptr->next != NULL) {
+X	PutFreeNode(ptr->next);
+X	ptr->next = NULL;
+X    }
+X
+X    PutFreeNode(ptr->sibling);
+X
+X    switch (ptr->type) {
+X    case XK_CMD:
+X    case XK_NOD:
+X	break;
+X    case XK_EXE:
+X    case XK_STR:
+X	if (ptr->val.str != NULL)
+X	    xfree((ptr_t) ptr->val.str);
+X	break;
+X    default:
+X	abort();
+X	break;
+X    }
+X    xfree((ptr_t) ptr);
+X}
+X
+X
+X/* GetFreeNode():
+X *	Returns pointer to an XmapNode for ch.
+X */
+static XmapNode *
+GetFreeNode(ch)
+X    int    ch;
+X{
+X    XmapNode *ptr;
+X
+X    ptr = (XmapNode *) xmalloc((size_t) sizeof(XmapNode));
+X    ptr->ch = ch;
+X    ptr->type = XK_NOD;
+X    ptr->val.str = NULL;
+X    ptr->next = NULL;
+X    ptr->sibling = NULL;
+X    return (ptr);
+X}
+X
+X
+X/* PrintXKey():
+X *	Print the binding associated with Xkey key.
+X *	Print entire Xmap if null
+X */
+void
+PrintXkey(key)
+X    Char   *key;
+X{
+X    /* do nothing if Xmap is empty and null key specified */
+X    if (Xmap == NULL && *key == 0)
+X	return;
+X
+X    printbuf[0] =  '"';
+X    if (Lookup(key, Xmap, 1) <= -1)
+X	/* key is not bound */
+X	xprintf("Unbound extended key \"%s\"\n", short2str(key));
+X    return;
+X}
+X
+X/* Lookup():
+X *	look for the string starting at node ptr.
+X *	Print if last node
+X */
+static int
+Lookup(string, ptr, cnt)
+X    Char   *string;
+X    XmapNode *ptr;
+X    int     cnt;
+X{
+X    int     ncnt;
+X
+X    if (ptr == NULL)
+X	return (-1);		/* cannot have null ptr */
+X
+X    if (*string == 0) {
+X	/* no more chars in string.  Enumerate from here. */
+X	(void) Enumerate(ptr, cnt);
+X	return (0);
+X    }
+X    else {
+X	/* If match put this char into printbuf.  Recurse */
+X	if (ptr->ch == *string) {
+X	    /* match found */
+X	    ncnt = unparsech(cnt, ptr->ch);
+X	    if (ptr->next != NULL)
+X		/* not yet at leaf */
+X		return (Lookup(string + 1, ptr->next, ncnt + 1));
+X	    else {
+X		/* next node is null so key should be complete */
+X		if (string[1] == 0) {
+X		    printbuf[ncnt + 1] = '"';
+X		    printbuf[ncnt + 2] = '\0';
+X		    (void) printOne(printbuf, &ptr->val, ptr->type);
+X		    return (0);
+X		}
+X		else
+X		    return (-1);/* mismatch -- string still has chars */
+X	    }
+X	}
+X	else {
+X	    /* no match found try sibling */
+X	    if (ptr->sibling)
+X		return (Lookup(string, ptr->sibling, cnt));
+X	    else
+X		return (-1);
+X	}
+X    }
+X}
+X
+static int
+XEnumerate(ptr, cnt)
+X    XmapNode *ptr;
+X    int     cnt;
+X{
+X    int     ncnt;
+X
+X    if (cnt >= MAXXKEY - 5) {	/* buffer too small */
+X	printbuf[++cnt] = '"';
+X	printbuf[++cnt] = '\0';
+X	xprintf("Some extended keys too long for internal print buffer");
+X	xprintf(" \"%s...\"\n", short2str(printbuf));
+X	return (0);
+X    }
+X
+X    if (ptr == NULL) {
+X#ifdef DEBUG_EDIT
+X	xprintf("Enumerate: BUG!! Null ptr passed\n!");
+X#endif
+X	return (-1);
+X    }
+X
+X    ncnt = unparsech(cnt, ptr->ch);	/* put this char at end of string */
+X    if (ptr->next == NULL) {
+X	/* print this Xkey and function */
+X	printbuf[ncnt + 1] = '"';
+X	printbuf[ncnt + 2] = '\0';
+X	(void) printOne(printbuf, &ptr->val, ptr->type);
+X    }
+X    else
+X	(void) Enumerate(ptr->next, ncnt + 1);
+X
+X    /* go to sibling if there is one */
+X    if (ptr->sibling)
+X	(void) Enumerate(ptr->sibling, cnt);
+X    return (0);
+X}
+X
+X
+X/* PrintOne():
+X *	Print the specified key and its associated
+X *	function specified by val
+X */
+static int
+printOne(key, val, ntype)
+X    Char    *key;
+X    XmapVal *val;
+X    int      ntype;
+X{
+X    struct KeyFuncs *fp;
+X    unsigned char unparsbuf[200];
+X    static char *fmt = "%-15s->  %s\n";
+X
+X    if (val != NULL)
+X	switch (ntype) {
+X	case XK_STR:
+X	case XK_EXE:
+X	    xprintf(fmt, short2str(key), 
+X		    unparsestring(val->str, unparsbuf, 
+X				  ntype == XK_STR ? STRQQ : STRBB));
+X	    break;
+X	case XK_CMD:
+X	    for (fp = FuncNames; fp->name; fp++)
+X		if (val->cmd == fp->func)
+X		    xprintf(fmt, short2str(key), fp->name);
+X		break;
+X	default:
+X	    abort();
+X	    break;
+X	}
+X    else
+X	xprintf(fmt, short2str(key), "no input");
+X    return (0);
+X}
+X
+static int
+unparsech(cnt, ch)
+X    int     cnt, ch;
+X{
+X    if (ch == 0) {
+X	printbuf[cnt++] = '^';
+X	printbuf[cnt] = '@';
+X	return cnt;
+X    }
+X
+X    if (Iscntrl(ch)) {
+X	printbuf[cnt++] = '^';
+X	if (ch == '\177')
+X	    printbuf[cnt] = '?';
+X	else
+X	    printbuf[cnt] = ch | 0100;
+X    }
+X    else if (ch == '^') {
+X	printbuf[cnt++] = '\\';
+X	printbuf[cnt] = '^';
+X    }
+X    else if (ch == '\\') {
+X	printbuf[cnt++] = '\\';
+X	printbuf[cnt] = '\\';
+X    }
+X    else if (ch == ' ' || (Isprint(ch) && !Isspace(ch))) {
+X	printbuf[cnt] = ch;
+X    }
+X    else {
+X	printbuf[cnt++] = '\\';
+X	printbuf[cnt++] = ((ch >> 6) & 7) + '0';
+X	printbuf[cnt++] = ((ch >> 3) & 7) + '0';
+X	printbuf[cnt] = (ch & 7) + '0';
+X    }
+X    return cnt;
+X}
+END_OF_FILE
+if test 15699 -ne `wc -c <'ed.xmap.c'`; then
+    echo shar: \"'ed.xmap.c'\" unpacked with wrong size!
+fi
+# end of 'ed.xmap.c'
+fi
+if test -f 'glob.c' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'glob.c'\"
+else
+echo shar: Extracting \"'glob.c'\" \(16092 characters\)
+sed "s/^X//" >'glob.c' <<'END_OF_FILE'
+X/*
+X * Copyright (c) 1989 The Regents of the University of California.
+X * All rights reserved.
+X *
+X * This code is derived from software contributed to Berkeley by
+X * Guido van Rossum.
+X *
+X * Redistribution and use in source and binary forms, with or without
+X * modification, are permitted provided that the following conditions
+X * are met:
+X * 1. Redistributions of source code must retain the above copyright
+X *    notice, this list of conditions and the following disclaimer.
+X * 2. Redistributions in binary form must reproduce the above copyright
+X *    notice, this list of conditions and the following disclaimer in the
+X *    documentation and/or other materials provided with the distribution.
+X * 3. All advertising materials mentioning features or use of this software
+X *    must display the following acknowledgement:
+X *	This product includes software developed by the University of
+X *	California, Berkeley and its contributors.
+X * 4. Neither the name of the University nor the names of its contributors
+X *    may be used to endorse or promote products derived from this software
+X *    without specific prior written permission.
+X *
+X * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+X * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+X * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+X * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+X * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+X * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+X * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+X * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+X * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+X * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+X * SUCH DAMAGE.
+X */
+X#if defined(LIBC_SCCS) && !defined(lint)
+static char sccsid[] = "@(#)glob.c	5.12 (Berkeley) 6/24/91";
+X#endif /* LIBC_SCCS and not lint */
+X/*
+X * Glob: the interface is a superset of the one defined in POSIX 1003.2,
+X * draft 9.
+X *
+X * The [!...] convention to negate a range is supported (SysV, Posix, ksh).
+X *
+X * Optional extra services, controlled by flags not defined by POSIX:
+X *
+X * GLOB_QUOTE:
+X *	Escaping convention: \ inhibits any special meaning the following
+X *	character might have (except \ at end of string is retained).
+X * GLOB_MAGCHAR:
+X *	Set in gl_flags if pattern contained a globbing character.
+X * GLOB_ALTNOT:
+X *	Use ^ instead of ! for "not".
+X * gl_matchc:
+X *	Number of matches in the current invocation of glob.
+X */
+X
+X#ifdef notdef
+X#include <sys/types.h>
+X#include <sys/param.h>
+X#include <sys/stat.h>
+X#include <dirent.h>
+X#include <ctype.h>
+typedef void * ptr_t;
+X#endif
+X
+X#define Char __Char
+X#include "sh.h"
+X#undef Char
+X#undef QUOTE
+X#undef TILDE
+X#undef META
+X#undef CHAR
+X#undef ismeta
+X#undef Strchr
+X
+X#include <glob.h>
+X
+X#ifndef S_ISDIR
+X#define S_ISDIR(a)	(((a) & S_IFMT) == S_IFDIR)
+X#endif
+X
+X#if !defined(S_ISLNK) && defined(S_IFLNK)
+X#define S_ISLNK(a)	(((a) & S_IFMT) == S_IFLNK)
+X#endif
+X
+X#if !defined(S_ISLNK) && !defined(lstat)
+X#define lstat stat
+X#endif
+X
+typedef unsigned short Char;
+X
+static	int	 glob1 		__P((Char *, glob_t *, int));
+static	int	 glob2		__P((Char *, Char *, Char *, glob_t *, int));
+static	int	 glob3		__P((Char *, Char *, Char *, Char *,
+X				     glob_t *, int));
+static	int	 globextend	__P((Char *, glob_t *));
+static	int	 match		__P((Char *, Char *, Char *, int));
+static	int	 compare	__P((const ptr_t, const ptr_t));
+static 	DIR	*Opendir	__P((Char *));
+X#ifdef S_IFLNK
+static	int	 Lstat		__P((Char *, struct stat *));
+X#endif
+static 	Char 	*Strchr		__P((Char *, int));
+X#ifdef DEBUG
+static	void	 qprintf	__P((Char *));
+X#endif
+X
+X#define	DOLLAR		'$'
+X#define	DOT		'.'
+X#define	EOS		'\0'
+X#define	LBRACKET	'['
+X#define	NOT		'!'
+X#define ALTNOT		'^'
+X#define	QUESTION	'?'
+X#define	QUOTE		'\\'
+X#define	RANGE		'-'
+X#define	RBRACKET	']'
+X#define	SEP		'/'
+X#define	STAR		'*'
+X#define	TILDE		'~'
+X#define	UNDERSCORE	'_'
+X
+X#define	M_META		0x8000
+X#define M_PROTECT	0x4000
+X#define	M_MASK		0xffff
+X#define	M_ASCII		0x00ff
+X
+X#define	CHAR(c)		((c)&M_ASCII)
+X#define	META(c)		((c)|M_META)
+X#define	M_ALL		META('*')
+X#define	M_END		META(']')
+X#define	M_NOT		META('!')
+X#define	M_ALTNOT	META('^')
+X#define	M_ONE		META('?')
+X#define	M_RNG		META('-')
+X#define	M_SET		META('[')
+X#define	ismeta(c)	(((c)&M_META) != 0)
+X
+X/*
+X * Need to dodge two kernel bugs:
+X * opendir("") != opendir(".")
+X * NAMEI_BUG: on plain files trailing slashes are ignored in some kernels.
+X *            POSIX specifies that they should be ignored in directories.
+X */
+X
+static DIR *
+Opendir(str)
+X    register Char *str;
+X{
+X    char    buf[MAXPATHLEN];
+X    register char *dc = buf;
+X
+X    if (!*str)
+X	return (opendir("."));
+X    while (*dc++ = *str++);
+X    return (opendir(buf));
+X}
+X
+X#ifdef S_IFLNK
+static int
+Lstat(fn, sb)
+X    register Char *fn;
+X    struct stat *sb;
+X{
+X    char    buf[MAXPATHLEN];
+X    register char *dc = buf;
+X
+X    while (*dc++ = *fn++);
+X# ifdef NAMEI_BUG
+X    {
+X	int     st;
+X
+X	st = lstat(buf, sb);
+X	if (*buf)
+X	    dc--;
+X	return (*--dc == '/' && !S_ISDIR(sb->st_mode) ? -1 : st);
+X    }
+X# else
+X    return (lstat(buf, sb));
+X# endif	/* NAMEI_BUG */
+X}
+X#else
+X#define Lstat Stat
+X#endif /* S_IFLNK */
+X
+static int
+Stat(fn, sb)
+X    register Char *fn;
+X    struct stat *sb;
+X{
+X    char    buf[MAXPATHLEN];
+X    register char *dc = buf;
+X
+X    while (*dc++ = *fn++);
+X#ifdef NAMEI_BUG
+X    {
+X	int     st;
+X
+X	st = lstat(buf, sb);
+X	if (*buf)
+X	    dc--;
+X	return (*--dc == '/' && !S_ISDIR(sb->st_mode) ? -1 : st);
+X    }
+X#else
+X    return (stat(buf, sb));
+X#endif /* NAMEI_BUG */
+X}
+X
+static Char *
+Strchr(str, ch)
+X    Char *str;
+X    int ch;
+X{
+X    do
+X	if (*str == ch)
+X	    return (str);
+X    while (*str++);
+X    return (NULL);
+X}
+X
+X#ifdef DEBUG
+static void
+qprintf(s)
+Char *s;
+X{
+X    Char *p;
+X
+X    for (p = s; *p; p++)
+X	printf("%c", *p & 0xff);
+X    printf("\n");
+X    for (p = s; *p; p++)
+X	printf("%c", *p & M_PROTECT ? '"' : ' ');
+X    printf("\n");
+X    for (p = s; *p; p++)
+X	printf("%c", *p & M_META ? '_' : ' ');
+X    printf("\n");
+X}
+X#endif /* DEBUG */
+X
+static int
+compare(p, q)
+X    const ptr_t  p, q;
+X{
+X    return (strcmp(*(char **) p, *(char **) q));
+X}
+X
+X/*
+X * The main glob() routine: compiles the pattern (optionally processing
+X * quotes), calls glob1() to do the real pattern matching, and finally
+X * sorts the list (unless unsorted operation is requested).  Returns 0
+X * if things went well, nonzero if errors occurred.  It is not an error
+X * to find no matches.
+X */
+int
+glob(pattern, flags, errfunc, pglob)
+X    const char *pattern;
+X    int     flags;
+X    int     (*errfunc) __P((char *, int));
+X    glob_t *pglob;
+X{
+X    int     err, oldpathc;
+X    Char *bufnext, *bufend, *compilebuf, m_not;
+X    const unsigned char *compilepat, *patnext;
+X    int     c, not;
+X    Char patbuf[MAXPATHLEN + 1], *qpatnext;
+X    int     no_match;
+X
+X    patnext = (unsigned char *) pattern;
+X    if (!(flags & GLOB_APPEND)) {
+X	pglob->gl_pathc = 0;
+X	pglob->gl_pathv = NULL;
+X	if (!(flags & GLOB_DOOFFS))
+X	    pglob->gl_offs = 0;
+X    }
+X    pglob->gl_flags = flags & ~GLOB_MAGCHAR;
+X    pglob->gl_errfunc = errfunc;
+X    oldpathc = pglob->gl_pathc;
+X    pglob->gl_matchc = 0;
+X
+X    if (pglob->gl_flags & GLOB_ALTNOT) {
+X	not = ALTNOT;
+X	m_not = M_ALTNOT;
+X    }
+X    else {
+X	not = NOT;
+X	m_not = M_NOT;
+X    }
+X
+X    bufnext = patbuf;
+X    bufend = bufnext + MAXPATHLEN;
+X    compilebuf = bufnext;
+X    compilepat = patnext;
+X
+X    no_match = *patnext == not;
+X    if (no_match)
+X	patnext++;
+X
+X    if (flags & GLOB_QUOTE) {
+X	/* Protect the quoted characters */
+X	while (bufnext < bufend && (c = *patnext++) != EOS) 
+X	    if (c == QUOTE) {
+X		if ((c = *patnext++) == EOS) {
+X		    c = QUOTE;
+X		    --patnext;
+X		}
+X		*bufnext++ = c | M_PROTECT;
+X	    }
+X	    else
+X		*bufnext++ = c;
+X    }
+X    else 
+X	while (bufnext < bufend && (c = *patnext++) != EOS) 
+X	    *bufnext++ = c;
+X    *bufnext = EOS;
+X
+X    bufnext = patbuf;
+X    qpatnext = patbuf;
+X    /* we don't need to check for buffer overflow any more */
+X    while ((c = *qpatnext++) != EOS) {
+X	switch (c) {
+X	case LBRACKET:
+X	    c = *qpatnext;
+X	    if (c == not)
+X		++qpatnext;
+X	    if (*qpatnext == EOS ||
+X		Strchr(qpatnext + 1, RBRACKET) == NULL) {
+X		*bufnext++ = LBRACKET;
+X		if (c == not)
+X		    --qpatnext;
+X		break;
+X	    }
+X	    pglob->gl_flags |= GLOB_MAGCHAR;
+X	    *bufnext++ = M_SET;
+X	    if (c == not)
+X		*bufnext++ = m_not;
+X	    c = *qpatnext++;
+X	    do {
+X		*bufnext++ = CHAR(c);
+X		if (*qpatnext == RANGE &&
+X		    (c = qpatnext[1]) != RBRACKET) {
+X		    *bufnext++ = M_RNG;
+X		    *bufnext++ = CHAR(c);
+X		    qpatnext += 2;
+X		}
+X	    } while ((c = *qpatnext++) != RBRACKET);
+X	    *bufnext++ = M_END;
+X	    break;
+X	case QUESTION:
+X	    pglob->gl_flags |= GLOB_MAGCHAR;
+X	    *bufnext++ = M_ONE;
+X	    break;
+X	case STAR:
+X	    pglob->gl_flags |= GLOB_MAGCHAR;
+X	    *bufnext++ = M_ALL;
+X	    break;
+X	default:
+X	    *bufnext++ = CHAR(c);
+X	    break;
+X	}
+X    }
+X    *bufnext = EOS;
+X#ifdef DEBUG
+X    qprintf(patbuf);
+X#endif
+X
+X    if ((err = glob1(patbuf, pglob, no_match)) != 0)
+X	return (err);
+X
+X    /*
+X     * If there was no match we are going to append the pattern 
+X     * if GLOB_NOCHECK was specified or if GLOB_NOMAGIC was specified
+X     * and the pattern did not contain any magic characters
+X     * GLOB_NOMAGIC is there just for compatibility with csh.
+X     */
+X    if (pglob->gl_pathc == oldpathc && 
+X	((flags & GLOB_NOCHECK) || 
+X	 ((flags & GLOB_NOMAGIC) && !(pglob->gl_flags & GLOB_MAGCHAR)))) {
+X	if (!(flags & GLOB_QUOTE)) {
+X	    Char *dp = compilebuf;
+X	    const unsigned char *sp = compilepat;
+X
+X	    while (*dp++ = *sp++);
+X	}
+X	else {
+X	    /*
+X	     * copy pattern, interpreting quotes; this is slightly different
+X	     * than the interpretation of quotes above -- which should prevail?
+X	     */
+X	    while (*compilepat != EOS) {
+X		if (*compilepat == QUOTE) {
+X		    if (*++compilepat == EOS)
+X			--compilepat;
+X		}
+X		*compilebuf++ = (unsigned char) *compilepat++;
+X	    }
+X	    *compilebuf = EOS;
+X	}
+X	return (globextend(patbuf, pglob));
+X    }
+X    else if (!(flags & GLOB_NOSORT))
+X	qsort((char *) (pglob->gl_pathv + pglob->gl_offs + oldpathc),
+X	      pglob->gl_pathc - oldpathc, sizeof(char *),
+X	      (int (*) __P((const void *, const void *))) compare);
+X    return (0);
+X}
+X
+static int
+glob1(pattern, pglob, no_match)
+X    Char *pattern;
+X    glob_t *pglob;
+X    int     no_match;
+X{
+X    Char pathbuf[MAXPATHLEN + 1];
+X
+X    /*
+X     * a null pathname is invalid -- POSIX 1003.1 sect. 2.4.
+X     */
+X    if (*pattern == EOS)
+X	return (0);
+X    return (glob2(pathbuf, pathbuf, pattern, pglob, no_match));
+X}
+X
+X/*
+X * functions glob2 and glob3 are mutually recursive; there is one level
+X * of recursion for each segment in the pattern that contains one or
+X * more meta characters.
+X */
+static int
+glob2(pathbuf, pathend, pattern, pglob, no_match)
+X    Char *pathbuf, *pathend, *pattern;
+X    glob_t *pglob;
+X    int     no_match;
+X{
+X    struct stat sbuf;
+X    int anymeta;
+X    Char *p, *q;
+X
+X    /*
+X     * loop over pattern segments until end of pattern or until segment with
+X     * meta character found.
+X     */
+X    anymeta = 0;
+X    for (;;) {
+X	if (*pattern == EOS) {	/* end of pattern? */
+X	    *pathend = EOS;
+X	    if (Lstat(pathbuf, &sbuf))
+X		return (0);
+X
+X	    if (((pglob->gl_flags & GLOB_MARK) &&
+X		 pathend[-1] != SEP) &&
+X		(S_ISDIR(sbuf.st_mode)
+X#ifdef S_IFLNK
+X		 || (S_ISLNK(sbuf.st_mode) &&
+X		     (Stat(pathbuf, &sbuf) == 0) &&
+X		     S_ISDIR(sbuf.st_mode))
+X#endif
+X		 )) {
+X		*pathend++ = SEP;
+X		*pathend = EOS;
+X	    }
+X	    ++pglob->gl_matchc;
+X	    return (globextend(pathbuf, pglob));
+X	}
+X
+X	/* find end of next segment, copy tentatively to pathend */
+X	q = pathend;
+X	p = pattern;
+X	while (*p != EOS && *p != SEP) {
+X	    if (ismeta(*p))
+X		anymeta = 1;
+X	    *q++ = *p++;
+X	}
+X
+X	if (!anymeta) {		/* no expansion, do next segment */
+X	    pathend = q;
+X	    pattern = p;
+X	    while (*pattern == SEP)
+X		*pathend++ = *pattern++;
+X	}
+X	else			/* need expansion, recurse */
+X	    return (glob3(pathbuf, pathend, pattern, p, pglob, no_match));
+X    }
+X    /* NOTREACHED */
+X}
+X
+X
+static int
+glob3(pathbuf, pathend, pattern, restpattern, pglob, no_match)
+X    Char *pathbuf, *pathend, *pattern, *restpattern;
+X    glob_t *pglob;
+X    int     no_match;
+X{
+X    extern int errno;
+X    DIR    *dirp;
+X    struct dirent *dp;
+X    int     err;
+X    Char m_not = (pglob->gl_flags & GLOB_ALTNOT) ? M_ALTNOT : M_NOT;
+X
+X    *pathend = EOS;
+X    errno = 0;
+X
+X    if (!(dirp = Opendir(pathbuf)))
+X	/* todo: don't call for ENOENT or ENOTDIR? */
+X	if ((pglob->gl_errfunc && (*pglob->gl_errfunc) (pathbuf, errno)) ||
+X	    (pglob->gl_flags & GLOB_ERR))
+X	    return (GLOB_ABEND);
+X	else
+X	    return (0);
+X
+X    err = 0;
+X
+X    /* search directory for matching names */
+X    while ((dp = readdir(dirp))) {
+X	register unsigned char *sc;
+X	register Char *dc;
+X
+X	/* initial DOT must be matched literally */
+X	if (dp->d_name[0] == DOT && *pattern != DOT)
+X	    continue;
+X	for (sc = (unsigned char *) dp->d_name, dc = pathend; *dc++ = *sc++;);
+X	if (match(pathend, pattern, restpattern, m_not) == no_match) {
+X	    *pathend = EOS;
+X	    continue;
+X	}
+X	err = glob2(pathbuf, --dc, restpattern, pglob, no_match);
+X	if (err)
+X	    break;
+X    }
+X    /* todo: check error from readdir? */
+X    (void) closedir(dirp);
+X    return (err);
+X}
+X
+X
+X/*
+X * Extend the gl_pathv member of a glob_t structure to accomodate a new item,
+X * add the new item, and update gl_pathc.
+X *
+X * This assumes the BSD realloc, which only copies the block when its size
+X * crosses a power-of-two boundary; for v7 realloc, this would cause quadratic
+X * behavior.
+X *
+X * Return 0 if new item added, error code if memory couldn't be allocated.
+X *
+X * Invariant of the glob_t structure:
+X *	Either gl_pathc is zero and gl_pathv is NULL; or gl_pathc > 0 and
+X *	 gl_pathv points to (gl_offs + gl_pathc + 1) items.
+X */
+static int
+globextend(path, pglob)
+X    Char *path;
+X    glob_t *pglob;
+X{
+X    register char **pathv;
+X    register int i;
+X    unsigned int newsize;
+X    char   *copy;
+X    Char *p;
+X
+X    newsize = sizeof(*pathv) * (2 + pglob->gl_pathc + pglob->gl_offs);
+X    pathv = (char **) (pglob->gl_pathv ?
+X		       realloc((ptr_t) pglob->gl_pathv, newsize) :
+X		       malloc((size_t) newsize));
+X    if (pathv == NULL)
+X	return (GLOB_NOSPACE);
+X
+X    if (pglob->gl_pathv == NULL && pglob->gl_offs > 0) {
+X	/* first time around -- clear initial gl_offs items */
+X	pathv += pglob->gl_offs;
+X	for (i = pglob->gl_offs; --i >= 0;)
+X	    *--pathv = NULL;
+X    }
+X    pglob->gl_pathv = pathv;
+X
+X    for (p = path; *p++;);
+X    if ((copy = (char *) malloc((size_t) (p - path))) != NULL) {
+X	register char *dc = copy;
+X	register Char *sc = path;
+X
+X	while (*dc++ = *sc++);
+X	pathv[pglob->gl_offs + pglob->gl_pathc++] = copy;
+X    }
+X    pathv[pglob->gl_offs + pglob->gl_pathc] = NULL;
+X    return ((copy == NULL) ? GLOB_NOSPACE : 0);
+X}
+X
+X
+X/*
+X * pattern matching function for filenames.  Each occurrence of the *
+X * pattern causes a recursion level.
+X */
+static  int
+match(name, pat, patend, m_not)
+X    register Char *name, *pat, *patend;
+X    int m_not;
+X{
+X    int ok, negate_range;
+X    Char c, k;
+X
+X    while (pat < patend) {
+X	c = *pat++;
+X	switch (c & M_MASK) {
+X	case M_ALL:
+X	    if (pat == patend)
+X		return (1);
+X	    for (; *name != EOS; ++name) {
+X		if (match(name, pat, patend, m_not))
+X		    return (1);
+X	    }
+X	    return (0);
+X	case M_ONE:
+X	    if (*name++ == EOS)
+X		return (0);
+X	    break;
+X	case M_SET:
+X	    ok = 0;
+X	    if ((k = *name++) == EOS)
+X		return (0);
+X	    if (negate_range = ((*pat & M_MASK) == m_not))
+X		++pat;
+X	    while (((c = *pat++) & M_MASK) != M_END) {
+X		if ((*pat & M_MASK) == M_RNG) {
+X		    if (c <= k && k <= pat[1])
+X			ok = 1;
+X		    pat += 2;
+X		}
+X		else if (c == k)
+X		    ok = 1;
+X	    }
+X	    if (ok == negate_range)
+X		return (0);
+X	    break;
+X	default:
+X	    if (*name++ != c)
+X		return (0);
+X	    break;
+X	}
+X    }
+X    return (*name == EOS);
+X}
+X
+X/* free allocated data belonging to a glob_t structure */
+void
+globfree(pglob)
+X    glob_t *pglob;
+X{
+X    register int i;
+X    register char **pp;
+X
+X    if (pglob->gl_pathv != NULL) {
+X	pp = pglob->gl_pathv + pglob->gl_offs;
+X	for (i = pglob->gl_pathc; i--; ++pp)
+X	    if (*pp)
+X		free((ptr_t) *pp), *pp = NULL;
+X	free((ptr_t) pglob->gl_pathv), pglob->gl_pathv = NULL;
+X    }
+X}
+END_OF_FILE
+if test 16092 -ne `wc -c <'glob.c'`; then
+    echo shar: \"'glob.c'\" unpacked with wrong size!
+fi
+# end of 'glob.c'
+fi
+if test -f 'sh.time.c' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'sh.time.c'\"
+else
+echo shar: Extracting \"'sh.time.c'\" \(15490 characters\)
+sed "s/^X//" >'sh.time.c' <<'END_OF_FILE'
+X/* $Header: /home/hyperion/mu/christos/src/sys/tcsh-6.01/RCS/sh.time.c,v 3.4 1991/11/26 04:41:23 christos Exp $ */
+X/*
+X * sh.time.c: Shell time keeping and printing.
+X */
+X/*-
+X * Copyright (c) 1980, 1991 The Regents of the University of California.
+X * All rights reserved.
+X *
+X * Redistribution and use in source and binary forms, with or without
+X * modification, are permitted provided that the following conditions
+X * are met:
+X * 1. Redistributions of source code must retain the above copyright
+X *    notice, this list of conditions and the following disclaimer.
+X * 2. Redistributions in binary form must reproduce the above copyright
+X *    notice, this list of conditions and the following disclaimer in the
+X *    documentation and/or other materials provided with the distribution.
+X * 3. All advertising materials mentioning features or use of this software
+X *    must display the following acknowledgement:
+X *	This product includes software developed by the University of
+X *	California, Berkeley and its contributors.
+X * 4. Neither the name of the University nor the names of its contributors
+X *    may be used to endorse or promote products derived from this software
+X *    without specific prior written permission.
+X *
+X * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+X * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+X * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+X * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+X * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+X * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+X * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+X * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+X * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+X * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+X * SUCH DAMAGE.
+X */
+X#include "sh.h"
+X
+RCSID("$Id: sh.time.c,v 3.4 1991/11/26 04:41:23 christos Exp $")
+X
+X#if defined(sun) && ! defined(MACH)
+X# include <machine/param.h>
+X#endif /* sun */
+X
+X/*
+X * C Shell - routines handling process timing and niceing
+X */
+X#ifdef BSDTIMES
+X# ifndef RUSAGE_SELF
+X#  define	RUSAGE_SELF	0
+X#  define	RUSAGE_CHILDREN	-1
+X# endif	/* RUSAGE_SELF */
+X#else /* BSDTIMES */
+struct tms times0;
+X#endif /* BSDTIMES */
+X
+X#if !defined(BSDTIMES) && !defined(_SEQUENT_)
+X# ifdef POSIX
+static	void	pdtimet	__P((clock_t, clock_t));
+X# else /* ! POSIX */
+static	void	pdtimet	__P((time_t, time_t));
+X# endif /* ! POSIX */
+X#else /* BSDTIMES || _SEQUENT_ */
+static	void	pdeltat	__P((timeval_t *, timeval_t *));
+X#endif /* BSDTIMES || _SEQUENT_ */
+X
+void
+settimes()
+X{
+X#ifdef BSDTIMES
+X    struct rusage ruch;
+X
+X    (void) gettimeofday(&time0, NULL);
+X    (void) getrusage(RUSAGE_SELF, &ru0);
+X    (void) getrusage(RUSAGE_CHILDREN, &ruch);
+X    ruadd(&ru0, &ruch);
+X#else
+X# ifdef _SEQUENT_
+X    struct process_stats ruch;
+X
+X    (void) get_process_stats(&time0, PS_SELF, &ru0, &ruch);
+X    ruadd(&ru0, &ruch);
+X# else	/* _SEQUENT_ */
+X    time0 = times(&times0);
+X    times0.tms_stime += times0.tms_cstime;
+X    times0.tms_utime += times0.tms_cutime;
+X    times0.tms_cstime = 0;
+X    times0.tms_cutime = 0;
+X# endif	/* _SEQUENT_ */
+X#endif /* BSDTIMES */
+X}
+X
+X/*
+X * dotime is only called if it is truly a builtin function and not a
+X * prefix to another command
+X */
+X/*ARGSUSED*/
+void
+dotime(v, c)
+X    Char **v;
+X    struct command *c;
+X{
+X#ifdef BSDTIMES
+X    timeval_t timedol;
+X    struct rusage ru1, ruch;
+X
+X    (void) getrusage(RUSAGE_SELF, &ru1);
+X    (void) getrusage(RUSAGE_CHILDREN, &ruch);
+X    ruadd(&ru1, &ruch);
+X    (void) gettimeofday(&timedol, NULL);
+X    prusage(&ru0, &ru1, &timedol, &time0);
+X#else
+X# ifdef _SEQUENT_
+X    timeval_t timedol;
+X    struct process_stats ru1, ruch;
+X
+X    (void) get_process_stats(&timedol, PS_SELF, &ru1, &ruch);
+X    ruadd(&ru1, &ruch);
+X    prusage(&ru0, &ru1, &timedol, &time0);
+X# else /* _SEQUENT_ */
+X#  ifndef POSIX
+X    time_t  timedol;
+X#  else /* POSIX */
+X    clock_t timedol;
+X#  endif /* POSIX */
+X
+X    struct tms times_dol;
+X
+X    timedol = times(&times_dol);
+X    times_dol.tms_stime += times_dol.tms_cstime;
+X    times_dol.tms_utime += times_dol.tms_cutime;
+X    times_dol.tms_cstime = 0;
+X    times_dol.tms_cutime = 0;
+X    prusage(&times0, &times_dol, timedol, time0);
+X# endif	/* _SEQUENT_ */
+X#endif /* BSDTIMES */
+X}
+X
+X/*
+X * donice is only called when it on the line by itself or with a +- value
+X */
+X/*ARGSUSED*/
+void
+donice(v, c)
+X    register Char **v;
+X    struct command *c;
+X{
+X    register Char *cp;
+X    int     nval = 0;
+X
+X    v++, cp = *v++;
+X    if (cp == 0)
+X	nval = 4;
+X    else if (*v == 0 && any("+-", cp[0]))
+X	nval = getn(cp);
+X#ifdef BSDNICE
+X    (void) setpriority(PRIO_PROCESS, 0, nval);
+X#else /* BSDNICE */
+X    (void) nice(nval);
+X#endif /* BSDNICE */
+X}
+X
+X#ifdef BSDTIMES
+void
+ruadd(ru, ru2)
+X    register struct rusage *ru, *ru2;
+X{
+X    tvadd(&ru->ru_utime, &ru2->ru_utime);
+X    tvadd(&ru->ru_stime, &ru2->ru_stime);
+X    if (ru2->ru_maxrss > ru->ru_maxrss)
+X	ru->ru_maxrss = ru2->ru_maxrss;
+X
+X    ru->ru_ixrss += ru2->ru_ixrss;
+X    ru->ru_idrss += ru2->ru_idrss;
+X    ru->ru_isrss += ru2->ru_isrss;
+X    ru->ru_minflt += ru2->ru_minflt;
+X    ru->ru_majflt += ru2->ru_majflt;
+X    ru->ru_nswap += ru2->ru_nswap;
+X    ru->ru_inblock += ru2->ru_inblock;
+X    ru->ru_oublock += ru2->ru_oublock;
+X    ru->ru_msgsnd += ru2->ru_msgsnd;
+X    ru->ru_msgrcv += ru2->ru_msgrcv;
+X    ru->ru_nsignals += ru2->ru_nsignals;
+X    ru->ru_nvcsw += ru2->ru_nvcsw;
+X    ru->ru_nivcsw += ru2->ru_nivcsw;
+X}
+X
+X#else /* BSDTIMES */
+X# ifdef _SEQUENT_
+void
+ruadd(ru, ru2)
+X    register struct process_stats *ru, *ru2;
+X{
+X    tvadd(&ru->ps_utime, &ru2->ps_utime);
+X    tvadd(&ru->ps_stime, &ru2->ps_stime);
+X    if (ru2->ps_maxrss > ru->ps_maxrss)
+X	ru->ps_maxrss = ru2->ps_maxrss;
+X
+X    ru->ps_pagein += ru2->ps_pagein;
+X    ru->ps_reclaim += ru2->ps_reclaim;
+X    ru->ps_zerofill += ru2->ps_zerofill;
+X    ru->ps_pffincr += ru2->ps_pffincr;
+X    ru->ps_pffdecr += ru2->ps_pffdecr;
+X    ru->ps_swap += ru2->ps_swap;
+X    ru->ps_syscall += ru2->ps_syscall;
+X    ru->ps_volcsw += ru2->ps_volcsw;
+X    ru->ps_involcsw += ru2->ps_involcsw;
+X    ru->ps_signal += ru2->ps_signal;
+X    ru->ps_lread += ru2->ps_lread;
+X    ru->ps_lwrite += ru2->ps_lwrite;
+X    ru->ps_bread += ru2->ps_bread;
+X    ru->ps_bwrite += ru2->ps_bwrite;
+X    ru->ps_phread += ru2->ps_phread;
+X    ru->ps_phwrite += ru2->ps_phwrite;
+X}
+X
+X# endif	/* _SEQUENT_ */
+X#endif /* BSDTIMES */
+X
+X#ifdef BSDTIMES
+X
+X/*
+X * PWP: the LOG1024 and pagetok stuff taken from the top command,
+X * written by William LeFebvre
+X */
+X/* Log base 2 of 1024 is 10 (2^10 == 1024) */
+X#define LOG1024         10
+X
+X/* Convert clicks (kernel pages) to kbytes ... */
+X/* If there is no PGSHIFT defined, assume it is 11 */
+X/* Is this needed for compatability with some old flavor of 4.2 or 4.1? */
+X#ifndef PGSHIFT
+X# define pagetok(size)   ((size) << 1)
+X#else
+X# if PGSHIFT>10
+X#  define pagetok(size)   ((size) << (PGSHIFT - LOG1024))
+X# else
+X#  define pagetok(size)   ((size) >> (LOG1024 - PGSHIFT))
+X# endif
+X#endif
+X
+X/*
+X * if any other machines return wierd values in the ru_i* stuff, put
+X * the adjusting macro here:
+X */
+X#ifdef sun
+X# define IADJUST(i)	(pagetok(i)/2)
+X#else /* sun */
+X# define IADJUST(i)	(i)
+X#endif /* sun */
+X
+void
+prusage(r0, r1, e, b)
+X    register struct rusage *r0, *r1;
+X    timeval_t *e, *b;
+X
+X#else /* BSDTIMES */
+X# ifdef _SEQUENT_
+void
+prusage(r0, r1, e, b)
+X    register struct process_stats *r0, *r1;
+X    timeval_t *e, *b;
+X
+X# else /* _SEQUENT_ */
+void
+prusage(bs, es, e, b)
+X    struct tms *bs, *es;
+X
+X#  ifndef POSIX
+X    time_t  e, b;
+X
+X#  else	/* POSIX */
+X    clock_t e, b;
+X
+X#  endif /* POSIX */
+X# endif	/* _SEQUENT_ */
+X#endif /* BSDTIMES */
+X{
+X#ifdef BSDTIMES
+X    register time_t t =
+X    (r1->ru_utime.tv_sec - r0->ru_utime.tv_sec) * 100 +
+X    (r1->ru_utime.tv_usec - r0->ru_utime.tv_usec) / 10000 +
+X    (r1->ru_stime.tv_sec - r0->ru_stime.tv_sec) * 100 +
+X    (r1->ru_stime.tv_usec - r0->ru_stime.tv_usec) / 10000;
+X
+X#else
+X# ifdef _SEQUENT_
+X    register time_t t =
+X    (r1->ps_utime.tv_sec - r0->ps_utime.tv_sec) * 100 +
+X    (r1->ps_utime.tv_usec - r0->ps_utime.tv_usec) / 10000 +
+X    (r1->ps_stime.tv_sec - r0->ps_stime.tv_sec) * 100 +
+X    (r1->ps_stime.tv_usec - r0->ps_stime.tv_usec) / 10000;
+X
+X# else /* _SEQUENT_ */
+X#  ifndef POSIX
+X    register time_t t = (es->tms_utime - bs->tms_utime +
+X			 es->tms_stime - bs->tms_stime) * 100 / HZ;
+X
+X#  else /* POSIX */
+X    register clock_t t = (es->tms_utime - bs->tms_utime +
+X			  es->tms_stime - bs->tms_stime) * 100 / CLK_TCK;
+X
+X#  endif /* POSIX */
+X# endif /* _SEQUENT_ */
+X#endif /* BSDTIMES */
+X
+X    register char *cp;
+X    register long i;
+X    register struct varent *vp = adrof(STRtime);
+X
+X#ifdef BSDTIMES
+X    int     ms =
+X    (e->tv_sec - b->tv_sec) * 100 + (e->tv_usec - b->tv_usec) / 10000;
+X
+X    cp = "%Uu %Ss %E %P %X+%Dk %I+%Oio %Fpf+%Ww";
+X#else
+X# ifdef _SEQUENT_
+X    int     ms =
+X    (e->tv_sec - b->tv_sec) * 100 + (e->tv_usec - b->tv_usec) / 10000;
+X
+X    cp = "%Uu %Ss %E %P %I+%Oio %Fpf+%Ww";
+X# else /* _SEQUENT_ */
+X#  ifndef POSIX
+X    time_t  ms = (e - b) * 100 / HZ;
+X
+X#  else /* POSIX */
+X    clock_t ms = (e - b) * 100 / CLK_TCK;
+X
+X#  endif /* POSIX */
+X    cp = "%Uu %Ss %E %P";
+X
+X    /*
+X     * the tms stuff is not very precise, so we fudge it.
+X     * granularity fix: can't be more than 100% 
+X     * this breaks in multi-processor systems...
+X     * maybe I should take it out and let people see more then 100% 
+X     * utilizations.
+X     */
+X    if (ms < t && ms != 0)
+X	ms = t;
+X# endif /* _SEQUENT_ */
+X#endif /* BSDTIMES */
+X#ifdef TDEBUG
+X    xprintf("es->tms_utime %lu bs->tms_utime %lu\n",
+X	    es->tms_utime, bs->tms_utime);
+X    xprintf("es->tms_stime %lu bs->tms_stime %lu\n",
+X	    es->tms_stime, bs->tms_stime);
+X    xprintf("ms %lu e %lu b %lu\n", ms, e, b);
+X    xprintf("t %lu\n", t);
+X#endif /* TDEBUG */
+X
+X    if (vp && vp->vec[0] && vp->vec[1])
+X	cp = short2str(vp->vec[1]);
+X    for (; *cp; cp++)
+X	if (*cp != '%')
+X	    xputchar(*cp);
+X	else if (cp[1])
+X	    switch (*++cp) {
+X
+X	    case 'U':		/* user CPU time used */
+X#ifdef BSDTIMES
+X		pdeltat(&r1->ru_utime, &r0->ru_utime);
+X#else
+X# ifdef _SEQUENT_
+X		pdeltat(&r1->ps_utime, &r0->ps_utime);
+X# else /* _SEQUENT_ */
+X#  ifndef POSIX
+X		pdtimet(es->tms_utime, bs->tms_utime);
+X#  else /* POSIX */
+X		pdtimet(es->tms_utime, bs->tms_utime);
+X#  endif /* POSIX */
+X# endif /* _SEQUENT_ */
+X#endif /* BSDTIMES */
+X		break;
+X
+X	    case 'S':		/* system CPU time used */
+X#ifdef BSDTIMES
+X		pdeltat(&r1->ru_stime, &r0->ru_stime);
+X#else
+X# ifdef _SEQUENT_
+X		pdeltat(&r1->ps_stime, &r0->ps_stime);
+X# else /* _SEQUENT_ */
+X#  ifndef POSIX
+X		pdtimet(es->tms_stime, bs->tms_stime);
+X#  else /* POSIX */
+X		pdtimet(es->tms_stime, bs->tms_stime);
+X#  endif /* POSIX */
+X# endif /* _SEQUENT_ */
+X#endif /* BSDTIMES */
+X		break;
+X
+X	    case 'E':		/* elapsed (wall-clock) time */
+X#ifdef BSDTIMES
+X		pcsecs((long) ms);
+X#else /* BSDTIMES */
+X		pcsecs(ms);
+X#endif /* BSDTIMES */
+X		break;
+X
+X	    case 'P':		/* percent time spent running */
+X		/* check if the process did not run */
+X		i = (ms == 0) ? 0 : (t * 1000 / ms);
+X		xprintf("%ld.%01ld%%", i / 10, i % 10);	/* nn.n% */
+X		break;
+X
+X#ifdef BSDTIMES
+X	    case 'W':		/* number of swaps */
+X		i = r1->ru_nswap - r0->ru_nswap;
+X		xprintf("%ld", i);
+X		break;
+X
+X	    case 'X':		/* (average) shared text size */
+X		xprintf("%ld", t == 0 ? 0L :
+X			IADJUST(r1->ru_ixrss - r0->ru_ixrss) / t);
+X		break;
+X
+X	    case 'D':		/* (average) unshared data size */
+X		xprintf("%ld", t == 0 ? 0L :
+X			IADJUST(r1->ru_idrss + r1->ru_isrss -
+X				(r0->ru_idrss + r0->ru_isrss)) / t);
+X		break;
+X
+X	    case 'K':		/* (average) total data memory used  */
+X		xprintf("%ld", t == 0 ? 0L :
+X			IADJUST((r1->ru_ixrss + r1->ru_isrss + r1->ru_idrss) -
+X			   (r0->ru_ixrss + r0->ru_idrss + r0->ru_isrss)) / t);
+X		break;
+X
+X	    case 'M':		/* max. Resident Set Size */
+X#ifdef sun
+X# ifdef notdef
+X		xprintf("%ld", r1->ru_maxrss * 1024L/(long) getpagesize());
+X# endif
+X		xprintf("%ld", pagetok(r1->ru_maxrss));
+X#else
+X		xprintf("%ld", r1->ru_maxrss / 2L);
+X#endif				/* sun */
+X		break;
+X
+X	    case 'F':		/* page faults */
+X		xprintf("%ld", r1->ru_majflt - r0->ru_majflt);
+X		break;
+X
+X	    case 'R':		/* page reclaims */
+X		xprintf("%ld", r1->ru_minflt - r0->ru_minflt);
+X		break;
+X
+X	    case 'I':		/* FS blocks in */
+X		xprintf("%ld", r1->ru_inblock - r0->ru_inblock);
+X		break;
+X
+X	    case 'O':		/* FS blocks out */
+X		xprintf("%ld", r1->ru_oublock - r0->ru_oublock);
+X		break;
+X
+X	    case 'r':		/* PWP: socket messages recieved */
+X		xprintf("%ld", r1->ru_msgrcv - r0->ru_msgrcv);
+X		break;
+X
+X	    case 's':		/* PWP: socket messages sent */
+X		xprintf("%ld", r1->ru_msgsnd - r0->ru_msgsnd);
+X		break;
+X
+X	    case 'k':		/* PWP: signals received */
+X		xprintf("%ld", r1->ru_nsignals - r0->ru_nsignals);
+X		break;
+X
+X	    case 'w':		/* PWP: voluntary context switches (waits) */
+X		xprintf("%ld", r1->ru_nvcsw - r0->ru_nvcsw);
+X		break;
+X
+X	    case 'c':		/* PWP: involuntary context switches */
+X		xprintf("%ld", r1->ru_nivcsw - r0->ru_nivcsw);
+X		break;
+X#else /* BSDTIMES */
+X# ifdef _SEQUENT_
+X	    case 'W':		/* number of swaps */
+X		i = r1->ps_swap - r0->ps_swap;
+X		xprintf("%ld", i);
+X		break;
+X
+X	    case 'M':
+X		xprintf("%ld", r1->ps_maxrss / 2);
+X		break;
+X
+X	    case 'F':
+X		xprintf("%ld", r1->ps_pagein - r0->ps_pagein);
+X		break;
+X
+X	    case 'R':
+X		xprintf("%ld", r1->ps_reclaim - r0->ps_reclaim);
+X		break;
+X
+X	    case 'I':
+X		xprintf("%ld", r1->ps_bread - r0->ps_bread);
+X		break;
+X
+X	    case 'O':
+X		xprintf("%ld", r1->ps_bwrite - r0->ps_bwrite);
+X		break;
+X
+X	    case 'k':
+X		xprintf("%ld", r1->ps_signal - r0->ps_signal);
+X		break;
+X
+X	    case 'w':
+X		xprintf("%ld", r1->ps_volcsw - r0->ps_volcsw);
+X		break;
+X
+X	    case 'c':
+X		xprintf("%ld", r1->ps_involcsw - r0->ps_involcsw);
+X		break;
+X
+X	    case 'Z':
+X		xprintf("%ld", r1->ps_zerofill - r0->ps_zerofill);
+X		break;
+X
+X	    case 'i':
+X		xprintf("%ld", r1->ps_pffincr - r0->ps_pffincr);
+X		break;
+X
+X	    case 'd':
+X		xprintf("%ld", r1->ps_pffdecr - r0->ps_pffdecr);
+X		break;
+X
+X	    case 'Y':
+X		xprintf("%ld", r1->ps_syscall - r0->ps_syscall);
+X		break;
+X
+X	    case 'l':
+X		xprintf("%ld", r1->ps_lread - r0->ps_lread);
+X		break;
+X
+X	    case 'm':
+X		xprintf("%ld", r1->ps_lwrite - r0->ps_lwrite);
+X		break;
+X
+X	    case 'p':
+X		xprintf("%ld", r1->ps_phread - r0->ps_phread);
+X		break;
+X
+X	    case 'q':
+X		xprintf("%ld", r1->ps_phwrite - r0->ps_phwrite);
+X		break;
+X# endif	/* _SEQUENT_ */
+X#endif /* BSDTIMES */
+X	    default:
+X		break;
+X	    }
+X    xputchar('\n');
+X}
+X
+X#if defined(BSDTIMES) || defined(_SEQUENT_)
+static void
+pdeltat(t1, t0)
+X    timeval_t *t1, *t0;
+X{
+X    timeval_t td;
+X
+X    tvsub(&td, t1, t0);
+X    xprintf("%ld.%03ld", td.tv_sec, td.tv_usec / 1000L);
+X}
+X
+void
+tvadd(tsum, t0)
+X    timeval_t *tsum, *t0;
+X{
+X
+X    tsum->tv_sec += t0->tv_sec;
+X    tsum->tv_usec += t0->tv_usec;
+X    if (tsum->tv_usec > 1000000)
+X	tsum->tv_sec++, tsum->tv_usec -= 1000000;
+X}
+X
+void
+tvsub(tdiff, t1, t0)
+X    timeval_t *tdiff, *t1, *t0;
+X{
+X
+X    tdiff->tv_sec = t1->tv_sec - t0->tv_sec;
+X    tdiff->tv_usec = t1->tv_usec - t0->tv_usec;
+X    if (tdiff->tv_usec < 0)
+X	tdiff->tv_sec--, tdiff->tv_usec += 1000000;
+X}
+X
+X#else /* !BSDTIMES && !_SEQUENT_ */
+static void
+pdtimet(eval, bval)
+X#ifndef POSIX
+X    time_t  eval, bval;
+X
+X#else /* POSIX */
+X    clock_t eval, bval;
+X
+X#endif /* POSIX */
+X{
+X#ifndef POSIX
+X    time_t  val;
+X
+X#else /* POSIX */
+X    clock_t val;
+X
+X#endif /* POSIX */
+X
+X#ifndef POSIX
+X    val = (eval - bval) * 100 / HZ;
+X#else /* POSIX */
+X    val = (eval - bval) * 100 / CLK_TCK;
+X#endif /* POSIX */
+X
+X    xprintf("%ld.%02ld", val / 100, val - (val / 100 * 100));
+X}
+X#endif /* BSDTIMES || _SEQUENT_ */
+END_OF_FILE
+if test 15490 -ne `wc -c <'sh.time.c'`; then
+    echo shar: \"'sh.time.c'\" unpacked with wrong size!
+fi
+# end of 'sh.time.c'
+fi
+if test -f 'tc.who.c' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'tc.who.c'\"
+else
+echo shar: Extracting \"'tc.who.c'\" \(15045 characters\)
+sed "s/^X//" >'tc.who.c' <<'END_OF_FILE'
+X/* $Header: /home/hyperion/mu/christos/src/sys/tcsh-6.01/RCS/tc.who.c,v 3.10 1991/11/26 04:28:26 christos Exp $ */
+X/*
+X * tc.who.c: Watch logins and logouts...
+X */
+X/*-
+X * Copyright (c) 1980, 1991 The Regents of the University of California.
+X * All rights reserved.
+X *
+X * Redistribution and use in source and binary forms, with or without
+X * modification, are permitted provided that the following conditions
+X * are met:
+X * 1. Redistributions of source code must retain the above copyright
+X *    notice, this list of conditions and the following disclaimer.
+X * 2. Redistributions in binary form must reproduce the above copyright
+X *    notice, this list of conditions and the following disclaimer in the
+X *    documentation and/or other materials provided with the distribution.
+X * 3. All advertising materials mentioning features or use of this software
+X *    must display the following acknowledgement:
+X *	This product includes software developed by the University of
+X *	California, Berkeley and its contributors.
+X * 4. Neither the name of the University nor the names of its contributors
+X *    may be used to endorse or promote products derived from this software
+X *    without specific prior written permission.
+X *
+X * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+X * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+X * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+X * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+X * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+X * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+X * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+X * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+X * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+X * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+X * SUCH DAMAGE.
+X */
+X#include "sh.h"
+X
+RCSID("$Id: tc.who.c,v 3.10 1991/11/26 04:28:26 christos Exp $")
+X
+X#include "tc.h"
+X
+X/*
+X * kfk 26 Jan 1984 - for login watch functions.
+X */
+X#include <ctype.h>
+X
+X#ifdef HAVEUTMPX
+X# include <utmpx.h>
+X/* I just redefine a few words here.  Changing every occurrence below
+X * seems like too much of work.  All UTMP functions have equivalent
+X * UTMPX counterparts, so they can be added all here when needed.
+X * Kimmo Suominen, Oct 14 1991
+X */
+X# ifndef _PATH_UTMP
+X#  define _PATH_UTMP UTMPX_FILE
+X# endif /* _PATH_UTMP */
+X# define utmp utmpx
+X# define ut_time ut_xtime
+X#else /* !HAVEUTMPX */
+X# include <utmp.h>
+X#endif /* HAVEUTMPX */
+X
+X#ifndef BROKEN_CC
+X# define UTNAMLEN	sizeof(((struct utmp *) 0)->ut_name)
+X# define UTLINLEN	sizeof(((struct utmp *) 0)->ut_line)
+X# ifdef UTHOST
+X#  ifdef _SEQUENT_
+X#   define UTHOSTLEN	100
+X#  else
+X#   define UTHOSTLEN	sizeof(((struct utmp *) 0)->ut_host)
+X#  endif
+X# endif	/* UTHOST */
+X#else
+X/* give poor cc a little help if it needs it */
+struct utmp __ut;
+X
+X# define UTNAMLEN	sizeof(__ut.ut_name)
+X# define UTLINLEN	sizeof(__ut.ut_line)
+X# ifdef UTHOST
+X#  ifdef _SEQUENT_
+X#   define UTHOSTLEN	100
+X#  else
+X#   define UTHOSTLEN	sizeof(__ut.ut_host)
+X#  endif
+X# endif /* UTHOST */
+X#endif /* BROKEN_CC */
+X
+X#ifndef _PATH_UTMP
+X# ifdef	UTMP_FILE
+X#  define _PATH_UTMP UTMP_FILE
+X# else
+X#  define _PATH_UTMP "/etc/utmp"
+X# endif /* UTMP_FILE */
+X#endif /* _PATH_UTMP */
+X
+X
+struct who {
+X    struct who *w_next;
+X    struct who *w_prev;
+X    char    w_name[UTNAMLEN + 1];
+X    char    w_new[UTNAMLEN + 1];
+X    char    w_tty[UTLINLEN + 1];
+X#ifdef UTHOST
+X    char    w_host[UTHOSTLEN + 1];
+X#endif /* UTHOST */
+X    time_t  w_time;
+X    int     w_status;
+X};
+X
+static struct who whohead, whotail;
+static int watch_period = 0;
+static time_t stlast = 0;
+extern char *month_list[];
+extern char *day_list[];
+X#ifdef WHODEBUG
+static	void	debugwholist	__P((struct who *, struct who *));
+X#endif
+static	void	print_who	__P((struct who *));
+X
+X
+X#define ONLINE		01
+X#define OFFLINE		02
+X#define CHANGED		04
+X#define STMASK		07
+X#define ANNOUNCE	010
+X
+X/*
+X * Karl Kleinpaste, 26 Jan 1984.
+X * Initialize the dummy tty list for login watch.
+X * This dummy list eliminates boundary conditions
+X * when doing pointer-chase searches.
+X */
+void
+initwatch()
+X{
+X    whohead.w_next = &whotail;
+X    whotail.w_prev = &whohead;
+X#ifdef WHODEBUG
+X    debugwholist(NULL, NULL);
+X#endif /* WHODEBUG */
+X}
+X
+void
+resetwatch()
+X{
+X    watch_period = 0;
+X    stlast = 0;
+X}
+X
+X/*
+X * Karl Kleinpaste, 26 Jan 1984.
+X * Watch /etc/utmp for login/logout changes.
+X */
+void
+watch_login()
+X{
+X    int     utmpfd, comp = -1, alldone;
+X#ifdef BSDSIGS
+X    sigmask_t omask;
+X#endif				/* BSDSIGS */
+X    struct utmp utmp;
+X    struct who *wp, *wpnew;
+X    struct varent *v;
+X    Char  **vp;
+X    time_t  t, interval = MAILINTVL;
+X    struct stat sta;
+X#if defined(UTHOST) && defined(_SEQUENT_)
+X    char   *host, *ut_find_host();
+X#endif
+X
+X    /* stop SIGINT, lest our login list get trashed. */
+X#ifdef BSDSIGS
+X    omask = sigblock(sigmask(SIGINT));
+X#else
+X    (void) sighold(SIGINT);
+X#endif
+X
+X    v = adrof(STRwatch);
+X    if (v == NULL) {
+X#ifdef BSDSIGS
+X	(void) sigsetmask(omask);
+X#else
+X	(void) sigrelse(SIGINT);
+X#endif
+X	return;			/* no names to watch */
+X    }
+X    trim(vp = v->vec);
+X    if (blklen(vp) % 2)		/* odd # args: 1st == # minutes. */
+X	interval = (number(*vp)) ? getn(*vp++) : MAILINTVL;
+X    (void) time(&t);
+X    if (t - watch_period < interval * 60) {
+X#ifdef BSDSIGS
+X	(void) sigsetmask(omask);
+X#else
+X	(void) sigrelse(SIGINT);
+X#endif
+X	return;			/* not long enough yet... */
+X    }
+X    watch_period = t;
+X
+X    /*
+X     * From: Michael Schroeder <mlschroe@immd4.informatik.uni-erlangen.de>
+X     * Don't open utmp all the time, stat it first...
+X     */
+X    if (stat(_PATH_UTMP, &sta)) {
+X	xprintf("cannot stat %s.  Please \"unset watch\".\n", _PATH_UTMP);
+X#ifdef BSDSIGS
+X	(void) sigsetmask(omask);
+X#else
+X	(void) sigrelse(SIGINT);
+X#endif
+X	return;
+X    }
+X    if (stlast == sta.st_mtime) {
+X#ifdef BSDSIGS
+X	(void) sigsetmask(omask);
+X#else
+X	(void) sigrelse(SIGINT);
+X#endif
+X	return;
+X    }
+X    stlast = sta.st_mtime;
+X    if ((utmpfd = open(_PATH_UTMP, O_RDONLY)) < 0) {
+X	xprintf("%s cannot be opened.  Please \"unset watch\".\n", _PATH_UTMP);
+X#ifdef BSDSIGS
+X	(void) sigsetmask(omask);
+X#else
+X	(void) sigrelse(SIGINT);
+X#endif
+X	return;
+X    }
+X
+X    /*
+X     * xterm clears the entire utmp entry - mark everyone on the status list
+X     * OFFLINE or we won't notice X "logouts"
+X     */
+X    for (wp = whohead.w_next; wp->w_next != NULL; wp = wp->w_next) {
+X	wp->w_status = OFFLINE;
+X	wp->w_time = 0;
+X    }
+X
+X    /*
+X     * Read in the utmp file, sort the entries, and update existing entries or
+X     * add new entries to the status list.
+X     */
+X    while (read(utmpfd, (char *) &utmp, sizeof utmp) == sizeof utmp) {
+X
+X#ifdef DEAD_PROCESS
+X# ifndef IRIS4D
+X	if (utmp.ut_type != USER_PROCESS)
+X	    continue;
+X# else
+X	/* Why is that? Cause the utmp file is always corrupted??? */
+X	if (utmp.ut_type != USER_PROCESS && utmp.ut_type != DEAD_PROCESS)
+X	    continue;
+X# endif /* IRIS4D */
+X#endif /* DEAD_PROCESS */
+X
+X	if (utmp.ut_name[0] == '\0' && utmp.ut_line[0] == '\0')
+X	    continue;	/* completely void entry */
+X#ifdef DEAD_PROCESS
+X	if (utmp.ut_type == DEAD_PROCESS && utmp.ut_line[0] == '\0')
+X	    continue;
+X#endif /* DEAD_PROCESS */
+X	wp = whohead.w_next;
+X	while (wp->w_next && (comp = strncmp(wp->w_tty, utmp.ut_line, UTLINLEN)) < 0)
+X	    wp = wp->w_next;/* find that tty! */
+X
+X	if (wp->w_next && comp == 0) {	/* found the tty... */
+X#ifdef DEAD_PROCESS
+X	    if (utmp.ut_type == DEAD_PROCESS) {
+X		wp->w_time = utmp.ut_time;
+X		wp->w_status = OFFLINE;
+X	    }
+X	    else
+X#endif /* DEAD_PROCESS */
+X	    if (utmp.ut_name[0] == '\0') {
+X		wp->w_time = utmp.ut_time;
+X		wp->w_status = OFFLINE;
+X	    }
+X	    else if (strncmp(utmp.ut_name, wp->w_name, UTNAMLEN) == 0) {
+X		/* someone is logged in */ 
+X		wp->w_time = utmp.ut_time;
+X		wp->w_status = 0;	/* same guy */
+X	    }
+X	    else {
+X		(void) strncpy(wp->w_new, utmp.ut_name, UTNAMLEN);
+X#ifdef UTHOST
+X# ifdef _SEQUENT_
+X		host = ut_find_host(wp->w_tty);
+X		if (host)
+X		    (void) strncpy(wp->w_host, host, UTHOSTLEN);
+X		else
+X		    wp->w_host[0] = 0;
+X# else
+X		(void) strncpy(wp->w_host, utmp.ut_host, UTHOSTLEN);
+X# endif
+X#endif /* UTHOST */
+X		wp->w_time = utmp.ut_time;
+X		if (wp->w_name[0] == '\0')
+X		    wp->w_status = ONLINE;
+X		else
+X		    wp->w_status = CHANGED;
+X	    }
+X	}
+X	else {		/* new tty in utmp */
+X	    wpnew = (struct who *) xcalloc(1, sizeof *wpnew);
+X	    (void) strncpy(wpnew->w_tty, utmp.ut_line, UTLINLEN);
+X#ifdef UTHOST
+X# ifdef _SEQUENT_
+X	    host = ut_find_host(wpnew->w_tty);
+X	    if (host)
+X		(void) strncpy(wpnew->w_host, host, UTHOSTLEN);
+X	    else
+X		wpnew->w_host[0] = 0;
+X# else
+X	    (void) strncpy(wpnew->w_host, utmp.ut_host, UTHOSTLEN);
+X# endif
+X#endif /* UTHOST */
+X	    wpnew->w_time = utmp.ut_time;
+X#ifdef DEAD_PROCESS
+X	    if (utmp.ut_type == DEAD_PROCESS)
+X		wpnew->w_status = OFFLINE;
+X	    else
+X#endif /* DEAD_PROCESS */
+X	    if (utmp.ut_name[0] == '\0')
+X		wpnew->w_status = OFFLINE;
+X	    else {
+X		(void) strncpy(wpnew->w_new, utmp.ut_name, UTNAMLEN);
+X		wpnew->w_status = ONLINE;
+X	    }
+X#ifdef WHODEBUG
+X	    debugwholist(wpnew, wp);
+X#endif /* WHODEBUG */
+X
+X	    wpnew->w_next = wp;	/* link in a new 'who' */
+X	    wpnew->w_prev = wp->w_prev;
+X	    wpnew->w_prev->w_next = wpnew;
+X	    wp->w_prev = wpnew;	/* linked in now */
+X	}
+X    }
+X    (void) close(utmpfd);
+X#if defined(UTHOST) && defined(_SEQUENT_)
+X    endutent();
+X#endif
+X
+X    /*
+X     * The state of all logins is now known, so we can search the user's list
+X     * of watchables to print the interesting ones.
+X     */
+X    for (alldone = 0; !alldone && *vp != NULL && **vp != '\0' &&
+X	 *(vp + 1) != NULL && **(vp + 1) != '\0';
+X	 vp += 2) {		/* args used in pairs... */
+X
+X	if (eq(*vp, STRany) && eq(*(vp + 1), STRany))
+X	    alldone = 1;
+X
+X	for (wp = whohead.w_next; wp->w_next != NULL; wp = wp->w_next) {
+X	    if (wp->w_status & ANNOUNCE ||
+X		(!eq(STRany, vp[0]) &&
+X		 !Gmatch(str2short(wp->w_name), vp[0]) &&
+X		 !Gmatch(str2short(wp->w_new),  vp[0])) ||
+X		(!Gmatch(str2short(wp->w_tty),  vp[1]) &&
+X		 !eq(STRany, vp[1])))
+X		continue;	/* entry doesn't qualify */
+X	    /* already printed or not right one to print */
+X
+X	    if (wp->w_time == 0)/* utmp entry was cleared */
+X		wp->w_time = watch_period;
+X
+X	    if ((wp->w_status & OFFLINE) &&
+X		(wp->w_name[0] != '\0')) {
+X		print_who(wp);
+X		wp->w_name[0] = '\0';
+X		wp->w_status |= ANNOUNCE;
+X		continue;
+X	    }
+X	    if (wp->w_status & ONLINE) {
+X		print_who(wp);
+X		(void) strcpy(wp->w_name, wp->w_new);
+X		wp->w_status |= ANNOUNCE;
+X		continue;
+X	    }
+X	    if (wp->w_status & CHANGED) {
+X		print_who(wp);
+X		(void) strcpy(wp->w_name, wp->w_new);
+X		wp->w_status |= ANNOUNCE;
+X		continue;
+X	    }
+X	}
+X    }
+X#ifdef BSDSIGS
+X    (void) sigsetmask(omask);
+X#else
+X    (void) sigrelse(SIGINT);
+X#endif
+X}
+X
+X#ifdef WHODEBUG
+static void
+debugwholist(new, wp)
+X    register struct who *new, *wp;
+X{
+X    register struct who *a;
+X
+X    a = whohead.w_next;
+X    while (a->w_next != NULL) {
+X	xprintf("%s/%s -> ", a->w_name, a->w_tty);
+X	a = a->w_next;
+X    }
+X    xprintf("TAIL\n");
+X    if (a != &whotail) {
+X	xprintf("BUG! last element is not whotail!\n");
+X	abort();
+X    }
+X    a = whotail.w_prev;
+X    xprintf("backward: ");
+X    while (a->w_prev != NULL) {
+X	xprintf("%s/%s -> ", a->w_name, a->w_tty);
+X	a = a->w_prev;
+X    }
+X    xprintf("HEAD\n");
+X    if (a != &whohead) {
+X	xprintf("BUG! first element is not whohead!\n");
+X	abort();
+X    }
+X    if (new)
+X	xprintf("new: %s/%s\n", new->w_name, new->w_tty);
+X    if (wp)
+X	xprintf("wp: %s/%s\n", wp->w_name, wp->w_tty);
+X}
+X#endif /* WHODEBUG */
+X
+X
+static void
+print_who(wp)
+X    struct who *wp;
+X{
+X#ifdef UTHOST
+X    char   *cp = "%n has %a %l from %m.";
+X    char   *ptr, flg;
+X#else
+X    char   *cp = "%n has %a %l.";
+X#endif /* UTHOST */
+X
+X    struct varent *vp = adrof(STRwho);
+X    struct tm *t;
+X    char    ampm = 'a';
+X    int     attributes = 0;
+X
+X    t = localtime(&wp->w_time);
+X    if (vp && vp->vec[0])
+X	cp = short2str(vp->vec[0]);
+X
+X    for (; *cp; cp++)
+X	if (*cp != '%')
+X	    xputchar(*cp | attributes);
+X	else
+X	    switch (*++cp) {
+X	    case 'n':		/* user name */
+X		switch (wp->w_status & STMASK) {
+X		case ONLINE:
+X		case CHANGED:
+X		    xprintf("%a%s", attributes, wp->w_new);
+X		    break;
+X		case OFFLINE:
+X		    xprintf("%a%s", attributes, wp->w_name);
+X		    break;
+X		default:
+X		    break;
+X		}
+X		break;
+X	    case 'a':
+X		switch (wp->w_status & STMASK) {
+X		case ONLINE:
+X		    xprintf("%a%s", attributes, "logged on");
+X		    break;
+X		case OFFLINE:
+X		    xprintf("%a%s", attributes, "logged off");
+X		    break;
+X		case CHANGED:
+X		    xprintf("%areplaced %s on", attributes, wp->w_name);
+X		    break;
+X		default:
+X		    break;
+X		}
+X		break;
+X	    case 'S':		/* start standout */
+X		attributes |= STANDOUT;
+X		break;
+X	    case 'B':		/* start bold */
+X		attributes |= BOLD;
+X		break;
+X	    case 'U':		/* start underline */
+X		attributes |= UNDER;
+X		break;
+X	    case 's':		/* end standout */
+X		attributes &= ~STANDOUT;
+X		break;
+X	    case 'b':		/* end bold */
+X		attributes &= ~BOLD;
+X		break;
+X	    case 'u':		/* end underline */
+X		attributes &= ~UNDER;
+X		break;
+X	    case 't':
+X	    case 'T':
+X	    case '@':
+X		if (adrof(STRampm) || *cp != 'T') {
+X		    int     hr = t->tm_hour;
+X
+X		    if (hr >= 12) {
+X			if (hr > 12)
+X			    hr -= 12;
+X			ampm = 'p';
+X		    }
+X		    else if (hr == 0)
+X			hr = 12;
+X		    xprintf("%a%d:%02d%cm", attributes, hr, t->tm_min, ampm);
+X		}
+X		else
+X		    xprintf("%a%d:%02d", attributes, t->tm_hour, t->tm_min);
+X		break;
+X	    case 'd':
+X		xprintf("%a%02d", attributes, day_list[t->tm_wday]);
+X		break;
+X	    case 'D':
+X		xprintf("%a%02d", attributes, t->tm_mday);
+X		break;
+X	    case 'w':
+X		xprintf("%a%s", attributes, month_list[t->tm_mon]);
+X		break;
+X	    case 'W':
+X		xprintf("%a%02d", attributes, t->tm_mon + 1);
+X		break;
+X	    case 'y':
+X		xprintf("%a%02d", attributes, t->tm_year);
+X		break;
+X	    case 'Y':
+X		xprintf("%a%04d", attributes, t->tm_year + 1900);
+X		break;
+X	    case 'l':
+X		xprintf("%a%s", attributes, wp->w_tty);
+X		break;
+X#ifdef UTHOST
+X	    case 'm':
+X		if (wp->w_host[0] == '\0')
+X		    xprintf("%alocal", attributes);
+X		else
+X		    /* the ':' stuff is for <host>:<display>.<screen> */
+X		    for (ptr = wp->w_host, flg = Isdigit(*ptr) ? '\0' : '.';
+X			 *ptr != '\0' &&
+X			 (*ptr != flg || ((ptr = strchr(ptr, ':')) != 0));
+X			 ptr++) {
+X			if (*ptr == ':')
+X			    flg = '\0';
+X			xputchar((int)
+X				 ((Isupper(*ptr) ? Tolower(*ptr) : *ptr) |
+X				  attributes));
+X		    }
+X		break;
+X	    case 'M':
+X		if (wp->w_host[0] == '\0')
+X		    xprintf("%alocal", attributes);
+X		else
+X		    for (ptr = wp->w_host; *ptr != '\0'; ptr++)
+X			xputchar((int)
+X				 ((Isupper(*ptr) ? Tolower(*ptr) : *ptr) |
+X				  attributes));
+X		break;
+X#endif /* UTHOST */
+X	    default:
+X		xputchar('%' | attributes);
+X		xputchar(*cp | attributes);
+X		break;
+X	    }
+X    xputchar('\n');
+X} /* end print_who */
+X
+void
+X/*ARGSUSED*/
+dolog(v, c)
+Char **v;
+struct command *c;
+X{
+X    struct who *wp;
+X    struct varent *vp;
+X
+X    if ((vp = adrof(STRwatch)) == NULL)
+X	stderror(ERR_NOWATCH);
+X    blkpr(vp->vec);
+X    xprintf("\n");
+X    resetwatch();
+X    wp = whohead.w_next;
+X    while (wp->w_next != NULL) {
+X	wp->w_name[0] = '\0';
+X	wp = wp->w_next;
+X    }
+X}
+END_OF_FILE
+if test 15045 -ne `wc -c <'tc.who.c'`; then
+    echo shar: \"'tc.who.c'\" unpacked with wrong size!
+fi
+# end of 'tc.who.c'
+fi
+echo shar: End of archive 7 \(of 18\).
+cp /dev/null ark7isdone
+MISSING=""
+for I in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 ; do
+    if test ! -f ark${I}isdone ; then
+	MISSING="${MISSING} ${I}"
+    fi
+done
+if test "${MISSING}" = "" ; then
+    echo You have unpacked all 18 archives.
+    rm -f ark[1-9]isdone ark[1-9][0-9]isdone
+else
+    echo You still need to unpack the following archives:
+    echo "        " ${MISSING}
+fi
+##  End of shell archive.
+exit 0

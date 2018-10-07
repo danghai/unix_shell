@@ -1,0 +1,89 @@
+MS-Shell Version 2.x: Memory Manager Errors.
+
+Release 2.x generates
+
+    Warning: XMS error (hex number) or
+    Warning: EMS error (hex number)
+
+when it detects a XMS or EMS manager error.  The following list gives the
+values of the hex number and their meaning.  If the Shell reports one of
+these errors, something unexpected has happened.
+
+
+XMS Errors:
+
+    80		The function is not implemented
+    81		A VDISK device is detected
+    82		An A20 error occurs
+    8E		A general driver error occurs
+    8F		An unrecoverable driver error occurs
+    90		The HMA does not exist
+    91		The HMA is already in use
+    92		DX is less than the /HMAMIN= parameter
+    93		The HMA is not allocated
+    94		The A20 line is still enabled
+    A0		All extended memory is allocated
+    A1		All available extended memory handles are in use
+    A2		The handle is invalid
+    A3		The SourceHandle is invalid
+    A4		The SourceOffset is invalid
+    A5		The DestHandle is invalid
+    A6		The DestOffset is invalid
+    A7		The Length is invalid
+    A8		The move has an invalid overlap
+    A9		A parity error occurs
+    AA		The block is not locked
+    AB		The block is locked
+    AC		The block's lock count overflows
+    AD		The lock fails
+    B0		A smaller UMB is available
+    B1		No UMBs are available
+    B2		The UMB segment number is invalid
+
+EMS Error Codes:
+
+    80		Internal error in EMM software (possibly corrupted driver)
+    81		Hardware malfunction
+    82		EMM busy (dropped in EEMS 3.2)
+    83		Invalid EMM handle
+    84		Function requested not defined - unknown function code in AH.
+    85		No more EMM handles availible
+    86		Error in save or restore of mapping context
+    87		More pages requested than exist
+    88		Allocation request specified more logical pages than currently
+		availible in system (request does not exceed actual physical
+		number of pages, but some are already allocated to other
+		handles); no pages allocated
+    89		Zero pages; cannot be allocated (dropped in EMS 4.0)
+    8A		Logical page requested to be mapped outside range of logical
+		pages assigned to handle
+    8B		Illegal page number in mapping request (valid numbers are 0 to
+		3)
+    8C		Page-mapping hardware state save area full
+    8D		Save of mapping context failed; save area already contains
+		context associated with page handle
+    8E		Restore of mapping context failed; save area does not contain
+		context for requested handle
+    8F		Subfunction parameter not defined (unknown function)
+    90		Attribute type undefined
+    91		Warm boot data save not implemented
+    92		Move overlaps memory
+    93		Move/exchange larger than allocated region
+    94		Conventional/expanded regions overlap
+    95		Logical page offset outside of logical page
+    96		Region larger than 1 MB
+    97		Exchange source/destination overlap
+    98		Source/destination undefined or not supported
+    99		(no status assigned)
+    9A		Alternate map register sets supported, specified set is not
+    9B		All alternate map & DMA register sets allocated
+    9C		Alternate map & DMA register sets not supported
+    9D		Alternate map register or DMA set not defined, allocated or is
+		currently defined set
+    9E		Dedicated DMA channels not supported
+    9F		Dedicated DMA channels supported; specifed channel is not
+    A0		Named handle could not be found
+    A1		Handle name already exists
+    A2		Move/exchange wraps around 1 MB boundry
+    A3		Data structure contains corrupted data
+    A4		Access denied

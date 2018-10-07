@@ -1,0 +1,3111 @@
+Newsgroups: comp.sources.unix
+From: christos@ee.cornell.edu (Christos Zoulas)
+Subject: v25i071: tcsh6.01 - a csh replacement with lots of extra goodies, Part18/18
+Message-ID: <1991Dec20.214719.8240@PA.dec.com>
+Date: Fri, 20 Dec 91 21:47:19 GMT
+Approved: vixie@pa.dec.com
+
+Submitted-By: christos@ee.cornell.edu (Christos Zoulas)
+Posting-Number: Volume 25, Issue 71
+Archive-Name: tcsh-6.01/part18
+
+#! /bin/sh
+# This is a shell archive.  Remove anything before this line, then unpack
+# it by saving it into a file and typing "sh file".  To overwrite existing
+# files, type "sh file -c".  You can also feed this as standard input via
+# unshar, or by typing "sh <file", e.g..  If this archive is complete, you
+# will see the following message at the end:
+#		"End of archive 18 (of 18)."
+# Contents:  tcsh.man
+# Wrapped by vixie@cognition.pa.dec.com on Fri Dec 20 13:29:30 1991
+PATH=/bin:/usr/bin:/usr/ucb ; export PATH
+if test -f 'tcsh.man' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'tcsh.man'\"
+else
+echo shar: Extracting \"'tcsh.man'\" \(82166 characters\)
+sed "s/^X//" >'tcsh.man' <<'END_OF_FILE'
+X.\" $Id: tcsh.man,v 3.26 1991/12/19 21:40:06 christos Exp $
+X.TH TCSH 1 "19 December 1991" "Cornell"
+X.SH NAME
+tcsh \- C shell with file name completion and command line editing
+X.SH SYNOPSIS
+X.B tcsh 
+X[ 
+X.B \-bcdefFilmnqstvVxX 
+X.B \-Dname[=value]
+X] 
+X[ 
+X.I argument .\|.\|.  
+X]
+X.SH DESCRIPTION
+X.I Tcsh
+is an enhanced version of the Berkeley UNIX C shell
+X.IR csh (1).
+It behaves exactly like the C shell,
+except for the added utilities of:
+X.sp
+X.RS +.6i
+X.ti -4
+X1)  Command line editing using Emacs-style commands.
+X.sp
+X.ti -4
+X2)  Visual step up/down through the history list.
+X.sp
+X.ti -4
+X3)  Terminal mode sanity checking and resetting.
+X.sp
+X.ti -4
+X4)  Interactive command, file name and user name completion.
+X.sp
+X.ti -4
+X5)  File/directory/user list in the middle of a typed command.
+X.sp
+X.ti -4
+X6)  Spelling correction of command, file, and user names.
+X.sp
+X.ti -4
+X7)  Lookup of command documentation in the middle of a typed command.
+X.sp
+X.ti -4
+X8)  Enhanced history mechanism.
+X.sp
+X.ti -4
+X9)  Automatic locking/logout after long periods of idle time.
+X.sp
+X.ti -4
+X10) Automatic execution of a single command prior to printing each prompt.
+X.sp
+X.ti -4
+X11) Automatic periodic command execution.
+X.sp
+X.ti -4
+X12) A new syntax for the prompt, and the ability to set the prompt for
+X"while" and "for" loops.
+X.sp
+X.ti -4
+X13) Time stamps in the history list.
+X.sp
+X.ti -4
+X14) An addition to the syntax of filenames to access entries in the
+directory stack, and the ability treat symbolic links in a sane
+way when changing directories.
+X.sp
+X.ti -4
+X15) The ability to watch for logins and logouts by user or terminal
+on the machine.
+X.sp
+X.ti -4
+X16) A scheduled event list, which specifies commands which are to be
+executed at given times.
+X.sp
+X.ti -4
+X17) A new builtin that does a subset of
+X.IR ls (1).
+X.sp
+X.ti -4
+X18) An addition to the file expression syntax for a character not
+in a set of characters and the ability to negate a globbing pattern.
+X.sp
+X.ti -4
+X19) New automatically initialized environment variables \fIHOST\fR and
+X\fIHOSTTYPE\fR.
+X.sp
+X.ti -4
+X20) Commands for debugging terminal capabilities.
+X.sp
+X.ti -4
+X21) Searching for the visual history mechanism.
+X.sp
+X.ti -4
+X22) New builtins for the
+X.IR which (1) 
+and
+X.IR where
+commands.
+X.sp
+X.ti -4
+X23) Restarting a stopped editor with two keystrokes.
+X.sp
+X.ti -4
+X24) Status line support
+X.sp
+X.ti -4
+X25) Automatic execution of a command when the current working
+directory is changed.
+X.sp
+X.ti -4
+X26) Native Language System support.
+X.sp
+X.ti -4
+X27) Automatic process time reporting.
+X.sp
+X.ti -4
+X28) OS Dependent Builtin Support
+X.sp
+X.ti -4
+X29) Automatic window size adjustment
+X.sp
+X.ti -4
+X30) Input files
+X.sp
+X.ti -4
+X31) Additional/Undocumented Options
+X.sp
+X.ti -4
+X32) Enhanced history/variable modifier expansion
+X.RE
+X.sp
+XFor a description of standard C-shell features, see the
+X.I csh
+manual page.
+X.PP
+X.SH "1. COMMAND LINE EDITING"
+Commands that the user types in may be edited using the same control
+characters that Gnu Emacs or vi uses.  Arrow and function key sequences are
+also allowed.
+X.I Tcsh
+allows this by setting the terminal to `CBREAK' mode and reading the input
+one character at a time.
+X.PP
+There is a new shell command, 
+X.I bindkey,
+that allows the user to redefine what any key does, or find out what
+any or all of the keys do.
+X.PP
+Syntax: bindkey [ -a ] [ -c ] [ -s ] [ -v ] [ -e ] [ -d ] [ -l ] [ -r ] [ -- ] [ in-string [ out-string | command ]]
+X.PP
+If no values are given all bindings are listed. If only in-string is given,
+bindings for the in-string is listed.
+X.PP
+Otherwise it binds the in-string to the given out-string or command.
+If out-string, this is treated as input to 
+X.I tcsh 
+when in-string is typed. This may be used recursively to currently a level 
+of 10 deep.
+X.PP
+There are two basic key maps: the normal and alternative one. The alternative 
+is used by VI command mode. For multi-character input the basic key maps
+contains a sequence-lead-in for the first character in the input.
+X.PP
+Options:
+X    -a    bind in-string in alternative key map.
+X.br
+X    -s    bind an out-string instead of a command
+X.br
+X    -c    bind a unix command instead of a command
+X.br
+X    -v    bind for default VI-mode
+X.br
+X    -e    bind for default emacs-mode
+X.br
+X    -d    bind to compiled in default
+X.br
+X    -l    list functions available with short description
+X.br
+X    -r    remove the binding of in-string
+X.PP
+In strings control characters may be written as caret-<letter> and
+backslash ("\e") is used to escape a character as follows:
+X.RS
+X.PD 0
+X.TP
+X.B \ea
+bell character
+X.TP
+X.B \en
+line feed (new line)
+X.TP
+X.B \eb
+back space
+X.TP 
+X.B \et
+horizontal tab
+X.TP  
+X.B \ev
+vertical tab
+X.TP   
+X.B \ef
+form feed
+X.TP    
+X.B \er
+carriage return
+X.TP     
+X.B \ee
+escape
+X.TP
+X.B \ennn
+character code in octal
+X.PD
+X.RE
+In all other cases \e escapes the following character. Needed for
+escaping the special meaning of \e and ^.
+Delete is written as "^?" (caret-question mark).
+X.PP
+X.I Tcsh 
+always binds the arrow keys as defined by the termcap entry to:
+X.RS +.6i
+X.nf
+X.ta 1.5i
+X.sp
+up arrow	up-history
+down arrow	down-history
+right arrow	forward-char
+left arrow	backward-char
+X.RE
+X.DT
+X.fi
+X.sp
+except where these bindings would alter other single character bindings.
+If this is not desired one can avoid the automatic arrow key binding using
+X.I settc 
+to change the arrow key escape sequences to the empty string.
+The ansi/vt100 sequences for arrow keys are always bound.
+X.PP
+The following is a list of the default emacs and vi bindings.
+Characters with the 8th bit set are written as M-<character>.
+Note however, that unlike with the old
+X.I bind
+command (see below), the syntax M-<character> has no special meaning to the
+X.I bindkey
+command, and the bindings for the sequence escape+<character> and 
+M-<character> as given below are handled separately (although the
+the default bindings are the same).
+The printable ascii characters not mentioned in the list are bound to the
+X.I self-insert-command
+function, which just inserts the given character literally into the input line.
+The remaining characters are bound to the
+X.I undefined-key
+function, which only causes a beep (unless
+X.I nobeep
+is set, of course).
+X.RS +.6i
+X.nf
+X.ta 2.5i
+X.sp
+XEMACS bindings
+X.sp
+X"^@"	->  set-mark-command
+X"^A"	->  beginning-of-line
+X"^B"	->  backward-char
+X"^C"	->  tty-sigintr
+X"^D"	->  delete-char-or-list
+X"^E"	->  end-of-line
+X"^F"	->  forward-char
+X"^G"	->  is undefined
+X"^H"	->  backward-delete-char
+X"^I"	->  complete-word
+X"^J"	->  newline
+X"^K"	->  kill-line
+X"^L"	->  clear-screen
+X"^M"	->  newline
+X"^N"	->  down-history
+X"^O"	->  tty-flush-output
+X"^P"	->  up-history
+X"^Q"	->  tty-start-output
+X"^R"	->  redisplay
+X"^S"	->  tty-stop-output
+X"^T"	->  transpose-chars
+X"^U"	->  kill-whole-line
+X"^V"	->  quoted-insert
+X"^W"	->  kill-region
+X"^X"	->  sequence-lead-in
+X"^Y"	->  yank
+X"^Z"	->  tty-sigtsusp
+X"^["	->  sequence-lead-in
+X"^\e"	->  tty-sigquit
+X"^]"	->  tty-dsusp
+X" " to "/"	->  self-insert-command
+X"0"  to "9"	->  digit
+X":"  to "~"	->  self-insert-command
+X"^?"	->  backward-delete-char
+X.PP
+XEMACS Multi-character and 8 bit bindings
+X.sp
+X"^[^D" or "M-^D"	->  list-choices
+X"^[^H" or "M-^H"	->  backward-delete-word
+X"^[^I" or "M-^I"	->  complete-word
+X"^[^L" or "M-^L"	->  clear-screen
+X"^[^Z" or "M-^Z"	->  run-fg-editor
+X"^[^[" or "M-^["	->  complete-word
+X"^[^_" or "M-^_"	->  copy-prev-word
+X"^[ "  or "M- "	->  expand-history
+X"^[!"  or "M-!"	->  expand-history
+X"^[$"  or "M-$"	->  spell-line
+X"^[0"  or "M-0"	->  digit-argument
+X"^[1"  or "M-1"	->  digit-argument
+X"^[2"  or "M-2"	->  digit-argument
+X"^[3"  or "M-3"	->  digit-argument
+X"^[4"  or "M-4"	->  digit-argument
+X"^[5"  or "M-5"	->  digit-argument
+X"^[6"  or "M-6"	->  digit-argument
+X"^[7"  or "M-7"	->  digit-argument
+X"^[8"  or "M-8"	->  digit-argument
+X"^[9"  or "M-9"	->  digit-argument
+X"^[?"  or "M-?"	->  which-command
+X"^[B"  or "M-B"	->  backward-word
+X"^[C"  or "M-C"	->  capitalize-word
+X"^[D"  or "M-D"	->  delete-word
+X"^[F"  or "M-F"	->  forward-word
+X"^[H"  or "M-H"	->  run-help
+X"^[L"  or "M-L"	->  downcase-word
+X"^[N"  or "M-N"	->  history-search-forward
+X"^[P"  or "M-P"	->  history-search-backward
+X"^[R"  or "M-R"	->  toggle-literal-history
+X"^[S"  or "M-S"	->  spell-word
+X"^[U"  or "M-U"	->  upcase-word
+X"^[W"  or "M-W"	->  copy-region-as-kill
+X"^[_"  or "M-_"	->  insert-last-word
+X"^[b"  or "M-b"	->  backward-word
+X"^[c"  or "M-c"	->  capitalize-word
+X"^[d"  or "M-d"	->  delete-word
+X"^[f"  or "M-f"	->  forward-word
+X"^[h"  or "M-h"	->  run-help
+X"^[l"  or "M-l"	->  downcase-word
+X"^[n"  or "M-n"	->  history-search-forward
+X"^[p"  or "M-p"	->  history-search-backward
+X"^[r"  or "M-r"	->  toggle-literal-history
+X"^[s"  or "M-s"	->  spell-word
+X"^[u"  or "M-u"	->  upcase-word
+X"^[w"  or "M-w"	->  copy-region-as-kill
+X"^[^?" or "M-^?"	->  backward-delete-word
+X"^X^X"	->  exchange-point-and-mark
+X"^X*"	->  expand-glob
+X"^X$"	->  expand-variables
+X"^XG"	->  list-glob
+X"^Xg"	->  list-glob
+X"^Xn	->  normalize-path
+X"^XN	->  normalize-path
+X.sp
+X.PP
+VI Insert Mode functions
+X.sp
+X"^@"	->  is undefined
+X"^A"	->  beginning-of-line
+X"^B"	->  backward-char
+X"^C"	->  tty-sigintr
+X"^D"	->  list-or-eof
+X"^E"	->  end-of-line
+X"^F"	->  forward-char
+X"^G"	->  list-glob
+X"^H"	->  backward-delete-char
+X"^I"	->  complete-word
+X"^J"	->  newline
+X"^K"	->  kill-line
+X"^L"	->  clear-screen
+X"^M"	->  newline
+X"^N"	->  down-history
+X"^O"	->  tty-flush-output
+X"^P"	->  up-history
+X"^Q"	->  tty-start-output
+X"^R"	->  redisplay
+X"^S"	->  tty-stop-output
+X"^T"	->  transpose-chars
+X"^U"	->  backward-kill-line
+X"^V"	->  quoted-insert
+X"^W"	->  backward-delete-word
+X"^X"	->  expand-line
+X"^Y"	->  tty-dsusp
+X"^Z"	->  tty-sigtsusp
+X"^["	->  vi-cmd-mode
+X"^\e"	->  tty-sigquit
+X" " to "~"	->  self-insert-command
+X"^?"	->  backward-delete-char
+X.PP
+VI Command Mode functions
+X.sp
+X"^@"	->  is undefined
+X"^A"	->  beginning-of-line
+X"^B"	->  is undefined
+X"^C"	->  tty-sigintr
+X"^D"	->  list-choices
+X"^E"	->  end-of-line
+X"^F"	->  is undefined
+X"^G"	->  list-glob
+X"^H"	->  backward-char
+X"^I"	->  vi-cmd-mode-complete
+X"^J"	->  newline
+X"^K"	->  kill-line
+X"^L"	->  clear-screen
+X"^M"	->  newline
+X"^N"	->  down-history
+X"^O"	->  tty-flush-output
+X"^P"	->  up-history
+X"^Q"	->  tty-start-output
+X"^R"	->  redisplay
+X"^S"	->  tty-stop-output
+X"^T"	->  is undefined
+X"^U"	->  backward-kill-line
+X"^V"	->  is undefined
+X"^W"	->  backward-delete-word
+X"^X"	->  expand-line
+X"^["	->  sequence-lead-in
+X"^\e"	->  tty-sigquit
+X" "	->  forward-char
+X"!"	->  expand-history
+X"$"	->  end-of-line
+X"*"	->  expand-glob
+X"+"	->  down-history
+X";"	->  vi-repeat-char-fwd
+X","	->  vi-repeat-char-back
+X"-"	->  up-history
+X"."	->  is undefined
+X"/"	->  vi-search-back
+X"0"	->  vi-zero
+X"1" to "9"	->  digit-argument
+X"?"	->  vi-search-fwd
+X"@"	->  is undefined
+X"A"	->  vi-add-at-eol
+X"B"	->  vi-word-back
+X"C"	->  change-till-end-of-line
+X"D"	->  kill-line
+X"E"	->  vi-endword
+X"F"	->  vi-char-back
+X"I"	->  vi-insert-at-bol
+X"J"	->  history-search-forward
+X"K"	->  history-search-backward
+X"N"	->  vi-search-back
+X"O"	->  sequence-lead-in
+X"R"	->  vi-replace-mode
+X"S"	->  vi-substitute-line
+X"T"	->  vi-charto-back
+X"U"	->  is undefined
+X"V"	->  expand-variables
+X"W"	->  vi-word-fwd
+X"X"	->  backward-delete-char
+X"["	->  sequence-lead-in
+X"\e^"	->  beginning-of-line
+X"a"	->  vi-add
+X"b"	->  backward-word
+X"c"	->  is undefined
+X"d"	->  vi-delmeta
+X"e"	->  vi-eword
+X"f"	->  vi-char-fwd
+X"h"	->  backward-char
+X"i"	->  vi-insert
+X"j"	->  down-history
+X"k"	->  up-history
+X"l"	->  forward-char
+X"m"	->  is undefined
+X"n"	->  vi-search-fwd
+X"r"	->  vi-replace-char
+X"s"	->  vi-substitute-char
+X"t"	->  vi-charto-fwd
+X"u"	->  vi-undo
+X"v"	->  expand-variables
+X"w"	->  vi-beginning-of-next-word
+X"x"	->  delete-char
+X"~"	->  change-case
+X"^?"	->  backward-delete-char
+X"M-?"	->  run-help
+X"M-["	->  sequence-lead-in
+X"M-O"	->  sequence-lead-in
+X.PP
+VI Multi-character bindings
+X.sp
+X"^[?"	->  run-help
+X.RE
+X.DT
+X.fi
+X.sp
+X.PP
+In 
+X.I tcsh
+there are two input modes: 
+X.I insert
+and
+X.I overwrite.
+All characters that are bound to the 
+X.I self-insert-command
+either get inserted or overwrite what was under the cursor depending
+on the input mode. In emacs one can toggle between modes using
+the
+X.I overwrite-mode
+function, and in VI one can use any of the replace mode commands.
+By default the mode is preserved between input lines. To specify
+a default mode that can be enforced at the beginning of each command line,
+the variable 
+X.I inputmode
+can be set
+to either
+X.I insert
+or 
+X.I overwrite.
+X.PP
+There is also an older version of bindkey called 
+X.I bind,
+that allows the user to redefine what any key does, or find out what
+any or all of the keys do. This is retained for compatibility reasons.
+X.PP
+If given two arguments 
+X.I bind
+binds the function (first argument) to the given key (second
+argument).  The key may be: the direct character or a caret-<letter>
+combination, which is converted to control-<letter>; M-<letter> for an
+escaped character; or F-<string> for a function key.  For the last of
+these, the function key prefix must be bound to the function
+X"sequence-lead-in" and the string specified to the
+X.I bind
+command must not include this prefix.
+X.PP
+If given one argument
+X.I bind
+takes the argument as the name for a key and tells what that key does.
+As a special case, the user can say
+X.sp
+X.RS +.6i
+bind emacs
+X.br
+X.RE
+or
+X.RS +.6i
+bind vi
+X.RE
+X.sp
+to bind all the keys for Emacs or vi mode respectively.
+X.PP
+If given no arguments
+X.I bind
+tells what all of the keys do.  If you give bind the single argument
+of 'defaults', it resets each key to its default value (see the above
+list).
+X.PP
+X.SH "2. VISUAL HISTORY"
+The keys ^P and ^N are used to step up and down the history list.  If
+the user has typed in the following:
+X.RS +.6i
+X.sp
+X.nf
+X> ls
+foo	bar
+X> echo mumble
+mumble
+X>
+X.RE
+X.fi
+X.sp
+then enters
+X.I ^P,
+the shell will place "echo mumble" into the editing buffer, and will
+put the cursor at the end of the line.  If another
+X.I ^P
+is entered, then the editing line will change to "ls".  More
+X.IR ^P s
+will make the bell ring, since there are no more lines in the history.
+X.I ^N
+works the same way, except it steps down (forward in time).
+X.PP
+An easy way to re-do a command is to type
+X.I ^P
+followed by
+X.I Return.
+Also, pieces of previous commands can be assembled to make a new
+command.  The commands that work on regions are especially useful for this.
+X.PP
+X.I ^P
+and
+X.I ^N
+actually only copy commands from out of the history into the edit
+buffer; thus the user may step back into the history and then edit
+things, but those changes do not affect what is actually in
+X.I tcsh 's
+history.
+X.PP
+Another way to recall (parts of) history commands is via the 'expand-history'
+function. A variation of the 'expand-history' function is called 'magic-space'.
+This function expands 
+X.I csh 
+history, and always appends a space. Magic-space
+thus can be bound to <space>, to automatically expand 
+X.I csh 
+history.
+XExpand-history is normally bound to
+X.I M-<space>
+and magic-space is not bound.
+X.PP
+X.SH "3. TTY MODE SANITY"
+As part of the editor,
+X.I tcsh
+does a check and reset of the terminal mode bits.  If the speed has
+been changed, then
+X.I tcsh
+will change to using that speed.
+X.I Tcsh
+will also obey changes in the padding needed by the tty.
+Also, the shell will automatically turn off
+RAW and CBREAK (on systems that use 
+X.I termio(7) 
+it will turn on ICANON) modes, and will turn on 
+the tty driver's output processing (OPOST).
+X.PP
+The list of the tty modes that are always set or cleared by 
+X.I tcsh 
+can be examined and modified using the
+X.I setty 
+builtin.  The
+X.I setty
+display is similar to 
+X.I stty(1),
+and varies depending on the system's tty driver. Modes that 
+X.I tcsh 
+will always try to set are shown as
+X.I "+mode".
+Modes that 
+X.I tcsh 
+will always try to clear are shown as
+X.I "-mode"
+and modes that tcsh will track and allow to be modified are not shown by
+default, or if the 
+X.I "-a"
+flag is given, are shown without a leading sign. For tty characters,
+X.I "-char"
+disables the tty character, while 
+X.I "+char" 
+protects the tty character from being changed.
+X.PP
+Setty can be used to control the three different modes 
+X.I tcsh
+uses for the tty. The default mode displayed is the "execute" mode which is 
+used when tcsh executes commands. The two other modes are the "edit" mode 
+and the "quote" mode. The "edit" mode is used for command line editing, and
+the "quote" mode is used when entering literal characters. The "execute" mode
+can be specified with
+X.I "-x",
+the "edit" mode with 
+X.I "-d", 
+and the "quote" mode with
+X.I "-q"
+XFor example if one wants to set the 
+X.I echok
+flag and let the 
+X.I echoe
+pass unchanged:
+X.sp
+X.nf
+X.RS +.6i
+X> setty 
+iflag:-inlcr -igncr +icrnl 
+oflag:+opost +onlcr -onlret 
+cflag:
+lflag:+isig +icanon +echo +echoe -echok -echonl -noflsh 
+X      +echoctl -flusho +iexten 
+chars:
+X> setty +echok echoe
+X> setty
+iflag:-inlcr -igncr +icrnl 
+oflag:+opost +onlcr -onlret 
+cflag:
+lflag:+isig +icanon +echo +echok -echonl -noflsh +echoctl 
+X      -flusho +iexten 
+chars:
+X.RE
+X.fi
+X.sp
+X.PP
+X.SH "4. WORD COMPLETION"
+In typing commands,
+it is no longer necessary to type a complete name,
+only a unique abbreviation is necessary.
+When you type a TAB to
+X.I tcsh
+it will complete the name for you, echoing the full name on the
+terminal (and entering it into the edit buffer).  If the prefix you
+typed matches no name, the terminal bell is rung, unless the
+variable 
+X.I nobeep
+is set.  The name may
+be partially completed if the prefix matches several longer names.  If
+this is the case, the name is extended up to the point of ambiguity,
+and the bell is rung.  This works for file names, command names, shell 
+variables and the 
+X.I( csh) 
+X\~ user name convention.
+The variable
+X.I fignore
+may be set to a list of suffixes to be disregarded during completion.
+X.PP
+X.I Example
+X.PP
+Assume the current directory contained the files:
+X.RS +.6i
+X.sp
+X.nf
+DSC.TXT	bin    	cmd    	lib    	memos
+DSC.NEW	chaos  	cmtest 	mail   	netnews
+bench  	class  	dev    	mbox   	new
+X.RE
+X.fi
+X.sp
+The command:
+X.sp
+X.RS +.6i
+X> gnumacs ch[TAB]
+X.RE
+X.sp
+would cause 
+X.I tcsh
+to complete the command with the file name chaos.  If instead, the
+user had typed:
+X.sp
+X.RS +.6i
+X> gnumacs D[TAB]
+X.RE
+X.sp
+X.I tcsh
+would have extended the name to DSC and rung the terminal bell, 
+indicating partial completion. However, if 
+X.I fignore
+had previously been set to a list containing .NEW as one element,
+e.g. ( .o .NEW ),
+X.I tcsh
+would have completed the `D' to DSC.TXT.
+X.PP
+XFile name completion works equally well when other directories are addressed.
+Additionally, 
+X.I tcsh 
+understands the C shell tilde (~) convention for home directories.
+In addition it caches tilde name references for fast access. This cache
+can be flushed by using the builtin 
+X.I rehash.
+Thus,
+X.sp
+X.RS +.6i
+X> cd ~speech/data/fr[TAB]
+X.RE
+X.sp
+does what one might expect.  This may also be used to expand login names only.
+Thus,
+X.sp
+X.RS +.6i
+X> cd ~sy[TAB]
+X.RE
+X.sp
+expands to
+X.sp
+X.RS +.6i
+X> cd ~synthesis
+X.RE
+X.sp
+X.PP
+Command names may also be completed, for example,
+X.sp
+X.RS +.6i
+X> gnum[TAB]
+X.RE
+X.sp
+will expand to "gnumacs" (assuming that there are no other commands
+that begin with "gnum").
+X.sp
+Shell and environment variables are recognized also and in addition
+they can be expanded:
+X.sp
+X.RS +.6i
+X> set local=/usr/local
+X.br
+X> echo $lo[TAB]
+X.RE
+X.sp
+will expand to "$local/". Note that a slash is appended because the
+expanded variable points to a directory. Also:
+X.sp
+X.RS +.6i
+X> set local=/usr/local
+X.br
+X> echo $local/[^D]
+X.br
+bin/ etc/ lib/ man/ src/ 
+X.RE
+X.sp
+will correctly list the contents of /usr/local. Shell and environment
+variables can also be expanded via the expand-variables function:
+X.sp
+X.RS +.6i
+X> echo $local/[^X$]
+X.br
+X> echo /usr/local/
+X.RE
+X
+X.PP
+Completion also works when the cursor is in the middle of the line,
+rather than just the end.  All of the text after the cursor will be
+saved, the completion will work (possibly adding to the current name),
+and then the saved text will be restored in place, after the cursor.
+X.PP
+The behavior of the completion can be changed by the setting of
+several shell variables:
+X.PP
+Setting the
+X.I recexact
+variable makes an exact command be expanded rather than just ringing the bell.
+XFor example, assume the current directory has two subdirectories
+called foo and food, then with
+X.I recexact
+set the following could be done:
+X.sp
+X.RS +.6i
+X> cd fo[TAB]
+X.RE
+X.br
+to ...
+X.br
+X.RS +.6i
+X> cd foo[TAB]
+X.RE
+X.br
+to ...
+X.br
+X.RS +.6i
+X> cd foo/
+X.RE
+X.sp
+rather than beeping on the second TAB.
+X.PP
+If the
+X.I autolist
+variable is set, invoking completion when several choices are possible
+will automatically list the choices, effectively merging the functionality
+described in the next section into the completion mechanism. If 
+X.I autolist
+is set to "ambiguous", then 
+X.I tcsh 
+will only list the choices if there were no new characters added in the
+completion operation.
+X
+X.PP
+The "noise level" can be controlled by the value that
+X.I matchbeep
+is set to: With matchbeep=nomatch, completion will only beep if there are
+no matching names; with matchbeep=ambiguous, completion will
+X.I also
+beep if there are many possible matches; with matchbeep=notunique,
+completion will
+X.I also
+beep when there is an exact match but there are other, longer, matches
+X(see recexact).  With matchbeep=never or set to any other value completion 
+will never beep. If matchbeep is not set it defaults to ambiguous.
+X.PP
+If the
+X.I autoexpand
+variable is set, the expand-history function will be invoked automatically
+before the completion attempt, expanding normal 
+X.I csh 
+history substitutions.
+X.PP
+XFor covert operation, the variable
+X.I nobeep
+can be set; it will prevent the completion mechanism,
+as well as 
+X.I tcsh 
+in general, from actually beeping.
+XFinally, if the
+X.I autocorrect
+variable is set, the spelling correction is attempted for any path components
+up to the completion point.
+X.PP
+X.SH "5. LISTING OF POSSIBLE NAMES"
+At any point in typing a command, you may request "what names are
+available".  Thus, when you have typed, perhaps:
+X.sp
+X.RS +.6i
+X> cd ~speech/data/fritz/
+X.RE
+X.sp
+you may wish to know what files or subdirectories exist (in
+X~speech/data/fritz), without, of course, aborting the command you are
+typing.  Typing the character Control-D (^D), will list the names
+X(files, in this case) available.  The files are listed in multicolumn
+format, sorted column-wise.  Directories are indicated with a trailing
+X`/', executable files with a `*', symbolic links with a '@', sockets
+with a '=', FIFOs (named pipes) with a '|', character devices
+with a '%', and block devices with a '#'.  Once
+printed, the command is re-echoed for you to complete.
+X.PP
+Additionally, one may want to know which files match a prefix.
+If the user had typed:
+X.sp
+X.RS +.6i
+X> cd ~speech/data/fr[^D]
+X.RE
+X.sp
+all files and subdirectories whose prefix was
+X``fr'' would be printed.  Notice that the example before was simply
+a degenerate case of this with a null trailing file name. 
+X(The null string is a prefix of all strings.)
+Notice also, that
+a trailing slash is required to pass to a new directory for 
+both file name completion and listing.
+X.PP
+The degenerate
+X.sp
+X.RS +.6i
+X> ~[^D]
+X.RE
+X.sp
+will print a full list of login names on the current system.  Note,
+however, that the degenerate
+X.sp
+X.RS +.6i
+X> <Spaces>[^D]
+X.RE
+X.sp
+does not list all of the commands, but only beeps.
+X.PP
+Listing/expanding of words that match a name containing wildcard characters 
+can be done via the list-glob/expand-glob function: 
+X.RS +.6i
+X.nf
+X> ls
+foo.c  bar.c  a.out
+X> vi *.c[^Xg]
+foo.c bar.c
+X> vi *.c[^X*]
+X> vi foo.c bar.c
+X.fi
+X.RE
+X.PP
+X.SH "Command Name Recognition"
+Command name recognition and completion
+works in the same manner as file name recognition
+and completion above.
+The current value of the environment variable
+X.I PATH
+is used
+in searching for the command.
+XFor example
+X.sp
+X.RS +.6i
+X> newa[TAB]
+X.RE
+X.sp
+might expand to
+X.sp
+X.RS +.6i
+X> newaliases
+X.RE
+X.sp
+Also,
+X.sp
+X.RS +.6i
+X> new[^D]
+X.RE
+X.sp
+would list all commands (along PATH) that begin with "new".
+X.PP
+Note that Control-D has three different effects on
+X.I tcsh.
+On an empty line (one that contains nothing, not even spaces),
+X.I ^D
+sends an EOF to
+X.I tcsh
+just as it does for normal programs.  When the cursor is in the middle
+of a line of text,
+X.I ^D
+deletes the character
+that the cursor is under.  Finally, a
+X.I ^D
+at the end of a line of text lists the available names at that point.
+To get a list of available names when the cursor is in the middle of a
+line (or on an empty line), a Meta-Control-D should be typed (Escape
+followed by Control-D).
+X.PP
+X.SH "6. SPELLING CORRECTION"
+If while typing a command, the user mistypes or misspells a file name,
+user name, or command name,
+X.I tcsh
+can correct the spelling.  When correcting a file name, each part of
+the path is individually checked and corrected.
+Spelling correction can be invoked in several different ways:
+X.PP
+The 
+X.I spell-word
+function, normally bound to M-s (and M-S), will attempt to correct the word
+immediately before the cursor.
+XFor example, suppose that
+the user has typed:
+X.sp
+X.RS +.6i
+X> cd /uxr/spol/news[ESC s]
+X.RE
+X.sp
+X.I Tcsh
+will check the path for spelling, correct the mistakes, and redraw the
+line as
+X.sp
+X.RS +.6i
+X> cd /usr/spool/news
+X.RE
+X.sp
+leaving the cursor at the end of the line.
+X.PP
+Spelling correction of the entire command line (independent of where
+the cursor is) can be done with the
+X.I spell-line
+function, normally bound to M-$ (Escape Dollar-sign).
+It will check each word independently, but in order to avoid e.g. command
+options, no correction is attempted on words whose first character
+is found in the string "!.\\^-*%".
+X.PP
+XFinally, automatic spelling correction will be done each time the Return
+key is hit, if the
+X.I correct
+variable is set to an appropriate value:
+correct=cmd will cause the spelling of the command name only to be checked,
+while correct=all causes checking of all words on the line, like the
+spell-line function.
+If any part of the command line is corrected, the user will be given a special
+prompt as defined by the
+X.I prompt3
+variable, followed by the corrected line, e.g.
+X.sp
+X.RS +.6i
+X.nf
+X> lz /usr/bin
+CORRECT>ls /usr/bin (y|n|e)?
+X.fi
+X.RE
+X.sp
+Answering 'y' or <space> at the prompt
+will cause the corrected line to be executed, 'e' will leave the uncorrected 
+command in the input buffer and
+anything else will execute the original line unchanged.
+X.PP
+Automatic correction is not guaranteed to work the way the user intended.
+Command line parsing is done in a rudimentary fashion. It is mostly provided
+as an experimental feature. Suggestions and improvements are welcome.
+X.PP
+X.SH "7. DOCUMENTATION LOOKUP"
+The editor function
+X.I "run-help"
+X(M-h) prints a help file on the current command (using the same
+definition of current as the completion routines use).  This help file
+is found by searching the path list HPATH for files of the form
+foo.help, foo.1, foo.8, or foo.6 in that order (assuming that the
+current command is foo).  The file is just printed, not paged in any
+way.  This is because
+X.I run-help
+is meant to be used to look up short help files,
+not manual pages (although it can do manual pages also).
+X.PP
+X.SH "8. ENHANCED HISTORY MECHANISM"
+X.I Tcsh
+will save the history list between login sessions.  It does this by
+writing the current list to the file "~/.history" on logout, and
+reading it in on login.  For example, placing the line
+X.sp
+X.RS +.6i
+X> set history=25 savehist=20
+X.RE
+X.sp
+tells 
+X.I tcsh 
+to save the last 25 commands on the history list, and to
+save the last 20 of them between logins.  The "savehist" variable may
+be set up to the size of history, although it is an error to have
+X.I savehist
+larger than
+X.I history.
+In addition to the above 
+X.I tcsh, 
+keeps unparsed (literal) versions of the 
+history if the variable
+X.I histlit
+is set. Also the toggle-history function toggles between
+the parsed and literal version of the recalled history in the editor
+buffer. For example:
+X.sp
+X.RS +.6i
+X.nf
+X> set histlit
+X> echo !:s/foo/bar; ls
+Modifier failed.
+X> ^P
+X> echo !:s/foo/bar; ls
+X> unset histlit
+X> echo !:s/foo/bar; ls
+Modifier failed.
+X> ^P
+X> echo unset histlit[M-r]
+X> echo !:s/foo/bar; ls
+X.fi
+X.RE
+X.sp
+X.I Tcsh
+also supports the history escape 
+X.I !#.
+This undocumented 
+X.I csh 
+escape holds the words of the current line. This is useful in renaming
+commands:
+X.sp
+X.RS +.6i
+X.nf
+X> mv foo bar!#:1
+mv foo barfoo
+X.fi
+X.RE
+X.sp
+Care should be taken when using this history expansion in 
+X.I csh
+since there is no check for recursion. In 
+X.I tcsh
+up to 10 levels of recursion are allowed.
+X.PP
+Another difference between 
+X.I tcsh
+and
+X.I csh
+history expansion, is the treatment of history arguments. In
+X.I csh
+X.I "!3d" 
+expands to event 3 with the letter "d" appended to it. 
+There is no way to repeat a command that begins with a number using
+the name of the command in the history escape. In 
+X.I tcsh 
+only numeric arguments are treated as
+event numbers; therefore
+X.I "!3d" 
+is interpreted as: repeat the last command that
+started with the string "3d". To mimic the 
+X.I csh
+behavior
+X.I "!3\ed" 
+can be used. 
+X
+X.PP
+X.SH "9. AUTOMATIC LOGOUT/LOCKING"
+The automatic locking and logout time are controlled by the variable
+X.I autologout.
+The value of the first word is the number of minutes of inactivity will be
+allowed before automatically logging the user out.  When that many
+minutes have been reached, the shell prints "auto-logout" and dies
+X(without executing ~/.logout).  The default for 
+X.I tcsh 
+is to set
+X.I autologout
+for 60 minutes on login shells, and when the user is root.  To disable
+autologout (for instance in a window system), unset the shell variable
+X.I autologout.
+X.PP
+The value of the optional second word indicates the number of
+minutes of inactivity after which the user will be prompted for his login 
+password to continue working. Failure to enter the correct password 5 times, 
+results in auto-logout.
+X.PP
+X.SH "10. EXECUTION OF A COMMAND PRIOR TO EACH PROMPT"
+X.I Tcsh
+supports a special alias,
+X.I precmd,
+which if set holds a command that will be executed before printing
+each prompt.  For example, if the user has done
+X.sp
+X.RS +.6i
+X> alias precmd date
+X.RE
+X.sp
+then the program
+X.I date
+will be run just before the shell prompts for each command.  There are
+no limitations on what precmd can be set to do, although discretion
+should be used.
+X.PP
+X.SH "11. PERIODIC COMMAND EXECUTION"
+X.I Tcsh
+is now capable of providing periodic command execution
+through the use of the shell variable
+X.I tperiod
+and the alias
+X.I periodic.
+When these items are set, the alias
+X.I periodic
+will be executed every
+X.I tperiod
+minutes.
+This provides a convenient means for checking on common but
+infrequent changes, such as new messages.
+XExample:
+X.nf
+X.sp
+X.RS +.6i
+X> set tperiod = 30
+X> alias periodic checknews
+X.RE
+X.sp
+X.fi
+This will cause the \fIchecknews\fR(1) program to be run every 30 minutes.
+Having the alias
+X.I periodic
+set but with an unset
+X.I tperiod
+X(or a value of 0 for
+X.I tperiod)
+will cause
+X.I periodic
+to degenerate to another form of
+X.I precmd.
+X.PP
+X.SH "12. NEW PROMPT FORMAT"
+The format for the
+X.I prompt
+shell variable has been changed to include many new things, such as
+the current time of day, current working directory, etc..  The new
+format uses "%<char>" to signal an expansion, much like
+X.I printf(3S).
+The available sequences are:
+X.sp
+X.RS +.6i
+X.ta 1.2i 1.7i
+X.nf
+X%/	Current working directory.
+X%~	cwd.  If it starts with $HOME, that part is 
+X	replaced by a ~. In addition if a directory
+X	name prefix matches a user's home directory,
+X	that part of the directory will be substituted
+X	with ~user. NOTE: The ~user substitution will
+X	only happen if the shell has performed a ~
+X	expansion for that user name in this session.
+X%c or %.	Trailing component of cwd, may be 
+X	followed by by a digit to get more than one 
+X	component, if it starts with $HOME, that 
+X	part is replaced with a ~.
+X%C	Trailing component of cwd, may be followed 
+X	by a digit to get more than one component, no 
+X	~ substitution.
+X%h, %!, !	Current history event number.
+X%M	The full machine hostname.
+X%m	The hostname up to the first ".".
+X%S (%s)	Start (stop) standout mode.
+X%B (%b)	Start (stop) boldfacing mode. (Only if  
+X	tcsh was compiled to be eight bit clean.)
+X%U (%u)	Start (stop) underline mode. (Only if 
+X	tcsh was compiled to be eight bit clean.)
+X%t or %@	Current time of day, in 12-hour, am/pm format.
+X%T	Current time of day, in 24-hour format. 
+X	(But see the \fIampm\fP shell variable below.)
+X\ec	`c' is parsed the same way as in bindkey.
+X^c	`c' is parsed the same way as in bindkey.
+X%%	A single %.
+X%n	The user name, contents of $user.
+X%d	The weekday in <Day> format.
+X%D	The day in dd format.
+X%w	The month in <Mon> format.
+X%W	The month in mm format.
+X%y	The year in yy format.
+X%Y	The year in yyyy format.
+X%l	The line (tty) the user is logged on.
+X%L	clear from prompt to end of display or end of line.
+X%#	A `#' if tcsh is run as a root shell, 
+X	a `>' if not.
+X%{..%}	Include string as a literal escape sequence.
+X	Note that the enclosed escape sequence, should
+X	only be used to change terminal attributes and
+X	should not move the cursor location. Also, this
+X	cannot be the last character in the prompt 
+X	string. (Available only if tcsh was compiled to 
+X	be eight bit clean.)
+X%?	return code of the last command executed just
+X	before the prompt.
+X%R	In prompt3 this is the corrected string; in
+X	prompt2 it is the status of the parser.
+X.RE
+X.DT
+X.fi
+X.sp
+The sequences for standout are often used to indicate that this is an
+enabled (running as root) shell.
+An example:
+X.sp
+X.RS +.6i
+X.ta 2i 3i
+X.nf
+X.ie t \{\
+X> set prompt="%m [%h] %B[%@]%b [%/] you rang? "
+tut [37] \fB[2:54pm]\fR [/usr/accts/sys] you rang? _
+X.\}
+X.el \{\
+X> set prompt="%m [%h] %U[%@]%u [%/] you rang? "
+tut [37] \fI[2:54pm]\fR [/usr/accts/sys] you rang? _
+X.\}
+X.RE
+X.DT
+X.fi
+X.sp
+In addition, there is a new variable,
+X.I prompt2,
+which is used to prompt for the body of while and for loops (wherever
+normal
+X.I csh
+prompts with a question mark).  The default for
+X.I prompt2
+is "%R? ": the status of the parser followed by a question mark.
+This alternate prompt is also used when the parser is waiting for more input; 
+i.e. when the previous line ended in a \\.
+The
+X.I prompt3
+variable is used when displaying the corrected command line when
+automatic spelling correction is in effect; it defaults to 
+X"CORRECT>%R (y|n|e)? ".
+X
+X.PP
+X.SH "13. TIME-STAMPED HISTORY LIST"
+The history list in 
+X.I tcsh 
+now has a time-of-day stamp attached to
+each history list event.
+This time stamp is printed whenever the history command is executed.
+This allows the user to keep track of when the various events occurred.
+The time stamps are not maintained on the saved history list (also
+available in \fIcsh\fR); thus, on logging back in, all the saved history
+events will be recorded with the login time as their time stamp.
+The time stamp printouts can be omitted from the history list by adding the
+X-t switch to the \fIhistory\fR command.
+X.PP
+X.SH "14. DIRECTORY ACCESS"
+X.I Tcsh 
+supports three new flags to control directory style printing for
+cd, pushd, popd, and dirs:
+X.TP 4
+X.I "-n "
+Print entries in new lines so that the screen width is not exceeded
+X.TP 4
+X.I "-l"
+Don't print \~ but print the whole path
+X.TP 4
+X.I "-v"
+Print the stack entries one in each line, preceded by the stack number.
+X.PP 
+Note that popd +n can be used to pop out stack entries of directories that
+do not exist any more.
+X.PP
+X.I Tcsh
+will now allow the user to access all elements in the directory stack directly.
+The syntax "=<digit>" is recognized by 
+X.I tcsh
+as indicating a particular directory
+in the stack.
+X(This works for the file/command name recognition as well.)
+This syntax is analogous to the ~ syntax for access to users' home
+directories.
+The stack is viewed as zero-based, i.e., =0 is the same as $cwd, which is
+the same as ".".
+As a special case, the string "=-" is recognized as indicating the last
+directory in the stack.
+Thus,
+X.nf
+X.sp
+X.RS +.6i
+X> dirs -v
+X0 /usr/net/bin 
+X1 /usr/spool/uucp 
+X2 /usr/accts/sys
+X> echo =2
+X/usr/accts/sys
+X> ls -l =1/LOGFILE
+X-rw-r--r-- 1 uucp	2594 Jan 19 09:09 /usr/spool/uucp/LOGFILE
+X> echo =-/.cs*
+X/usr/accts/sys/.cshrc
+X> echo =4
+Not that many dir stack entries.
+X>
+X.RE
+X.sp
+X.fi
+X.I Tcsh 
+will complain if you ask for a directory stack item
+which does not exist.
+X.PP
+In the normal 
+X.I csh,
+saying "pushd +2" would rotate the entire stack
+around through 2 stack elements, placing the entry found there
+at the top of the stack.
+If, however, the new shell variable
+X.I dextract
+is set, then issuing "pushd +n" will cause the nth directory stack
+element to be extracted from its current position, which will then be
+pushed onto the top of the stack.  Example:
+X.sp
+X.nf
+X.RS +.6i
+X> dirs
+X~ /usr/spool/uucp /usr/net/bin /sys/src
+X> set dextract
+X> pushd +2
+X/usr/net/bin ~ /usr/spool/uucp /sys/src
+X> unset dextract
+X> pushd +2
+X/usr/spool/uucp /sys/src /usr/net/bin ~
+X.RE
+X.fi
+X.PP
+The way symbolic links that point to directories are crossed is
+determined by two variables: 
+X.I chase_symlinks 
+and 
+X.I ignore_symlinks. 
+If 
+X.I chase_symlinks 
+is set, then every time the directory changes, 
+X.I $cwd
+reflects the real directory name, and not the name through the link. 
+A notable exception is the user's home directory, but that should
+be fixed. If 
+X.I ignore_symlinks 
+is set, then directory change tries to find where
+you came from before you crossed the link to change the directory 
+relatively. If you chdir through a symbolic link
+and then cd .., 
+you will end .. relatively to where you were before
+you crossed the link and not .. relatively to 
+where the symbolic link points.
+X.PP
+XFor example:
+X.sp
+X.nf
+X.RS +.6i
+X> cd /tmp
+X> mkdir from from/src to
+X> ln -s ../from/src to/dst
+X> echo $cwd 
+X/tmp
+X
+X> unset ignore_symlinks; unset chase_symlinks
+X> cd to/dst; echo $cwd 
+X/tmp/to/dst
+X> cd ..
+X/tmp/from
+X
+X> unset ignore_symlinks; set chase_symlinks
+X> cd /tmp/to/dst; echo $cwd
+X/tmp/from/src
+X> cd ..; echo $cwd
+X/tmp/from
+X
+X> set ignore_symlinks; unset chase_symlinks
+X> cd /tmp/to/dst; echo $cwd
+X/tmp/to/dst
+X> cd ..; echo $pwd
+X/tmp/to
+X.RE
+X.sp
+X.fi
+In case you are wondering what happens when you set both, 
+X.I ignore_symlinks 
+will override
+X.I chase_symlinks.
+X.PP
+X.SH "15. WATCHING FOR LOGINS AND LOGOUTS"
+X.I Tcsh
+has a mechanism so that the user can watch for login and logout
+activity of any user or terminal in the system.
+This is accomplished using the new special shell variable
+X.I watch,
+which contains login/terminal pattern pairs to be checked for activity.
+XFor example:
+X.nf
+X.sp
+X.RS +.6i
+X> set watch=(sys ttyjd root console)
+X.RE
+X.sp
+X.fi
+This setting will allow the user to check on when the user "sys" logs in on
+X/dev/ttyjd.  Similarly, it will inform the user of root's activity on the
+console.  In order to be more general, the word "any" may be substituted for
+either a user's or a terminal's name, thus allowing
+X.nf
+X.sp
+X.RS +.6i
+X> set watch=('b*' any any ttyh0)
+X.RE
+X.sp
+X.fi
+which will check for users that match the pattern 'b*' logging in 
+or out of the system on any terminal, as well as anyone logging in 
+to /dev/ttyh0. Naturally, the completely general case
+X.nf
+X.sp
+X.RS +.6i
+X> set watch=(any any)
+X.RE
+X.sp
+X.fi
+allows the user to check on any and all login/logout activity in the
+the system.
+X.PP
+By default, the interval between checks of users on the system is
+X10 minutes;
+this can be changed by making the first element of
+X.I watch
+a number of minutes which should be used instead, as in
+X.nf
+X.sp
+X.RS +.6i
+X> set watch=(40 any any)
+X.RE
+X.sp
+X.fi
+which will check for any users logging in or out every 40 minutes.
+X.PP
+There is also a new command,
+X.I log,
+which is used to cause 
+X.I tcsh 
+to inform the user of all users/terminals
+affected by
+X.I watch
+whether they have been announced before or not.
+This is useful if a user has been on for some time and cannot remember
+if a particular person/terminal is online right now or not.
+X.I Log
+will reset all indication of previous announcement and give the user
+the login list all over again, as well as printing the current value
+of
+X.I watch.
+X.PP
+The first time that
+X.I watch
+is set at 
+X.I tcsh
+startup, all affected users and terminals will be
+printed as though those users/terminals had just logged on.
+This may appear to be a bug, but is generally considered a feature,
+since it allows the user to see who is on when he first logs in.
+X.PP
+The format of the printouts can be tailored via setting of the variable
+X.I who.
+The following sequences are available for the format specification:
+X.sp
+X.RS +.6i
+X.ta 1.2i 1.7i
+X.nf
+X%n	The name of the user that logged in/out.
+X%a	The observed action, i.e. "logged on", 
+X	"logged off", or "replaced <olduser> on".
+X%l	The line (tty) the user is logged on.
+X%S (%s)	Start (stop) standout mode.
+X%B (%b)	Start (stop) boldfacing mode. (Only if 
+X	tcsh was compiled to be eight bit clean)
+X%U (%u)	Start (stop) underline mode. (Only if 
+X	tcsh was compiled to be eight bit clean)
+X%M	The full hostname of the remote host ("local" 
+X	if non-remote).
+X%m	The hostname up to the first ".". If only 
+X	the ip address is available or the utmp 
+X	field contains the name of an x-windows 
+X	display, the whole name is printed.
+X%t or %@	The time, in 12-hour, am/pm format (logout 
+X	time is approximated if unavailable).
+X%T	The time, in 24-hour format. (but see 
+X	the "ampm" shell variable below).
+X%D	The day in dd format.
+X%w	The month in <Mon> format.
+X%W	The month in mm format.
+X%Y	The year in yy format.
+X.RE
+X.DT
+X.fi
+X.sp
+The %M and %m sequences are only available on systems that store the
+remote hostname in /etc/utmp. If
+X.I who
+is not set, the format defaults to "%n has %a %l from %m.", or
+X"%n has %a %l." on systems that don't store the hostname.
+X.PP
+X.SH "16. TIMED EVENT LIST"
+X.I Tcsh
+now supports a scheduled-event list through the use of the command
+X.I sched.
+This command gives the user a mechanism by which to arrange for other
+commands to be executed at given times.
+An event is added to the scheduled-event list by saying
+X.nf
+X.sp
+X.RS +.6i
+X> sched [+]hh:mm <command>
+X.RE
+X.sp
+X.fi
+as in
+X.nf
+X.sp
+X.RS +.6i
+X> sched 11:00 echo It\\'s eleven o\\'clock.
+X.RE
+X.sp
+X.fi
+This will make an entry in the list at 11am for the echo command
+to be run with the given arguments.
+The time may be specified in either absolute or relative time,
+and absolute times may have a morning/afternoon specification as
+well, using "am" or "pm."
+XFor example,
+X.nf
+X.sp
+X.RS +.6i
+X> sched +2:15 /usr/lib/uucp/uucico -r1 -sother
+X> sched 5pm set prompt='[%h] It\\'s after 5; go home: >'
+X> sched +3am echo This syntax doesn\\'t work.
+Relative time inconsistent with am/pm.
+X>
+X.RE
+X.sp
+X.fi
+Note that 
+X.I tcsh 
+will complain if you try to make faulty
+time specifications.
+X.PP
+Printing the current time-event list is accomplished by giving the
+X.I sched
+command with no arguments:
+X.nf
+X.sp
+X.RS +.6i
+X> sched
+X     1  Wed Apr  4 15:42  /usr/lib/uucp/uucico -r1 -sother
+X     2  Wed Apr  4 17:00  set prompt=[%h] It's after 5; go home: >
+X>
+X.RE
+X.sp
+X.fi
+There is also a mechanism by which the user can remove an item
+from the list:
+X.nf
+X.sp
+X.RS +.6i
+X> sched --3
+Usage for delete: sched -<item#>.
+X> sched -3
+Not that many scheduled events.
+X> sched -2
+X> sched
+X     1  Wed Apr  4 15:42  /usr/lib/uucp/uucico -r1 -sother
+X>
+X.RE
+X.sp
+X.fi
+All commands specified on the scheduled-event list will be executed just
+prior to printing the first prompt immediately following the time
+when the command is to be run.
+Hence, it is possible to miss the exact time when the command is
+to be run, but 
+X.I tcsh 
+will definitely get around to all commands
+which are overdue at its next prompt.
+Scheduled-event list items which come due while 
+X.I tcsh 
+is waiting for
+user input will be executed immediately.
+In no case, however, will normal operation of already-running
+commands be interrupted so that a scheduled-event list element
+may be run.
+X.PP
+This mechanism is similar to, but not the same as, the
+X.IR at (1)
+command on some Unix systems.
+Its major disadvantage is that it does not necessarily run a
+command at exactly the specified time (but only if another
+command is already being run).
+Its major advantage is that commands which run directly from 
+X.I tcsh,
+as sched commands are, have access to shell variables and other
+structures.
+This provides a mechanism for changing one's working environment
+based on the time of day.
+X.PP
+X.SH "17. BUILTIN FOR ls -F"
+There is a new builtin command called
+X.I ls-F
+which does the same thing as the command "ls -aF" if the shell
+variable
+X.I showdots
+has been set, and acts like "ls -F" otherwise. Ls-F works like
+ls, only it is generally faster. If other switches are passed
+to 
+X.I ls-F, 
+then the normal ls is executed. Aliasing ls to ls-F provides
+a fast alternative way of listing files.
+Note that on non BSD machines, where ls -C is not the default,
+X.I ls-F,
+behaves like ls -CF.
+X.sp
+X.I ls-F
+appends the following characters depending on the file type:
+X.sp
+X.RS +.6i
+X.ta 1.2i 1.7i
+X.nf
+X=	File is an AF_UNIX domain socket.
+X	[if system supports sockets]
+X|	File is a named pipe (fifo)
+X	[if system supports named pipes]
+X%	File is a character device
+X#	File is a block device
+X/	File is a directory
+X*	File is executable
+X+	File is a hidden directory [aix]
+X	or context dependent [hpux]
+X:	File is network special [hpux]
+X.RE
+X.DT
+X.fi
+X.sp
+On systems that support symbolic links the variable
+X.I listlinks 
+controls the way symbolic links are identified. If 
+X.I listlinks 
+is not set then the character '@' is appended to
+the file. If 
+X.I listlinks 
+is set then the following characters are appended to the
+filename depending on the type of file the symbolic links
+points to:
+X.sp
+X.RS +.6i
+X.ta 1.2i 1.7i
+X.nf
+X@	File is a symbolic link pointing
+X	to a non-directory
+X>	File is a symbolic link pointing
+X	to a directory 
+X&	File is a symbolic link pointing
+X	to nowhere
+X.RE
+X.DT
+X.fi
+X.sp
+While setting 
+X.I listlinks
+can be helpful while navigating around the file system, it slows down
+X.I ls-F 
+and it causes mounting of file systems if the symbolic links point
+to an NFS auto-mounted partition.
+X.PP
+X.SH "18. GLOBBING SYNTAX ADDITIONS"
+The syntax for any character in a range (for example ".[a-z]*") has
+been extended so as to conform with standard Unix regular expression
+syntax (see
+X.IR ed (1)).
+Specifically, after an open bracket ("["), if the first character is a
+caret ("^") then the character matched will be any not in the range
+specified.  For example:
+X.sp
+X.nf
+X.RS +.6i
+X> cd ~
+X> echo .[a-z]*
+X\&.cshrc .emacs .login .logout .menuwmrc
+X> echo .[^.]*
+X\&.Xdefaults .Xinit .cshrc .emacs .login .logout .menuwmrc
+X>
+X.RE
+X.fi
+X.sp
+Note that the second form includes .Xdefaults and .Xinit because 'X'
+X(and all the lower case letters) are outside of the range of a single '.'.
+X.PP
+Also the ability to negate a globbing pattern has been added:
+X.sp
+X.nf
+X.RS +.6i
+X> echo *
+foo foobar bar barfoo
+X> echo ^foo*
+bar barfoo
+X.RE
+X.fi
+X.sp
+Note that this does not work correctly if the expression does not have
+any wildcard characters (?*[]) or if the expression has braces {}.
+X.PP
+X.SH "19. NEW ENVIRONMENT AND SHELL VARIABLES"
+On startup,
+X.I tcsh
+now automatically initializes the environment variable
+X.I HOST
+to the name of the machine that it is running on.  It does this by
+doing a
+X.IR gethostname (2)
+system call, and setting
+X.I HOST
+to the result.
+X.PP
+X.I Tcsh
+also initializes the environment variable
+X.I HOSTTYPE
+to a symbolic name for the type of computer that it is running on.
+This is useful when sharing a single
+physical directory between several types of machines (running NFS, for
+instance).  For example, if the following is in
+X.I .login:
+X.sp
+X.RS +.3i
+set path = (~/bin.$HOSTTYPE /usr/ucb /bin /usr/bin /usr/games .)
+X.RE
+X.sp
+and the user has directories named "bin.\fImachine\fR" (where
+X.I machine
+is a name from the list below), then the user can have the same
+programs compiled for different machines in the appropriate
+X"bin.\fImachine\fR" directories and
+X.I tcsh
+will run the binary for the correct machine.
+X.sp
+The current possible values are:
+X.sp
+X.ta 1.5i
+X.nf
+X\fIaix370\fR		an IBM 370, running aix
+X\fIaixESA\fR		an IBM ESA, running aix
+X\fIalliant\fR		an Alliant FX series
+X\fIamdahl\fR		an Amdahl running uts 2.1
+X\fIapollo\fR		an Apollo running DomainOS
+X\fIatt3b15\fR		an AT&T 3b15
+X\fIatt3b2\fR		an AT&T 3b2
+X\fIatt3b20\fR		an AT&T 3b20
+X\fIatt3b5\fR		an AT&T 3b5
+X\fIbalance\fR		a Sequent Balance (32000 based)
+X\fIbutterfly\fR		a BBN Computer Butterfly 1000
+X\fIconvex\fR		a Convex
+X\fIcray\fR		a Cray running Unicos
+X\fIdecstation\fR	a DecStation XXXX
+X\fIeta10\fR		an ETA 10 running SVR3
+X\fIgould-np1\fR		a Gould NP1
+X\fIhk68\fR		a Heurikon HK68 running Uniplus+ 5.0
+X\fIhp300\fR		an HP 9000, series 300, running mtXinu
+X\fIhp800\fR		an HP 9000, series 800, running mtXinu
+X\fIhp9000s300\fR	an HP 9000, series 300, running hpux
+X\fIhp9000s500\fR	an HP 9000, series 500, running hpux
+X\fIhp9000s700\fR	an HP 9000, series 700, running hpux
+X\fIhp9000s800\fR	an HP 9000, series 800, running hpux
+X\fIhp\fR			an HP, running hpux
+X\fIi386\fR		an Intel 386, generic
+X\fIi386-mach\fR		an Intel 386, running mach
+X\fIintel386\fR		an Intel 386, running INTEL's SVR3
+X\fIiris3d\fR		a Silicon Graphics Iris 3000
+X\fIiris4d\fR		a Silicon Graphics Iris 4D
+X\fIisc386\fR		an Intel 386, running ISC
+X\fIm88k\fR			an mc88000 CPU machine
+X\fImac2\fR			an Apple Computer Macintosh II, running AUX
+X\fImasscomp\fR			a Concurrent (Masscomp), running RTU
+X\fIminix386\fR			an i386 running minix
+X\fIminix\fR			a mac or an amiga running minix
+X\fImips\fR			another mips CPU
+X\fImultimax\fR		an Encore Computer Corp. Multimax (32000 based)
+X\fInews\fR			a Sony NEWS 800 or 1700 workstation
+X\fInews_mips\fR		a NeWS machine with mips CPU
+X\fInd500\fR		a Norsk Data ND 500/5000 running Ndix
+X\fIns32000\fR		an NS32000 CPU machine
+X\fInext\fR			a NeXT computer
+X\fIpfa50\fR			a PFU/Fujitsu A-xx computer
+X\fIps2\fR			an IBM PS/2, running aix
+X\fIptx\fR			a Sequent Symmetry running DYNIX/ptx (386/486 based)
+X\fIpyramid\fR		a Pyramid Technology computer (of any flavor)
+X\fIrs6000\fR		an IBM RS6000, running aix 
+X\fIrt\fR			an IBM PC/RT, running BSD (AOS 4.3) or mach
+X\fIrtpc\fR			an IBM PC/RT, running aix
+X\fIsco386\fR		an Intel 386, running SCO
+X\fIstellar\fR		a stellar running stellix
+X\fIsun\fR			a Sun workstation of none of the above types
+X\fIsun2\fR			a Sun Microsystems series 2 workstation (68010 based)
+X\fIsun3\fR			a Sun Microsystems series 3 workstation (68020 based)
+X\fIsun386i\fR		a Sun Microsystems 386i workstation (386 based)
+X\fIsun4\fR			a Sun Microsystems series 4 workstation (SPARC based)
+X\fIsymmetry\fR		a Sequent Symmetry running DYNIX 3 (386/486 based)
+X\fItitan\fR		an Stardent Titan
+X\fIunixpc\fR		an UNIX/PC running SVR1 att7300 aka att3b1
+X\fIvax\fR			a Digital Equipment Corp. Vax (of any flavor)
+X.DT
+X.fi
+X.sp
+X(The names of the machines are usually trade marks of the
+corresponding companies.)
+X.PP
+X.I Tcsh
+also initializes the shell variables
+X.I uid
+and
+X.I gid
+to the value of the current real user ID/GID.  This is useful for telling
+what user/group the shell is running as. Under Domain/OS 
+X.I tcsh
+will also set 
+X.I oid
+indicating the current real organization id.
+X.PP
+X.SH "20. COMMANDS FOR DEBUGGING"
+Only two such commands are available at this point, both concerned with
+testing termcap entries.
+X.br
+X.I telltc
+tells you, politely, what 
+X.I tcsh 
+thinks of your terminal, and
+X.I settc
+X`cap' `value'
+tells
+X.I tcsh
+to believe that the termcap capability `cap' ( as defined in
+X.IR termcap (5)
+X) has the value `value'. No checking for sanity is performed, so beware of
+improper use.
+X.PP
+X.SH "21. SEARCHING FOR THE VISUAL HISTORY"
+XFour new editor functions have been added in emacs mode: Two of them,
+history-search-backward, bound to M-p (and M-P),
+and history-search-forward, bound to M-n (and M-N),
+implement a conventional search mechanism,
+while the other two, i-search-back and i-search-fwd,
+both unbound by default, implement the emacs-style
+incremental search.
+X.PP
+History-search-backward (history-search-forward)
+searches backward (forward) through the history
+list for previous (next) occurrence of the beginning of the input
+buffer as a command.  That is, if the user types:
+X.sp
+X.nf
+X.RS +.6i
+X> echo foo
+foo
+X> ls
+filea	fileb
+X> echo bar
+bar
+X> 
+X.RE
+X.fi
+X.sp
+and then types "echo<ESC>p", the shell will place "echo bar" in the
+editing buffer.  If another \fIM-p\fR was entered, the editing buffer
+would change to "echo foo".  This capability is compatible with the
+plain visual history; if the user were to then enter \fI^P\fR the
+editing buffer would be changed to "ls". The pattern used to search
+through the history is defined by the characters from the beginning of
+the line up to the current cursor position and may contain a shell globbing
+pattern. Successive history searches use the same pattern.
+X.PP
+When the incremental search functions are used, a prompt -
+X"bck:" or "fwd:", depending on the chosen direction - appears, and
+characters typed are appended to the search pattern.
+The matching command line is placed in the editing buffer,
+with the cursor positioned at the point where the pattern was found
+X(the incremental search will also do searching within a command line).
+If the search fails, the terminal bell is rung,
+and the ':' in the prompt is changed to '?'.
+X.PP
+If these functions are bound to single characters, and one of those
+is typed again during the incremental search, the search continues
+in the corresponding direction, with the pattern unchanged; if the previous
+search failed, this will also cause it to "wrap around" the history list.
+XFinally, the following characters also have a special meaning
+during the search:
+X.RS +.6i
+X.nf
+X.ta 1.2i
+X.sp
+Delete	(or any character bound to \fIbackward-delete-char\fR)
+X	Undo the effect of the last character typed,
+X	deleting a character from the pattern if appropriate.
+X^G	Abort the search, back to the last successful one
+X	if previous search failed, otherwise entire search.
+X^W	Append the rest of the current word to the pattern.
+XESC	Terminate the search, leaving current line in buffer.
+X.RE
+X.DT
+X.fi
+X.sp
+Any other character, that isn't bound to
+X.I self-insert-command,
+terminates the search, leaving the current command line in the editing
+buffer, after which
+X.I tcsh
+interprets the character as if it was normal input -
+notably
+X.I Return
+will cause the current command line to be executed.
+X.PP
+In vi mode "vi-search-fwd" (bound to '/') and "vi-search-back" (bound to '?') 
+can be used to search the visual history. In command mode '/' or '?' followed 
+by a shell pattern, searches the visual history for the pattern. The pattern
+can be terminated either with a
+X.I Return, 
+in which case the matched history event is placed in the command buffer or
+an 
+X.I Escape,
+in which case the matched history event is executed. If no history event 
+matches the shell pattern then the bell is rung.
+X.PP
+X.SH "22. BUILTIN WHICH(1)/WHERE COMMANDS"
+There is now a builtin version of the
+X.IR which (1)
+command.  The builtin version is just like the original, except that
+it correctly reports aliases peculiar to this
+X.I tcsh,
+and builtin commands.  The only other difference is that the builtin
+runs somewhere between 10 and 100 times faster.
+There is also a key-function interface to this command: the
+X.I which-command
+function (normally bound to M-?), can be used anywhere on the command line,
+and will in effect do a 'which' on the command name.
+X.PP
+Similarly where will report all known instances of the command: aliases,
+builtins, as well as all references in the path.
+X.PP
+X.SH "23. RESTARTING A STOPPED EDITOR"
+There is another new editor function: run-fg-editor, which is bound to
+X\fIM-^Z\fR.  When typed, it saves away the current input buffer, and
+looks for a stopped job with a name equal to the file name part (last
+element) of either the EDITOR or VISUAL environment variables (if not
+defined, the default names are "ed" and "vi" respectively).  If such a
+job is found, then it is restarted as if "fg %\fIname\fR" had been
+typed.  This is used to toggle back and forth between an editor and
+the shell easily.  Some people bind this function to \fI^Z\fR so they
+can do this even more easily.
+X.PP
+X.SH "24. STATUS LINE SUPPORT
+X.I Tcsh
+has a new builtin called 
+X.I echotc
+that allows the user to access the terminal capabilities from the command
+line, similar to the system V 
+X.IR tput (1).
+X.sp
+X.RS +.6i
+X> echotc home
+X.RE
+X.sp
+Places the cursor at the home position and
+X.sp
+X.RS +.6i
+X> echotc cm 3 10
+X.RE
+X.sp
+places the cursor at column 3 row 10.
+This command replaces the 
+X.I el
+and
+X.I sl
+variables that used contain the escape sequences to begin and end 
+status line changes. The command:
+X.sp
+X.RS +.6i
+X> echo $sl this is a test $el
+X.RE
+X.sp
+is replaced by:
+X.sp
+X.RS +.6i
+X> echotc ts 0; echo "this is a test"; echotc fs
+X.RE
+X.sp
+In addition 
+X.I echotc 
+understands the arguments
+X.I baud,
+X.I lines,
+X.I cols,
+X.I meta,
+and
+X.I tabs
+And prints the baud rate, the number of lines and columns, and "yes" or
+X"no" depending if the terminal has tabs or a meta key.
+This can be useful in determining how terse the output of commands
+will be depending on the baud rate, or
+setting limits to commands like history to the highest number
+so that the terminal does not scroll:
+X.sp
+X.RS +.6i
+X> set history=`echotc lines`
+X.RE
+X.RS +.6i
+X> @ history--
+X.RE
+X.sp
+Note: Termcap strings may contain wildcard characters, and echoing them
+will not work correctly. The suggested method of setting shell variables
+to terminal capability strings is using double quotes, as in the following
+example that places the date in the status line:
+X.sp
+X.RS +.6i
+X> set tosl="`echotc ts 0`"
+X.RE
+X.RS +.6i
+X> set frsl="`echotc fs`"
+X.RE
+X.RS +.6i
+X> echo -n "$tosl";date; echo -n "$frsl"
+X.RE
+X.sp
+X.I Echotc
+accepts two flags. The flag
+X.I \-v 
+enables verbose messages and the flag
+X.I \-s 
+ignores any errors and returns the empty string if the capability is not
+found.
+X
+X.PP
+X.SH "25. EXECUTION OF A COMMAND AFTER CHANGING THE CURRENT WORKING DIRECTORY"
+X.I Tcsh
+now supports a special alias,
+X.I cwdcmd,
+which if set holds a command that will be executed after changing the
+value of $cwd.  For example, if the user is running on an X window
+system 
+X.I xterm(1),
+and a re-parenting window manager that supports title bars such
+as 
+X.I twm(1) and has done:
+X.sp
+X.RS +.6i
+X> alias cwdcmd  'echo -n "^[]2;${HOST}:$cwd ^G"'
+X.RE
+X.sp
+then the shell
+will change the title of the running 
+X.I xterm(1)
+to be the name of the host,
+a colon, and the full current working directory.  
+A more fancy way to do that is:
+X.sp
+X.RS +.6i
+X> alias cwdcmd 'echo -n "^[]2;${HOST}:$cwd^G^[]1;${HOST}^G"'
+X.RE
+X.sp
+This will put the hostname and working directory on the title bar but
+only the hostname in the icon manager menu.
+X.pp
+Note that if a user defines
+X.I cwdcmd
+to contain a
+X.I cd,
+X.I pushd,
+or
+X.I popd,
+command, an infinite loop may result.  In this case, it is the
+author's opinion that said user will get what he deserves.
+X.PP
+X.SH "26. NATIVE LANGUAGE SYSTEM"
+X.I Tcsh
+is eight bit clean (if so compiled, see the description of the
+X.I version
+shell variable below), and will thus support character sets needing this
+capability.
+The
+X.I tcsh
+support for NLS differs depending on whether
+it was compiled to use the system's NLS (again, see the
+X.I version
+variable) or not.
+In either case, the default for character classification
+X(i.e. which characters are printable etc) and sorting
+is 7-bit ascii, and any setting or unsetting of the LANG or LC_CTYPE
+environment variables will cause a check for possible changes in these
+respects.
+X.PP
+When using the system's NLS, the
+X.I setlocale
+C library function will be called
+to determine appropriate character classification and
+sorting - this function will typically examine the LANG and LC_CTYPE
+variables for this purpose (refer to the system documentation
+for further details).
+Otherwise, NLS will be simulated, by assuming that the
+ISO 8859-1 character set is used
+whenever either of the LANG and LC_CTYPE variables are set, regardless of
+their values. Sorting is not affected for the simulated NLS.
+X.PP
+In addition, with both real and simulated NLS, all printable
+characters in the range \e200-\e377, i.e. those that have
+M-<char> bindings, are automatically rebound to
+X.I self-insert-command
+X(the corresponding binding for the escape+<char> sequence, if any, is
+left alone).
+This automatic rebinding is inhibited if the NOREBIND environment variable
+is set - this may be useful for the simulated NLS, or a primitive real NLS
+which assumes full ISO 8859-1 (otherwise all M-<char> bindings in the
+range \e240-\e377 will effectively be undone in these cases).
+XExplicitly rebinding the relevant keys, using
+X.I bindkey,
+is of course still possible.
+X.PP
+Unknown characters (i.e. those that are neither printable nor control
+characters) will be printed using the \ennn format.
+If the tty is not in 8 bit mode, other 8 bit characters will be printed by
+converting them to ascii and using standout mode.
+X.I Tcsh
+will never change the 7/8 bit mode of the tty, and will track user-initiated
+settings for this - i.e. it may be necessary for NLS users
+X(or, for that matter, those that want to use a Meta key) to explicitly set
+the tty in 8 bit mode through the appropriate
+X.IR stty (1)
+command in e.g. the .login file.
+X.PP
+X.SH "27. AUTOMATIC PROCESS TIME REPORTING"
+Automatic process time reporting is a feature that exists in 
+X.I csh, 
+but it is usually not documented. In addition
+X.I tcsh 
+provides a slightly enriched syntax. Process time reports are controlled
+via the 
+X.I time 
+shell variable.
+The first word of the 
+X.I time 
+variable indicates the minimum number of CPU seconds the process has to
+consume before a time report is produced. The optional second word controls
+the format of the report.
+The following sequences are available for the format specification:
+X.sp
+X.RS +.6i
+X.ta 1.2i 1.7i
+X.nf
+X%U	The time the process spent in user mode 
+X	in cpu seconds.
+X%S	The time the process spent in kernel mode 
+X	in cpu seconds.
+X%E	The elapsed time in seconds.
+X%P	The CPU percentage computed as (%U + %S) / %E.
+X.RE
+X.DT
+X.fi
+X.sp
+The following sequences are supported only in systems that have the
+BSD resource limit functions.
+X.sp
+X.RS +.6i
+X.ta 1.2i 1.7i
+X.nf
+X%W	Number of times the process was swapped.
+X%X	The average amount in (shared) text space used 
+X	in Kbytes.
+X%D	The average amount in (unshared) data/stack 
+X	space used in Kbytes.
+X%K	The total space used (%X + %D) in Kbytes.
+X%M	The maximum memory the process had in use at 
+X	any time in Kbytes.
+X%F	The number of major page faults (page needed to 
+X	be brought from disk).
+X%R	The number of minor page faults.
+X%I	The number of input operations.
+X%O	The number of output operations.
+X%r	The number of socket messages received.
+X%s	The number of socket messages sent.
+X%k	The number of signals received.
+X%w	Number of voluntary context switches (waits).
+X%c	Number of involuntary context switches.
+X.RE
+X.DT
+X.fi
+X.sp
+The default time format is "%Uu %Ss %E %P %X+%Dk %I+%Oio %Fpf+%Ww" for
+systems that support resource usage reporting and "%Uu %Ss %E %P" for
+systems that do not.
+X.PP
+XFor Sequent's DYNIX/ptx %X, %D, %K, %r and %s are not supported.
+However, the following additional sequences are available.
+X.sp
+X.RS +.6i
+X.ta 1.2i 1.7i
+X.nf
+X%Y	The number of system calls performed.
+X%Z	The number of pages which are zero-filled
+X	on demand.
+X%i	The number of times a process' resident
+X	set size was increased by the kernel.
+X%d	The number of times a process' resident
+X	set size was decreased by the kernel.
+X%l	The number of read system calls performed.
+X%m	The number of write system calls performed.
+X%p	the number of reads from raw disk devices.
+X%q	the number of writes to raw disk devices.
+X.RE
+X.DT
+X.fi
+X.sp
+The default time format for Sequent's DYNIX/ptx is
+X"%Uu %Ss $E %P %I+%Oio %Fpf+%Ww". Also note that the
+CPU percentage can be higher than 100% on multi-processors.
+X.PP
+X.SH "28. OS/DEPENDENT BUILTIN SUPPORT"
+X.sp
+X.br
+X.I "TRANSPARENT COMPUTING FACILITY"
+X.PP
+On systems that support TCF (aix-ibm370, aix-ps2) the following builtins
+have been added:
+X.TP 10
+X.B getspath
+Print the current system execution path.
+X.TP 10
+X.B setspath LOCAL|<site>|<cpu> ...
+Set the current execution path.
+X.sp
+X.TP 
+X.B getxvers
+Print the current experimental version prefix.
+X.sp
+X.TP 
+X.B setxvers [<string>]
+If the optional string is ommited, any experimental version prefix is removed.
+Otherwise the experimental version prefix is set to string.
+X.sp
+X.TP 
+X.B migrate [-<site>] <pid>|%<jobid> ...
+X.PD 0
+X.TP
+X.B migrate -<site> 
+X.PD
+The first form migrates the process or job to the site specified or the
+default site determined by the system path.
+The second form, is equivalent to 'migrate -<site> $$', i.e. migrates the
+current process to the site specified. Note: migrating 
+X.I tcsh
+itself can cause unexpected behavior, since the shell
+does not like to lose its tty.
+X.sp
+X.PP
+In addition, jobs will print the site the job is executing.
+X.PP
+X.sp
+X.br
+X.I "Domain/OS Support"
+X.PP
+X.TP 
+X.B inlib <shared-library> ...
+Inlib adds shared libraries to the current environment. There is no way
+to remove them...
+X.TP
+X.B rootnode //<nodename>
+Change the name of the current rootnode. From now on, 
+X.I / 
+will resolve to
+X.I //<rootnode>
+X.TP
+X.B ver [<systype>] [<command>]
+Without arguments, print 
+X.I $SYSTYPE;
+with the 
+X.I <systype> 
+provided, set 
+X.I SYSTYPE
+to the one provided. Valid systypes are bsd4.3 and sys5.3. If a
+X.I <command>
+is
+argument is given, then 
+X.I <command> 
+is executed under the 
+X.I <systype> 
+specified.
+X.PP
+X.sp
+X.br
+X.I "Mach"
+X.PP
+X.TP 
+X.B setpath <path-spec> ...
+XXXX: What does it do?
+X.PP
+X.sp
+X.br
+X.I "Masscomp/RTU"
+X.PP
+X.TP 
+X.B universe <universe-spec> ...
+Sets the current universe to the specified parameter.
+X.PP
+X.sp
+X.br
+X.I "Convex/OS"
+X.PP
+X.TP 
+X.B warp [<universe-spec>] ...
+Without arguments prints the current value of the universe. With a universe
+argument it sets the current universe to the value of the argument.
+X.sp
+X.SH "29. WINDOW SIZE TRACKING"
+On systems that support SIGWINCH or SIGWINDOW,
+X.I tcsh
+adapts to window resizing automatically and adjusts the environment
+variables LINES and COLUMNS if set. Also if the environment variable
+TERMCAP contains li#, and co# fields, these will be adjusted also to
+reflect the new window size.
+X
+X.SH "30. INPUT FILES"
+On startup 
+X.I tcsh
+will try to source 
+X.I "/etc/csh.cshrc" 
+and then
+X.I "/etc/csh.login"
+if the shell is a login shell. Then it will try to source 
+X.I "$HOME/.tcshrc" 
+and then 
+X.I "$HOME/.cshrc"
+if 
+X.I "$HOME/.tcshrc" 
+is not found. Then it will source
+X.I "$HOME/.login"
+if the shell is a login shell.
+On exit
+X.I tcsh
+will source first
+X.I "/etc/csh.logout"
+and then 
+X.I "$HOME/.logout"
+if the shell was a login shell.
+X.sp
+Note: On 
+X.I convexos
+and
+X.I stellix
+the names of the system default files are
+X.I "/etc/cshrc",
+X.I "/etc/login"
+and
+X.I "/etc/logout"
+respectively. On the NeXT the names are also different:
+X.I "/etc/cshrc.std",
+X.I "/etc/login.std"
+and
+X.I "/etc/logout.std"
+XFinally on
+X.I irix,
+X.I A/UX
+and the
+X.I cray
+only the file
+X.I "/etc/cshrc"
+is executed if the shell is a login shell. 
+X
+X.SH "31. COMMAND LINE OPTIONS"
+This section describes options that are either undocumented in 
+X.I csh
+X(*)
+or present only in 
+X.I tcsh.
+X(+)
+X.sp
+X.TP 4
+X.I \-d
+Load ~/.cshdirs (If 
+X.I tcsh 
+was compiled with CSHDIRS enabled)(+)
+X.TP 4
+X.I \-Dname[=value]
+Set environment variable name to value. (Domain/OS only) (+)
+X.TP 4
+X.I \-F
+Use fork() instead of vfork() to spawn processes. (Convex/OS only) (+)
+X.TP 4
+X.I \-l
+Make 
+X.I tcsh 
+behave like a login shell.  (+)
+X.TP 4
+X.I \-m 
+Allow reading of a .cshrc that does not belong to the effective
+user. Newer versions of
+X.I su(1) 
+can pass that to the shell. (some versions of csh have it) (+*)
+X.TP 4
+X.I \-q 
+Make the shell accept SIGQUIT, and behave when it is used under a debugger.
+Job control is disabled. (*)
+X.sp
+X.SH "32. HISTORY AND VARIABLE MODIFIER ENHANCEMENTS"
+X.I Tcsh
+accepts more than one variable modifier per variable or history expansion. 
+XFor example, in 
+X.I csh(1)
+the following command expands to:
+X.sp
+X.nf
+X.RS +.6in
+X% set a=/usr/local/foo.bar.baz
+X% echo $a:t:r:e
+foo.bar.baz:r:e
+X.RE
+X.fi
+X.sp
+but in 
+X.I tcsh:
+X.sp
+X.nf
+X.RS +.6in
+X> set a=/usr/local/foo.bar.baz
+X> echo $a:t:r:e
+bar
+X.RE
+X.fi
+X.sp
+This bug fix changes slightly the input syntax of 
+X.I csh,
+causing expressions of the form to have invalid syntax:
+X.sp
+X.nf
+X.RS +.6in
+X> set a=/usr/local/foo.bar.baz
+X> echo $a:t:$cwd
+Unknown variable modifier.
+X.RE
+X.fi
+X.sp
+Which is the correct behavior, since after the second colon a variable
+modifier is expected and `$' is found.  Expressions like this should be 
+re-written as:
+X.sp
+X.nf
+X.RS +.6in
+X> echo ${a:t}:$cwd
+X.RE
+X.fi
+X.sp
+Also 
+X.I tcsh 
+has an additional : character
+X.I a
+which applies the current modifier multiple times in the same word, in
+the same way
+X.I g
+applies the modifier once in each word:
+X.sp
+X.nf
+X.RS +.6in
+X> set foo=(a:b:c d:e:f)
+X> echo $foo:s/:/ /
+a b:c d:e:f
+X> echo $foo:gs/:/ /
+a b:c d e:f
+X> echo $foo:as/:/ /
+a b c d:e:f
+X> echo $foo:ags/:/ /
+a b c d e f
+X.RE
+X.fi
+X.sp
+The 
+X.I csh 
+expert will notice in the above example another
+X.I tcsh 
+enhancement. In 
+X.I csh
+the 
+X.I s
+modifier does not work for variables.
+X.sp
+The 
+X.I a 
+character works correctly with other modifiers, for example:
+X.sp
+X.nf
+X.RS +.6in
+X> echo $host
+tesla.ee.cornell.edu
+X> echo $host:r
+tesla.ee.cornell
+X> echo $host:ar
+tesla
+X.RE
+X.fi
+X.sp
+X.I Note:
+The 
+X.I a
+character causes a modifier to be applied to a word repeatedly until
+the modifier fails. This can lead to an infinite loop in the current
+implementation when used with the
+X.I s
+modifier. For example :as/f/ff/ will never terminate. This behavior
+might change in the future.
+X
+X.SH FYI
+This shell uses cbreak mode but takes typed-ahead characters anyway.
+You can still use
+X.IR stty (1)
+to set some of the modes of your terminal (but not bindings).
+X.PP
+This shell will restore your tty to a sane mode if it appears to
+return from some command in raw, cbreak, or noecho mode. This behavior
+can be changed using 
+X.I setty.
+X.PP
+X.SH ENVIRONMENT
+HPATH -- path to look for command documentation
+X.br
+LANG -- used to give preferred character environment (see NLS)
+X.br
+LC_CTYPE -- used to change only ctype character handling (see NLS)
+X.br
+NOREBIND -- inhibits rebinding of printable characters to self-insert-command
+X.br
+PATH -- path to look for command execution
+X.br
+SHLVL -- current shell level nesting
+X.br
+TERM -- used to tell how to handle the terminal
+X.br
+LINES -- Number of lines in terminal (see WINDOW SIZE)
+X.br
+COLUMNS -- Number of columns in terminal (see WINDOW SIZE)
+X.br
+TERMCAP -- Terminal capability string (see WINDOW SIZE)
+X.br
+SYSTYPE -- The current system type (Domain OS only)
+X.PP
+X.SH "NEW SHELL VARIABLES"
+X.br
+X.TP 10
+X.B addsuffix 
+add a / for directories, and a space for normal files when
+complete matches a name exactly.
+If unset don't add anything extra.
+X.TP 10
+X.B ampm
+show all times in 12 hour, AM/PM format.
+X.TP 10
+X.B autocorrect
+Correct mis-spelled path components automatically before attempting
+completion.
+X.TP 10
+X.B autoexpand
+invoke the expand-history function automatically on completion.
+X.TP 10
+X.B autolist 
+list possibilities on an ambiguous completion.
+X.TP 10
+X.B autologout 
+The first word indicates
+number of minutes of inactivity before automatic logout.
+The optional second word indicates the number of minutes of inactivity
+after which the user will be prompted for his login password to enter a 
+command.
+X.TP 10
+X.B backslash_quote
+makes the backslash quote \\, \', and ". This option changes the
+parsing mechanism for tcsh, and it can cause syntax errors in 
+X.I csh
+scripts.
+X.TP 10
+X.B chase_symlinks 
+always resolve symbolic links to real names on cd, etc.
+X.TP 10
+X.B correct 
+automatically try to correct the spelling of commands.
+Must be set to either correct=cmd, only command name will be corrected,
+or correct=all, the whole line will be corrected.
+X.TP 10
+X.B dextract 
+extract a directory on pushd rather than rotating.
+X.TP 10
+X.B edit 
+use the input editor, set by default.
+X.TP 10
+X.B fignore 
+list of file name suffixes (e.g. .o, ~) to ignore during complete.
+X.TP 10
+X.B gid
+the current real group id.
+X.TP 10
+X.B histlit 
+If set, history lines in the editor will be shown with its literal value (that
+is the line as it was input) instead of the shells lexical version. The current
+history line can be toggled between literal and lexical with the
+toggle-literal-history function.
+History lines saved at shell exit are also saved as this variable indicates.
+X.TP 10
+X.B histfile 
+If set, it contains the full path-name where a history file is read/written.
+It defaults to $home/.history. This is useful when sharing the same home
+directory in different machines, or if one wants to save all the histories
+in the tty sessions. It is usually set in .cshrc for interactive shells,
+because history is sourced between .cshrc and .login so that it is available
+from .login.
+X.TP 10
+X.B ignore_symlinks 
+don't resolve symbolic links to real names on cd, etc.
+X.TP 10
+X.B listjobs 
+list all jobs when suspending. set listjobs=long, produces long
+format.
+X.TP 10
+X.B listlinks 
+Resolve symbolic links when listing files so that the correct filetype
+is shown.
+X.TP 10
+X.B listmax 
+maximum number of items to list without asking first.
+X.TP 10
+X.B matchbeep
+control beeping on completion.  With matchbeep=nomatch, completion
+only beeps when there is no match, with matchbeep=ambiguous, beeps also
+when there are multiple matches, with matchbeep=notunique, beeps when
+there is one exact and other longer matches, with matchbeep=never, it
+never beeps.
+X.TP 10
+X.B nobeep 
+Disables beeping completely.
+X.TP 10
+X.B oid
+The organization id number (Domain OS only).
+X.TP 10
+X.B printexitvalue 
+if an interactive program exits non-zero, print the
+exit value.
+X.TP 10
+X.B prompt 
+the string to prompt with.
+X.TP 10
+X.B prompt2 
+the string to prompt for while and for loops with.
+X.TP 10
+X.B prompt3
+the string to prompt with when automatic spelling correction has
+corrected a command line.
+X.TP 10
+X.B pushdtohome 
+make pushd with no args do a "pushd ~" (like cd does).
+X.TP 10
+X.B pushdsilent 
+do not print the dir stack on every pushd and popd.
+X.TP 10
+X.B recexact 
+recognize exact matches even if they are ambiguous.
+X.TP 10
+X.B recognize_only_executables 
+list choices of commands only displays files
+in the path that are executable (slow).
+X.TP 10
+X.B rmstar
+Prompt the user before execution of `rm *'.
+X.TP 10
+X.B savehist 
+number of history items to save between login sessions.
+X.TP 10
+X.B shlvl
+Integer value indicating the number
+of nested shells. 
+X.TP 10
+X.B showdots 
+show hidden files in list and complete operations.
+X.TP 10
+X.B tcsh
+Contains the current version of the shell as R.VV.PP. The 
+X.I R
+indicates the major release number, the 
+X.I VV 
+the current
+version and the 
+X.I PP
+the patchlevel.
+X.TP 10
+X.B term 
+the terminal type; see above.
+X.TP 10
+X.B tperiod 
+periodic command wait period (in minutes).
+X.TP 10
+X.B tty 
+The name of the tty, or empty if not attached to one.
+X.TP 10
+X.B uid 
+the current real user ID.
+X.TP 10
+X.B version 
+the version ID stamp for this
+X.I tcsh.
+It contains, the origin of this version of 
+X.I tcsh, 
+the date this version
+was released and a string containing a comma separated list of the 
+compile time options enabled:
+X.ta 0.7i 0.9i
+X.nf
+X8b 7b	If tcsh was compiled to be eight bit clean 
+X	or not.  The default is 8b.
+nls	Set if tcsh uses the system's NLS, should be
+X	the default for systems that have NLS.
+lf	Set if tcsh should execute .login before 
+X	.cshrc on login shells. Default is not set.
+dl	Set if tcsh should put . last on the path 
+X	for security. Default is set.
+vi	Set if tcsh's default editor is vi. Default 
+X	is unset (emacs)
+dtr	Set if tcsh should drop dtr on login shells 
+X	when exiting.  Default is unset.
+bye	Set if tcsh should accept bye in addition 
+X	to logout, and rename log to watchlog. 
+X	Default is unset.
+al	Set if tcsh should determine if autologout 
+X	should be enabled. The default is set.
+dir	Set if tcsh should save and restore the directory
+X	stack.
+kan	Set if tcsh is compiled for Kanji. 
+X	(ignore the iso character set.) Default is unset.
+sm	Set if tcsh was compiled to use the system's malloc.
+X.RE
+X.DT
+X.fi
+X.sp
+In addition to the above strings, administrators can 
+enter local strings to indicate differences in the local version.
+X
+X.TP 10
+X.B visiblebell 
+use the visible bell (screen flash) rather than audible bell.
+X.TP 10
+X.B watch 
+list of events to watch.
+X.TP 10
+X.B who
+format string for the printouts generated when \fIwatch\fR is set.
+X.TP 10
+X.B wordchars 
+list of non-alphanumeric characters considered part of a word for the purpose
+of the forward-word, backward-word etc functions
+X-- defaults to "*?_-.[]~=".
+X.PP
+X.SH "NEW SPECIAL ALIASES"
+X.TP 10
+X.I cwdcmd 
+the command is run after every change of working directory.
+X.TP 10
+X.I periodic 
+the command to be run every \fItperiod\fR minutes.
+X.TP 10
+X.I precmd 
+the command to be run prior to printing each prompt.
+X.TP 10
+X.I beepcmd
+the command to be run every time 
+X.I tcsh
+wants to echo the terminal bell. 
+X.PP
+X.SH "SEE ALSO"
+xterm(1), twm(1), csh(1), chsh(1), termcap(5), termio(7)
+X.SH BUGS
+The screen update for lines longer than the screen width is very poor
+if the terminal cannot move the cursor up (i.e. terminal type "dumb").
+X
+I am certain that there are bugs.  Bugs (preferably with fixes)
+should be sent to Christos Zoulas (christos@ee.cornell.edu).
+X.PP
+X.SH VERSION
+This man page documents tcsh 6.01.00 (Cornell) 12/19/91.
+X.PP
+X.SH AUTHORS
+Ken Greer, HP Labs, 1981
+X.br
+Wrote the command completion.
+X.sp
+Mike Ellis, Fairchild, 1983
+X.br
+Added command name recognition/completion.
+X.sp
+Paul Placeway, Ohio State CIS dept., 1983
+X.br
+Added the command line editor.
+X.sp
+Rayan Zachariassen, University of Toronto, 1984
+X.br
+Added the builtin
+X.I which
+feature to the editor, and the code for
+X.I "ls-F".
+Also numerous bug fixes, modifications, and performance enhancements.
+X.sp
+Chris Kingsley, Caltech
+X.br
+Wrote the fast storage allocator routines (nmalloc.c).
+X.sp
+Karl Kleinpaste, CCI 1983-4
+X.br
+Added special aliases, directory stack extraction stuff, login/logout watch,
+and scheduled events.  Also came up with the idea of the new prompt format.
+X.sp
+Paul Placeway, Ohio State CIS dept., 1987
+X.br
+Re-wrote the editor, cleaned up
+other code, and added the prompt routines, added to the syntax for
+file name expressions, and sped up the shell some.
+X.sp
+Chris Grevstad, TRW, 1987
+X.br
+Ported the 4.3 csh sources to tcsh.
+X.sp
+Christos S. Zoulas, Cornell U. EE dept., 1987-91
+X.br
+ported tcsh to HPUX, and System V rel. 2 and 3 and wrote a SysV version of
+getwd.c. Added SHORT_STRINGS support. New version of sh.glob.c.
+X.sp
+James J Dempsey, BBN, 1988, and Paul Placeway, OSU, 1988
+X.br
+Re-ported tcsh to A/UX.
+X.sp
+X.SH "BUGFIXES AND ENHANCEMENTS"
+Scott Krotz, Motorola, 1991
+X.br
+Minix port.
+X.sp
+David Dawes, Sydney U. Australia, Physics dept., 1991
+X.br
+SVR4 job control fixes. (reverse pipeline startup code, and signal fixes).
+X.sp
+Jose Sousa, Interactive Systems Corp., 1991
+X.br
+XExtended vi fixes. Added delete command in vi.
+X.sp
+Marc Horowitz, MIT, 1991
+X.br
+Ansification fixes, new exec hashing code, imake fixes, where builtin.
+X.sp
+XEric Schnoebelen, Convex, 1990
+X.br
+Convex support, lots of csh bug fixes, save and restore of directory stack.
+X.sp
+Jaap Vermeulen, Sequent, 1990-91
+X.br
+Vi mode fixes, expand-line, window change fixes, ported to symmetry machines.
+X.sp
+Ron Flax, Apple, 1990
+X.br
+Ported again to A/UX 2.0
+X.sp
+Dan Oscarsson, LTH Sweden, 1990
+X.br
+NLS support and simulated for non NLS sites.
+Correction of file names also handles the case when
+the / is replaced by another character.
+The editor does not switch into cbreak mode unless needed.
+The shell will not use character attributes when output is not
+to a tty.
+X.sp
+Johan Widen, SICS Sweden, 1990
+X.br
+Shell level variable, mach support, correct-line, 8-bit printing.
+X.sp
+Matt Day, Sanyo Icon, 1990
+X.br
+Added POSIX termio support; Fixed limit stuff for SysV.
+X.sp
+Hans J. Albertsson (Sun Sweden)
+X.br
+Added the ampm variable handling, DING!, and the settc and telltc builtins.
+X.sp
+Michael Bloom
+X.br
+XFixed some of the interrupt handling.
+X.sp
+Michael Fine, Digital Equipment Corp
+X.br
+added the extended key support.
+X.sp
+Daniel Long, NNSC, 1988
+X.br
+Added the wordchars variable.
+X.sp
+George Hartzell, MCD Biology, University of Colorado-Boulder, 1988
+X.br
+XFixed the always resetting to DEL bug.
+X.sp
+Patrick Wolfe, Kuck and Associates, Inc., 1988
+X.br
+Cleaned up VI mode and wrote the new editor description (in section
+X1).
+X.sp
+Jak Kirman, 1988
+X.br
+XFixed the SunOS 4 giant stack allocation bug.
+X.sp
+Bruce Robertson, Tektronix, 1989
+X.br
+XFixed setting erase and kill (again).
+X.sp
+David C Lawrence, Rensselaer Polytechnic Institute, 1989
+X.br
+Added "autolist" variable and code to list possibilities on ambiguous
+completion.
+X.sp
+Martin Boyer, Institut de recherche d'Hydro-Quebec, 1991.
+X.br
+Modified "autolist" variable and code to give options on beeping
+behavior.  Modified the history search to search for the whole string
+from the beginning of the line to the cursor.
+X.sp
+Alec Wolman, DEC, 1989
+X.br
+Added code to allow newlines in the prompt.
+X.sp
+Matt Landau, BBN, 1989
+X.br
+XFixed YP bugs on Suns, added .tcshrc stuff.
+X.sp
+Ray Moody, Purdue Physics, 1989
+X.br
+Added the code to do magic spacebar history expansion.
+X.sp
+Mordechai ????, Intel, 1989
+X.br
+Re-arranged the printprompt() routine to use a switch(*cp) (rather than
+a bunch of ifs), and added a few things to it.
+X.sp
+Josh Siegel, dspo.gov, 1989
+X.br
+XFixed "fg-editor" and added the status line shell variables "sl" and "el".
+X.sp
+Karl Berry, UMB, 1989
+X.br
+XFixed a bug involving environ (in sh.func.c) on NeXT computers.
+X.sp
+Michael Greim, Universitaet des Saarlandes, Saarbruecken, W-Germany,
+X.br
+XFixed the nested backquote bug (yes, you can do it; think about
+aliases) in 4.2 csh.  This fix was posted to comp.bugs.4bsd.
+X.sp
+Kazuhiro Honda, Department of Computer Science, Keio University, 1989
+X.br
+Added the code for automatic spelling correction, the prompt3 stuff
+X(the autocorrect prompt), and HOSTTYPE symbols for the Sony NEWS.
+X.sp
+Paul Placeway, BBN, 1990
+X.br
+XFixed character redrawing code insert bugs, and made redrawing code
+handle multiple character movement, insert, and delete (if it exists).
+XFixed setting of SHELL.
+X.sp
+Per Hedeland, Ellemtel, Sweden, 1990
+X.br
+Various bugfixes and improvements, e.g. in history expansion, autolist,
+added autoexpand, updated the manual.
+X.SH "THANKS TO"
+A special thanks to: Bryan Dunlap, Clayton Elwell, Karl Kleinpaste,
+Bob Manson, Steve Romig,
+Diana Smetters, Bob Sutterfield, Mark Verber, Elizabeth Zwicky, and
+all the other people at Ohio State for suggestions and encouragement.
+X.sp
+Also, thanks to all the people on the net for putting up with,
+reporting bugs in, and suggesting new additions to the old tcsh
+editor.
+END_OF_FILE
+if test 82166 -ne `wc -c <'tcsh.man'`; then
+    echo shar: \"'tcsh.man'\" unpacked with wrong size!
+fi
+# end of 'tcsh.man'
+fi
+echo shar: End of archive 18 \(of 18\).
+cp /dev/null ark18isdone
+MISSING=""
+for I in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 ; do
+    if test ! -f ark${I}isdone ; then
+	MISSING="${MISSING} ${I}"
+    fi
+done
+if test "${MISSING}" = "" ; then
+    echo You have unpacked all 18 archives.
+    rm -f ark[1-9]isdone ark[1-9][0-9]isdone
+else
+    echo You still need to unpack the following archives:
+    echo "        " ${MISSING}
+fi
+##  End of shell archive.
+exit 0

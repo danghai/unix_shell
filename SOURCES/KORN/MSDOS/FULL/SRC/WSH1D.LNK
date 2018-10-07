@@ -1,0 +1,27 @@
+system os2v2
+debug all
+option caseexact
+option dosseg
+option stack=0x8000
+option modname=MSShell
+option newfiles
+option description 'MS Shell for OS/2 and MSDOS'
+option protmode
+file sh1.obj
+file sh2.obj
+file sh3.obj
+file sh4.obj
+file sh5.obj
+file sh6.obj
+file sh7.obj
+file sh8.obj
+file sh9.obj
+file sh10.obj
+file sh11.obj
+file sh12.obj
+file sh13.obj
+name shos232.exe
+
+IMPORT	DOSFLAGPROCESS	DOSCALLS.15
+IMPORT	DOSGETPRTY	DOSCALLS.9
+IMPORT	DOSQPROCSTATUS	DOSCALLS.154

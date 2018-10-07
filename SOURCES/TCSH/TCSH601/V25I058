@@ -1,0 +1,3577 @@
+Newsgroups: comp.sources.unix
+From: christos@ee.cornell.edu (Christos Zoulas)
+Subject: v25i058: tcsh6.01 - a csh replacement with lots of extra goodies, Part05/18
+Message-ID: <1991Dec20.214032.6647@PA.dec.com>
+Date: Fri, 20 Dec 91 21:40:32 GMT
+Approved: vixie@pa.dec.com
+
+Submitted-By: christos@ee.cornell.edu (Christos Zoulas)
+Posting-Number: Volume 25, Issue 58
+Archive-Name: tcsh-6.01/part05
+
+#! /bin/sh
+# This is a shell archive.  Remove anything before this line, then unpack
+# it by saving it into a file and typing "sh file".  To overwrite existing
+# files, type "sh file -c".  You can also feed this as standard input via
+# unshar, or by typing "sh <file", e.g..  If this archive is complete, you
+# will see the following message at the end:
+#		"End of archive 5 (of 18)."
+# Contents:  ed.term.h mi.termios.c sh.char.c sh.err.c sh.types.h
+#   tc.os.h tc.prompt.c tc.vers.c
+# Wrapped by vixie@cognition.pa.dec.com on Fri Dec 20 13:29:25 1991
+PATH=/bin:/usr/bin:/usr/ucb ; export PATH
+if test -f 'ed.term.h' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'ed.term.h'\"
+else
+echo shar: Extracting \"'ed.term.h'\" \(10145 characters\)
+sed "s/^X//" >'ed.term.h' <<'END_OF_FILE'
+X/* $Header: /home/hyperion/mu/christos/src/sys/tcsh-6.01/RCS/ed.term.h,v 1.6 1991/12/14 20:45:46 christos Exp $ */
+X/*
+X * ed.term.h: Local terminal header
+X */
+X/*-
+X * Copyright (c) 1980, 1991 The Regents of the University of California.
+X * All rights reserved.
+X *
+X * Redistribution and use in source and binary forms, with or without
+X * modification, are permitted provided that the following conditions
+X * are met:
+X * 1. Redistributions of source code must retain the above copyright
+X *    notice, this list of conditions and the following disclaimer.
+X * 2. Redistributions in binary form must reproduce the above copyright
+X *    notice, this list of conditions and the following disclaimer in the
+X *    documentation and/or other materials provided with the distribution.
+X * 3. All advertising materials mentioning features or use of this software
+X *    must display the following acknowledgement:
+X *	This product includes software developed by the University of
+X *	California, Berkeley and its contributors.
+X * 4. Neither the name of the University nor the names of its contributors
+X *    may be used to endorse or promote products derived from this software
+X *    without specific prior written permission.
+X *
+X * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+X * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+X * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+X * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+X * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+X * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+X * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+X * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+X * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+X * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+X * SUCH DAMAGE.
+X */
+X#ifndef _h_ed_term
+X#define _h_ed_term
+X
+X#define CONTROL(A)	((A) & 037)
+X
+X#if defined(TERMIO) || defined(POSIX)
+X/*
+X * Aix compatible names
+X */
+X# if defined(VWERSE) && !defined(VWERASE)
+X#  define VWERASE VWERSE
+X# endif /* VWERSE && !VWERASE */
+X
+X# if defined(VDISCRD) && !defined(VDISCARD)
+X#  define VDISCARD VDISCRD
+X# endif /* VDISCRD && !VDISCARD */
+X
+X# if defined(VFLUSHO) && !defined(VDISCARD)
+X#  define VDISCARD VFLUSHO
+X# endif  /* VFLUSHO && VDISCARD */
+X
+X# if defined(VSTRT) && !defined(VSTART)
+X#  define VSTART VSTRT
+X# endif /* VSTRT && ! VSTART */
+X
+X# if defined(VSTAT) && !defined(VSTATUS)
+X#  define VSTATUS VSTAT
+X# endif /* VSTAT && ! VSTATUS */
+X
+X# ifndef ONLRET
+X#  define ONLRET 0
+X# endif /* ONLRET */
+X
+X# ifndef TAB3
+X#  ifdef OXTABS
+X#   define TAB3 OXTABS
+X#  else
+X#   define TAB3 0
+X#  endif /* OXTABS */
+X# endif /* !TAB3 */
+X
+X# if defined(OXTABS) && !defined(XTABS)
+X#  define XTABS OXTABS
+X# endif /* OXTABS && !XTABS */
+X
+X# ifndef ONLCR
+X#  define ONLCR 0
+X# endif /* ONLCR */
+X
+X# ifndef IEXTEN
+X#  define IEXTEN 0
+X# endif /* IEXTEN */
+X
+X# ifndef ECHOCTL
+X#  define ECHOCTL 0
+X# endif /* ECHOCTL */
+X
+X# ifndef PARENB
+X#  define PARENB 0
+X# endif /* PARENB */
+X
+X# ifndef EXTPROC
+X#  define EXTPROC 0
+X# endif /* EXTPROC */
+X
+X# ifndef FLUSHO
+X#  define FLUSHO  0
+X# endif /* FLUSHO */
+X
+X
+X# if defined(VDISABLE) && !defined(_POSIX_VDISABLE)
+X#  define _POSIX_VDISABLE VDISABLE
+X# endif /* VDISABLE && ! _POSIX_VDISABLE */
+X
+X/*
+X * Work around ISC's definition of IEXTEN which is
+X * XCASE!
+X */
+X# ifdef ISC
+X#  if defined(IEXTEN) && defined(XCASE)
+X#   if IEXTEN == XCASE
+X#    undef IEXTEN
+X#    define IEXTEN 0
+X#   endif /* IEXTEN == XCASE */
+X#  endif /* IEXTEN && XCASE */
+X#  if defined(IEXTEN) && !defined(XCASE)
+X#   define XCASE IEXTEN
+X#   undef IEXTEN
+X#   define IEXTEN 0
+X#  endif /* IEXTEN && !XCASE */
+X# endif /* ISC */
+X
+X/*
+X * Work around convex weirdness where turning off IEXTEN makes us
+X * lose all postprocessing!
+X */
+X#if defined(convex) || defined(__convex__)
+X# if defined(IEXTEN) && IEXTEN != 0
+X#  undef IEXTEN
+X#  define IEXTEN 0
+X# endif /* IEXTEN != 0 */
+X#endif /* convex || __convex__ */
+X
+X
+X# else /* SGTTY */
+X
+X# ifndef LPASS8
+X#  define LPASS8  0
+X# endif /* LPASS8 */
+X
+X#endif /* TERMIO || POSIX */
+X
+X#ifndef _POSIX_VDISABLE
+X# define _POSIX_VDISABLE ((unsigned char) -1)
+X#endif /* _POSIX_VDISABLE */
+X
+X#if !defined(CREPRINT) && defined(CRPRNT)
+X# define CREPRINT CRPRNT
+X#endif /* !CREPRINT && CRPRNT */
+X#if !defined(CDISCARD) && defined(CFLUSH)
+X# define CDISCARD CFLUSH
+X#endif /* !CDISCARD && CFLUSH */
+X
+X#ifndef CINTR
+X# define CINTR		CONTROL('c')
+X#endif /* CINTR */
+X#ifndef CQUIT
+X# define CQUIT		034	/* ^\ */
+X#endif /* CQUIT */
+X#ifndef CERASE
+X# define CERASE		0177	/* ^? */
+X#endif /* CERASE */
+X#ifndef CKILL
+X# define CKILL		CONTROL('u')
+X#endif /* CKILL */
+X#ifndef CEOF
+X# define CEOF		CONTROL('d')
+X#endif /* CEOF */
+X#ifndef CEOL
+X# define CEOL		_POSIX_VDISABLE
+X#endif /* CEOL */
+X#ifndef CEOL2
+X# define CEOL2		_POSIX_VDISABLE
+X#endif /* CEOL2 */
+X#ifndef CSWTCH
+X# define CSWTCH		_POSIX_VDISABLE
+X#endif /* CSWTCH */
+X#ifndef CDSWTCH
+X# define CDSWTCH	_POSIX_VDISABLE
+X#endif /* CDSWTCH */
+X#ifndef CERASE2
+X# define CERASE2	_POSIX_VDISABLE
+X#endif /* CERASE2 */
+X#ifndef CSTART
+X# define CSTART		CONTROL('q')
+X#endif /* CSTART */
+X#ifndef CSTOP
+X# define CSTOP		CONTROL('s')
+X#endif /* CSTOP */
+X#ifndef CSUSP
+X# define CSUSP		CONTROL('z')
+X#endif /* CSUSP */
+X#ifndef CDSUSP
+X# define CDSUSP		CONTROL('y')
+X#endif /* CDSUSP */
+X
+X#ifdef hpux
+X
+X# ifndef CREPRINT
+X#  define CREPRINT	_POSIX_VDISABLE
+X# endif /* CREPRINT */
+X# ifndef CDISCARD
+X#  define CDISCARD	_POSIX_VDISABLE
+X# endif /* CDISCARD */
+X# ifndef CLNEXT
+X#  define CLNEXT	_POSIX_VDISABLE
+X# endif /* CLNEXT */
+X# ifndef CWERASE
+X#  define CWERASE	_POSIX_VDISABLE
+X# endif /* CWERASE */
+X
+X#else /* !hpux */
+X
+X# ifndef CREPRINT
+X#  define CREPRINT	CONTROL('r')
+X# endif /* CREPRINT */
+X# ifndef CDISCARD
+X#  define CDISCARD	CONTROL('o')
+X# endif /* CDISCARD */
+X# ifndef CLNEXT
+X#  define CLNEXT	CONTROL('v')
+X# endif /* CLNEXT */
+X# ifndef CWERASE
+X#  define CWERASE	CONTROL('w')
+X# endif /* CWERASE */
+X
+X#endif /* hpux */
+X
+X#ifndef CSTATUS
+X# define CSTATUS	CONTROL('t')
+X#endif /* CSTATUS */
+X#ifndef CPAGE
+X# define CPAGE		' '
+X#endif /* CPAGE */
+X#ifndef CPGOFF
+X# define CPGOFF		CONTROL('m')
+X#endif /* CPGOFF */
+X#ifndef CKILL2
+X# define CKILL2		_POSIX_VDISABLE
+X#endif /* CKILL2 */
+X#ifndef CBRK
+X# ifndef masscomp
+X#  define CBRK		0377
+X# else
+X#  define CBRK		'\0'
+X# endif /* masscomp */
+X#endif /* CBRK */
+X#ifndef CMIN
+X# define CMIN		CEOF
+X#endif /* CMIN */
+X#ifndef CTIME
+X# define CTIME		CEOL
+X#endif /* CTIME */
+X
+X/*
+X * Fix for sun inconsistency. On termio VSUSP and the rest of the
+X * ttychars > NCC are defined. So we undefine them.
+X */
+X#if defined(TERMIO) || defined(POSIX)
+X# if defined(POSIX) && defined(NCCS)
+X#  define NUMCC		NCCS
+X# else
+X#  ifdef NCC
+X#   define NUMCC	NCC
+X#  endif /* NCC */
+X# endif /* POSIX && NCCS */
+X# ifdef NUMCC
+X#  ifdef VINTR
+X#   if NUMCC <= VINTR
+X#    undef VINTR
+X#   endif /* NUMCC <= VINTR */
+X#  endif /* VINTR */
+X#  ifdef VQUIT
+X#   if NUMCC <= VQUIT
+X#    undef VQUIT
+X#   endif /* NUMCC <= VQUIT */
+X#  endif /* VQUIT */
+X#  ifdef VERASE
+X#   if NUMCC <= VERASE
+X#    undef VERASE
+X#   endif /* NUMCC <= VERASE */
+X#  endif /* VERASE */
+X#  ifdef VKILL
+X#   if NUMCC <= VKILL
+X#    undef VKILL
+X#   endif /* NUMCC <= VKILL */
+X#  endif /* VKILL */
+X#  ifdef VEOF
+X#   if NUMCC <= VEOF
+X#    undef VEOF
+X#   endif /* NUMCC <= VEOF */
+X#  endif /* VEOF */
+X#  ifdef VEOL
+X#   if NUMCC <= VEOL
+X#    undef VEOL
+X#   endif /* NUMCC <= VEOL */
+X#  endif /* VEOL */
+X#  ifdef VEOL2
+X#   if NUMCC <= VEOL2
+X#    undef VEOL2
+X#   endif /* NUMCC <= VEOL2 */
+X#  endif /* VEOL2 */
+X#  ifdef VSWTCH
+X#   if NUMCC <= VSWTCH
+X#    undef VSWTCH
+X#   endif /* NUMCC <= VSWTCH */
+X#  endif /* VSWTCH */
+X#  ifdef VDSWTCH
+X#   if NUMCC <= VDSWTCH
+X#    undef VDSWTCH
+X#   endif /* NUMCC <= VDSWTCH */
+X#  endif /* VDSWTCH */
+X#  ifdef VERASE2
+X#   if NUMCC <= VERASE2
+X#    undef VERASE2
+X#   endif /* NUMCC <= VERASE2 */
+X#  endif /* VERASE2 */
+X#  ifdef VSTART
+X#   if NUMCC <= VSTART
+X#    undef VSTART
+X#   endif /* NUMCC <= VSTART */
+X#  endif /* VSTART */
+X#  ifdef VSTOP
+X#   if NUMCC <= VSTOP
+X#    undef VSTOP
+X#   endif /* NUMCC <= VSTOP */
+X#  endif /* VSTOP */
+X#  ifdef VWERASE
+X#   if NUMCC <= VWERASE
+X#    undef VWERASE
+X#   endif /* NUMCC <= VWERASE */
+X#  endif /* VWERASE */
+X#  ifdef VSUSP
+X#   if NUMCC <= VSUSP
+X#    undef VSUSP
+X#   endif /* NUMCC <= VSUSP */
+X#  endif /* VSUSP */
+X#  ifdef VDSUSP
+X#   if NUMCC <= VDSUSP
+X#    undef VDSUSP
+X#   endif /* NUMCC <= VDSUSP */
+X#  endif /* VDSUSP */
+X#  ifdef VREPRINT
+X#   if NUMCC <= VREPRINT
+X#    undef VREPRINT
+X#   endif /* NUMCC <= VREPRINT */
+X#  endif /* VREPRINT */
+X#  ifdef VDISCARD
+X#   if NUMCC <= VDISCARD
+X#    undef VDISCARD
+X#   endif /* NUMCC <= VDISCARD */
+X#  endif /* VDISCARD */
+X#  ifdef VLNEXT
+X#   if NUMCC <= VLNEXT
+X#    undef VLNEXT
+X#   endif /* NUMCC <= VLNEXT */
+X#  endif /* VLNEXT */
+X#  ifdef VSTATUS
+X#   if NUMCC <= VSTATUS
+X#    undef VSTATUS
+X#   endif /* NUMCC <= VSTATUS */
+X#  endif /* VSTATUS */
+X#  ifdef VPAGE
+X#   if NUMCC <= VPAGE
+X#    undef VPAGE
+X#   endif /* NUMCC <= VPAGE */
+X#  endif /* VPAGE */
+X#  ifdef VPGOFF
+X#   if NUMCC <= VPGOFF
+X#    undef VPGOFF
+X#   endif /* NUMCC <= VPGOFF */
+X#  endif /* VPGOFF */
+X#  ifdef VKILL2
+X#   if NUMCC <= VKILL2
+X#    undef VKILL2
+X#   endif /* NUMCC <= VKILL2 */
+X#  endif /* VKILL2 */
+X#  ifdef VBRK
+X#   if NUMCC <= VBRK
+X#    undef VBRK
+X#   endif /* NUMCC <= VBRK */
+X#  endif /* VBRK */
+X#  ifdef VMIN
+X#   if NUMCC <= VMIN
+X#    undef VMIN
+X#   endif /* NUMCC <= VMIN */
+X#  endif /* VMIN */
+X#  ifdef VTIME
+X#   if NUMCC <= VTIME
+X#    undef VTIME
+X#   endif /* NUMCC <= VTIME */
+X#  endif /* VTIME */
+X# endif /* NUMCC */
+X#endif /* !POSIX */
+X
+X#define C_INTR		 0
+X#define C_QUIT		 1
+X#define C_ERASE		 2
+X#define C_KILL		 3
+X#define C_EOF		 4
+X#define C_EOL		 5
+X#define C_EOL2		 6
+X#define C_SWTCH		 7
+X#define C_DSWTCH	 8
+X#define C_ERASE2	 9
+X#define C_START		10
+X#define C_STOP		11
+X#define C_WERASE	12
+X#define C_SUSP		13
+X#define C_DSUSP		14
+X#define C_REPRINT	15
+X#define C_DISCARD	16
+X#define C_LNEXT		17
+X#define C_STATUS	18
+X#define C_PAGE		19
+X#define C_PGOFF		20
+X#define C_KILL2		21
+X#define C_BRK		22
+X#define C_MIN		23
+X#define C_TIME		24
+X#define C_NCC		25
+X#define C_SH(A)		(1 << (A))
+X
+X#endif /* _h_ed_term */
+END_OF_FILE
+if test 10145 -ne `wc -c <'ed.term.h'`; then
+    echo shar: \"'ed.term.h'\" unpacked with wrong size!
+fi
+# end of 'ed.term.h'
+fi
+if test -f 'mi.termios.c' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'mi.termios.c'\"
+else
+echo shar: Extracting \"'mi.termios.c'\" \(11245 characters\)
+sed "s/^X//" >'mi.termios.c' <<'END_OF_FILE'
+X/* $Header: /home/hyperion/mu/christos/src/sys/tcsh-6.01/RCS/mi.termios.c,v 1.1 1991/11/26 04:28:26 christos Exp $ */
+X/* termios.c - fake termios interface using sgtty interface 
+X * 	       by Magnus Doell and Bruce Evans.
+X *
+X */
+X#include "sh.h"
+X#ifdef _MINIX
+X
+RCSID($Id: mi.termios.c,v 1.1 1991/11/26 04:28:26 christos Exp $)
+X
+X/* Undefine everything that clashes with sgtty.h. */
+X#undef B0
+X#undef B50
+X#undef B75
+X#undef B110
+X#undef B134
+X#undef B150
+X#undef B200
+X#undef B300
+X#undef B600
+X#undef B1200
+X#undef B1800
+X#undef B2400
+X#undef B4800
+X#undef B9600
+X#undef B19200
+X#undef B28800
+X#undef B38400
+X#undef B57600
+X#undef B115200
+X/* Do not #undef CRMOD. We want a warning when they differ! */
+X#undef ECHO
+X/* Do not #undef XTABS. We want a warning when they differ! */
+X
+X/* Redefine some of the termios.h names just undefined with 'T_' prefixed
+X * to the name.  Don't bother with the low speeds - Minix does not support
+X * them.  Add support for higher speeds (speeds are now easy and don't need
+X * defines because they are not encoded).
+X */
+X#define T_ECHO		000001
+X
+X#include <errno.h>
+X#include <sgtty.h>
+X
+static _PROTOTYPE( int tc_to_sg_speed, (speed_t speed) );
+static _PROTOTYPE( speed_t sg_to_tc_speed, (int speed) );
+X#define B19200   192
+X
+X/* The speed get/set functions could be macros in the Minix implementation
+X * because there are speed fields in the structure with no fancy packing
+X * and it is not practical to check the values outside the driver.
+X * Where tests are necessary because the driver acts different from what
+X * POSIX requires, they are done in tcsetattr.
+X */
+X
+speed_t cfgetispeed(termios_p)
+struct termios *termios_p;
+X{
+X    return termios_p->c_ispeed;
+X}
+X
+speed_t cfgetospeed(termios_p)
+struct termios *termios_p;
+X{
+X    return termios_p->c_ospeed;
+X}
+X
+speed_t cfsetispeed(termios_p, speed)
+struct termios *termios_p;
+speed_t speed;
+X{
+X    termios_p->c_ispeed = speed;
+X    return 0;
+X}
+X
+speed_t cfsetospeed(termios_p, speed)
+struct termios *termios_p;
+speed_t speed;
+X{
+X    termios_p->c_ospeed = speed;
+X    return 0;
+X}
+X
+static speed_t sg_to_tc_speed(speed)
+int speed;
+X{
+X    /* The speed encodings in sgtty.h and termios.h are different.  Both are
+X     * inflexible.  Minix doesn't really support B0 but we map it through
+X     * anyway.  It doesn't support B50, B75 or B134.
+X     */
+X    switch (speed) {
+X	case B0: return 0;
+X	case B110: return 110;
+X	case B200: return 200;
+X	case B300: return 300;
+X	case B600: return 600;
+X	case B1200: return 1200;
+X	case B1800: return 1800;
+X	case B2400: return 2400;
+X	case B4800: return 4800;
+X	case B9600: return 9600;
+X	case B19200: return 19200;
+X#ifdef B28800
+X	case B28800: return 28800;
+X#endif
+X#ifdef B38400
+X	case B38400: return 38400;
+X#endif
+X#ifdef B57600
+X	case B57600: return 57600;
+X#endif
+X#ifdef B115200
+X	case B115200: return 115200;
+X#endif
+X	default: return (speed_t)-1;
+X    }
+X}
+X
+static int tc_to_sg_speed(speed)
+speed_t speed;
+X{
+X    /* Don't use a switch here in case the compiler is 16-bit and doesn't
+X     * properly support longs (speed_t's) in switches.  It turns out the
+X     * switch is larger and slower for most compilers anyway!
+X     */
+X    if (speed == 0) return 0;
+X    if (speed == 110) return B110;
+X    if (speed == 200) return B200;
+X    if (speed == 300) return B300;
+X    if (speed == 600) return B600;
+X    if (speed == 1200) return B1200;
+X    if (speed == 1800) return B1800;
+X    if (speed == 2400) return B2400;
+X    if (speed == 4800) return B4800;
+X    if (speed == 9600) return B9600;
+X    if (speed == 19200) return B19200;
+X#ifdef B28800
+X    if (speed == 28800) return B28800;
+X#endif
+X#ifdef B38400
+X    if (speed == 38400) return B38400;
+X#endif
+X#ifdef B57600
+X    if (speed == 57600) return B57600;
+X#endif
+X#ifdef B115200
+X    if (speed == 115200) return B115200;
+X#endif
+X    return -1;
+X}
+X
+int tcgetattr(filedes, termios_p)
+int filedes;
+struct termios *termios_p;
+X{
+X    struct sgttyb sgbuf;
+X    struct tchars tcbuf;
+X
+X    if (ioctl(filedes, TIOCGETP, &sgbuf) < 0
+X	|| ioctl(filedes, TIOCGETC, (struct sgttyb *) &tcbuf) < 0)
+X    {
+X	return -1;
+X    }
+X
+X    /* Minix input flags:
+X     *   BRKINT:  forced off (break is not recognized)
+X     *   IGNBRK:  forced on (break is not recognized)
+X     *   ICRNL:   set if CRMOD is set and not RAW (CRMOD also controls output)
+X     *   IGNCR:   forced off (ignoring cr's is not supported)
+X     *   INLCR:   forced off (mapping nl's to cr's is not supported)
+X     *   ISTRIP:  forced off (should be off for consoles, on for rs232 no RAW)
+X     *   IXOFF:   forced off (rs232 uses CTS instead of XON/XOFF)
+X     *   IXON:    forced on if not RAW
+X     *   PARMRK:  forced off (no '\377', '\0', X sequence on errors)
+X     * ? IGNPAR:  forced off (input with parity/framing errors is kept)
+X     * ? INPCK:   forced off (input parity checking is not supported)
+X     */
+X    termios_p->c_iflag = IGNBRK;
+X    if (!(sgbuf.sg_flags & RAW))
+X    {
+X	termios_p->c_iflag |= IXON;
+X	if (sgbuf.sg_flags & CRMOD)
+X	{
+X	    termios_p->c_iflag |= ICRNL;
+X	}
+X    }
+X
+X    /* Minix output flags:
+X     *   OPOST:   set if CRMOD or XTABS is set
+X     *   XTABS:   copied from sg_flags
+X     *   CRMOD:	  copied from sg_flags
+X     */
+X    termios_p->c_oflag = sgbuf.sg_flags & (CRMOD | XTABS);
+X    if (termios_p->c_oflag)
+X    {
+X	termios_p->c_oflag |= OPOST;
+X    }
+X
+X    /* Minix local flags:
+X     *   ECHO:    set if ECHO is set
+X     *   ECHOE:   set if ECHO is set (ERASE echoed as error-corecting backspace)
+X     *   ECHOK:   set if ECHO is set ('\n' echoed after KILL char)
+X     *   ECHONL:  forced off ('\n' not echoed when ECHO isn't set)
+X     *   ICANON:  set if neither CBREAK nor RAW
+X     *   IEXTEN:  forced off
+X     *   ISIG:    set if not RAW
+X     *   NOFLSH:  forced off (input/output queues are always flushed)
+X     *   TOSTOP:  forced off (no job control)
+X     */
+X    termios_p->c_lflag = 0;
+X    if (sgbuf.sg_flags & ECHO)
+X    {
+X	termios_p->c_lflag |= T_ECHO | ECHOE | ECHOK;
+X    }
+X    if (!(sgbuf.sg_flags & RAW))
+X    {
+X	termios_p->c_lflag |= ISIG;
+X	if (!(sgbuf.sg_flags & CBREAK))
+X	{
+X	    termios_p->c_lflag |= ICANON;
+X	}
+X    }
+X
+X    /* Minix control flags:
+X     *   CLOCAL:  forced on (ignore modem status lines - not quite right)
+X     *   CREAD:   forced on (receiver is always enabled)
+X     *   CSIZE:   CS5-CS8 correspond directly to BITS5-BITS8
+X     *   CSTOPB:  set for B110 (driver will generate 2 stop-bits than)
+X     *   HUPCL:   forced off
+X     *   PARENB:  set if EVENP or ODDP is set
+X     *   PARODD:  set if ODDP is set
+X     */
+X    termios_p->c_cflag = CLOCAL | CREAD;
+X    switch (sgbuf.sg_flags & BITS8)
+X    {
+X	case BITS5: termios_p->c_cflag |= CS5; break;
+X	case BITS6: termios_p->c_cflag |= CS6; break;
+X	case BITS7: termios_p->c_cflag |= CS7; break;
+X	case BITS8: termios_p->c_cflag |= CS8; break;
+X    }
+X    if (sgbuf.sg_flags & ODDP)
+X    {
+X	termios_p->c_cflag |= PARENB | PARODD;
+X    }
+X    if (sgbuf.sg_flags & EVENP)
+X    {
+X	termios_p->c_cflag |= PARENB;
+X    }
+X    if (sgbuf.sg_ispeed == B110)
+X    {
+X	termios_p->c_cflag |= CSTOPB;
+X    }
+X
+X    /* Minix may give back different input and output baudrates,
+X     * but only the input baudrate is valid for both.
+X     * As our termios emulation will fail, if input baudrate differs
+X     * from output baudrate, force them to be equal.
+X     * Otherwise it would be very suprisingly not to be able to set
+X     * the terminal back to the state returned by tcgetattr :).
+X     */
+X    termios_p->c_ospeed =
+X    termios_p->c_ispeed =
+X		sg_to_tc_speed((unsigned char) sgbuf.sg_ispeed);
+X
+X    /* Minix control characters correspond directly except VSUSP and the
+X     * important VMIN and VTIME are not really supported.
+X     */
+X    termios_p->c_cc[VEOF] = tcbuf.t_eofc;
+X    termios_p->c_cc[VEOL] = tcbuf.t_brkc;
+X    termios_p->c_cc[VERASE] = sgbuf.sg_erase;
+X    termios_p->c_cc[VINTR] = tcbuf.t_intrc;
+X    termios_p->c_cc[VKILL] = sgbuf.sg_kill;
+X    termios_p->c_cc[VQUIT] = tcbuf.t_quitc;
+X    termios_p->c_cc[VSTART] = tcbuf.t_startc;
+X    termios_p->c_cc[VSTOP] = tcbuf.t_stopc;
+X    termios_p->c_cc[VMIN] = 1;
+X    termios_p->c_cc[VTIME] = 0;
+X    termios_p->c_cc[VSUSP] = 0;
+X
+X    return 0;
+X}
+X
+int tcsetattr(filedes, opt_actions, termios_p)
+int filedes;
+int opt_actions;
+struct termios *termios_p;
+X{
+X    struct sgttyb sgbuf;
+X    struct tchars tcbuf;
+X    int sgspeed;
+X
+X    /* Posix 1003.1-1988 page 135 says:
+X     * Attempts to set unsupported baud rates shall be ignored, and it is
+X     * implementation-defined whether an error is returned by any or all of
+X     * cfsetispeed(), cfsetospeed(), or tcsetattr(). This refers both to
+X     * changes to baud rates not supported by the hardware, and to changes
+X     * setting the input and output baud rates to different values if the
+X     * hardware does not support it.
+X     * Ignoring means not to change the existing settings, doesn't it?
+X     */
+X    if ((termios_p->c_ispeed != 0 && termios_p->c_ispeed != termios_p->c_ospeed)
+X	|| (sgspeed = tc_to_sg_speed(termios_p->c_ospeed)) < 0)
+X    {
+X	errno = EINVAL;
+X	return -1;
+X    }
+X
+X    sgbuf.sg_ispeed = sgbuf.sg_ospeed = sgspeed;
+X    sgbuf.sg_flags = 0;
+X
+X    /* I don't know what should happen with requests that are not supported by
+X     * old Minix drivers and therefore cannot be emulated.
+X     * Returning an error may confuse the application (the values aren't really
+X     * invalid or unsupported by the hardware, they just couldn't be satisfied
+X     * by the driver). Not returning an error might be even worse because the
+X     * driver will act different to what the application requires it to act
+X     * after sucessfully setting the attributes as specified.
+X     * Settings that cannot be emulated fully include:
+X     *   c_ospeed != 110 && c_cflag & CSTOPB
+X     *   c_ospeed == 110 && ! c_cflag & CSTOPB
+X     *   (c_cc[VMIN] != 1 || c_cc[VTIME] != 0) && ! c_lflag & ICANON
+X     *   c_lflag & ICANON && ! c_lflag & ISIG
+X     * For the moment I just ignore these conflicts.
+X     */
+X
+X    if (termios_p->c_oflag & OPOST)
+X    {
+X	/* CRMOD isn't Posix and may conflict with ICRNL, which is Posix,
+X	 * so we just ignore it.
+X	 */
+X	if (termios_p->c_oflag & XTABS)
+X	{
+X		sgbuf.sg_flags |= XTABS;
+X	}
+X    }
+X
+X    if (termios_p->c_iflag & ICRNL)
+X    {
+X	/* We couldn't do it better :-(. */
+X	sgbuf.sg_flags |= CRMOD;
+X    }
+X
+X    if (termios_p->c_lflag & T_ECHO)
+X    {
+X	sgbuf.sg_flags |= ECHO;
+X    }
+X    if (!(termios_p->c_lflag & ICANON))
+X    {
+X	if (termios_p->c_lflag & ISIG)
+X	{
+X	     sgbuf.sg_flags |= CBREAK;
+X	}
+X	else
+X	{
+X	     sgbuf.sg_flags |= RAW;
+X	}
+X    }
+X
+X    switch (termios_p->c_cflag & CSIZE)
+X    {
+X	case CS5: sgbuf.sg_flags |= BITS5; break;
+X	case CS6: sgbuf.sg_flags |= BITS6; break;
+X	case CS7: sgbuf.sg_flags |= BITS7; break;
+X	case CS8: sgbuf.sg_flags |= BITS8; break;
+X    }
+X    if (termios_p->c_cflag & PARENB)
+X    {
+X	if (termios_p->c_cflag & PARODD)
+X	{
+X	    sgbuf.sg_flags |= ODDP;
+X	}
+X	else
+X	{
+X	    sgbuf.sg_flags |= EVENP;
+X	}
+X    }
+X
+X    sgbuf.sg_erase = termios_p->c_cc[VERASE];
+X    sgbuf.sg_kill = termios_p->c_cc[VKILL];
+X
+X    tcbuf.t_intrc = termios_p->c_cc[VINTR];
+X    tcbuf.t_quitc = termios_p->c_cc[VQUIT];
+X    tcbuf.t_startc = termios_p->c_cc[VSTART];
+X    tcbuf.t_stopc = termios_p->c_cc[VSTOP];
+X    tcbuf.t_eofc = termios_p->c_cc[VEOF];
+X    tcbuf.t_brkc = termios_p->c_cc[VEOL];
+X
+X    return ioctl(filedes, TIOCSETP, &sgbuf) < 0 &&
+X	   ioctl(filedes, TIOCSETC, (struct sgttyb *) &tcbuf) < 0 ?
+X		-1 : 0;
+X}
+X#endif /* _MINIX */
+END_OF_FILE
+if test 11245 -ne `wc -c <'mi.termios.c'`; then
+    echo shar: \"'mi.termios.c'\" unpacked with wrong size!
+fi
+# end of 'mi.termios.c'
+fi
+if test -f 'sh.char.c' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'sh.char.c'\"
+else
+echo shar: Extracting \"'sh.char.c'\" \(9948 characters\)
+sed "s/^X//" >'sh.char.c' <<'END_OF_FILE'
+X/* $Header: /home/hyperion/mu/christos/src/sys/tcsh-6.01/RCS/sh.char.c,v 3.3 1991/10/12 04:23:51 christos Exp $ */
+X/*
+X * sh.char.c: Character classification tables
+X */
+X/*-
+X * Copyright (c) 1980, 1991 The Regents of the University of California.
+X * All rights reserved.
+X *
+X * Redistribution and use in source and binary forms, with or without
+X * modification, are permitted provided that the following conditions
+X * are met:
+X * 1. Redistributions of source code must retain the above copyright
+X *    notice, this list of conditions and the following disclaimer.
+X * 2. Redistributions in binary form must reproduce the above copyright
+X *    notice, this list of conditions and the following disclaimer in the
+X *    documentation and/or other materials provided with the distribution.
+X * 3. All advertising materials mentioning features or use of this software
+X *    must display the following acknowledgement:
+X *	This product includes software developed by the University of
+X *	California, Berkeley and its contributors.
+X * 4. Neither the name of the University nor the names of its contributors
+X *    may be used to endorse or promote products derived from this software
+X *    without specific prior written permission.
+X *
+X * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+X * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+X * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+X * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+X * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+X * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+X * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+X * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+X * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+X * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+X * SUCH DAMAGE.
+X */
+X#include "sh.h"
+X
+RCSID("$Id: sh.char.c,v 3.3 1991/10/12 04:23:51 christos Exp $")
+X
+X#include "sh.char.h"
+X
+unsigned short _cmap[256] = {
+X/*	nul		soh		stx		etx	*/
+X	_CTR,		_CTR,		_CTR,		_CTR,
+X
+X/*	eot		enq		ack		bel	*/
+X	_CTR,		_CTR,		_CTR,		_CTR,
+X
+X/*	bs		ht		nl		vt	*/
+X	_CTR,		_CTR|_SP|_META,	_CTR|_NL|_META,	_CTR,
+X
+X/*	np		cr		so		si	*/
+X	_CTR,		_CTR,		_CTR,		_CTR,
+X
+X/*	dle		dc1		dc2		dc3	*/
+X	_CTR,		_CTR,		_CTR,		_CTR,
+X
+X/*	dc4		nak		syn		etb	*/
+X	_CTR,		_CTR,		_CTR,		_CTR,
+X
+X/*	can		em		sub		esc	*/
+X	_CTR,		_CTR,		_CTR,		_CTR,
+X
+X/*	fs		gs		rs		us	*/
+X	_CTR,		_CTR,		_CTR,		_CTR,
+X
+X/*	sp		!		"		#	*/
+X	_SP|_META,	0,		_Q,		_META,
+X
+X/*	$		%		&		'	*/
+X	_DOL,		0,		_META|_CMD,	_Q,
+X
+X/*	(		)		*		+	*/
+X	_META|_CMD,	_META,		_GLOB,		0,
+X
+X/*	,		-		.		/	*/
+X	0,		0,		0,		0,
+X
+X/*	0		1		2		3	*/
+X	_DIG|_XD,	_DIG|_XD,	_DIG|_XD,	_DIG|_XD,
+X
+X/*	4		5		6		7	*/
+X	_DIG|_XD,	_DIG|_XD,	_DIG|_XD,	_DIG|_XD,
+X
+X/*	8		9		:		;	*/
+X	_DIG|_XD,	_DIG|_XD,	0,		_META|_CMD,
+X
+X/*	<		=		>		?	*/
+X	_META,		0,		_META,		_GLOB,
+X
+X/*	@		A		B		C	*/
+X	0,		_LET|_UP|_XD,	_LET|_UP|_XD,	_LET|_UP|_XD,
+X
+X/*	D		E		F		G	*/
+X	_LET|_UP|_XD,	_LET|_UP|_XD,	_LET|_UP|_XD,	_LET|_UP,
+X
+X/*	H		I		J		K	*/
+X	_LET|_UP,	_LET|_UP,	_LET|_UP,	_LET|_UP,
+X
+X/*	L		M		N		O	*/
+X	_LET|_UP,	_LET|_UP,	_LET|_UP,	_LET|_UP,
+X
+X/*	P		Q		R		S	*/
+X	_LET|_UP,	_LET|_UP,	_LET|_UP,	_LET|_UP,
+X
+X/*	T		U		V		W	*/
+X	_LET|_UP,	_LET|_UP,	_LET|_UP,	_LET|_UP,
+X
+X/*	X		Y		Z		[	*/
+X	_LET|_UP,	_LET|_UP,	_LET|_UP,	_GLOB,
+X
+X/*	\		]		^		_	*/
+X	_ESC,		0,		0,		0,
+X
+X/*	`		a		b		c	*/
+X  _Q1|_GLOB|_META,	_LET|_LOW|_XD,	_LET|_LOW|_XD,	_LET|_LOW|_XD,
+X
+X/*	d		e		f		g	*/
+X	_LET|_LOW|_XD,	_LET|_LOW|_XD,	_LET|_LOW|_XD,	_LET|_LOW,
+X
+X/*	h		i		j		k	*/
+X	_LET|_LOW,	_LET|_LOW,	_LET|_LOW,	_LET|_LOW,
+X
+X/*	l		m		n		o	*/
+X	_LET|_LOW,	_LET|_LOW,	_LET|_LOW,	_LET|_LOW,
+X
+X/*	p		q		r		s	*/
+X	_LET|_LOW,	_LET|_LOW,	_LET|_LOW,	_LET|_LOW,
+X
+X/*	t		u		v		w	*/
+X	_LET|_LOW,	_LET|_LOW,	_LET|_LOW,	_LET|_LOW,
+X
+X/*	x		y		z		{	*/
+X	_LET|_LOW,	_LET|_LOW,	_LET|_LOW,	_GLOB,
+X
+X/*	|		}		~		del	*/
+X	_META|_CMD,	0,		0,		_CTR,
+X
+X#if defined(SHORT_STRINGS) && !defined(KANJI)
+X/****************************************************************/
+X/* 128 - 255 The below is supposedly ISO 8859/1			*/
+X/****************************************************************/
+X/*	(undef)		(undef)		(undef)		(undef)		*/
+X	_CTR,		_CTR,		_CTR,		_CTR,
+X
+X/*	(undef)		(undef)		(undef)		(undef)		*/
+X	_CTR,		_CTR,		_CTR,		_CTR,
+X
+X/*	(undef)		(undef)		(undef)		(undef)		*/
+X	_CTR,		_CTR,		_CTR,		_CTR,
+X
+X/*	(undef)		(undef)		(undef)		(undef)		*/
+X	_CTR,		_CTR,		_CTR,		_CTR,
+X
+X/*	(undef)		(undef)		(undef)		(undef)		*/
+X	_CTR,		_CTR,		_CTR,		_CTR,
+X
+X/*	(undef)		(undef)		(undef)		(undef)		*/
+X	_CTR,		_CTR,		_CTR,		_CTR,
+X
+X/*	(undef)		(undef)		(undef)		(undef)		*/
+X	_CTR,		_CTR,		_CTR,		_CTR,
+X
+X/*	(undef)		(undef)		(undef)		(undef)		*/
+X	_CTR,		_CTR,		_CTR,		_CTR,
+X
+X/*	nobreakspace	exclamdown	cent		sterling	*/
+X	_SP,		0,		0,		0,
+X
+X/*	currency	yen		brokenbar	section		*/
+X	0,		0,		0,		0,
+X
+X/*	diaeresis	copyright	ordfeminine	guillemotleft	*/
+X	0,		0,		0,		0,
+X
+X/*	notsign		hyphen		registered	macron		*/
+X	0,		0,		0,		0,
+X
+X/*	degree		plusminus	twosuperior	threesuperior	*/
+X	0,		0,		0,		0,
+X
+X/*	acute		mu		paragraph	periodcentered	*/
+X	0,		0,		0,		0,
+X
+X/*	cedilla		onesuperior	masculine	guillemotright	*/
+X	0,		0,		0,		0,
+X
+X/*	onequarter	onehalf		threequarters	questiondown	*/
+X	0,		0,		0,		0,
+X
+X/*	Agrave		Aacute		Acircumflex	Atilde		*/
+X	_LET|_UP,	_LET|_UP,	_LET|_UP,	_LET|_UP,
+X
+X/*	Adiaeresis	Aring		AE		Ccedilla	*/
+X	_LET|_UP,	_LET|_UP,	_LET|_UP,	_LET|_UP,
+X
+X/*	Egrave		Eacute		Ecircumflex	Ediaeresis	*/
+X	_LET|_UP,	_LET|_UP,	_LET|_UP,	_LET|_UP,
+X
+X/*	Igrave		Iacute		Icircumflex	Idiaeresis	*/
+X	_LET|_UP,	_LET|_UP,	_LET|_UP,	_LET|_UP,
+X
+X/*	ETH		Ntilde		Ograve		Oacute		*/
+X	_LET|_UP,	_LET|_UP,	_LET|_UP,	_LET|_UP,
+X
+X/*	Ocircumflex	Otilde		Odiaeresis	multiply	*/
+X	_LET|_UP,	_LET|_UP,	_LET|_UP,	0,
+X
+X/*	Ooblique	Ugrave		Uacute		Ucircumflex	*/
+X	_LET|_UP,	_LET|_UP,	_LET|_UP,	_LET|_UP,
+X
+X/*	Udiaeresis	Yacute		THORN		ssharp		*/
+X	_LET|_UP,	_LET|_UP,	_LET|_UP,	_LET|_LOW,
+X
+X/*	agrave		aacute		acircumflex	atilde		*/
+X	_LET|_LOW,	_LET|_LOW,	_LET|_LOW,	_LET|_LOW,
+X
+X/*	adiaeresis	aring		ae		ccedilla	*/
+X	_LET|_LOW,	_LET|_LOW,	_LET|_LOW,	_LET|_LOW,
+X
+X/*	egrave		eacute		ecircumflex	ediaeresis	*/
+X	_LET|_LOW,	_LET|_LOW,	_LET|_LOW,	_LET|_LOW,
+X
+X/*	igrave		iacute		icircumflex	idiaeresis	*/
+X	_LET|_LOW,	_LET|_LOW,	_LET|_LOW,	_LET|_LOW,
+X
+X/*	eth		ntilde		ograve		oacute		*/
+X	_LET|_LOW,	_LET|_LOW,	_LET|_LOW,	_LET|_LOW,
+X
+X/*	ocircumflex	otilde		odiaeresis	division	*/
+X	_LET|_LOW,	_LET|_LOW,	_LET|_LOW,	0,
+X
+X/*	oslash		ugrave		uacute		ucircumflex	*/
+X	_LET|_LOW,	_LET|_LOW,	_LET|_LOW,	_LET|_LOW,
+X
+X/*	udiaeresis	yacute		thorn		ydiaeresis	*/
+X	_LET|_LOW,	_LET|_LOW,	_LET|_LOW,	_LET|_LOW,
+X#endif /* SHORT_STRINGS && !KANJI */
+X};
+X
+X#ifndef NLS
+X/* _cmap_lower, _cmap_upper for ISO 8859/1 */
+X
+unsigned char _cmap_lower[256] = {
+X	0000,	0001,	0002,	0003,	0004,	0005,	0006,	0007,
+X	0010,	0011,	0012,	0013,	0014,	0015,	0016,	0017,
+X	0020,	0021,	0022,	0023,	0024,	0025,	0026,	0027,
+X	0030,	0031,	0032,	0033,	0034,	0035,	0036,	0037,
+X	0040,	0041,	0042,	0043,	0044,	0045,	0046,	0047,
+X	0050,	0051,	0052,	0053,	0054,	0055,	0056,	0057,
+X	0060,	0061,	0062,	0063,	0064,	0065,	0066,	0067,
+X	0070,	0071,	0072,	0073,	0074,	0075,	0076,	0077,
+X	0100,	0141,	0142,	0143,	0144,	0145,	0146,	0147,
+X	0150,	0151,	0152,	0153,	0154,	0155,	0156,	0157,
+X	0160,	0161,	0162,	0163,	0164,	0165,	0166,	0167,
+X	0170,	0171,	0172,	0133,	0134,	0135,	0136,	0137,
+X	0140,	0141,	0142,	0143,	0144,	0145,	0146,	0147,
+X	0150,	0151,	0152,	0153,	0154,	0155,	0156,	0157,
+X	0160,	0161,	0162,	0163,	0164,	0165,	0166,	0167,
+X	0170,	0171,	0172,	0173,	0174,	0175,	0176,	0177,
+X	0200,	0201,	0202,	0203,	0204,	0205,	0206,	0207,
+X	0210,	0211,	0212,	0213,	0214,	0215,	0216,	0217,
+X	0220,	0221,	0222,	0223,	0224,	0225,	0226,	0227,
+X	0230,	0231,	0232,	0233,	0234,	0235,	0236,	0237,
+X	0240,	0241,	0242,	0243,	0244,	0245,	0246,	0247,
+X	0250,	0251,	0252,	0253,	0254,	0255,	0256,	0257,
+X	0260,	0261,	0262,	0263,	0264,	0265,	0266,	0267,
+X	0270,	0271,	0272,	0273,	0274,	0275,	0276,	0277,
+X	0340,	0341,	0342,	0343,	0344,	0345,	0346,	0347,
+X	0350,	0351,	0352,	0353,	0354,	0355,	0356,	0357,
+X	0360,	0361,	0362,	0363,	0364,	0365,	0366,	0327,
+X	0370,	0371,	0372,	0373,	0374,	0375,	0376,	0337,
+X	0340,	0341,	0342,	0343,	0344,	0345,	0346,	0347,
+X	0350,	0351,	0352,	0353,	0354,	0355,	0356,	0357,
+X	0360,	0361,	0362,	0363,	0364,	0365,	0366,	0367,
+X	0370,	0371,	0372,	0373,	0374,	0375,	0376,	0377,
+X};
+X
+unsigned char _cmap_upper[256] = {
+X	0000,	0001,	0002,	0003,	0004,	0005,	0006,	0007,
+X	0010,	0011,	0012,	0013,	0014,	0015,	0016,	0017,
+X	0020,	0021,	0022,	0023,	0024,	0025,	0026,	0027,
+X	0030,	0031,	0032,	0033,	0034,	0035,	0036,	0037,
+X	0040,	0041,	0042,	0043,	0044,	0045,	0046,	0047,
+X	0050,	0051,	0052,	0053,	0054,	0055,	0056,	0057,
+X	0060,	0061,	0062,	0063,	0064,	0065,	0066,	0067,
+X	0070,	0071,	0072,	0073,	0074,	0075,	0076,	0077,
+X	0100,	0101,	0102,	0103,	0104,	0105,	0106,	0107,
+X	0110,	0111,	0112,	0113,	0114,	0115,	0116,	0117,
+X	0120,	0121,	0122,	0123,	0124,	0125,	0126,	0127,
+X	0130,	0131,	0132,	0133,	0134,	0135,	0136,	0137,
+X	0140,	0101,	0102,	0103,	0104,	0105,	0106,	0107,
+X	0110,	0111,	0112,	0113,	0114,	0115,	0116,	0117,
+X	0120,	0121,	0122,	0123,	0124,	0125,	0126,	0127,
+X	0130,	0131,	0132,	0173,	0174,	0175,	0176,	0177,
+X	0200,	0201,	0202,	0203,	0204,	0205,	0206,	0207,
+X	0210,	0211,	0212,	0213,	0214,	0215,	0216,	0217,
+X	0220,	0221,	0222,	0223,	0224,	0225,	0226,	0227,
+X	0230,	0231,	0232,	0233,	0234,	0235,	0236,	0237,
+X	0240,	0241,	0242,	0243,	0244,	0245,	0246,	0247,
+X	0250,	0251,	0252,	0253,	0254,	0255,	0256,	0257,
+X	0260,	0261,	0262,	0263,	0264,	0265,	0266,	0267,
+X	0270,	0271,	0272,	0273,	0274,	0275,	0276,	0277,
+X	0300,	0301,	0302,	0303,	0304,	0305,	0306,	0307,
+X	0310,	0311,	0312,	0313,	0314,	0315,	0316,	0317,
+X	0320,	0321,	0322,	0323,	0324,	0325,	0326,	0327,
+X	0330,	0331,	0332,	0333,	0334,	0335,	0336,	0337,
+X	0300,	0301,	0302,	0303,	0304,	0305,	0306,	0307,
+X	0310,	0311,	0312,	0313,	0314,	0315,	0316,	0317,
+X	0320,	0321,	0322,	0323,	0324,	0325,	0326,	0367,
+X	0330,	0331,	0332,	0333,	0334,	0335,	0336,	0377,
+X};
+X#endif /* NLS */
+END_OF_FILE
+if test 9948 -ne `wc -c <'sh.char.c'`; then
+    echo shar: \"'sh.char.c'\" unpacked with wrong size!
+fi
+# end of 'sh.char.c'
+fi
+if test -f 'sh.err.c' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'sh.err.c'\"
+else
+echo shar: Extracting \"'sh.err.c'\" \(12457 characters\)
+sed "s/^X//" >'sh.err.c' <<'END_OF_FILE'
+X/* $Header: /home/hyperion/mu/christos/src/sys/tcsh-6.01/RCS/sh.err.c,v 3.7 1991/12/19 22:34:14 christos Exp $ */
+X/*
+X * sh.err.c: Error printing routines. 
+X */
+X/*-
+X * Copyright (c) 1980, 1991 The Regents of the University of California.
+X * All rights reserved.
+X *
+X * Redistribution and use in source and binary forms, with or without
+X * modification, are permitted provided that the following conditions
+X * are met:
+X * 1. Redistributions of source code must retain the above copyright
+X *    notice, this list of conditions and the following disclaimer.
+X * 2. Redistributions in binary form must reproduce the above copyright
+X *    notice, this list of conditions and the following disclaimer in the
+X *    documentation and/or other materials provided with the distribution.
+X * 3. All advertising materials mentioning features or use of this software
+X *    must display the following acknowledgement:
+X *	This product includes software developed by the University of
+X *	California, Berkeley and its contributors.
+X * 4. Neither the name of the University nor the names of its contributors
+X *    may be used to endorse or promote products derived from this software
+X *    without specific prior written permission.
+X *
+X * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+X * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+X * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+X * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+X * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+X * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+X * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+X * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+X * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+X * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+X * SUCH DAMAGE.
+X */
+X#define _h_tc_err		/* Don't redefine the errors	 */
+X#include "sh.h"
+X
+RCSID("$Id: sh.err.c,v 3.7 1991/12/19 22:34:14 christos Exp $")
+X
+X/*
+X * C Shell
+X */
+X
+X#ifdef lint
+X#undef va_arg
+X#define va_arg(a, b) (a ? (b) 0 : (b) 0)
+X#endif
+X
+char   *seterr = NULL;	/* Holds last error if there was one */
+X
+X#define ERR_FLAGS	0xf0000000
+X#define ERR_NAME	0x10000000
+X#define ERR_SILENT	0x20000000
+X#define ERR_OLD		0x40000000
+X
+static char *errorlist[] = 
+X{
+X#define ERR_SYNTAX	0
+X    "Syntax Error",
+X#define ERR_NOTALLOWED	1
+X    "%s is not allowed",
+X#define ERR_WTOOLONG	2
+X    "Word too long",
+X#define ERR_LTOOLONG	3
+X    "$< line too long",
+X#define ERR_DOLZERO	4
+X    "No file for $0",
+X#define ERR_DOLQUEST	5
+X    "$? not allowed here",
+X#define ERR_INCBR	6
+X    "Incomplete [] modifier",
+X#define ERR_EXPORD	7
+X    "$ expansion must end before ]",
+X#define ERR_BADMOD	8
+X    "Bad : modifier in $ (%c)",
+X#define ERR_SUBSCRIPT	9
+X    "Subscript error",
+X#define ERR_BADNUM	10
+X    "Badly formed number",
+X#define ERR_NOMORE	11
+X    "No more words",
+X#define ERR_FILENAME	12
+X    "Missing file name",
+X#define ERR_GLOB	13
+X    "Internal glob error",
+X#define ERR_COMMAND	14
+X    "Command not found",
+X#define ERR_TOOFEW	15
+X    "Too few arguments",
+X#define ERR_TOOMANY	16
+X    "Too many arguments",
+X#define ERR_DANGER	17
+X    "Too dangerous to alias that",
+X#define ERR_EMPTYIF	18
+X    "Empty if",
+X#define ERR_IMPRTHEN	19
+X    "Improper then",
+X#define ERR_NOPAREN	20
+X    "Words not parenthesized",
+X#define ERR_NOTFOUND	21
+X    "%s not found",
+X#define ERR_MASK	22
+X    "Improper mask",
+X#define ERR_LIMIT	23
+X    "No such limit",
+X#define ERR_TOOLARGE	24
+X    "Argument too large",
+X#define ERR_SCALEF	25
+X    "Improper or unknown scale factor",
+X#define ERR_UNDVAR	26
+X    "Undefined variable",
+X#define ERR_DEEP	27
+X    "Directory stack not that deep",
+X#define ERR_BADSIG	28
+X    "Bad signal number",
+X#define ERR_UNKSIG	29
+X    "Unknown signal; kill -l lists signals",
+X#define ERR_VARBEGIN	30
+X    "Variable name must begin with a letter",
+X#define ERR_VARTOOLONG	31
+X    "Variable name too long",
+X#define ERR_VARALNUM	32
+X    "Variable name must contain alphanumeric characters",
+X#define ERR_JOBCONTROL	33
+X    "No job control in this shell",
+X#define ERR_EXPRESSION	34
+X    "Expression Syntax",
+X#define ERR_NOHOMEDIR	35
+X    "No home directory",
+X#define ERR_CANTCHANGE	36
+X    "Can't change to home directory",
+X#define ERR_NULLCOM	37
+X    "Invalid null command",
+X#define ERR_ASSIGN	38
+X    "Assignment missing expression",
+X#define ERR_UNKNOWNOP	39
+X    "Unknown operator",
+X#define ERR_AMBIG	40
+X    "Ambiguous",
+X#define ERR_EXISTS	41
+X    "%s: File exists",
+X#define ERR_ARGC	42
+X    "Argument for -c ends in backslash",
+X#define ERR_INTR	43
+X    "Interrupted",
+X#define ERR_RANGE	44
+X    "Subscript out of range",
+X#define ERR_OVERFLOW	45
+X    "Line overflow",
+X#define ERR_NOSUCHJOB	46
+X    "No such job",
+X#define ERR_TERMINAL	47
+X    "Can't from terminal",
+X#define ERR_NOTWHILE	48
+X    "Not in while/foreach",
+X#define ERR_NOPROC	49
+X    "No more processes",
+X#define ERR_NOMATCH	50
+X    "No match",
+X#define ERR_MISSING	51
+X    "Missing %c",
+X#define ERR_UNMATCHED	52
+X    "Unmatched %c",
+X#define ERR_NOMEM	53
+X    "Out of memory",
+X#define ERR_PIPE	54
+X    "Can't make pipe",
+X#define ERR_SYSTEM	55
+X    "%s: %s",
+X#define ERR_STRING	56
+X    "%s",
+X#define ERR_JOBS	57
+X    "Usage: jobs [ -l ]",
+X#define ERR_JOBARGS	58
+X    "Arguments should be jobs or process id's",
+X#define ERR_JOBCUR	59
+X    "No current job",
+X#define ERR_JOBPREV	60
+X    "No previous job",
+X#define ERR_JOBPAT	61
+X    "No job matches pattern",
+X#define ERR_NESTING	62
+X    "Fork nesting > %d; maybe `...` loop",
+X#define ERR_JOBCTRLSUB	63
+X    "No job control in subshells",
+X#define ERR_SYNC	64
+X    "Sunc fault: Process %d not found",
+X#define ERR_STOPPED	65
+X#ifdef SUSPENDED
+X    "%sThere are suspended jobs",
+X#else
+X    "%sThere are stopped jobs",
+X#endif				/* SUSPENDED */
+X#define ERR_NODIR	66
+X    "No other directory",
+X#define ERR_EMPTY	67
+X    "Directory stack empty",
+X#define ERR_BADDIR	68
+X    "Bad directory",
+X#define ERR_DIRUS	69
+X    "Usage: %s [-lvn]%s",
+X#define ERR_HFLAG	70
+X    "No operand for -h flag",
+X#define ERR_NOTLOGIN	71
+X    "Not a login shell",
+X#define ERR_DIV0	72
+X    "Division by 0",
+X#define ERR_MOD0	73
+X    "Mod by 0",
+X#define ERR_BADSCALE	74
+X    "Bad scaling; did you mean \"%s\"?",
+X#define ERR_SUSPLOG	75
+X    "Can't suspend a login shell (yet)",
+X#define ERR_UNKUSER	76
+X    "Unknown user: %s",
+X#define ERR_NOHOME	77
+X    "No $home variable set",
+X#define ERR_HISTUS	78
+X    "Usage: history [-rht] [# number of events]",
+X#define ERR_SPDOLLT	79
+X    "$, ! or < not allowed with $# or $?",
+X#define ERR_NEWLINE	80
+X    "Newline in variable name",
+X#define ERR_SPSTAR	81
+X    "* not allowed with $# or $?",
+X#define ERR_DIGIT	82
+X    "$?<digit> or $#<digit> not allowed",
+X#define ERR_VARILL	83
+X    "Illegal variable name",
+X#define ERR_NLINDEX	84
+X    "Newline in variable index",
+X#define ERR_EXPOVFL	85
+X    "Expansion buffer overflow",
+X#define ERR_VARSYN	86
+X    "Variable syntax",
+X#define ERR_BADBANG	87
+X    "Bad ! form",
+X#define ERR_NOSUBST	88
+X    "No previous substitute",
+X#define ERR_BADSUBST	89
+X    "Bad substitute",
+X#define ERR_LHS		90
+X    "No previous left hand side",
+X#define ERR_RHSLONG	91
+X    "Right hand side too long",
+X#define ERR_BADBANGMOD	92
+X    "Bad ! modifier: %c",
+X#define ERR_MODFAIL	93
+X    "Modifier failed",
+X#define ERR_SUBOVFL	94
+X    "Substitution buffer overflow",
+X#define ERR_BADBANGARG	95
+X    "Bad ! arg selector",
+X#define ERR_NOSEARCH	96
+X    "No prev search",
+X#define ERR_NOEVENT	97
+X    "%s: Event not found",
+X#define ERR_TOOMANYRP	98
+X    "Too many )'s",
+X#define ERR_TOOMANYLP	99
+X    "Too many ('s",
+X#define ERR_BADPLP	100
+X    "Badly placed (",
+X#define ERR_MISRED	101
+X    "Missing name for redirect",
+X#define ERR_OUTRED	102
+X    "Ambiguous output redirect",
+X#define ERR_REDPAR	103
+X    "Can't << within ()'s",
+X#define ERR_INRED	104
+X    "Ambiguous input redirect",
+X#define ERR_BADPLPS	105
+X    "Badly placed ()'s",
+X#define ERR_VARMOD	106
+X    "Unknown variable modifier",
+X#define ERR_ALIASLOOP	107
+X    "Alias loop",
+X#define ERR_NOWATCH	108
+X    "No $watch variable set",
+X#define ERR_NOSCHED	109
+X    "No scheduled events",
+X#define ERR_SCHEDUSAGE	110
+X    "Usage: sched -<item#>.\nUsage: sched [+]hh:mm <command>",
+X#define ERR_SCHEDEV	111
+X    "Not that many scheduled events",
+X#define ERR_SCHEDCOM	112
+X    "No command to run",
+X#define ERR_SCHEDTIME	113
+X    "Invalid time for event",
+X#define ERR_SCHEDREL	114
+X    "Relative time inconsistent with am/pm",
+X#define ERR_TCNOSTR	115
+X    "Out of termcap string space",
+X#define ERR_SETTCUS	116
+X    "Usage: settc %s [yes|no]",
+X#define ERR_TCCAP	117
+X    "Unknown capability `%s'",
+X#define ERR_TCPARM	118
+X    "Unknown termcap parameter `%%%c'",
+X#define ERR_TCARGS	119
+X    "Too many arguments for `%s' (%d)",
+X#define ERR_TCNARGS	120
+X    "`%s' requires %d arguments",
+X#define ERR_TCUSAGE	121
+X    "Usage: echotc [-v|-s] [<capability> [<args>]]",
+X#define ERR_ARCH	122
+X    "%s: %s. Wrong Architecture",
+X#define ERR_HISTLOOP	123
+X    "!# History loop",
+X#define ERR_FILEINQ	124
+X    "Malformed file inquiry",
+X#define ERR_SELOVFL	125
+X    "Selector overflow",
+X#define ERR_TCSHUSAGE   126
+X#ifdef apollo
+X    "Unknown option: -%s\nUsage: tcsh [ -bcdefilmnqstvVxX -Dname[=value] ] [ argument ... ]",
+X#else /* !apollo */
+X# if defined(__convex__) || defined(convex)
+X    "Unknown option: -%s\nUsage: tcsh [ -bcdefFilmnqstvVxX ] [ argument ... ]",
+X# else /* rest */
+X    "Unknown option: -%s\nUsage: tcsh [ -bcdefilmnqstvVxX ] [ argument ... ]",
+X# endif /* __convex__ || convex */
+X#endif /* apollo */
+X#define ERR_INVALID	127
+X    "Invalid Error"
+X};
+X
+X/*
+X * The parser and scanner set up errors for later by calling seterr,
+X * which sets the variable err as a side effect; later to be tested,
+X * e.g. in process.
+X */
+void
+X/*VARARGS1*/
+X#if __STDC__
+seterror(unsigned int id, ...)
+X#else
+seterror(va_alist)
+X    va_dcl
+X#endif
+X{
+X
+X    if (seterr == 0) {
+X	va_list va;
+X	char    berr[BUFSIZE];
+X#if __STDC__
+X	va_start(va, id);
+X#else
+X	unsigned int id;
+X	va_start(va);
+X	id = va_arg(va, unsigned int);
+X#endif
+X
+X	if (id >= sizeof(errorlist) / sizeof(errorlist[0]))
+X	    id = ERR_INVALID;
+X	xvsprintf(berr, errorlist[id], va);
+X	va_end(va);
+X
+X	seterr = strsave(berr);
+X    }
+X}
+X
+X/*
+X * Print the error with the given id.
+X *
+X * Special ids:
+X *	ERR_SILENT: Print nothing.
+X *	ERR_OLD: Print the previously set error if one was there.
+X *	         otherwise return.
+X *	ERR_NAME: If this bit is set, print the name of the function
+X *		  in bname
+X *
+X * This routine always resets or exits.  The flag haderr
+X * is set so the routine who catches the unwind can propogate
+X * it if they want.
+X *
+X * Note that any open files at the point of error will eventually
+X * be closed in the routine process in sh.c which is the only
+X * place error unwinds are ever caught.
+X */
+void
+X/*VARARGS*/
+X#if __STDC__
+stderror(unsigned int id, ...)
+X#else
+stderror(va_alist)
+X    va_dcl
+X#endif
+X{
+X    va_list va;
+X    register Char **v;
+X    int     flags;
+X
+X#if __STDC__
+X    va_start(va, id);
+X#else
+X    unsigned int id;
+X
+X    va_start(va);
+X    id = va_arg(va, unsigned int);
+X#endif
+X
+X    flags = id & ERR_FLAGS;
+X    id &= ~ERR_FLAGS;
+X
+X    if ((flags & ERR_OLD) && seterr == NULL) {
+X	va_end(va);
+X	return;
+X    }
+X
+X    if (id >= sizeof(errorlist) / sizeof(errorlist[0]))
+X	id = ERR_INVALID;
+X
+X    /*
+X     * Must flush before we print as we wish output before the error to go on
+X     * (some form of) standard output, while output after goes on (some form
+X     * of) diagnostic output. If didfds then output will go to 1/2 else to
+X     * FSHOUT/FSHDIAG. See flush in sh.print.c.
+X     */
+X    flush();
+X    haderr = 1;			/* Now to diagnostic output */
+X    timflg = 0;			/* This isn't otherwise reset */
+X
+X
+X    if (!(flags & ERR_SILENT)) {
+X	if (flags & ERR_NAME)
+X	    xprintf("%s: ", bname);
+X	if ((flags & ERR_OLD))
+X	    /* Old error. */
+X	    xprintf("%s.\n", seterr);
+X	else {
+X	    xvprintf(errorlist[id], va);
+X	    xprintf(".\n");
+X	}
+X    }
+X    va_end(va);
+X
+X    if (seterr) {
+X	xfree((ptr_t) seterr);
+X	seterr = NULL;
+X    }
+X
+X    if (v = pargv)
+X	pargv = 0, blkfree(v);
+X    if (v = gargv)
+X	gargv = 0, blkfree(v);
+X
+X    didfds = 0;			/* Forget about 0,1,2 */
+X    /*
+X     * Go away if -e or we are a child shell
+X     */
+X    if (exiterr || child)
+X	xexit(1);
+X
+X    /*
+X     * Reset the state of the input. This buffered seek to end of file will
+X     * also clear the while/foreach stack.
+X     */
+X    btoeof();
+X
+X    set(STRstatus, Strsave(STR1));
+X#ifdef BSDJOBS
+X    if (tpgrp > 0)
+X	(void) tcsetpgrp(FSHTTY, tpgrp);
+X#endif
+X    reset();			/* Unwind */
+X}
+END_OF_FILE
+if test 12457 -ne `wc -c <'sh.err.c'`; then
+    echo shar: \"'sh.err.c'\" unpacked with wrong size!
+fi
+# end of 'sh.err.c'
+fi
+if test -f 'sh.types.h' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'sh.types.h'\"
+else
+echo shar: Extracting \"'sh.types.h'\" \(9832 characters\)
+sed "s/^X//" >'sh.types.h' <<'END_OF_FILE'
+X/* $Header: /home/hyperion/mu/christos/src/sys/tcsh-6.01/RCS/sh.types.h,v 3.16 1991/12/14 20:45:46 christos Exp $ */
+X/* sh.types.h: Do the necessary typedefs for each system.
+X *             Up till now I avoided making this into a separate file
+X *	       But I just wanted to eliminate the whole mess from sh.h
+X *	       In reality this should not be here! It is OS and MACHINE
+X *	       dependent, even between different revisions of OS's...
+X *	       Ideally there should be a way in c, to find out if something
+X *	       was typedef'ed, but unfortunately we rely in cpp kludges.
+X *	       Someday, this file will be removed... 
+X *						
+X *						christos
+X */
+X/*-
+X * Copyright (c) 1980, 1991 The Regents of the University of California.
+X * All rights reserved.
+X *
+X * Redistribution and use in source and binary forms, with or without
+X * modification, are permitted provided that the following conditions
+X * are met:
+X * 1. Redistributions of source code must retain the above copyright
+X *    notice, this list of conditions and the following disclaimer.
+X * 2. Redistributions in binary form must reproduce the above copyright
+X *    notice, this list of conditions and the following disclaimer in the
+X *    documentation and/or other materials provided with the distribution.
+X * 3. All advertising materials mentioning features or use of this software
+X *    must display the following acknowledgement:
+X *	This product includes software developed by the University of
+X *	California, Berkeley and its contributors.
+X * 4. Neither the name of the University nor the names of its contributors
+X *    may be used to endorse or promote products derived from this software
+X *    without specific prior written permission.
+X *
+X * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+X * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+X * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+X * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+X * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+X * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+X * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+X * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+X * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+X * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+X * SUCH DAMAGE.
+X */
+X#ifndef _h_sh_types
+X#define _h_sh_types
+X
+X
+X/***
+X *** Suns running sunos4.1
+X ***/
+X#ifdef sun
+X/* This used to be long, but lint dissagrees... */
+X# ifndef _SIGMASK_T
+X#  define _SIGMASK_T
+X    typedef int sigmask_t;
+X# endif /* _SIGMASK_T */
+X# ifndef _PTR_T
+X#  define _PTR_T 
+X#   ifdef __GNUC__
+X    typedef void * ptr_t;
+X#   else
+X    typedef char * ptr_t;
+X#   endif /* __GNUC__ */
+X# endif /* _PTR_T */
+X# ifndef _SIZE_T
+X#  define _SIZE_T
+X# endif /* _SIZE_T */
+X# ifndef __sys_stdtypes_h
+X#  define __sys_stdtypes_h
+X    typedef int pid_t;
+X    typedef unsigned int speed_t;
+X# endif /* __sys_stdtypes.h */
+X# ifndef _PID_T
+X#  define _PID_T
+X# endif /* _PID_T */
+X# ifndef _SPEED_T
+X#  define _SPEED_T
+X# endif /* _SPEED_T */
+X# ifndef SUNOS4
+X#  ifndef _UID_T
+X#   define _UID_T
+X     typedef int uid_t;
+X#  endif /* _UID_T */
+X#  ifndef _GID_T
+X#   define _GID_T
+X     typedef int gid_t;
+X#  endif /* _GID_T */
+X# endif /* !SUNOS4 */
+X#endif /* sun */
+X
+X
+X/***
+X *** Hp's running hpux 7.0
+X ***/
+X#ifdef __hpux
+X# ifndef _SIZE_T
+X#  define _SIZE_T
+X    typedef unsigned int size_t;
+X# endif /* _SIZE_T */
+X
+X# ifndef _PTR_T
+X#  define _PTR_T 
+X    typedef void * ptr_t;
+X# endif /* _PTR_T */
+X
+X# ifndef _PID_T
+X#  define _PID_T
+X    typedef long pid_t;
+X# endif /* _PID_T */
+X
+X# ifndef _SIGMASK_T
+X#  define _SIGMASK_T
+X    typedef long sigmask_t;
+X# endif /* _SIGMASK_T */
+X  
+X# ifndef _SPEED_T
+X   /* I thought POSIX was supposed to protect all typedefs! */
+X#  define _SPEED_T
+X# endif /* _SPEED_T */
+X
+extern uid_t getuid(), geteuid();
+extern gid_t getgid(), getegid();
+extern sigmask_t sigblock();
+extern sigmask_t sigsetmask();
+X#ifdef notdef	/* XXX: Not true for 8.0 */
+extern void sigpause();
+extern sigmask_t sigspace();
+X#endif
+extern pid_t getpid();
+extern pid_t fork();
+extern void perror();
+extern void _exit();
+extern void abort();
+extern void qsort();
+extern void free();
+extern unsigned int alarm();
+extern unsigned int sleep();
+X#ifdef notdef	/* XXX: Not true for 8.0 */
+extern int lstat();
+extern int readlink();
+extern int sigvector();
+extern int gethostname();
+extern int ioctl();
+extern int nice();
+extern char *sbrk();
+X#endif
+X#endif /* __hpux */
+X
+X#ifdef _MINIX
+typedef char * caddr_t;
+X#endif /* _MINIX */
+X
+X/***
+X *** hp9000s500 running hpux-5.2
+X ***/
+X#ifdef hp9000s500
+X# ifndef _PTR_T
+X#  define _PTR_T
+X    typedef char * ptr_t;
+X# endif /* _PTR_T */
+X#endif /* hp9000s500 */
+X
+X
+X/***
+X *** Data General 88000, running dgux ???
+X ***/
+X#ifdef DGUX
+X/*
+X * DGUX types
+X */
+X# ifdef ___int_size_t_h
+X#  ifdef _TARGETTING_M88KBCS_OR_DGUX
+X#   ifdef _USING_ANSI_C_OR_POSIX_OR_SYSV3_OR_BSD_OR_DGUX
+X#    ifndef _SIZE_T
+X#     define _SIZE_T
+X#    endif /* _SIZE_T */
+X#   endif  /* #ifdef _USING_ANSI_C_OR_POSIX_OR_SYSV3_OR_BSD_OR_DGUX */
+X#  endif  /* #ifdef _TARGETTING_M88KBCS_OR_DGUX */
+X# endif  /* #ifndef ___int_size_t_h */
+X
+X# ifdef _USING_POSIX_OR_SYSV3_OR_BSD_OR_DGUX
+X#  ifndef _PID_T
+X#   define _PID_T
+X#  endif /* _PID_T */
+X# endif  /* #ifdef _USING_POSIX_OR_SYSV3_OR_BSD_OR_DGUX */
+X
+X#endif
+X
+X
+X/***
+X *** Intel 386, ISC 386/ix v2.0.2
+X ***/
+X#ifdef ISC202
+X# ifndef _SIZE_T
+X#  define _SIZE_T
+X# endif /* _SIZE_T */
+X#endif /* ISC202 */
+X
+X/***
+X *** a PFU/Fujitsu A-xx computer SX/A Edition 60 or later
+X ***/
+X#ifdef SXA
+X# ifndef _SIZE_T
+X#  define _SIZE_T
+X# endif /* _SIZE_T */
+X#endif /* SXA */
+X
+X/***
+X *** a stellar 2600, running stellix 2.3
+X ***/
+X#ifdef stellar
+X# ifndef _SIZE_T
+X#  define _SIZE_T
+X# endif /* _SIZE_T */
+X#endif /* stellar */
+X
+X/***
+X *** BSD systems, pre and post 4.3
+X ***/
+X#ifdef BSD
+X# ifndef _SIZE_T
+X#  define _SIZE_T
+X# endif /* _SIZE_T */
+X#endif /* BSD */
+X/***
+X *** BSD RENO advertises itself as POSIX, but
+X *** it is missing speed_t 
+X ***/
+X#ifdef RENO
+X# ifndef _SPEED_T
+X#  define _SPEED_T
+X   typedef unsigned int speed_t; 
+X# endif /* _SPEED_T */
+X#endif /* RENO */
+X
+X
+X/***
+X *** Pyramid, BSD universe
+X *** In addition to the size_t
+X ***/
+X#ifdef pyr
+X# ifndef _PID_T
+X#  define _PID_T
+X# endif /* _PID_T */
+X#endif /* pyr */
+X
+X
+X/***
+X *** rs6000, ibm370, ps2, rt: running flavors of aix.
+X ***/
+X#ifdef IBMAIX
+X# ifndef _SIZE_T
+X#  define _SIZE_T
+X# endif /* _SIZE_T */
+X# ifndef aiws
+X#  ifndef _PID_T
+X#   define _PID_T
+X#  endif /* _PID_T */
+X# endif /* !aiws */
+X# ifdef _IBMR2
+X#  ifndef _SPEED_T 
+X#   define _SPEED_T
+X#  endif /* _SPEED_T */
+X# endif /* _IBMR2 */
+X#endif /* IBMAIX */
+X
+X
+X/***
+X *** Ultrix...
+X ***/
+X#if defined(ultrix) || defined(__ultrix)
+X# ifndef _SIZE_T
+X#  define _SIZE_T
+X# endif /* _SIZE_T */
+X# ifndef _PID_T
+X#  define _PID_T
+X# endif /* _PID_T */
+X#endif /* ultrix */
+X
+X
+X/***
+X *** Silicon graphics IRIS4D running IRIX3_3
+X ***/
+X#if defined(IRIS4D) && defined(IRIX3_3)
+X# ifndef _PID_T
+X#  define _PID_T
+X# endif /* _PID_T */
+X#endif /* IRIS4D && IRIX3_3 */
+X
+X
+X/***
+X *** Sequent
+X ***/
+X#ifdef sequent
+X# ifndef _SIZE_T
+X#  define _SIZE_T
+X# endif /* _SIZE_T */
+X#endif /* sequent */
+X
+X/***
+X *** Apple AUX.
+X ***/
+X#ifdef OREO
+X# ifndef _SIZE_T
+X#  define _SIZE_T
+X# endif /* _SIZE_T */
+X# ifndef _PID_T
+X#  define _PID_T
+X# endif /* _PID_T */
+X#endif /* OREO */
+X
+X/***
+X *** Intel 386, Hypercube
+X ***/
+X#ifdef INTEL
+X# ifndef _SIZE_T
+X#  define _SIZE_T
+X# endif /* _SIZE_T */
+X#endif /* INTEL */
+X
+X/***
+X *** Concurrent (Masscomp) running RTU 4.1A & RTU 5.0.
+X *** Added, DAS DEC-90.
+X ***/
+X#ifdef	masscomp
+X# ifndef _SIZE_T
+X#  define _SIZE_T
+X# endif /* _SIZE_T */
+X#endif	/* masscomp */
+X
+X/***
+X *** Encore multimax running umax 4.2
+X ***/
+X#ifdef	ns32000
+X# ifdef __TYPES_DOT_H__
+X#  ifndef _SIZE_T
+X#   define _SIZE_T
+X#  endif /* _SIZE_T */
+X# endif /* __TYPES_DOT_H__ */
+X#endif	/* ns32000 */
+X
+X/***
+X *** Silicon Graphics IRIS 3000
+X ***
+X ***/
+X#ifdef IRIS3D
+X# ifndef _SIZE_T
+X#  define _SIZE_T
+X# endif /* _SIZE_T */
+X#endif /* IRIS3D */
+X
+X/* 
+X * Amdahl running UTS (Sys V3)
+X */
+X#ifdef uts
+X# ifndef _SIZE_T
+X#  define _SIZE_T
+X# endif /* _SIZE_T */
+X# ifndef _PID_T
+X#  define _PID_T
+X# endif /* _PID_T */
+X#endif /* uts */
+X
+X/*
+X * UnixPC aka u3b1
+X */
+X#ifdef UNIXPC
+X# ifdef types_h
+X#  ifndef _SIZE_T
+X#   define _SIZE_T
+X#  endif /* _SIZE_T */
+X# endif /* types_h */
+X#endif /* UNIXPC */
+X
+X/*
+X * NS32000 OPUS
+X */
+X#ifdef OPUS
+X# ifndef _SIZE_T
+X#  define _SIZE_T
+X# endif /* _SIZE_T */
+X#endif /* OPUS */
+X
+X/*
+X * Convex
+X */
+X#if defined(convex) || defined(__convex__)
+X# if defined(__SIZE_T) && !defined(_SIZE_T)
+X#  define _SIZE_T
+X# endif /* __SIZE_T && !_SIZE_T */
+X#endif /* convex || __convex__ */
+X
+X/***
+X *** Catch all for non POSIX and/or non ANSI systems.
+X *** Systems up to spec *should* define these automatically
+X *** I am open to suggestions on how to do this correctly!
+X ***/
+X
+X#ifndef __STDC__
+X
+X# ifndef _SIZE_T
+X#  define _SIZE_T
+X   typedef int size_t;		/* As sun comments ??? : meaning I take it */
+X# endif /* _SIZE_T */		/* Until we make the world ANSI... */
+X
+X#endif  /* ! __STDC__ */
+X
+X#ifndef POSIX
+X
+X# ifndef _PID_T
+X#  define _PID_T
+X    typedef int pid_t;
+X# endif /* _PID_T */
+X
+X# ifndef _SPEED_T
+X#  define _SPEED_T
+X    typedef unsigned int speed_t;
+X# endif /* _SPEED_T */
+X
+X# ifndef _PTR_T
+X#  define _PTR_T 
+X    typedef char * ptr_t;
+X#endif /* _PTR_T */
+X
+X# ifndef _IOCTL_T
+X#  define _IOCTL_T
+X    typedef char * ioctl_t;	/* Third arg of ioctl */
+X# endif /* _IOCTL_T */
+X
+X#endif /* ! POSIX */
+X
+X
+X
+X/***
+X *** This is our own junk types.
+X ***/
+X#ifndef _PTR_T
+X# define _PTR_T 
+X    typedef void * ptr_t;
+X#endif /* _PTR_T */
+X
+X#ifndef _SIGMASK_T
+X# define _SIGMASK_T
+X    typedef int sigmask_t;
+X#endif /* _SIGMASK_T */
+X
+X#ifndef _IOCTL_T
+X# define _IOCTL_T
+X    typedef void * ioctl_t;	/* Third arg of ioctl */
+X#endif /* _IOCTL_T */
+X
+X#endif /* _h_sh_types */
+END_OF_FILE
+if test 9832 -ne `wc -c <'sh.types.h'`; then
+    echo shar: \"'sh.types.h'\" unpacked with wrong size!
+fi
+# end of 'sh.types.h'
+fi
+if test -f 'tc.os.h' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'tc.os.h'\"
+else
+echo shar: Extracting \"'tc.os.h'\" \(11611 characters\)
+sed "s/^X//" >'tc.os.h' <<'END_OF_FILE'
+X/* $Header: /home/hyperion/mu/christos/src/sys/tcsh-6.01/RCS/tc.os.h,v 3.22 1991/11/26 04:28:26 christos Exp $ */
+X/*
+X * tc.os.h: Shell os dependent defines
+X */
+X/*-
+X * Copyright (c) 1980, 1991 The Regents of the University of California.
+X * All rights reserved.
+X *
+X * Redistribution and use in source and binary forms, with or without
+X * modification, are permitted provided that the following conditions
+X * are met:
+X * 1. Redistributions of source code must retain the above copyright
+X *    notice, this list of conditions and the following disclaimer.
+X * 2. Redistributions in binary form must reproduce the above copyright
+X *    notice, this list of conditions and the following disclaimer in the
+X *    documentation and/or other materials provided with the distribution.
+X * 3. All advertising materials mentioning features or use of this software
+X *    must display the following acknowledgement:
+X *	This product includes software developed by the University of
+X *	California, Berkeley and its contributors.
+X * 4. Neither the name of the University nor the names of its contributors
+X *    may be used to endorse or promote products derived from this software
+X *    without specific prior written permission.
+X *
+X * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+X * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+X * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+X * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+X * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+X * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+X * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+X * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+X * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+X * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+X * SUCH DAMAGE.
+X */
+X#ifndef _h_tc_os
+X#define _h_tc_os
+X
+X#define NEEDstrerror		/* Too hard to find which systems have it */
+X
+X#if SVID > 3
+X/*
+X * for SVR4 we fork pipelines backwards. 
+X * more info in sh.sem.c
+X */
+X# define BACKPIPE
+X#endif /* SVID > 3 */
+X
+X#ifdef OREO
+X# include <sys/time.h>
+X# include <sys/resource.h>
+X# ifdef POSIX
+X#  ifdef T_BREAK
+X#   undef T_BREAK
+X#  endif /* T_BREAK */
+X#  include <sys/tty.h>
+X#  include <termios.h>
+X# endif /* POSIX */
+X#endif /* OREO */
+X
+X#ifndef NCARGS
+X# ifdef ARG_MAX
+X#  define NCARGS ARG_MAX
+X# else
+X#  ifdef _MINIX
+X#   define NCARGS 80
+X#  else /* !_MINIX */
+X#   define NCARGS 1024
+X#  endif /* _MINIX */
+X# endif /* ARG_MAX */
+X#endif /* NCARGS */
+X
+X#ifdef titan
+extern int end;
+X#endif /* titan */
+X
+X#ifdef hpux
+X# ifdef lint
+X/*
+X * Hpux defines struct ucred, in <sys/user.h>, but if I include that
+X * then I need to include the *world*
+X * [all this to pass lint cleanly!!!]
+X * so I define struct ucred here...
+X */
+struct ucred {
+X    int     foo;
+X};
+X# endif /* lint */
+X
+X/*
+X * hpux 7.0 does not define it
+X */
+X# ifndef CSUSP
+X#  define CSUSP 032
+X# endif	/* CSUSP */
+X
+X# ifndef hp9000s500
+X#  include <sys/bsdtty.h>
+X# endif
+X
+X# ifndef POSIX
+X#  ifdef BSDJOBS
+X#   define getpgrp(a) getpgrp2(a)
+X#   define setpgrp(a, b) setpgrp2(a, b)
+X#  endif /* BSDJOBS */
+X# endif	/* POSIX */
+X#endif /* hpux */
+X
+X/*
+X * ISC does not define CSUSP
+X */
+X#ifdef ISC
+X# ifndef CSUSP
+X#  define CSUSP 032
+X# endif	/* CSUSP */
+X#endif /* ISC */
+X
+X#ifdef ISC202
+X# undef TIOCGWINSZ
+X#endif /* ISC202 */
+X
+X/*
+X * XXX: This will be changed soon to 
+X * #if (SVID > 0) && defined(TIOCGWINSZ)
+X * If that breaks on your machine, let me know.
+X */
+X#if defined(INTEL) || defined(u3b2) || defined (u3b5) || \
+X    defined(ub15) || defined(u3b20d) || defined(ISC) || defined(SCO) 
+X#ifdef TIOCGWINSZ
+X/*
+X * for struct winsiz
+X */
+X# include <sys/stream.h>
+X# include <sys/ptem.h>
+X#endif /* TIOCGWINSZ */
+X# ifndef ODT
+X#  define NEEDgethostname
+X# endif /* ODT */
+X#endif /* INTEL || att || isc || sco */
+X
+X#ifdef UNIXPC
+X# define NEEDgethostname
+X#endif /* UNIXPC */
+X
+X#ifdef IRIS4D
+X# include <sys/time.h>
+X# include <sys/resource.h>
+X/*
+X * BSDsetpgrp() and BSDgetpgrp() are BSD versions of setpgrp, etc.
+X */
+X# define setpgrp BSDsetpgrp
+X# define getpgrp BSDgetpgrp
+X#endif /* IRIS4D */
+X
+X/*
+X * Stat
+X */
+X#ifdef ISC
+X/* these are not defined for _POSIX_SOURCE under ISC 2.2 */
+X# ifndef S_IFMT
+X#  define S_IFMT  0170000		/* type of file */
+X#  define S_IFDIR 0040000		/* directory */
+X#  define S_IFCHR 0020000		/* character special */
+X#  define S_IFBLK 0060000		/* block special */
+X#  define S_IFREG 0100000		/* regular */
+X#  define S_IFIFO 0010000		/* fifo */
+X#  define S_IFNAM 0050000		/* special named file */
+X# endif /* S_IFMT */
+X#endif /* ISC */
+X
+X#ifdef uts
+X/*
+X * The uts 2.1.2 macros (Amdahl) are busted!
+X * You should fix <sys/stat.h>, cause other programs will break too!
+X *
+X * From: creiman@ncsa.uiuc.edu (Charlie Reiman)
+X */
+X# undef S_ISDIR
+X# undef S_ISCHR
+X# undef S_ISBLK
+X# undef S_ISREG
+X# undef S_ISFIFO
+X# undef S_ISNAM
+X# undef S_ISLNK
+X# undef S_ISSOCK
+X#endif /* uts */
+X
+X#ifdef S_IFMT
+X# if !defined(S_ISDIR) && defined(S_IFDIR)
+X#  define S_ISDIR(a)	(((a) & S_IFMT) == S_IFDIR)
+X# endif	/* ! S_ISDIR && S_IFDIR */
+X# if !defined(S_ISCHR) && defined(S_IFCHR)
+X#  define S_ISCHR(a)	(((a) & S_IFMT) == S_IFCHR)
+X# endif /* ! S_ISCHR && S_IFCHR */
+X# if !defined(S_ISBLK) && defined(S_IFBLK)
+X#  define S_ISBLK(a)	(((a) & S_IFMT) == S_IFBLK)
+X# endif	/* ! S_ISBLK && S_IFBLK */
+X# if !defined(S_ISREG) && defined(S_IFREG)
+X#  define S_ISREG(a)	(((a) & S_IFMT) == S_IFREG)
+X# endif	/* ! S_ISREG && S_IFREG */
+X# if !defined(S_ISFIFO) && defined(S_IFIFO)
+X#  define S_ISFIFO(a)	(((a) & S_IFMT) == S_IFIFO)
+X# endif	/* ! S_ISFIFO && S_IFIFO */
+X# if !defined(S_ISNAM) && defined(S_IFNAM)
+X#  define S_ISNAM(a)	(((a) & S_IFMT) == S_IFNAM)
+X# endif	/* ! S_ISNAM && S_IFNAM */
+X# if !defined(S_ISLNK) && defined(S_IFLNK)
+X#  define S_ISLNK(a)	(((a) & S_IFMT) == S_IFLNK)
+X# endif	/* ! S_ISLNK && S_IFLNK */
+X# if !defined(S_ISSOCK) && defined(S_IFSOCK)
+X#  define S_ISSOCK(a)	(((a) & S_IFMT) == S_IFSOCK)
+X# endif	/* ! S_ISSOCK && S_IFSOCK */
+X#endif /* S_IFMT */
+X
+X#ifndef S_IEXEC
+X# define S_IEXEC 0000100
+X#endif /* S_IEXEC */
+X#ifndef S_IXOTH
+X# define S_IXOTH (S_IEXEC >> 6)
+X#endif /* S_IXOTH */
+X#ifndef S_IXGRP
+X# define S_IXGRP (S_IEXEC >> 3)
+X#endif /* S_IXGRP */
+X#ifndef S_IXUSR
+X# define S_IXUSR S_IEXEC
+X#endif /* S_IXUSR */
+X
+X/*
+X * Access()
+X */
+X#ifndef F_OK
+X# define F_OK 0
+X#endif /* F_OK */
+X#ifndef X_OK
+X# define X_OK 1
+X#endif /* X_OK */
+X#ifndef W_OK
+X# define W_OK 2
+X#endif /* W_OK */
+X#ifndef R_OK
+X# define R_OK 4
+X#endif /* R_OK */
+X
+X/*
+X * Open()
+X */
+X#ifndef O_RDONLY
+X# define O_RDONLY	0
+X#endif /* O_RDONLY */
+X#ifndef O_WRONLY
+X# define O_WRONLY	1
+X#endif /* O_WRONLY */
+X#ifndef O_RDWR
+X# define O_RDWR		2
+X#endif /* O_RDWR */
+X
+X/*
+X * Lseek()
+X */
+X#ifndef L_SET
+X# ifdef SEEK_SET
+X#  define L_SET		SEEK_SET
+X# else
+X#  define L_SET		0
+X# endif	/* SEEK_SET */
+X#endif /* L_SET */
+X#ifndef L_INCR
+X# ifdef SEEK_CUR
+X#  define L_INCR	SEEK_CUR
+X# else
+X#  define L_INCR	1
+X# endif	/* SEEK_CUR */
+X#endif /* L_INCR */
+X#ifndef L_XTND
+X# ifdef SEEK_END
+X#  define L_XTND	SEEK_END
+X# else
+X#  define L_XTND	2
+X# endif /* SEEK_END */
+X#endif /* L_XTND */
+X
+X#ifdef _SEQUENT_
+X# define NEEDgethostname
+X#endif /* _SEQUENT_ */
+X
+X#if defined(BSD) && defined(POSIXJOBS) 
+X# define setpgid(pid, pgrp)	setpgrp(pid, pgrp)
+X#endif /* BSD && POSIXJOBS */
+X
+X#if defined(BSDJOBS) && !(defined(POSIX) && defined(POSIXJOBS))
+X# if !defined(_AIX370) && !defined(_AIXPS2)
+X#  define setpgid(pid, pgrp)	setpgrp(pid, pgrp)
+X# endif /* !_AIX370 && !_AIXPS2 */
+X# define NEEDtcgetpgrp
+X#endif /* BSDJOBS && !(POSIX && POSIXJOBS) */
+X
+X#ifdef RENO 
+X/*
+X * RENO has this broken. It is fixed on 4.4BSD
+X */
+X# define NEEDtcgetpgrp
+X#endif /* RENO */
+X
+X#ifdef DGUX
+X# define setpgrp(a, b) setpgrp2(a, b)
+X# define getpgrp(a) getpgrp2(a)
+X#endif /* DGUX */
+X
+X#ifdef SXA
+X# ifndef _BSDX_
+X/*
+X * Only needed in the system V environment.
+X */
+X#  define setrlimit 	bsd_setrlimit
+X#  define getrlimit	bsd_getrlimit
+X# endif	/* _BSDX_ */
+X# ifndef NOFILE
+X#  define	NOFILE	64
+X# endif	/* NOFILE */
+X#endif /* SXA */
+X
+X#ifdef _MINIX
+X# ifndef NOFILE
+X#  define NOFILE 64
+X# endif /* NOFILE */
+X/*
+X * Minix does not have these, so...
+X */
+X# define nice(a)		/**/
+X# define ulimit(a, b)		(0x003fffff)
+X# define getpgrp()		getpid()
+X# define gethostname(a, b)	(strncpy((a), "minix") == NULL)
+X#endif /* _MINIX */
+X
+X#ifndef POSIX
+X# define mygetpgrp()    getpgrp(0)
+X#else /* POSIX */
+X# if defined(BSD) || defined(sun)
+X#  define mygetpgrp()    getpgrp(0)
+X# else /* BSD || sun */
+X#  define mygetpgrp()    getpgrp()
+X# endif	/* BSD || sun */
+X#endif /* POSIX */
+X
+X
+X#if SVID > 0 && !defined(OREO) && !defined(sgi)
+X# define NEEDgetwd
+X#endif /* SVID > 0 && !OREO && !sgi */
+X
+X#ifndef S_IFLNK
+X# define lstat stat
+X#endif /* S_IFLNK */
+X
+X
+X#if defined(BSDTIMES) && !defined(_SEQUENT_)
+typedef struct timeval timeval_t;
+X#endif /* BSDTIMES && ! _SEQUENT_ */
+X
+X#ifdef NeXT
+X/*
+X * From Tony_Mason@transarc.com, override NeXT's malloc stuff.
+X */
+X# define malloc tcsh_malloc
+X# define calloc tcsh_calloc
+X# define realloc tcsh_realloc
+X# define free tcsh_free
+X#endif /* NeXT */
+X
+X
+X#if !defined(POSIX) || defined(sun)
+extern time_t time();
+extern char *getenv();
+extern int atoi();
+extern char *ttyname();
+X
+X# ifndef hpux
+extern int abort();
+X# ifndef fps500
+extern int qsort();
+X# endif /* fps500 */
+X# else
+extern void abort();
+extern void qsort();
+X# endif
+extern void perror();
+X
+X#ifndef NEEDgethostname
+extern int gethostname();
+X#endif
+X
+X# ifdef BSDSIGS
+X#  if defined(_AIX370) || defined(MACH) || defined(NeXT) || defined(_AIXPS2)
+extern int sigvec();
+extern int sigpause();
+X#  else	/* _AIX370 || MACH || NeXT || _AIXPS2 */
+X#   if !defined(apollo) || !defined(__STDC__)
+X# ifndef fps500
+extern sigret_t sigvec();
+extern void sigpause();
+X# endif /* fps500 */
+X#   endif /* !apollo || !__STDC__ */
+X#  endif /* _AIX370 || MACH || NeXT || _AIXPS2 */
+extern sigmask_t sigblock();
+extern sigmask_t sigsetmask();
+X# endif	/* BSDSIGS */
+X
+X# ifndef killpg
+extern int killpg();
+X# endif	/* killpg */
+X
+X# ifndef lstat
+extern int lstat();
+X# endif	/* lstat */
+X
+X#ifdef BSD
+extern uid_t getuid(), geteuid();
+extern gid_t getgid(), getegid();
+X#endif /* BSD */
+X
+X# ifdef SYSMALLOC
+extern memalign_t malloc();
+extern memalign_t realloc();
+extern memalign_t calloc();
+extern void free();
+X# endif	/* SYSMALLOC */
+X
+X# ifdef BSDTIMES
+extern int getrlimit();
+extern int setrlimit();
+extern int getrusage();
+extern int gettimeofday();
+X# endif	/* BSDTIMES */
+X
+X# if defined(NLS) && !defined(NOSTRCOLL) && !defined(NeXT)
+extern int strcoll();
+X# endif
+X
+X# ifdef BSDJOBS
+X#  ifdef BSDTIMES
+extern int wait3();
+X#  else	/* ! BSDTIMES */
+X#   if !defined(POSIXJOBS) && !defined(_SEQUENT_)
+extern int wait3();
+X#   else /* POSIXJOBS || _SEQUENT_ */
+extern int waitpid();
+X#   endif /* POSIXJOBS || _SEQUENT_ */
+X#  endif /* ! BSDTIMES */
+X# else /* !BSDJOBS */
+X#  if SVID < 3
+extern int ourwait();
+X#  else	/* SVID >= 3 */
+extern int wait();
+X#  endif /* SVID >= 3 */
+X# endif	/* ! BSDJOBS */
+X
+X# ifdef BSDNICE
+extern int setpriority();
+X# else /* !BSDNICE */
+extern int nice();
+X# endif	/* !BSDNICE */
+X
+X# ifndef fps500
+extern void setpwent();
+extern void endpwent();
+X# endif /* fps500 */
+X
+X#ifndef __STDC__
+extern struct passwd *getpwuid(), *getpwnam(), *getpwent();
+X#ifdef PW_SHADOW
+extern struct spwd *getspnam(), *getspent();
+X#endif /* PW_SHADOW */
+X#endif /* __STDC__ */
+X
+X# ifndef getwd
+extern char *getwd();
+X# endif	/* getwd */
+X#else /* POSIX */
+X
+X# if (defined(sun) && !defined(__GNUC__)) || defined(_IBMR2) || defined(_IBMESA)
+extern char *getwd();
+X# endif	/* (sun && ! __GNUC__) || _IBMR2 || _IBMESA */
+X
+X# ifdef SCO
+extern char *ttyname();   
+X# endif /* SCO */
+X
+X#endif /* POSIX */
+X
+X#endif /* _h_tc_os */
+END_OF_FILE
+if test 11611 -ne `wc -c <'tc.os.h'`; then
+    echo shar: \"'tc.os.h'\" unpacked with wrong size!
+fi
+# end of 'tc.os.h'
+fi
+if test -f 'tc.prompt.c' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'tc.prompt.c'\"
+else
+echo shar: Extracting \"'tc.prompt.c'\" \(10394 characters\)
+sed "s/^X//" >'tc.prompt.c' <<'END_OF_FILE'
+X/* $Header: /home/hyperion/mu/christos/src/sys/tcsh-6.01/RCS/tc.prompt.c,v 3.9 1991/12/19 22:34:14 christos Exp $ */
+X/*
+X * tc.prompt.c: Prompt printing stuff
+X */
+X/*-
+X * Copyright (c) 1980, 1991 The Regents of the University of California.
+X * All rights reserved.
+X *
+X * Redistribution and use in source and binary forms, with or without
+X * modification, are permitted provided that the following conditions
+X * are met:
+X * 1. Redistributions of source code must retain the above copyright
+X *    notice, this list of conditions and the following disclaimer.
+X * 2. Redistributions in binary form must reproduce the above copyright
+X *    notice, this list of conditions and the following disclaimer in the
+X *    documentation and/or other materials provided with the distribution.
+X * 3. All advertising materials mentioning features or use of this software
+X *    must display the following acknowledgement:
+X *	This product includes software developed by the University of
+X *	California, Berkeley and its contributors.
+X * 4. Neither the name of the University nor the names of its contributors
+X *    may be used to endorse or promote products derived from this software
+X *    without specific prior written permission.
+X *
+X * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+X * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+X * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+X * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+X * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+X * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+X * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+X * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+X * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+X * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+X * SUCH DAMAGE.
+X */
+X#include "sh.h"
+X
+RCSID("$Id: tc.prompt.c,v 3.9 1991/12/19 22:34:14 christos Exp $")
+X
+X#include "ed.h"
+X
+X/*
+X * kfk 21oct1983 -- add @ (time) and / ($cwd) in prompt.
+X * PWP 4/27/87 -- rearange for tcsh.
+X * mrdch@com.tau.edu.il 6/26/89 - added ~, T and .# - rearanged to switch()
+X *                 instead of if/elseif
+X * Luke Mewburn, s902113@minyos.xx.rmit.OZ.AU 6-Sep-91 - changed date format
+X */
+X
+char   *month_list[] = {"Jan", "Feb", "Mar", "Apr", "May", "Jun",
+X			"Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
+char   *day_list[] = { "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat" };
+void
+printprompt(promptno, str)
+X    int     promptno;
+X    Char   *str;
+X{
+X    Char   *p, *z, *q, *ep, *cp;
+X    register Char attributes = 0;
+X    static int print_prompt_did_ding = 0;
+X    register char *cz;
+X    struct tm *t;
+X    time_t  lclock;
+X    Char    buff[BUFSIZE];
+X    static  Char *ocp = NULL, *ostr = NULL;
+X
+X    (void) time(&lclock);
+X    t = localtime(&lclock);
+X
+X    PromptBuf[0] = '\0';
+X    p = PromptBuf;
+X    ep = &PromptBuf[2*INBUFSIZE - 2];
+X    switch (promptno) {
+X    default:
+X    case 0:
+X	cp = value(STRprompt);
+X	break;
+X    case 1:
+X	cp = value(STRprompt2);
+X	break;
+X    case 2:
+X	cp = value(STRprompt3);
+X	break;
+X    case 3:
+X	if (ocp != NULL) {
+X	    cp = ocp;
+X	    str = ostr;
+X	}
+X	else 
+X	    cp = value(STRprompt);
+X	break;
+X    }
+X    if (promptno < 2) {
+X	ocp = cp;
+X	ostr = str;
+X    }
+X
+X    for (; *cp; cp++) {
+X	if (p >= ep)
+X	    break;
+X	if (*cp == '%') {
+X	    cp++;
+X	    switch (*cp) {
+X	    case 'R':
+X		if (str != NULL)
+X		    while (*str) {
+X			*p++ = attributes | *str++;
+X			if (p >= ep) break;
+X		    }
+X		break;
+X	    case '#':
+X		*p++ = attributes | ((uid == 0) ? '#' : '>');
+X		break;
+X	    case '!':
+X	    case 'h':
+X		Itoa(eventno + 1, buff);
+X		for (z = buff; *z; z++) {
+X		    *p++ = attributes | *z;
+X		    if (p >= ep) break;
+X		}
+X		break;
+X	    case 'T':		/* 24 hour format	 */
+X	    case '@':
+X	    case 't':		/* 12 hour am/pm format */
+X		{
+X		    char    ampm = 'a';
+X		    int     hr = t->tm_hour;
+X
+X		    if (p >= ep - 10) break;
+X
+X		    /* addition by Hans J. Albertsson */
+X		    /* and another adapted from Justin Bur */
+X		    if (adrof(STRampm) || *cp != 'T') {
+X			if (hr >= 12) {
+X			    if (hr > 12)
+X				hr -= 12;
+X			    ampm = 'p';
+X			}
+X			else if (hr == 0)
+X			    hr = 12;
+X		    }		/* else do a 24 hour clock */
+X
+X		    /* "DING!" stuff by Hans also */
+X		    if (t->tm_min || print_prompt_did_ding
+X			 /* || !adrof(STRprompt_ding) */ ) {
+X			if (t->tm_min)
+X			    print_prompt_did_ding = 0;
+X			Itoa(hr, buff);
+X			*p++ = attributes | buff[0];
+X			if (buff[1]) 
+X			    *p++ = attributes | buff[1];
+X			*p++ = attributes | ':';
+X			Itoa(t->tm_min, buff);
+X			if (buff[1]) {
+X			    *p++ = attributes | buff[0];
+X			    *p++ = attributes | buff[1];
+X			}
+X			else {
+X			    *p++ = attributes | '0';
+X			    *p++ = attributes | buff[0];
+X			}
+X			if (adrof(STRampm) || *cp != 'T') {
+X			    *p++ = attributes | ampm;
+X			    *p++ = attributes | 'm';
+X			}
+X		    }
+X		    else {	/* we need to ding */
+X			int     i = 0;
+X
+X			(void) Strcpy(buff, STRDING);
+X			while (buff[i]) {
+X			    *p++ = attributes | buff[i++];
+X			}
+X			print_prompt_did_ding = 1;
+X		    }
+X		}
+X		break;
+X
+X	    case 'M':
+X		/*
+X		 * Bug pointed out by Laurent Dami <dami@cui.unige.ch>: don't
+X		 * derefrence that NULL (if HOST is not set)...
+X		 */
+X		if ((cz = getenv("HOST")) != NULL)
+X		    while (*cz) {
+X			if (p >= ep) break;
+X			*p++ = attributes | *cz++;
+X		    }
+X		break;
+X
+X	    case 'm':
+X		if ((cz = getenv("HOST")) != NULL)
+X		    while (*cz && *cz != '.') {
+X			if (p >= ep) break;
+X			*p++ = attributes | *cz++;
+X		    }
+X		break;
+X
+X	    case '~':		/* show ~ whenever possible - a la dirs */
+X		{
+X		    static Char *olddir = 0, *olduser = 0, *oldpath = 0;
+X		    extern int tlength;	/* cache cleared */
+X
+X		    if (!(z = value(STRcwd)))
+X			break;	/* no cwd, so don't do anything */
+X		    /*
+X		     * Have we changed directory?
+X		     */
+X		    if (tlength == 0 || olddir != z) {
+X			oldpath = olddir = z;
+X			olduser = getusername(&oldpath);
+X		    }
+X		    if (olduser) {
+X			*p++ = attributes | '~';
+X			if (p >= ep) break;
+X			for (q = olduser; *q; *p++ = attributes | *q++)
+X			    if (p >= ep) break;
+X			for (z = oldpath; *z; *p++ = attributes | *z++)
+X			    if (p >= ep) break;
+X			break;
+X		    }
+X		}
+X		/* fall through if ~ not matched */
+X	    case '/':
+X		if (z = value(STRcwd)) {
+X		    while (*z) {
+X			*p++ = attributes | *z++;
+X			if (p >= ep) break;
+X		    }
+X		}
+X		break;
+X	    case '.':
+X	    case 'c':
+X	    case 'C':
+X		{
+X		    register int j, k;
+X		    Char    scp;
+X
+X		    scp = *cp;
+X		    /* option to determine fix number of dirs from path */
+X		    if (*(cp + 1) >= '1' && *(cp + 1) <= '9') {
+X			j = *(cp + 1) - '0';
+X			cp++;
+X		    }
+X		    else {
+X			j = 1;
+X		    }
+X		    if (!(z = value(STRcwd)))
+X			break;
+X		    (void) Strcpy(buff, z);
+X		    if (!buff[1]) {	/* if CWD == / */
+X			*p++ = attributes | buff[0];
+X		    }
+X		    else {
+X			if ((scp != 'C') && (q = value(STRhome)) &&
+X			    Strncmp(buff, q, (k = Strlen(q))) == 0 &&
+X			    (buff[k] == '/' || buff[k] == '\0')) {
+X			    buff[--k] = '~';
+X			    q = &buff[k];
+X			}
+X			else
+X			    q = buff;
+X			for (z = q; *z; z++);	/* find the end */
+X			while (j-- > 0) {
+X			    while ((z > q) && (*z != '/'))
+X				z--;	/* back up */
+X			    if (j && z > q)
+X				z--;
+X			}
+X			if (*z == '/' && z != q)
+X			    z++;
+X			while (*z) {
+X			    *p++ = attributes | *z++;
+X			    if (p >= ep) break;
+X			}
+X		    }
+X		}
+X		break;
+X	    case 'n':
+X		if (z = value(STRuser))
+X		    while (*z) {
+X			*p++ = attributes | *z++;
+X			if (p >= ep) break;
+X		    }
+X		break;
+X	    case 'l':
+X		if (z = value(STRtty))
+X		    while (*z) {
+X			*p++ = attributes | *z++;
+X			if (p >= ep) break;
+X		    }
+X		break;
+X	    case 'd':
+X		for (cz = day_list[t->tm_wday]; *cz;) {
+X		    *p++ = attributes | *cz++;
+X		    if (p >= ep) break;
+X		}
+X		break;
+X	    case 'D':
+X		Itoa(t->tm_mday, buff);
+X		if (p >= ep - 3) break;
+X		if (buff[1]) {
+X		    *p++ = attributes | buff[0];
+X		    *p++ = attributes | buff[1];
+X		}
+X		else {
+X		    *p++ = attributes | '0';
+X		    *p++ = attributes | buff[0];
+X		}
+X		break;
+X	    case 'w':
+X		if (p >= ep - 20) break;
+X		for (cz = month_list[t->tm_mon]; *cz;) 
+X		    *p++ = attributes | *cz++;
+X		break;
+X	    case 'W':
+X		if (p >= ep - 3) break;
+X		Itoa(t->tm_mon + 1, buff);
+X		if (buff[1]) {
+X		    *p++ = attributes | buff[0];
+X		    *p++ = attributes | buff[1];
+X		}
+X		else {
+X		    *p++ = attributes | '0';
+X		    *p++ = attributes | buff[0];
+X		}
+X		break;
+X	    case 'y':
+X		if (p >= ep - 3) break;
+X		Itoa(t->tm_year, buff);
+X		if (buff[1]) {
+X		    *p++ = attributes | buff[0];
+X		    *p++ = attributes | buff[1];
+X		}
+X		else {
+X		    *p++ = attributes | '0';
+X		    *p++ = attributes | buff[0];
+X		}
+X		break;
+X	    case 'Y':
+X		if (p >= ep - 5) break;
+X		Itoa(t->tm_year + 1900, buff);
+X		*p++ = attributes | buff[0];
+X		*p++ = attributes | buff[1];
+X		*p++ = attributes | buff[2];
+X		*p++ = attributes | buff[3];
+X		break;
+X	    case 'S':		/* start standout */
+X		attributes |= STANDOUT;
+X		break;
+X	    case 'B':		/* start bold */
+X		attributes |= BOLD;
+X		break;
+X	    case 'U':		/* start underline */
+X		attributes |= UNDER;
+X		break;
+X	    case 's':		/* end standout */
+X		attributes &= ~STANDOUT;
+X		break;
+X	    case 'b':		/* end bold */
+X		attributes &= ~BOLD;
+X		break;
+X	    case 'u':		/* end underline */
+X		attributes &= ~UNDER;
+X		break;
+X	    case 'L':
+X		ClearToBottom();
+X		break;
+X	    case '?':
+X		if (z = value(STRstatus))
+X		    while (*z) {
+X			*p++ = attributes | *z++;
+X			if (p >= ep) break;
+X		    }
+X		break;
+X	    case '%':
+X		*p++ = attributes | '%';
+X		break;
+X	    case '{':		/* literal characters start */
+X#if LITERAL == 0
+X		/*
+X		 * No literal capability, so skip all chars in the literal
+X		 * string
+X		 */
+X		while (*cp != '\0' && (*cp != '%' || cp[1] != '}'))
+X		    cp++;
+X#endif				/* LITERAL == 0 */
+X		attributes |= LITERAL;
+X		break;
+X	    case '}':		/* literal characters end */
+X		attributes &= ~LITERAL;
+X		break;
+X	    default:
+X		if (p >= ep - 3) break;
+X		*p++ = attributes | '%';
+X		*p++ = attributes | *cp;
+X		break;
+X	    }
+X	}
+X	else if (*cp == '\\' | *cp == '^') {
+X	    *p++ = attributes | parseescape(&cp);
+X	}
+X	else if (*cp == '!') {	/* EGS: handle '!'s in prompts */
+X	    Itoa(eventno + 1, buff);
+X	    for (z = buff; *z; z++) {
+X		*p++ = attributes | *z;
+X		if (p >= ep) break;
+X	    }
+X	}
+X	else {
+X	    *p++ = attributes | *cp;	/* normal character */
+X	}
+X    }
+X    *p = '\0';
+X    if (!editing) {
+X	for (z = PromptBuf; z < p; z++)
+X	    (void) putraw(*z);
+X	SetAttributes(0);
+X	flush();
+X    }
+X}
+END_OF_FILE
+if test 10394 -ne `wc -c <'tc.prompt.c'`; then
+    echo shar: \"'tc.prompt.c'\" unpacked with wrong size!
+fi
+# end of 'tc.prompt.c'
+fi
+if test -f 'tc.vers.c' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'tc.vers.c'\"
+else
+echo shar: Extracting \"'tc.vers.c'\" \(12336 characters\)
+sed "s/^X//" >'tc.vers.c' <<'END_OF_FILE'
+X/* $Header: /home/hyperion/mu/christos/src/sys/tcsh-6.01/RCS/tc.vers.c,v 3.12 1991/12/19 22:34:14 christos Exp $ */
+X/*
+X * tc.vers.c: Version dependent stuff
+X */
+X/*-
+X * Copyright (c) 1980, 1991 The Regents of the University of California.
+X * All rights reserved.
+X *
+X * Redistribution and use in source and binary forms, with or without
+X * modification, are permitted provided that the following conditions
+X * are met:
+X * 1. Redistributions of source code must retain the above copyright
+X *    notice, this list of conditions and the following disclaimer.
+X * 2. Redistributions in binary form must reproduce the above copyright
+X *    notice, this list of conditions and the following disclaimer in the
+X *    documentation and/or other materials provided with the distribution.
+X * 3. All advertising materials mentioning features or use of this software
+X *    must display the following acknowledgement:
+X *	This product includes software developed by the University of
+X *	California, Berkeley and its contributors.
+X * 4. Neither the name of the University nor the names of its contributors
+X *    may be used to endorse or promote products derived from this software
+X *    without specific prior written permission.
+X *
+X * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+X * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+X * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+X * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+X * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+X * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+X * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+X * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+X * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+X * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+X * SUCH DAMAGE.
+X */
+X#include "sh.h"
+X
+RCSID("$Id: tc.vers.c,v 3.12 1991/12/19 22:34:14 christos Exp $")
+X
+X#include "patchlevel.h"
+X
+X
+Char *
+gethosttype()
+X{
+X    Char *hosttype;
+X    
+X#ifdef HOSTTYPE	/* Override any system determined hosttypes */
+X    hosttype = str2short(HOSTTYPE);
+X#else
+X# if defined(vax) || defined(__vax)
+X#  define _havehosttype_
+X    hosttype = str2short("vax");
+X# endif /* vax || __vax */
+X
+X# ifdef hp9000 /* hp9000 running MORE/bsd */
+X#  ifdef hp300
+X#   define _havehosttype_
+X    hosttype = str2short("hp300");
+X#  endif 
+X#  ifdef hp800
+X#   define _havehosttype_
+X    hosttype = str2short("hp800");
+X#  endif 
+X#  ifndef _havehosttype_
+X#   define _havehosttype_
+X    hosttype = str2short("hp9000");	
+X#  endif 
+X# endif /* hp9000 */
+X
+X# ifdef sun
+X#  ifdef mc68010
+X#   define _havehosttype_
+X    hosttype = str2short("sun2");
+X#  endif /* mc68010 */
+X#  ifdef mc68020
+X#   define _havehosttype_
+X    hosttype = str2short("sun3");
+X#  endif /* mc68020 */
+X#  ifdef sparc
+X#   define _havehosttype_
+X    hosttype = str2short("sun4");
+X#  endif /* sparc */
+X#  ifdef i386
+X#   define _havehosttype_
+X    hosttype = str2short("sun386i");
+X#  endif /* i386 */
+X#  ifndef _havehosttype_
+X#   define _havehosttype_
+X    hosttype = str2short("sun");	
+X#  endif 
+X# endif /* sun */
+X
+X# ifdef pyr /* pyramid */
+X#  define _havehosttype_
+X    hosttype = str2short("pyramid");
+X# endif /* pyr */
+X
+X# ifdef ibm032 /* from Jak Kirman */
+X#  define _havehosttype_
+X    hosttype = str2short("rt");
+X# endif /* ibm032 */
+X
+X# ifdef aiws /* not to be confused with the above */
+X#  define _havehosttype_
+X    hosttype = str2short("rtpc");
+X# endif /* aiws */
+X
+X# ifdef _AIX370
+X#  define _havehosttype_
+X    hosttype = str2short("aix370");
+X# endif /* _AIX370 */
+X
+X# ifdef _IBMESA
+X#  define _havehosttype_
+X    hosttype = str2short("aixESA");
+X# endif /* _IBMESA */
+X
+X# ifdef _IBMR2
+X#  define _havehosttype_
+X    hosttype = str2short("rs6000");
+X# endif /* _IBMR2 */
+X
+X# ifdef _AIXPS2 /* AIX on a PS/2 */
+X#  define _havehosttype_
+X    hosttype = str2short("ps2");
+X# endif /* _AIXPS2 */
+X
+X# ifdef OREO
+X#  define _havehosttype_
+X    hosttype = str2short("mac2");
+X# endif /* OREO */
+X
+X# ifdef hpux
+X#  if defined(__hp9000s700) && !defined(_havehosttype_)
+X#   define _havehosttype_
+X   hosttype = str2short("hp9000s700");
+X#  endif /* __hp9000s700 */
+X#  if defined(hp9000s800) && !defined(_havehosttype_)
+X#   define _havehosttype_
+X   hosttype = str2short("hp9000s800");	/* maybe "spectrum" */
+X#  endif /* hp9000s800 */
+X#  if defined(hp9000s300) && !defined(_havehosttype_)
+X#   define _havehosttype_
+X   hosttype = str2short("hp9000s300");
+X#  endif /* hp9000s300 */
+X# if defined(hp9000s500) && !defined(_havehosttype_)
+X#  define _havehosttype_
+X   hosttype = str2short("hp9000s500");
+X# endif /* hp9000s500 */
+X#  ifndef _havehosttype_
+X#   define _havehosttype_
+X   hosttype = str2short("hp");
+X#  endif /* _havehosttype_ */
+X# endif /* hpux */
+X
+X# ifdef apollo
+X#  define _havehosttype_
+X    hosttype = str2short("apollo");
+X# endif 
+X
+X# ifdef u3b20d
+X#  define _havehosttype_
+X    hosttype = str2short("att3b20");
+X# endif /* u3b20d */
+X
+X# ifdef u3b15
+X#  define _havehosttype_
+X    hosttype = str2short("att3b15");
+X# endif /* u3b15 */
+X
+X# ifdef u3b5
+X#  define _havehosttype_
+X    hosttype = str2short("att3b5");
+X# endif /* u3b5 */
+X
+X# ifdef u3b2
+X#  define _havehosttype_
+X    hosttype = str2short("att3b2");
+X# endif /* u3b2 */
+X
+X#ifdef _MINIX
+X# define _havehosttype_
+X# ifdef i386
+X    hosttype = str2short("minix386");
+X# else /* minix ? amoeba or mac? */
+X    hosttype = str2short("minix");
+X# endif /* i386 */
+X#endif /* _MINIX */
+X
+X# if defined(i386) && SVID > 0
+X
+X#  if !defined(_havehosttype_) && (defined(ISC) || defined(ISC202))
+X#   define _havehosttype_
+X    hosttype = str2short("isc386");
+X#  endif /* !_havehosttype_ && (ISC || ISC202) */
+X
+X#  if !defined(_havehosttype_) && defined(SCO)
+X#   define _havehosttype_
+X    hosttype = str2short("sco386");
+X#  endif /* !_havehosttype_ && SCO */
+X
+X#  if !defined(_havehosttype_) && defined(INTEL)
+X#   define _havehosttype_
+X    hosttype = str2short("intel386");
+X#  endif /* !_havehosttype_ && INTEL */
+X
+X#  ifndef _havehosttype_
+X#   define _havehosttype_
+X    hosttype = str2short("i386");
+X#  endif /* _havehosttype_ */
+X
+X# endif 
+X
+X#ifdef UNIXPC
+X# define _havehosttype_
+X    hosttype = str2short("unixpc");
+X#endif /* UNIXPC/att3b1/att7300 */
+X
+X# ifdef alliant
+X#  define _havehosttype_
+X    hosttype = str2short("alliant");	/* for Alliant FX Series */
+X# endif 
+X
+X# if defined(i386) && defined(MACH)
+X#  define _havehosttype_
+X    hosttype = str2short("i386-mach");
+X# endif 
+X
+X# if defined(sequent) || defined(_SEQUENT_)
+X#  define _havehosttype_
+X#  ifdef i386
+X#   ifdef sequent
+X    hosttype = str2short("symmetry");	/* Sequent Symmetry Dynix/3 */
+X#    ifndef LOCALSTR
+X#     define LOCALSTR	" (Dynix/3)"
+X#    endif /* LOCALSTR */
+X#   else
+X    hosttype = str2short("ptx");	/* Sequent Symmetry Dynix/ptx */
+X#    ifndef LOCALSTR
+X#     define LOCALSTR	" (Dynix/ptx)"
+X#    endif /* LOCALSTR */
+X#   endif 
+X#  else
+X    hosttype = str2short("balance");	/* for Sequent Balance Series */
+X#   ifndef LOCALSTR
+X#    define LOCALSTR	" (Dynix/3)"
+X#   endif /* LOCALSTR */
+X#  endif 
+X# else /* !sequent */
+X#  ifdef ns32000
+X#   define _havehosttype_
+X#   ifdef CMUCS			/* hack for Mach (in the true spirit of CMU) */
+X    hosttype = str2short("multimax");
+X#   else /* CMUCS */
+X    hosttype = str2short((!access("/Umax.image", F_OK) ? 
+X			 "multimax" : "ns32000"));
+X#   endif /* CMUCS */
+X#  endif /* ns32000 */
+X# endif /* sequent */
+X
+X# if defined(convex) || defined(__convex__)
+X#  define _havehosttype_
+X    /* From: Brian Allison <uiucdcs!convex!allison@RUTGERS.EDU> */
+X    hosttype = str2short("convex");
+X# endif /* convex */
+X
+X# ifdef butterfly
+X#  define _havehosttype_
+X    /* this will work _until_ the bfly with 88000s comes out */
+X    hosttype = str2short("butterfly");	/* BBN Butterfly 1000 */
+X# endif /* butterfly */
+X
+X# ifdef NeXT
+X#  define _havehosttype_
+X    hosttype = str2short("next");
+X# endif /* NeXT */
+X
+X/* From Kazuhiro Honda <honda@mt.cs.keio.ac.jp> */
+X# ifdef sony_news
+X#  define _havehosttype_
+X#  ifdef mips /* Sony NEWS based on a r3000 */
+X    hosttype = str2short("news_mips");
+X#  else
+X    hosttype = str2short("news");
+X#  endif 
+X# endif /* sony_news */
+X
+X# if defined(mips) || defined(__mips)
+X#  define _havehosttype_
+X#  if defined(MIPSEL) || defined(__MIPSEL)
+X#   if defined(ultrix) || defined(__ultrix)
+X    hosttype = str2short("decstation");
+X#   else
+X    hosttype = str2short("mips");
+X#   endif /* ultrix || __ultrix */
+X#  endif /* MIPSEL || __MIPSEL */
+X#  if defined(MIPSEB) || defined(__MIPSEB)
+X#   if defined(ultrix) || defined(__ultrix)
+X    hosttype = str2short("decmips");
+X#   else
+X#    ifdef sgi /* sgi iris 4d */
+X    hosttype = str2short("iris4d");
+X#    else
+X#     ifdef sony_news
+X    hosttype = str2short("news_mips");
+X#     else
+X    hosttype = str2short("mips");
+X#     endif /* sony_news */
+X#    endif /* sgi */
+X#   endif /* ultrix || __ultrix */
+X#  endif /* MIPSEB || __MIPSEB */
+X# endif /* mips || __mips */
+X
+X# ifdef m88k
+X#  define _havehosttype_
+X    hosttype = str2short("m88k");	/* Motorola 88100 system */
+X# endif 
+X
+X# ifdef masscomp			/* Added, DAS DEC-90. */
+X#  define _havehosttype_
+X    hosttype = str2short("masscomp");/* masscomp == concurrent */
+X# endif /* masscomp */
+X
+X# ifdef GOULD_NP1
+X#  define _havehosttype_
+X    hosttype = str2short("gould_np1");
+X# endif /* GOULD_NP1 */
+X
+X# ifdef SXA
+X#  define _havehosttype_
+X    hosttype = str2short("pfa50");
+X#  ifdef  _BSDX_
+X#   ifndef LOCALSTR
+X#    define LOCALSTR	" (SX/A E60+BSDX)"
+X#   endif /* LOCALSTR */
+X#  else
+X#   ifndef LOCALSTR
+X#    define LOCALSTR	" (SX/A E60)"
+X#   endif /* LOCALSTR */
+X#  endif 
+X# endif /* PFU/Fujitsu A-xx computer */
+X
+X# ifdef titan
+X#  define _havehosttype_
+X    /* Ken Laprade <laprade@trantor.harris-atd.com> */
+X    hosttype = str2short("titan");
+X# endif /* titan */
+X
+X# ifdef stellar
+X#  define _havehosttype_
+X    hosttype = str2short("stellar");
+X# endif /* stellar */
+X
+X# ifdef sgi
+X/* Iris 4D is in the mips section; these are the 68k machines. */
+X#  ifdef m68000
+X#   define _havehosttype_
+X    /* Vince Del Vecchio <vd09@andrew.cmu.edu> */
+X    hosttype = str2short("iris3d");
+X#  endif
+X# endif /* sgi */
+X
+X# ifdef uts
+X#  define _havehosttype_
+X    hosttype = str2short("amdahl");
+X# endif /* uts */
+X  
+X# ifdef OPUS
+X#  define _havehosttype_
+X    hosttype = str2short("opus");
+X# endif /* OPUS */
+X
+X# ifdef eta10
+X#  define _havehosttype_
+X   /* Bruce Woodcock <woodcock@mentor.cc.purdue.edu> */
+X   hosttype = str2short("eta10");
+X# endif /* eta10 */
+X
+X# ifdef cray
+X#  define _havehosttype_
+X   hosttype = str2short("cray");
+X# endif /* cray */
+X
+X# ifdef NDIX
+X#  define _havehosttype_
+X   /* B|rje Josefsson <bj@dc.luth.se> */
+X   hosttype = str2short("nd500");
+X# endif /* NDIX */
+X
+X# ifndef _havehosttype_
+X#  define _havehosttype_
+X    /* Default to something reasonable */
+X    hosttype = str2short("unknown");
+X# endif 
+X# undef _havehosttype_
+X#endif /* HOSTTYPE */
+X    return hosttype;
+X} /* end gethosttype */
+X
+X
+X/* fix_version():
+X *	Print a reasonable version string, printing all compile time
+X *	options that might affect the user.
+X */
+void
+fix_version()
+X{
+X    char    version[BUFSIZE];
+X
+X#ifdef SHORT_STRINGS
+X# define SSSTR "8b"
+X#else
+X# define SSSTR "7b"
+X#endif 
+X#ifdef NLS
+X# define NLSSTR ",nls"
+X#else
+X# define NLSSTR ""
+X#endif 
+X#ifdef LOGINFIRST
+X# define LFSTR ",lf"
+X#else
+X# define LFSTR ""
+X#endif 
+X#ifdef DOTLAST
+X# define DLSTR ",dl"
+X#else
+X# define DLSTR ""
+X#endif 
+X#ifdef VIDEFAULT
+X# define VISTR ",vi"
+X#else
+X# define VISTR ""
+X#endif 
+X#ifdef TESLA
+X# define DTRSTR ",dtr"
+X#else
+X# define DTRSTR ""
+X#endif 
+X#ifdef KAI
+X# define BYESTR ",bye"
+X#else
+X# define BYESTR ""
+X#endif 
+X#ifdef AUTOLOGOUT
+X# define ALSTR ",al"
+X#else
+X# define ALSTR ""
+X#endif 
+X#ifdef CSHDIRS
+X# define DIRSTR ",dir"
+X#else
+X# define DIRSTR ""
+X#endif 
+X#ifdef KANJI
+X# define KANSTR ",kan"
+X#else
+X# define KANSTR ""
+X#endif 
+X#ifdef SYSMALLOC
+X# define SMSTR	",sm"
+X#else
+X# define SMSTR  ""
+X#endif 
+X/* if you want your local version to say something */
+X#ifndef LOCALSTR
+X# define LOCALSTR ""
+X#endif /* LOCALSTR */
+X
+X    xsprintf(version,
+X	       "tcsh %d.%.2d.%.2d (%s) %s options %s%s%s%s%s%s%s%s%s%s%s%s",
+X	       REV, VERS, PATCHLEVEL, ORIGIN, DATE,
+X	       SSSTR, NLSSTR, LFSTR, DLSTR, VISTR, DTRSTR,
+X	       BYESTR, ALSTR, DIRSTR, KANSTR, SMSTR, LOCALSTR);
+X    set(STRversion, SAVE(version));
+X    xsprintf(version, "%d.%.2d.%.2d", REV, VERS, PATCHLEVEL);
+X    set(STRtcsh, SAVE(version));
+X}
+END_OF_FILE
+if test 12336 -ne `wc -c <'tc.vers.c'`; then
+    echo shar: \"'tc.vers.c'\" unpacked with wrong size!
+fi
+# end of 'tc.vers.c'
+fi
+echo shar: End of archive 5 \(of 18\).
+cp /dev/null ark5isdone
+MISSING=""
+for I in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 ; do
+    if test ! -f ark${I}isdone ; then
+	MISSING="${MISSING} ${I}"
+    fi
+done
+if test "${MISSING}" = "" ; then
+    echo You have unpacked all 18 archives.
+    rm -f ark[1-9]isdone ark[1-9][0-9]isdone
+else
+    echo You still need to unpack the following archives:
+    echo "        " ${MISSING}
+fi
+##  End of shell archive.
+exit 0

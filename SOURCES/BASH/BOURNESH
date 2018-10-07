@@ -1,0 +1,37 @@
+                      tool: Bash (Bourne Again SHell)
+
+---------------------------------------------------------------------------
+ Language:    Bourne Shell
+ Version:     1.14.5
+ Parts:       parser(yacc), interpreter, documentation
+ Author:      Brian Fox <bfox@vision.ucsb.edu>
+ Location:    ftp://slc2.ins.cwru.edu/pub/dist/bash-1.14.5.tar.gz
+              Bash is a Posix compatible shell with full Bourne shell
+ Description: syntax, and some C-shell commands built in. The Bourne Again
+              Shell supports emacs-style command-line editing, job
+              control, functions, and on-line help.
+ Bugs:        gnu.bash.bug, bug-bash@prep.ai.mit.edu
+ Restriction: GNU General Public License
+ Updated:     1995/07
+
+---------------------------------------------------------------------------
+
+                               Related Items
+
+language: Bourne Shell
+
+category: scripting languages summary, or expanded.
+
+---------------------------------------------------------------------------
+---------------------------------------------------------------------------
+This work supported by Idiom Consulting. Idiom Consulting         [ aqui ]
+provides Internet access and perl programming in the SF Bay
+Area.
+
+Please send updates to free-compilers@idiom.com
+
+The HTML is maintained by David Muir Sharnoff and the entries themselves
+are maintained by Steve Robenalt.
+
+Copyright (c) 1992, 1993, 1994, David Muir Sharnoff, All Rights Reserved
+Copyright (c) 1994, 1995, 1996, Steven Allen Robenalt, All Rights Reserved

@@ -1,0 +1,3282 @@
+Newsgroups: comp.sources.unix
+From: christos@ee.cornell.edu (Christos Zoulas)
+Subject: v25i055: tcsh6.01 - a csh replacement with lots of extra goodies, Part02/18
+Message-ID: <1991Dec20.213930.6329@PA.dec.com>
+Date: Fri, 20 Dec 91 21:39:30 GMT
+Approved: vixie@pa.dec.com
+
+Submitted-By: christos@ee.cornell.edu (Christos Zoulas)
+Posting-Number: Volume 25, Issue 55
+Archive-Name: tcsh-6.01/part02
+
+#! /bin/sh
+# This is a shell archive.  Remove anything before this line, then unpack
+# it by saving it into a file and typing "sh file".  To overwrite existing
+# files, type "sh file -c".  You can also feed this as standard input via
+# unshar, or by typing "sh <file", e.g..  If this archive is complete, you
+# will see the following message at the end:
+#		"End of archive 2 (of 18)."
+# Contents:  FAQ config/config.amdahl config/config.bsdreno
+#   config/config.convex config/config.cray config/config.dgux
+#   config/config.fps500 config/config.hk68 config/config.hpux
+#   config/config.iconuxv config/config.isc config/config.mac2
+#   config/config.mach config/config.minix config/config.mtXinu
+#   config/config.opus config/config.sco+odt config/config.sgi
+#   config/config.sunos3 config/config.sunos40 config/config.sunos41
+#   config/config.sxa config/config.sysv4 glob.h pathnames.h
+#   tw.decls.h
+# Wrapped by vixie@cognition.pa.dec.com on Fri Dec 20 13:29:24 1991
+PATH=/bin:/usr/bin:/usr/ucb ; export PATH
+if test -f 'FAQ' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'FAQ'\"
+else
+echo shar: Extracting \"'FAQ'\" \(3268 characters\)
+sed "s/^X//" >'FAQ' <<'END_OF_FILE'
+X
+Last Updated: Sun Jul 21 16:02:05 EDT 1991
+X
+This is for people that do not read the manual!
+X
+So far people who don't read manuals don't read this either...
+I may call it README.*PLEASE* in the future, but then people won't
+be able to get it... :-)
+X
+X1.  Why is the meta key broken in tcsh-5.20? 
+X
+X    On some machines the tty is not set up to pass 8 bit characters by default.
+X    Tcsh 5.19 used to try to determine if pass8 should be set by looking at
+X    the terminal's meta key. Unfortunately there is no good way of determining
+X    if the terminal can really pass 8 characters or not. Consider if you are
+X    logged in through a modem line with 7 bits and parity and your terminal 
+X    has a meta key. Then tcsh 5.19 would set wrongly set pass8.
+X
+X    If you did like the prevous behavior you can add in /etc/Login, or
+X    in .login:
+X
+X    if ( $?prompt ) then
+X	if ( "`echotc meta`" == "yes" ) then
+X	     stty pass8
+X	endif
+X    endif
+X
+X    If you don't have pass8, maybe something like
+X
+X	stty -parity -evenp -oddp cs8 -istrip   (rs6000)
+X    or
+X	stty -parenb -istrip cs8 
+X    
+X    would work..
+X
+X2.  I ran 'dbxtool &' and 'shelltool &' from tcsh, and they end up in cbreak 
+X    and no echo mode?
+X
+X    These programs are broken. Background jobs should not try to look at the
+X    tty. What happens is that dbxtool looks in stderr to inherit the tty
+X    setups, but tcsh sets up the tty in cbreak and -echo modes, so that it
+X    can do line editing. This cannot be fixed because tcsh cannot give away
+X    the tty. A work-around is:
+X
+X    dbxtool < /dev/null >& /dev/null &
+X
+X3.  I tried to compile tcsh and it cannot find <locale.h>?
+X
+X    Your system does not support NLS. Undefine NLS in config_f.h and it
+X    should work fine.
+X
+X4.  Where can I get csh sources? 
+X
+X    Csh sources are now available with the 4.4BSD networking distributions.
+X    You don't need csh sources to compile tcsh-6.00.
+X
+X5.  I just made tcsh my login shell, and I cannot ftp any more?
+X
+X    Newer versions of the ftp daemon check for the validity of the
+X    user's shell before they allow logins. The list of valid login
+X    shells is either hardcoded or it is usually in a file called
+X    /etc/shells. If it is hard-coded, then you are out of luck and
+X    your best bet is to get a newer version of ftpd. Otherwise add
+X    tcsh to the list of shells. Remember that the full path is required.
+X    If there is no /etc/shells, and you are creating one, remember to
+X    add /bin/csh, /bin/sh, and any other valid shells for your system,
+X    so that other people can ftp too :-)
+X
+X6.  I am using SunView and editing is screwed up. In particular my
+X    arrow keys and backspace don't work right. What am I doing wrong?
+X
+X    Well, cmdtool tries to do its own command line editing and the
+X    effect you get is one of using an editor inside an editor. Both
+X    try to interpret the arrow key sequences and cmdtool wins since
+X    it gets them first. The solutions are in my order of preference:
+X
+X	1 Don't use suntools
+X	2 Use shelltool instead of cmdtool.
+X	3 Unset edit in tcsh.
+X
+X7.  I rlogin to another machine, and then no matter what I tell 'stty'
+X    I cannot get it to pass 8 bit characters?
+X
+X    Maybe you need to use 'rlogin -8' to tell rlogin to pass 8 
+X    bit characters.
+X
+XEverything else is a bug :-(
+END_OF_FILE
+if test 3268 -ne `wc -c <'FAQ'`; then
+    echo shar: \"'FAQ'\" unpacked with wrong size!
+fi
+# end of 'FAQ'
+fi
+if test -f 'config/config.amdahl' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'config/config.amdahl'\"
+else
+echo shar: Extracting \"'config/config.amdahl'\" \(3043 characters\)
+sed "s/^X//" >'config/config.amdahl' <<'END_OF_FILE'
+X/*
+X * config.h -- configure various defines for tcsh
+X *
+X * All source files should #include this FIRST.
+X *
+X * Edit this to match your system type.
+X * From: neulynne@uts.uni-c.dk (Mogens Lynnerup), thanks!
+X */
+X
+X/****************** System dependant compilation flags ****************/
+X/*
+X * POSIX	This system supports IEEE Std 1003.1-1988 (POSIX).
+X */
+X#undef POSIX
+X
+X/*
+X * POSIXJOBS	This system supports the optional IEEE Std 1003.1-1988 (POSIX)
+X *		job control facilities.
+X */
+X#undef POSIXJOBS
+X
+X/*
+X * VFORK	This machine has a vfork().  
+X *		It used to be that for job control to work, this define
+X *		was mandatory. This is not the case any more.
+X *		If you think you still need it, but you don't have vfork, 
+X *		define this anyway and then do #define vfork fork.  
+X *		I do this anyway on a Sun because of yellow pages brain damage,
+X *		[should not be needed under 4.1]
+X *		and on the iris4d cause	SGI's fork is sufficiently "virtual" 
+X *		that vfork isn't necessary.  (Besides, SGI's vfork is weird).
+X *		Note that some machines eg. rs6000 have a vfork, but not
+X *		with the berkeley semantics, so we cannot use it there either.
+X */
+X#undef VFORK
+X
+X/*
+X * BSDJOBS	You have BSD-style job control (both process groups and
+X *		a tty that deals correctly
+X */
+X#undef BSDJOBS
+X
+X/*
+X * BSDSIGS	You have 4.2-style signals, rather than USG style.
+X *		Note: POSIX systems should not define this unless they
+X *		have sigvec() and friends (ie: 4.3BSD-RENO, HP-UX).
+X */
+X#undef BSDSIGS
+X
+X/*
+X * BSDTIMES	You have BSD-style process time stuff (like rusage)
+X *		This may or may not be true.  For example, Apple Unix
+X *		(OREO) has BSDJOBS and BSDSIGS but not BSDTIMES.
+X */
+X#undef BSDTIMES
+X
+X/*
+X * BSDNICE	Your system uses setpriority() instead of nice, to
+X *		change a processes scheduling priority
+X */
+X#undef BSDNICE
+X
+X/*
+X * TERMIO	You have struct termio instead of struct sgttyb.
+X * 		This is usually the case for SVID systems, where
+X *		BSD uses sgttyb. POSIX systems should define this
+X *		anyway, even though they use struct termios.
+X */
+X#define TERMIO
+X
+X/*
+X * SVID		Your machine is SVID complient (Sys V, HPUX, A/UX)
+X *		NOTE: don't do this if you are on a Pyramid -- tcsh is
+X *		built in a BSD universe.
+X *		Set SVID to 1, 2, 3, or 4, depending the version of System V
+X *		you are running. Or set it to 0 if you are not SVID based
+X */
+X#define SVID	3
+X
+X/*
+X * YPBUGS	Work around Sun YP bugs that cause expansion of ~username
+X *		to send command output to /dev/null
+X */
+X#undef YPBUGS
+X
+X/*
+X * SIGVOID	Define this if your signal handlers return void.  On older
+X *		systems, signal returns int, but on newer ones, it returns void.
+X */
+X#define SIGVOID 
+X
+X/*
+X * HAVEDUP2	Define this if your system supports dup2().
+X */
+X#define HAVEDUP2
+X
+X/*
+X * UTHOST	Does the utmp file have a host field?
+X */
+X#undef UTHOST
+X
+X/*
+X * DIRENT	Your system has <dirent.h> instead of <sys/dir.h>
+X */
+X#define DIRENT
+X/****************** local defines *********************/
+X/****************** configurable hacks ****************/
+X/* have been moved to config_f.h */
+X#include "config_f.h"
+X#undef NLS
+END_OF_FILE
+if test 3043 -ne `wc -c <'config/config.amdahl'`; then
+    echo shar: \"'config/config.amdahl'\" unpacked with wrong size!
+fi
+# end of 'config/config.amdahl'
+fi
+if test -f 'config/config.bsdreno' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'config/config.bsdreno'\"
+else
+echo shar: Extracting \"'config/config.bsdreno'\" \(3039 characters\)
+sed "s/^X//" >'config/config.bsdreno' <<'END_OF_FILE'
+X/*
+X * config.h -- configure various defines for tcsh
+X *
+X * All source files should #include this FIRST.
+X *
+X * Edit this to match your system type.
+X */
+X
+X/****************** System dependant compilation flags ****************/
+X/*
+X * POSIX	This system supports IEEE Std 1003.1-1988 (POSIX).
+X */
+X#define POSIX
+X
+X/*
+X * POSIXJOBS	This system supports the optional IEEE Std 1003.1-1988 (POSIX)
+X *		job control facilities.
+X */
+X#define POSIXJOBS
+X
+X/*
+X * VFORK	This machine has a vfork().  
+X *		It used to be that for job control to work, this define
+X *		was mandatory. This is not the case any more.
+X *		If you think you still need it, but you don't have vfork, 
+X *		define this anyway and then do #define vfork fork.  
+X *		I do this anyway on a Sun because of yellow pages brain damage,
+X *		[should not be needed under 4.1]
+X *		and on the iris4d cause	SGI's fork is sufficiently "virtual" 
+X *		that vfork isn't necessary.  (Besides, SGI's vfork is weird).
+X *		Note that some machines eg. rs6000 have a vfork, but not
+X *		with the berkeley semantics, so we cannot use it there either.
+X */
+X#define VFORK
+X
+X/*
+X * BSDJOBS	You have BSD-style job control (both process groups and
+X *		a tty that deals correctly
+X */
+X#define BSDJOBS
+X
+X/*
+X * BSDSIGS	You have 4.2-style signals, rather than USG style.
+X *		Note: POSIX systems should not define this unless they
+X *		have sigvec() and friends (ie: 4.3BSD-RENO, HP-UX).
+X */
+X#define BSDSIGS
+X
+X/*
+X * BSDTIMES	You have BSD-style process time stuff (like rusage)
+X *		This may or may not be true.  For example, Apple Unix
+X *		(OREO) has BSDJOBS and BSDSIGS but not BSDTIMES.
+X */
+X#define BSDTIMES
+X
+X/*
+X * BSDNICE	Your system uses setpriority() instead of nice, to
+X *		change a processes scheduling priority
+X */
+X#define BSDNICE
+X
+X/*
+X * TERMIO	You have struct termio instead of struct sgttyb.
+X * 		This is usually the case for SVID systems, where
+X *		BSD uses sgttyb. POSIX systems should define this
+X *		anyway, even though they use struct termios.
+X */
+X#define TERMIO
+X
+X/*
+X * SVID		Your machine is SVID complient (Sys V, HPUX, A/UX)
+X *		NOTE: don't do this if you are on a Pyramid -- tcsh is
+X *		built in a BSD universe.
+X *		Set SVID to 1, 2, 3, or 4, depending the version of System V
+X *		you are running. Or set it to 0 if you are not SVID based
+X */
+X#define SVID	0
+X
+X/*
+X * YPBUGS	Work around Sun YP bugs that cause expansion of ~username
+X *		to send command output to /dev/null
+X */
+X#undef YPBUGS
+X
+X/*
+X * SIGVOID	Define this if your signal handlers return void.  On older
+X *		systems, signal returns int, but on newer ones, it returns void.
+X */
+X#define SIGVOID 
+X
+X/*
+X * HAVEDUP2	Define this if your system supports dup2().
+X */
+X#define HAVEDUP2
+X
+X/*
+X * UTHOST	Does the utmp file have a host field?
+X */
+X#define UTHOST
+X
+X/*
+X * DIRENT	Your system has <dirent.h> instead of <sys/dir.h>
+X */
+X#define DIRENT
+X/****************** local defines *********************/
+X/*
+X * RENO		This is the BSDRENO release
+X */
+X#define RENO
+X/****************** configurable hacks ****************/
+X/* have been moved to config_f.h */
+X#include "config_f.h"
+END_OF_FILE
+if test 3039 -ne `wc -c <'config/config.bsdreno'`; then
+    echo shar: \"'config/config.bsdreno'\" unpacked with wrong size!
+fi
+# end of 'config/config.bsdreno'
+fi
+if test -f 'config/config.convex' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'config/config.convex'\"
+else
+echo shar: Extracting \"'config/config.convex'\" \(3202 characters\)
+sed "s/^X//" >'config/config.convex' <<'END_OF_FILE'
+X/*
+X * config.h -- configure various defines for tcsh
+X *
+X * All source files should #include this FIRST.
+X *
+X * Edit this to match your system type.
+X */
+X
+X/****************** System dependant compilation flags ****************/
+X/*
+X * POSIX	This system supports IEEE Std 1003.1-1988 (POSIX).
+X */
+X#define POSIX
+X
+X/*
+X * POSIXJOBS	This system supports the optional IEEE Std 1003.1-1988 (POSIX)
+X *		job control facilities.  BSDJOBS must also be defined.
+X */
+X#define POSIXJOBS
+X
+X/*
+X * VFORK	This machine has a vfork().  
+X *		It used to be that for job control to work, this define
+X *		was mandatory. This is not the case any more.
+X *		If you think you still need it, but you don't have vfork, 
+X *		define this anyway and then do #define vfork fork.  
+X *		I do this anyway on a Sun because of yellow pages brain damage,
+X *		[should not be needed under 4.1]
+X *		and on the iris4d cause	SGI's fork is sufficiently "virtual" 
+X *		that vfork isn't necessary.  (Besides, SGI's vfork is weird).
+X *		Note that some machines eg. rs6000 have a vfork, but not
+X *		with the berkeley semantics, so we cannot use it there either.
+X */
+X#define VFORK
+X
+X/*
+X * BSDJOBS	You have BSD-style job control (both process groups and
+X *		a tty that deals correctly
+X */
+X#define BSDJOBS
+X
+X/*
+X * BSDSIGS	You have 4.2-style signals, rather than USG style.
+X *		Note: POSIX systems should not define this unless they
+X *		have sigvec() and friends (ie: 4.3BSD-RENO, HP-UX).
+X */
+X#define BSDSIGS
+X
+X/*
+X * BSDTIMES	You have BSD-style process time stuff (like rusage)
+X *		This may or may not be true.  For example, Apple Unix
+X *		(OREO) has BSDJOBS and BSDSIGS but not BSDTIMES.
+X */
+X#define BSDTIMES
+X
+X/*
+X * BSDNICE	Your system uses setpriority() instead of nice, to
+X *		change a processes scheduling priority
+X */
+X#define BSDNICE
+X
+X/*
+X * TERMIO	You have struct termio instead of struct sgttyb.
+X * 		This is usually the case for SVID systems, where
+X *		BSD uses sgttyb. POSIX systems should define this
+X *		anyway, even though they use struct termios.
+X */
+X#define TERMIO
+X
+X/*
+X * SVID		Your machine is SVID complient (Sys V, HPUX, A/UX)
+X *		NOTE: don't do this if you are on a Pyramid -- tcsh is
+X *		built in a BSD universe.
+X *		Set SVID to 1, 2, 3, or 4, depending the version of System V
+X *		you are running. Or set it to 0 if you are not SVID based
+X */
+X#define SVID	0
+X
+X/*
+X * YPBUGS	Work around Sun YP bugs that cause expansion of ~username
+X *		to send command output to /dev/null
+X *		This is fixed in sunos 4.1, broken in 4.0..
+X */
+X#undef YPBUGS
+X
+X/*
+X * SIGVOID	Define this if your signal handlers return void.  On older
+X *		systems, signal returns int, but on newer ones, it returns void.
+X */
+X#define SIGVOID 
+X
+X/*
+X * HAVEDUP2	Define this if your system supports dup2().
+X */
+X#define HAVEDUP2
+X
+X/*
+X * UTHOST	Does the utmp file have a host field?
+X */
+X#define UTHOST
+X
+X/*
+X * DIRENT	Your system has <dirent.h> instead of <sys/dir.h>
+X */
+X#define DIRENT
+X/****************** local defines *********************/
+X/*
+X * WARP               warp symlinks, assuming your kernel supports it
+X */
+X#if defined(__convex__) || defined(convex)
+X#define WARP
+X#endif
+X
+X/****************** configurable hacks ****************/
+X/* have been moved to config_f.h */
+X#include "config_f.h"
+END_OF_FILE
+if test 3202 -ne `wc -c <'config/config.convex'`; then
+    echo shar: \"'config/config.convex'\" unpacked with wrong size!
+fi
+# end of 'config/config.convex'
+fi
+if test -f 'config/config.cray' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'config/config.cray'\"
+else
+echo shar: Extracting \"'config/config.cray'\" \(3042 characters\)
+sed "s/^X//" >'config/config.cray' <<'END_OF_FILE'
+X/*
+X * config.h -- configure various defines for tcsh
+X *
+X * All source files should #include this FIRST.
+X *
+X * Edit this to match your system type.
+X */
+X
+X/****************** System dependant compilation flags ****************/
+X/*
+X * POSIX	This system supports IEEE Std 1003.1-1988 (POSIX).
+X */
+X#define POSIX
+X
+X/*
+X * POSIXJOBS	This system supports the optional IEEE Std 1003.1-1988 (POSIX)
+X *		job control facilities.
+X */
+X#define POSIXJOBS
+X
+X/*
+X * VFORK	This machine has a vfork().  
+X *		It used to be that for job control to work, this define
+X *		was mandatory. This is not the case any more.
+X *		If you think you still need it, but you don't have vfork, 
+X *		define this anyway and then do #define vfork fork.  
+X *		I do this anyway on a Sun because of yellow pages brain damage,
+X *		[should not be needed under 4.1]
+X *		and on the iris4d cause	SGI's fork is sufficiently "virtual" 
+X *		that vfork isn't necessary.  (Besides, SGI's vfork is weird).
+X *		Note that some machines eg. rs6000 have a vfork, but not
+X *		with the berkeley semantics, so we cannot use it there either.
+X */
+X#undef VFORK
+X
+X/*
+X * BSDJOBS	You have BSD-style job control (both process groups and
+X *		a tty that deals correctly
+X */
+X#define BSDJOBS
+X
+X/*
+X * BSDSIGS	You have 4.2-style signals, rather than USG style.
+X *		Note: POSIX systems should not define this unless they
+X *		have sigvec() and friends (ie: 4.3BSD-RENO, HP-UX).
+X */
+X#undef BSDSIGS
+X
+X/*
+X * BSDTIMES	You have BSD-style process time stuff (like rusage)
+X *		This may or may not be true.  For example, Apple Unix
+X *		(OREO) has BSDJOBS and BSDSIGS but not BSDTIMES.
+X */
+X#undef BSDTIMES
+X
+X/*
+X * BSDNICE	Your system uses setpriority() instead of nice, to
+X *		change a processes scheduling priority
+X */
+X#undef BSDNICE
+X
+X/*
+X * TERMIO	You have struct termio instead of struct sgttyb.
+X * 		This is usually the case for SVID systems, where
+X *		BSD uses sgttyb. POSIX systems should define this
+X *		anyway, even though they use struct termios.
+X */
+X#define TERMIO
+X
+X/*
+X * SVID		Your machine is SVID complient (Sys V, HPUX, A/UX)
+X *		NOTE: don't do this if you are on a Pyramid -- tcsh is
+X *		built in a BSD universe.
+X *		Set SVID to 1, 2, 3, or 4, depending the version of System V
+X *		you are running. Or set it to 0 if you are not SVID based
+X */
+X#define SVID	3
+X
+X/*
+X * YPBUGS	Work around Sun YP bugs that cause expansion of ~username
+X *		to send command output to /dev/null
+X */
+X#undef YPBUGS
+X
+X/*
+X * SIGVOID	Define this if your signal handlers return void.  On older
+X *		systems, signal returns int, but on newer ones, it returns void.
+X */
+X#define SIGVOID 
+X
+X/*
+X * HAVEDUP2	Define this if your system supports dup2().
+X */
+X#define HAVEDUP2
+X
+X/*
+X * UTHOST	Does the utmp file have a host field?
+X */
+X#define UTHOST
+X
+X/*
+X * DIRENT	Your system has <dirent.h> instead of <sys/dir.h>
+X */
+X#define DIRENT
+X/****************** local defines *********************/
+X#define BACKPIPE	/* fork pipelines backwards... */
+X
+X/****************** configurable hacks ****************/
+X/* have been moved to config_f.h */
+X#include "config_f.h"
+X
+X#undef NLS
+END_OF_FILE
+if test 3042 -ne `wc -c <'config/config.cray'`; then
+    echo shar: \"'config/config.cray'\" unpacked with wrong size!
+fi
+# end of 'config/config.cray'
+fi
+if test -f 'config/config.dgux' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'config/config.dgux'\"
+else
+echo shar: Extracting \"'config/config.dgux'\" \(3113 characters\)
+sed "s/^X//" >'config/config.dgux' <<'END_OF_FILE'
+X/*
+X * config.h -- configure various defines for tcsh
+X *
+X * All source files should #include this FIRST.
+X *
+X * Edit this to match your system type.
+X */
+X
+X/****************** System dependant compilation flags ****************/
+X/*
+X * POSIX	This system supports IEEE Std 1003.1-1988 (POSIX).
+X */
+X#undef POSIX
+X
+X/*
+X * POSIXJOBS	This system supports the optional IEEE Std 1003.1-1988 (POSIX)
+X *		job control facilities.
+X */
+X#undef POSIXJOBS
+X
+X/*
+X * VFORK	This machine has a vfork().  
+X *		It used to be that for job control to work, this define
+X *		was mandatory. This is not the case any more.
+X *		If you think you still need it, but you don't have vfork, 
+X *		define this anyway and then do #define vfork fork.  
+X *		I do this anyway on a Sun because of yellow pages brain damage,
+X *		[should not be needed under 4.1]
+X *		and on the iris4d cause	SGI's fork is sufficiently "virtual" 
+X *		that vfork isn't necessary.  (Besides, SGI's vfork is weird).
+X *		Note that some machines eg. rs6000 have a vfork, but not
+X *		with the berkeley semantics, so we cannot use it there either.
+X */
+X#define VFORK
+X
+X/*
+X * BSDJOBS	You have BSD-style job control (both process groups and
+X *		a tty that deals correctly
+X */
+X#define BSDJOBS
+X
+X/*
+X * BSDSIGS	You have 4.2-style signals, rather than USG style.
+X *		Note: POSIX systems should not define this unless they
+X *		have sigvec() and friends (ie: 4.3BSD-RENO, HP-UX).
+X */
+X#define BSDSIGS
+X
+X/*
+X * BSDTIMES	You have BSD-style process time stuff (like rusage)
+X *		This may or may not be true.  For example, Apple Unix
+X *		(OREO) has BSDJOBS and BSDSIGS but not BSDTIMES.
+X */
+X#define BSDTIMES
+X
+X/*
+X * BSDNICE	Your system uses setpriority() instead of nice, to
+X *		change a processes scheduling priority
+X */
+X#define BSDNICE
+X
+X/*
+X * TERMIO	You have struct termio instead of struct sgttyb.
+X * 		This is usually the case for SVID systems, where
+X *		BSD uses sgttyb. POSIX systems should define this
+X *		anyway, even though they use struct termios.
+X */
+X#undef TERMIO
+X
+X/*
+X * SVID		Your machine is SVID complient (Sys V, HPUX, A/UX)
+X *		NOTE: don't do this if you are on a Pyramid -- tcsh is
+X *		built in a BSD universe.
+X *		Set SVID to 1, 2, 3, or 4, depending the version of System V
+X *		you are running. Or set it to 0 if you are not SVID based
+X */
+X#define SVID	0
+X
+X/*
+X * YPBUGS	Work around Sun YP bugs that cause expansion of ~username
+X *		to send command output to /dev/null
+X */
+X#undef YPBUGS
+X
+X/*
+X * SIGVOID	Define this if your signal handlers return void.  On older
+X *		systems, signal returns int, but on newer ones, it returns void.
+X */
+X#undef SIGVOID 
+X
+X/*
+X * HAVEDUP2	Define this if your system supports dup2().
+X */
+X#define HAVEDUP2
+X
+X/*
+X * UTHOST	Does the utmp file have a host field?
+X */
+X#undef UTHOST
+X
+X/*
+X * DIRENT	Your system has <dirent.h> instead of <sys/dir.h>
+X */
+X#undef DIRENT
+X/****************** local defines *********************/
+X/*
+X * Make dgux look like BSD...
+X */
+X#define _BSD_WAIT_FLAVOR 
+X#define _BSD_TTY_FLAVOR
+X#define _BSD_SIGNAL_FLAVOR 
+X#define _DGUX_SOURCE
+X
+X/****************** configurable hacks ****************/
+X/* have been moved to config_f.h */
+X#include "config_f.h"
+END_OF_FILE
+if test 3113 -ne `wc -c <'config/config.dgux'`; then
+    echo shar: \"'config/config.dgux'\" unpacked with wrong size!
+fi
+# end of 'config/config.dgux'
+fi
+if test -f 'config/config.fps500' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'config/config.fps500'\"
+else
+echo shar: Extracting \"'config/config.fps500'\" \(3211 characters\)
+sed "s/^X//" >'config/config.fps500' <<'END_OF_FILE'
+X/*
+X * config.h -- configure various defines for tcsh
+X *
+X * All source files should #include this FIRST.
+X *
+X * Edit this to match your system type.
+X *
+X * From kean@fps.ucs.orst.edu (Kean Stump)
+X * FPS 500 +FPX with Sun C compiler
+X */
+X
+X/****************** System dependant compilation flags ****************/
+X/*
+X * POSIX	This system supports IEEE Std 1003.1-1988 (POSIX).
+X */
+X#define POSIX
+X
+X/*
+X * POSIXJOBS	This system supports the optional IEEE Std 1003.1-1988 (POSIX)
+X *		job control facilities.
+X */
+X#undef POSIXJOBS
+X
+X/*
+X * VFORK	This machine has a vfork().  
+X *		It used to be that for job control to work, this define
+X *		was mandatory. This is not the case any more.
+X *		If you think you still need it, but you don't have vfork, 
+X *		define this anyway and then do #define vfork fork.  
+X *		I do this anyway on a Sun because of yellow pages brain damage,
+X *		[should not be needed under 4.1]
+X *		and on the iris4d cause	SGI's fork is sufficiently "virtual" 
+X *		that vfork isn't necessary.  (Besides, SGI's vfork is weird).
+X *		Note that some machines eg. rs6000 have a vfork, but not
+X *		with the berkeley semantics, so we cannot use it there either.
+X */
+X#define VFORK
+X
+X/*
+X * BSDJOBS	You have BSD-style job control (both process groups and
+X *		a tty that deals correctly
+X */
+X#define BSDJOBS
+X
+X/*
+X * BSDSIGS	You have 4.2-style signals, rather than USG style.
+X *		Note: POSIX systems should not define this unless they
+X *		have sigvec() and friends (ie: 4.3BSD-RENO, HP-UX).
+X */
+X#define BSDSIGS
+X
+X/*
+X * BSDTIMES	You have BSD-style process time stuff (like rusage)
+X *		This may or may not be true.  For example, Apple Unix
+X *		(OREO) has BSDJOBS and BSDSIGS but not BSDTIMES.
+X */
+X#define BSDTIMES
+X
+X/*
+X * BSDNICE	Your system uses setpriority() instead of nice, to
+X *		change a processes scheduling priority
+X */
+X#define BSDNICE
+X
+X/*
+X * TERMIO	You have struct termio instead of struct sgttyb.
+X * 		This is usually the case for SVID systems, where
+X *		BSD uses sgttyb. POSIX systems should define this
+X *		anyway, even though they use struct termios.
+X */
+X#define TERMIO
+X
+X/*
+X * SVID		Your machine is SVID complient (Sys V, HPUX, A/UX)
+X *		NOTE: don't do this if you are on a Pyramid -- tcsh is
+X *		built in a BSD universe.
+X *		Set SVID to 1, 2, 3, or 4, depending the version of System V
+X *		you are running. Or set it to 0 if you are not SVID based
+X */
+X#define SVID	0
+X
+X/*
+X * YPBUGS	Work around Sun YP bugs that cause expansion of ~username
+X *		to send command output to /dev/null
+X *		This is fixed in sunos 4.1, broken in 4.0..
+X */
+X#undef YPBUGS
+X
+X/*
+X * SIGVOID	Define this if your signal handlers return void.  On older
+X *		systems, signal returns int, but on newer ones, it returns void.
+X */
+X#define SIGVOID 
+X
+X/*
+X * HAVEDUP2	Define this if your system supports dup2().
+X */
+X#define HAVEDUP2
+X
+X/*
+X * UTHOST	Does the utmp file have a host field?
+X */
+X#define UTHOST
+X
+X/*
+X * DIRENT	Your system has <dirent.h> instead of <sys/dir.h>
+X */
+X#define DIRENT
+X/****************** local defines *********************/
+X/*
+X * SUNOS4	You are running SunOS 4 (on a Sun 2, 3, 4, or 386i)
+X */
+X#define SUNOS4
+X#define fps500
+X
+X/****************** configurable hacks ****************/
+X/* have been moved to config_f.h */
+X#include "config_f.h"
+END_OF_FILE
+if test 3211 -ne `wc -c <'config/config.fps500'`; then
+    echo shar: \"'config/config.fps500'\" unpacked with wrong size!
+fi
+# end of 'config/config.fps500'
+fi
+if test -f 'config/config.hk68' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'config/config.hk68'\"
+else
+echo shar: Extracting \"'config/config.hk68'\" \(3261 characters\)
+sed "s/^X//" >'config/config.hk68' <<'END_OF_FILE'
+X/*
+X * config.h -- configure various defines for tcsh
+X *
+X * All source files should #include this FIRST.
+X *
+X * Edit this to match your system type.
+X */
+X
+X/****************** System dependant compilation flags ****************/
+X/*
+X * POSIX	This system supports IEEE Std 1003.1-1988 (POSIX).
+X */
+X#undef POSIX
+X
+X/*
+X * POSIXJOBS	This system supports the optional IEEE Std 1003.1-1988 (POSIX)
+X *		job control facilities.
+X */
+X#undef POSIXJOBS
+X
+X/*
+X * VFORK	This machine has a vfork().  
+X *		It used to be that for job control to work, this define
+X *		was mandatory. This is not the case any more.
+X *		If you think you still need it, but you don't have vfork, 
+X *		define this anyway and then do #define vfork fork.  
+X *		I do this anyway on a Sun because of yellow pages brain damage,
+X *		[should not be needed under 4.1]
+X *		and on the iris4d cause	SGI's fork is sufficiently "virtual" 
+X *		that vfork isn't necessary.  (Besides, SGI's vfork is weird).
+X *		Note that some machines eg. rs6000 have a vfork, but not
+X *		with the berkeley semantics, so we cannot use it there either.
+X */
+X#undef VFORK
+X
+X/*
+X * BSDJOBS	You have BSD-style job control (both process groups and
+X *		a tty that deals correctly
+X */
+X#undef BSDJOBS
+X
+X/*
+X * BSDSIGS	You have 4.2-style signals, rather than USG style.
+X *		Note: POSIX systems should not define this unless they
+X *		have sigvec() and friends (ie: 4.3BSD-RENO, HP-UX).
+X */
+X#undef BSDSIGS
+X
+X/*
+X * BSDTIMES	You have BSD-style process time stuff (like rusage)
+X *		This may or may not be true.  For example, Apple Unix
+X *		(OREO) has BSDJOBS and BSDSIGS but not BSDTIMES.
+X */
+X#undef BSDTIMES
+X
+X/*
+X * BSDNICE	Your system uses setpriority() instead of nice, to
+X *		change a processes scheduling priority
+X */
+X#undef BSDNICE
+X
+X/*
+X * TERMIO	You have struct termio instead of struct sgttyb.
+X * 		This is usually the case for SVID systems, where
+X *		BSD uses sgttyb. POSIX systems should define this
+X *		anyway, even though they use struct termios.
+X */
+X#define TERMIO
+X
+X/*
+X * SVID		Your machine is SVID complient (Sys V, HPUX, A/UX)
+X *		NOTE: don't do this if you are on a Pyramid -- tcsh is
+X *		built in a BSD universe.
+X *		Set SVID to 1, 2, 3, or 4, depending the version of System V
+X *		you are running. Or set it to 0 if you are not SVID based
+X */
+X#define SVID	1
+X
+X/*
+X * YPBUGS	Work around Sun YP bugs that cause expansion of ~username
+X *		to send command output to /dev/null
+X */
+X#undef YPBUGS
+X
+X/*
+X * SIGVOID	Define this if your signal handlers return void.  On older
+X *		systems, signal returns int, but on newer ones, it returns void.
+X */
+X#undef SIGVOID 
+X
+X/*
+X * HAVEDUP2	Define this if your system supports dup2().
+X */
+X#undef HAVEDUP2
+X
+X/*
+X * UTHOST	Does the utmp file have a host field?
+X */
+X#undef UTHOST
+X
+X/*
+X * DIRENT	Your system has <dirent.h> instead of <sys/dir.h>
+X */
+X#define DIRENT
+X/****************** local defines *********************/
+X#define NEEDgethostname
+X#define HOSTTYPE "hk68"
+X#define HK68
+X/*
+X * short names
+X */
+X#define endpwent	endpwen
+X#define sys_nerr	sys_ner 
+X#define sys_errlist	sys_err
+X#define localtime	localti
+X#define getpwent	getpwen
+X#define setpwent	setpwen
+X#define tgetflag	tgetfla
+X#define getpwnam	getpwna
+X
+X/****************** configurable hacks ****************/
+X/* have been moved to config_f.h */
+X#include "config_f.h"
+END_OF_FILE
+if test 3261 -ne `wc -c <'config/config.hk68'`; then
+    echo shar: \"'config/config.hk68'\" unpacked with wrong size!
+fi
+# end of 'config/config.hk68'
+fi
+if test -f 'config/config.hpux' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'config/config.hpux'\"
+else
+echo shar: Extracting \"'config/config.hpux'\" \(3162 characters\)
+sed "s/^X//" >'config/config.hpux' <<'END_OF_FILE'
+X/*
+X * config.h -- configure various defines for tcsh
+X *
+X * All source files should #include this FIRST.
+X *
+X * Edit this to match your system type.
+X */
+X
+X/****************** System dependant compilation flags ****************/
+X/*
+X * POSIX	This system supports IEEE Std 1003.1-1988 (POSIX).
+X */
+X#ifdef __hpux
+X# define POSIX
+X#else
+X# undef POSIX
+X#endif
+X
+X#if defined(__hpux) && !defined(hpux)
+X# define hpux
+X#endif /* __hpux && !hpux */
+X
+X#if __STDC__ && !defined(__GNUC__)
+X# define _POSIX_SOURCE
+X# define _HPUX_SOURCE
+X#endif
+X
+X/*
+X * POSIXJOBS	This system supports the optional IEEE Std 1003.1-1988 (POSIX)
+X *		job control facilities.
+X */
+X#ifdef __hpux
+X# define POSIXJOBS
+X#else
+X# undef POSIXJOBS
+X#endif
+X
+X/*
+X * VFORK	This machine has a vfork().  
+X *		It used to be that for job control to work, this define
+X *		was mandatory. This is not the case any more.
+X *		If you think you still need it, but you don't have vfork, 
+X *		define this anyway and then do #define vfork fork.  
+X *		I do this anyway on a Sun because of yellow pages brain damage,
+X *		[should not be needed under 4.1]
+X *		and on the iris4d cause	SGI's fork is sufficiently "virtual" 
+X *		that vfork isn't necessary.  (Besides, SGI's vfork is weird).
+X *		Note that some machines eg. rs6000 have a vfork, but not
+X *		with the berkeley semantics, so we cannot use it there either.
+X */
+X#undef VFORK
+X
+X/*
+X * BSDJOBS	You have BSD-style job control (both process groups and
+X *		a tty that deals correctly
+X */
+X#define BSDJOBS
+X
+X/*
+X * BSDSIGS	You have 4.2-style signals, rather than USG style.
+X *		Note: POSIX systems should not define this unless they
+X *		have sigvec() and friends (ie: 4.3BSD-RENO, HP-UX).
+X */
+X#define BSDSIGS
+X
+X/*
+X * BSDTIMES	You have BSD-style process time stuff (like rusage)
+X *		This may or may not be true.  For example, Apple Unix
+X *		(OREO) has BSDJOBS and BSDSIGS but not BSDTIMES.
+X */
+X#undef BSDTIMES
+X
+X/*
+X * BSDNICE	Your system uses setpriority() instead of nice, to
+X *		change a processes scheduling priority
+X */
+X#undef BSDNICE
+X
+X/*
+X * TERMIO	You have struct termio instead of struct sgttyb.
+X * 		This is usually the case for SVID systems, where
+X *		BSD uses sgttyb. POSIX systems should define this
+X *		anyway, even though they use struct termios.
+X */
+X#define TERMIO
+X
+X/*
+X * SVID		Your machine is SVID complient (Sys V, HPUX, A/UX)
+X *		NOTE: don't do this if you are on a Pyramid -- tcsh is
+X *		built in a BSD universe.
+X *		Set SVID to 1, 2, 3, or 4, depending the version of System V
+X *		you are running. Or set it to 0 if you are not SVID based
+X */
+X#define SVID	3
+X
+X/*
+X * SIGVOID	Define this if your signal handlers return void.  On older
+X *		systems, signal returns int, but on newer ones, it returns void.
+X */
+X#define SIGVOID 
+X
+X/*
+X * HAVEDUP2	Define this if your system supports dup2().
+X */
+X#undef HAVEDUP2
+X
+X/*
+X * UTHOST	Does the utmp file have a host field?
+X */
+X#ifdef __hpux
+X# define UTHOST
+X#else
+X# undef UTHOST
+X#endif /* __hpux */
+X
+X/*
+X * DIRENT	Your system has <dirent.h> instead of <sys/dir.h>
+X */
+X#define DIRENT
+X/****************** local defines *********************/
+X/****************** configurable hacks ****************/
+X/* have been moved to config_f.h */
+X#include "config_f.h"
+END_OF_FILE
+if test 3162 -ne `wc -c <'config/config.hpux'`; then
+    echo shar: \"'config/config.hpux'\" unpacked with wrong size!
+fi
+# end of 'config/config.hpux'
+fi
+if test -f 'config/config.iconuxv' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'config/config.iconuxv'\"
+else
+echo shar: Extracting \"'config/config.iconuxv'\" \(3041 characters\)
+sed "s/^X//" >'config/config.iconuxv' <<'END_OF_FILE'
+X/*
+X * config.h -- configure various defines for tcsh
+X *
+X * All source files should #include this FIRST.
+X *
+X * Edit this to match your system type.
+X */
+X
+X/****************** System dependant compilation flags ****************/
+X/*
+X * POSIX	This system supports IEEE Std 1003.1-1988 (POSIX).
+X */
+X#define POSIX
+X
+X/*
+X * POSIXJOBS	This system supports the optional IEEE Std 1003.1-1988 (POSIX)
+X *		job control facilities.
+X */
+X#define POSIXJOBS
+X
+X/*
+X * VFORK	This machine has a vfork().  
+X *		It used to be that for job control to work, this define
+X *		was mandatory. This is not the case any more.
+X *		If you think you still need it, but you don't have vfork, 
+X *		define this anyway and then do #define vfork fork.  
+X *		I do this anyway on a Sun because of yellow pages brain damage,
+X *		[should not be needed under 4.1]
+X *		and on the iris4d cause	SGI's fork is sufficiently "virtual" 
+X *		that vfork isn't necessary.  (Besides, SGI's vfork is weird).
+X *		Note that some machines eg. rs6000 have a vfork, but not
+X *		with the berkeley semantics, so we cannot use it there either.
+X */
+X#define VFORK
+X
+X/*
+X * BSDJOBS	You have BSD-style job control (both process groups and
+X *		a tty that deals correctly
+X */
+X#define BSDJOBS
+X
+X/*
+X * BSDSIGS	You have 4.2-style signals, rather than USG style.
+X *		Note: POSIX systems should not define this unless they
+X *		have sigvec() and friends (ie: 4.3BSD-RENO, HP-UX).
+X */
+X#undef BSDSIGS
+X
+X/*
+X * BSDTIMES	You have BSD-style process time stuff (like rusage)
+X *		This may or may not be true.  For example, Apple Unix
+X *		(OREO) has BSDJOBS and BSDSIGS but not BSDTIMES.
+X */
+X#undef BSDTIMES
+X
+X/*
+X * BSDNICE	Your system uses setpriority() instead of nice, to
+X *		change a processes scheduling priority
+X */
+X#undef BSDNICE
+X
+X/*
+X * TERMIO	You have struct termio instead of struct sgttyb.
+X * 		This is usually the case for SVID systems, where
+X *		BSD uses sgttyb. POSIX systems should define this
+X *		anyway, even though they use struct termios.
+X */
+X#define TERMIO
+X
+X/*
+X * SVID		Your machine is SVID complient (Sys V, HPUX, A/UX)
+X *		NOTE: don't do this if you are on a Pyramid -- tcsh is
+X *		built in a BSD universe.
+X *		Set SVID to 1, 2, 3, or 4, depending the version of System V
+X *		you are running. Or set it to 0 if you are not SVID based
+X */
+X#define SVID	3
+X
+X/*
+X * YPBUGS	Work around Sun YP bugs that cause expansion of ~username
+X *		to send command output to /dev/null
+X */
+X#undef YPBUGS
+X
+X/*
+X * SIGVOID	Define this if your signal handlers return void.  On older
+X *		systems, signal returns int, but on newer ones, it returns void.
+X */
+X#define SIGVOID 
+X
+X/*
+X * HAVEDUP2	Define this if your system supports dup2().
+X */
+X#define HAVEDUP2
+X
+X/*
+X * UTHOST	Does the utmp file have a host field?
+X */
+X#define UTHOST
+X
+X/*
+X * DIRENT	Your system has <dirent.h> instead of <sys/dir.h>
+X */
+X#define DIRENT
+X/****************** local defines *********************/
+X/*
+X * NOSTRCOLL	We don't have strcoll()
+X */
+X#undef NOSTRCOLL
+X/****************** configurable hacks ****************/
+X/* have been moved to config_f.h */
+X
+X#include "config_f.h"
+END_OF_FILE
+if test 3041 -ne `wc -c <'config/config.iconuxv'`; then
+    echo shar: \"'config/config.iconuxv'\" unpacked with wrong size!
+fi
+# end of 'config/config.iconuxv'
+fi
+if test -f 'config/config.isc' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'config/config.isc'\"
+else
+echo shar: Extracting \"'config/config.isc'\" \(3213 characters\)
+sed "s/^X//" >'config/config.isc' <<'END_OF_FILE'
+X/*
+X * config.h -- configure various defines for tcsh
+X *
+X * All source files should #include this FIRST.
+X *
+X * Edit this to match your system type.
+X */
+X
+X/****************** System dependant compilation flags ****************/
+X/*
+X * POSIX	This system supports IEEE Std 1003.1-1988 (POSIX).
+X */
+X#define POSIX
+X
+X/*
+X * POSIXJOBS	This system supports the optional IEEE Std 1003.1-1988 (POSIX)
+X *		job control facilities.
+X */
+X#define POSIXJOBS
+X
+X/*
+X * VFORK	This machine has a vfork().  
+X *		It used to be that for job control to work, this define
+X *		was mandatory. This is not the case any more.
+X *		If you think you still need it, but you don't have vfork, 
+X *		define this anyway and then do #define vfork fork.  
+X *		I do this anyway on a Sun because of yellow pages brain damage,
+X *		[should not be needed under 4.1]
+X *		and on the iris4d cause	SGI's fork is sufficiently "virtual" 
+X *		that vfork isn't necessary.  (Besides, SGI's vfork is weird).
+X *		Note that some machines eg. rs6000 have a vfork, but not
+X *		with the berkeley semantics, so we cannot use it there either.
+X */
+X#undef VFORK
+X
+X/*
+X * BSDJOBS	You have BSD-style job control (both process groups and
+X *		a tty that deals correctly
+X */
+X#define BSDJOBS
+X
+X/*
+X * BSDSIGS	You have 4.2-style signals, rather than USG style.
+X *		Note: POSIX systems should not define this unless they
+X *		have sigvec() and friends (ie: 4.3BSD-RENO, HP-UX).
+X */
+X#undef BSDSIGS
+X
+X/*
+X * BSDTIMES	You have BSD-style process time stuff (like rusage)
+X *		This may or may not be true.  For example, Apple Unix
+X *		(OREO) has BSDJOBS and BSDSIGS but not BSDTIMES.
+X */
+X#undef BSDTIMES
+X
+X/*
+X * BSDNICE	Your system uses setpriority() instead of nice, to
+X *		change a processes scheduling priority
+X */
+X#undef BSDNICE
+X
+X/*
+X * TERMIO	You have struct termio instead of struct sgttyb.
+X * 		This is usually the case for SVID systems, where
+X *		BSD uses sgttyb. POSIX systems should define this
+X *		anyway, even though they use struct termios.
+X */
+X#define TERMIO
+X
+X/*
+X * SVID		Your machine is SVID complient (Sys V, HPUX, A/UX)
+X *		NOTE: don't do this if you are on a Pyramid -- tcsh is
+X *		built in a BSD universe.
+X *		Set SVID to 1, 2, 3, or 4, depending the version of System V
+X *		you are running. Or set it to 0 if you are not SVID based
+X */
+X#define SVID	3
+X
+X/*
+X * YPBUGS	Work around Sun YP bugs that cause expansion of ~username
+X *		to send command output to /dev/null
+X */
+X#undef YPBUGS
+X
+X/*
+X * SIGVOID	Define this if your signal handlers return void.  On older
+X *		systems, signal returns int, but on newer ones, it returns void.
+X */
+X#define SIGVOID 
+X
+X/*
+X * HAVEDUP2	Define this if your system supports dup2().
+X */
+X#undef HAVEDUP2
+X
+X/*
+X * UTHOST	Does the utmp file have a host field?
+X */
+X#undef UTHOST
+X
+X/*
+X * DIRENT	Your system has <dirent.h> instead of <sys/dir.h>
+X */
+X#define DIRENT
+X/****************** local defines *********************/
+X/*
+X * ISC		You are running ISC's version of unix
+X */
+X#define ISC
+X#ifdef POSIX
+X# ifndef _POSIX_SOURCE
+X#  define _POSIX_SOURCE
+X# endif /* _POSIX_SOURCE */
+X#endif /* POSIX */
+X
+X/*
+X * NOSTRCOLL	We don't have strcoll()
+X */
+X#define NOSTRCOLL
+X
+X/****************** configurable hacks ****************/
+X/* have been moved to config_f.h */
+X
+X#include "config_f.h"
+END_OF_FILE
+if test 3213 -ne `wc -c <'config/config.isc'`; then
+    echo shar: \"'config/config.isc'\" unpacked with wrong size!
+fi
+# end of 'config/config.isc'
+fi
+if test -f 'config/config.mac2' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'config/config.mac2'\"
+else
+echo shar: Extracting \"'config/config.mac2'\" \(3324 characters\)
+sed "s/^X//" >'config/config.mac2' <<'END_OF_FILE'
+X/*
+X * config.h -- configure various defines for tcsh
+X *
+X * All source files should #include this FIRST.
+X *
+X * Edit this to match your system type.
+X */
+X
+X/****************** System dependant compilation flags ****************/
+X/*
+X * For A/UX 2.00 you can define POSIX and POSIXJOBS, but you'll have
+X * to add -ZP in CFLAGS and set LIBES to -lposix -ltermcap.
+X */
+X/*
+X * POSIX	This system supports IEEE Std 1003.1-1988 (POSIX).
+X */
+X#undef POSIX
+X
+X/*
+X * POSIXJOBS	This system supports the optional IEEE Std 1003.1-1988 (POSIX)
+X *		job control facilities.
+X */
+X#undef POSIXJOBS
+X
+X/*
+X * VFORK	This machine has a vfork().  
+X *		It used to be that for job control to work, this define
+X *		was mandatory. This is not the case any more.
+X *		If you think you still need it, but you don't have vfork, 
+X *		define this anyway and then do #define vfork fork.  
+X *		I do this anyway on a Sun because of yellow pages brain damage,
+X *		[should not be needed under 4.1]
+X *		and on the iris4d cause	SGI's fork is sufficiently "virtual" 
+X *		that vfork isn't necessary.  (Besides, SGI's vfork is weird).
+X *		Note that some machines eg. rs6000 have a vfork, but not
+X *		with the berkeley semantics, so we cannot use it there either.
+X */
+X#undef VFORK
+X
+X/*
+X * BSDJOBS	You have BSD-style job control (both process groups and
+X *		a tty that deals correctly
+X */
+X#define BSDJOBS
+X
+X/*
+X * BSDSIGS	You have 4.2-style signals, rather than USG style.
+X *		Note: POSIX systems should not define this unless they
+X *		have sigvec() and friends (ie: 4.3BSD-RENO, HP-UX).
+X */
+X#define BSDSIGS
+X
+X/*
+X * BSDTIMES	You have BSD-style process time stuff (like rusage)
+X *		This may or may not be true.  For example, Apple Unix
+X *		(OREO) has BSDJOBS and BSDSIGS but not BSDTIMES.
+X */
+X#undef BSDTIMES
+X
+X/*
+X * BSDNICE	Your system uses setpriority() instead of nice, to
+X *		change a processes scheduling priority
+X */
+X#undef BSDNICE
+X
+X/*
+X * TERMIO	You have struct termio instead of struct sgttyb.
+X * 		This is usually the case for SVID systems, where
+X *		BSD uses sgttyb. POSIX systems should define this
+X *		anyway, even though they use struct termios.
+X */
+X#define TERMIO
+X
+X/*
+X * SVID		Your machine is SVID complient (Sys V, HPUX, A/UX)
+X *		NOTE: don't do this if you are on a Pyramid -- tcsh is
+X *		built in a BSD universe.
+X *		Set SVID to 1, 2, 3, or 4, depending the version of System V
+X *		you are running. Or set it to 0 if you are not SVID based
+X */
+X#define SVID	2
+X
+X/*
+X * YPBUGS	Work around Sun YP bugs that cause expansion of ~username
+X *		to send command output to /dev/null
+X */
+X#undef YPBUGS
+X
+X/*
+X * SIGVOID	Define this if your signal handlers return void.  On older
+X *		systems, signal returns int, but on newer ones, it returns void.
+X */
+X#undef SIGVOID 
+X
+X/*
+X * HAVEDUP2	Define this if your system supports dup2().
+X */
+X#define HAVEDUP2
+X
+X/*
+X * UTHOST	Does the utmp file have a host field?
+X */
+X#define UTHOST
+X
+X/*
+X * DIRENT	Your system has <dirent.h> instead of <sys/dir.h>
+X */
+X#define DIRENT
+X/***************** local defines *********************/
+X/*
+X * OREO		You are running Apple Unix.
+X */
+X#define OREO
+X
+X#ifndef _BSD_SOURCE
+X# define _BSD_SOURCE
+X#endif /* _BSD_SOURCE */
+X#ifndef _SYSV_SOURCE
+X# define _SYSV_SOURCE
+X#endif /* _SYSV_SOURCE */
+X
+X#define NOSTRCOLL
+X
+X/****************** configurable hacks ****************/
+X/* have been moved to config_f.h */
+X#include "config_f.h"
+END_OF_FILE
+if test 3324 -ne `wc -c <'config/config.mac2'`; then
+    echo shar: \"'config/config.mac2'\" unpacked with wrong size!
+fi
+# end of 'config/config.mac2'
+fi
+if test -f 'config/config.mach' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'config/config.mach'\"
+else
+echo shar: Extracting \"'config/config.mach'\" \(3336 characters\)
+sed "s/^X//" >'config/config.mach' <<'END_OF_FILE'
+X/*
+X * config.h -- configure various defines for tcsh
+X *
+X * All source files should #include this FIRST.
+X *
+X * Edit this to match your system type.
+X */
+X
+X/****************** System dependant compilation flags ****************/
+X/*
+X * POSIX	This system supports IEEE Std 1003.1-1988 (POSIX).
+X */
+X#undef POSIX
+X
+X/*
+X * POSIXJOBS	This system supports the optional IEEE Std 1003.1-1988 (POSIX)
+X *		job control facilities.
+X */
+X#undef POSIXJOBS
+X
+X/*
+X * VFORK	This machine has a vfork().  
+X *		It used to be that for job control to work, this define
+X *		was mandatory. This is not the case any more.
+X *		If you think you still need it, but you don't have vfork, 
+X *		define this anyway and then do #define vfork fork.  
+X *		I do this anyway on a Sun because of yellow pages brain damage,
+X *		[should not be needed under 4.1]
+X *		and on the iris4d cause	SGI's fork is sufficiently "virtual" 
+X *		that vfork isn't necessary.  (Besides, SGI's vfork is weird).
+X *		Note that some machines eg. rs6000 have a vfork, but not
+X *		with the berkeley semantics, so we cannot use it there either.
+X */
+X#ifdef NeXT
+X# undef VFORK
+X#endif
+X
+X/*
+X * BSDJOBS	You have BSD-style job control (both process groups and
+X *		a tty that deals correctly
+X */
+X#define BSDJOBS
+X
+X/*
+X * BSDSIGS	You have 4.2-style signals, rather than USG style.
+X *		Note: POSIX systems should not define this unless they
+X *		have sigvec() and friends (ie: 4.3BSD-RENO, HP-UX).
+X */
+X#define BSDSIGS
+X
+X/*
+X * BSDTIMES	You have BSD-style process time stuff (like rusage)
+X *		This may or may not be true.  For example, Apple Unix
+X *		(OREO) has BSDJOBS and BSDSIGS but not BSDTIMES.
+X */
+X#define BSDTIMES
+X
+X/*
+X * BSDNICE	Your system uses setpriority() instead of nice, to
+X *		change a processes scheduling priority
+X */
+X#define BSDNICE
+X
+X/*
+X * TERMIO	You have struct termio instead of struct sgttyb.
+X * 		This is usually the case for SVID systems, where
+X *		BSD uses sgttyb. POSIX systems should define this
+X *		anyway, even though they use struct termios.
+X */
+X#undef TERMIO
+X
+X/*
+X * SVID		Your machine is SVID complient (Sys V, HPUX, A/UX)
+X *		NOTE: don't do this if you are on a Pyramid -- tcsh is
+X *		built in a BSD universe.
+X *		Set SVID to 1, 2, 3, or 4, depending the version of System V
+X *		you are running. Or set it to 0 if you are not SVID based
+X */
+X#define SVID	0
+X
+X/*
+X * YPBUGS	Work around Sun YP bugs that cause expansion of ~username
+X *		to send command output to /dev/null
+X */
+X#undef YPBUGS
+X
+X/*
+X * SIGVOID	Define this if your signal handlers return void.  On older
+X *		systems, signal returns int, but on newer ones, it returns void.
+X */
+X#ifdef NeXT
+X# define SIGVOID 
+X#else
+X# undef SIGVOID 
+X#endif
+X
+X/*
+X * HAVEDUP2	Define this if your system supports dup2().
+X */
+X#define HAVEDUP2
+X
+X/*
+X * UTHOST	Does the utmp file have a host field?
+X */
+X#define UTHOST
+X
+X/*
+X * DIRENT	Your system has <dirent.h> instead of <sys/dir.h>
+X */
+X#undef DIRENT
+X/****************** local defines *********************/
+X#ifdef NeXT
+X# define environ _environ
+X/* strcoll() on the NeXT appears to have 3 args, but only 2 args in tcsh src */
+X#define NOSTRCOLL
+X#else
+X# ifdef notdef
+X#  define SETENV_IN_LIB		/* read comment in sh.func.c */
+X#  define setenv(x,y) Setenv(x,y)
+X# endif
+X#endif
+X
+X/****************** configurable hacks ****************/
+X/* have been moved to config_f.h */
+X#include "config_f.h"
+X
+X#ifndef NeXT
+X#undef NLS
+X#endif
+END_OF_FILE
+if test 3336 -ne `wc -c <'config/config.mach'`; then
+    echo shar: \"'config/config.mach'\" unpacked with wrong size!
+fi
+# end of 'config/config.mach'
+fi
+if test -f 'config/config.minix' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'config/config.minix'\"
+else
+echo shar: Extracting \"'config/config.minix'\" \(3106 characters\)
+sed "s/^X//" >'config/config.minix' <<'END_OF_FILE'
+X/*
+X * config.h -- configure various defines for tcsh
+X *
+X * All source files should #include this FIRST.
+X *
+X * This is the config file for minix-386 systems
+X */
+X
+X/****************** System dependant compilation flags ****************/
+X/*
+X * POSIX	This system supports IEEE Std 1003.1-1988 (POSIX).
+X */
+X#define POSIX
+X
+X/*
+X * POSIXJOBS	This system supports the optional IEEE Std 1003.1-1988 (POSIX)
+X *		job control facilities.
+X */
+X#undef POSIXJOBS
+X
+X/*
+X * VFORK	This machine has a vfork().  
+X *		It used to be that for job control to work, this define
+X *		was mandatory. This is not the case any more.
+X *		If you think you still need it, but you don't have vfork, 
+X *		define this anyway and then do #define vfork fork.  
+X *		I do this anyway on a Sun because of yellow pages brain damage,
+X *		[should not be needed under 4.1]
+X *		and on the iris4d cause	SGI's fork is sufficiently "virtual" 
+X *		that vfork isn't necessary.  (Besides, SGI's vfork is weird).
+X *		Note that some machines eg. rs6000 have a vfork, but not
+X *		with the berkeley semantics, so we cannot use it there either.
+X */
+X#undef VFORK
+X
+X/*
+X * BSDJOBS	You have BSD-style job control (both process groups and
+X *		a tty that deals correctly
+X */
+X#undef BSDJOBS
+X
+X/*
+X * BSDSIGS	You have 4.2-style signals, rather than USG style.
+X *		Note: POSIX systems should not define this unless they
+X *		have sigvec() and friends (ie: 4.3BSD-RENO, HP-UX).
+X */
+X#undef BSDSIGS
+X
+X/*
+X * BSDTIMES	You have BSD-style process time stuff (like rusage)
+X *		This may or may not be true.  For example, Apple Unix
+X *		(OREO) has BSDJOBS and BSDSIGS but not BSDTIMES.
+X */
+X#undef BSDTIMES
+X
+X/*
+X * BSDNICE	Your system uses setpriority() instead of nice, to
+X *		change a processes scheduling priority
+X */
+X#undef BSDNICE
+X
+X/*
+X * TERMIO	You have struct termio instead of struct sgttyb.
+X * 		This is usually the case for SVID systems, where
+X *		BSD uses sgttyb. POSIX systems should define this
+X *		anyway, even though they use struct termios.
+X */
+X#define TERMIO
+X
+X/*
+X * SVID		Your machine is SVID compliant (Sys V, HPUX, A/UX)
+X *		NOTE: don't do this if you are on a Pyramid -- tcsh is
+X *		built in a BSD universe.
+X *		Set SVID to 1, 2, or 3, depending the version of System V
+X *		you are running. Or set it to 0 if you are not SVID based
+X */
+X#define SVID	0
+X
+X/*
+X * YPBUGS	Work around Sun YP bugs that cause expansion of ~username
+X *		to send command output to /dev/null
+X */
+X#undef YPBUGS
+X
+X/*
+X * SIGVOID	Define this if your signal handlers return void.  On older
+X *		systems, signal returns int, but on newer ones, it returns void.
+X */
+X#undef SIGVOID 
+X
+X/*
+X * HAVEDUP2	Define this if your system supports dup2().
+X */
+X#define HAVEDUP2
+X
+X/*
+X * UTHOST	Does the utmp file have a host field?
+X */
+X#undef UTHOST
+X
+X/*
+X * DIRENT	Your system has <dirent.h> instead of <sys/dir.h>
+X */
+X#define DIRENT
+X/****************** local defines *********************/
+X
+X#define i386  /* gcc may define this for you already. */
+X#define NEEDgetwd
+X#define _POSIX_SOURCE
+X#define _MINIX
+X
+X/****************** configurable hacks ****************/
+X/* have been moved to config_f.h */
+X#include "config_f.h"
+X
+X#undef NLS
+END_OF_FILE
+if test 3106 -ne `wc -c <'config/config.minix'`; then
+    echo shar: \"'config/config.minix'\" unpacked with wrong size!
+fi
+# end of 'config/config.minix'
+fi
+if test -f 'config/config.mtXinu' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'config/config.mtXinu'\"
+else
+echo shar: Extracting \"'config/config.mtXinu'\" \(3038 characters\)
+sed "s/^X//" >'config/config.mtXinu' <<'END_OF_FILE'
+X/*
+X * config.h -- configure various defines for tcsh
+X *
+X * All source files should #include this FIRST.
+X *
+X * Edit this to match your system type.
+X */
+X
+X/****************** System dependant compilation flags ****************/
+X/*
+X * POSIX	This system supports IEEE Std 1003.1-1988 (POSIX).
+X */
+X#undef POSIX
+X
+X/*
+X * POSIXJOBS	This system supports the optional IEEE Std 1003.1-1988 (POSIX)
+X *		job control facilities.
+X */
+X#undef POSIXJOBS
+X
+X/*
+X * VFORK	This machine has a vfork().  
+X *		It used to be that for job control to work, this define
+X *		was mandatory. This is not the case any more.
+X *		If you think you still need it, but you don't have vfork, 
+X *		define this anyway and then do #define vfork fork.  
+X *		I do this anyway on a Sun because of yellow pages brain damage,
+X *		[should not be needed under 4.1]
+X *		and on the iris4d cause	SGI's fork is sufficiently "virtual" 
+X *		that vfork isn't necessary.  (Besides, SGI's vfork is weird).
+X *		Note that some machines eg. rs6000 have a vfork, but not
+X *		with the berkeley semantics, so we cannot use it there either.
+X */
+X#define VFORK
+X
+X/*
+X * BSDJOBS	You have BSD-style job control (both process groups and
+X *		a tty that deals correctly
+X */
+X#define BSDJOBS
+X
+X/*
+X * BSDSIGS	You have 4.2-style signals, rather than USG style.
+X *		Note: POSIX systems should not define this unless they
+X *		have sigvec() and friends (ie: 4.3BSD-RENO, HP-UX).
+X */
+X#define BSDSIGS
+X
+X/*
+X * BSDTIMES	You have BSD-style process time stuff (like rusage)
+X *		This may or may not be true.  For example, Apple Unix
+X *		(OREO) has BSDJOBS and BSDSIGS but not BSDTIMES.
+X */
+X#define BSDTIMES
+X
+X/*
+X * BSDNICE	Your system uses setpriority() instead of nice, to
+X *		change a processes scheduling priority
+X */
+X#define BSDNICE
+X
+X/*
+X * TERMIO	You have struct termio instead of struct sgttyb.
+X * 		This is usually the case for SVID systems, where
+X *		BSD uses sgttyb. POSIX systems should define this
+X *		anyway, even though they use struct termios.
+X */
+X#undef TERMIO
+X
+X/*
+X * SVID		Your machine is SVID complient (Sys V, HPUX, A/UX)
+X *		NOTE: don't do this if you are on a Pyramid -- tcsh is
+X *		built in a BSD universe.
+X *		Set SVID to 1, 2, 3, or 4, depending the version of System V
+X *		you are running. Or set it to 0 if you are not SVID based
+X */
+X#define SVID	0
+X
+X/*
+X * YPBUGS	Work around Sun YP bugs that cause expansion of ~username
+X *		to send command output to /dev/null
+X */
+X#define YPBUGS
+X
+X/*
+X * SIGVOID	Define this if your signal handlers return void.  On older
+X *		systems, signal returns int, but on newer ones, it returns void.
+X */
+X#undef SIGVOID 
+X
+X/*
+X * HAVEDUP2	Define this if your system supports dup2().
+X */
+X#define HAVEDUP2
+X
+X/*
+X * UTHOST	Does the utmp file have a host field?
+X */
+X#define UTHOST
+X
+X/*
+X * DIRENT	Your system has <dirent.h> instead of <sys/dir.h>
+X *		Older versions of mtXinu don't have dirent.
+X */
+X#define DIRENT
+X/****************** local defines *********************/
+X/****************** configurable hacks ****************/
+X/* have been moved to config_f.h */
+X#include "config_f.h"
+X#undef NLS
+END_OF_FILE
+if test 3038 -ne `wc -c <'config/config.mtXinu'`; then
+    echo shar: \"'config/config.mtXinu'\" unpacked with wrong size!
+fi
+# end of 'config/config.mtXinu'
+fi
+if test -f 'config/config.opus' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'config/config.opus'\"
+else
+echo shar: Extracting \"'config/config.opus'\" \(3115 characters\)
+sed "s/^X//" >'config/config.opus' <<'END_OF_FILE'
+X/*
+X * config.h -- configure various defines for tcsh
+X *
+X * All source files should #include this FIRST.
+X *
+X * Edit this to match your system type.
+X */
+X
+X/****************** System dependant compilation flags ****************/
+X/*
+X * POSIX	This system supports IEEE Std 1003.1-1988 (POSIX).
+X */
+X#undef POSIX
+X
+X/*
+X * POSIXJOBS	This system supports the optional IEEE Std 1003.1-1988 (POSIX)
+X *		job control facilities.
+X */
+X#undef POSIXJOBS
+X
+X/*
+X * VFORK	This machine has a vfork().  
+X *		It used to be that for job control to work, this define
+X *		was mandatory. This is not the case any more.
+X *		If you think you still need it, but you don't have vfork, 
+X *		define this anyway and then do #define vfork fork.  
+X *		I do this anyway on a Sun because of yellow pages brain damage,
+X *		[should not be needed under 4.1]
+X *		and on the iris4d cause	SGI's fork is sufficiently "virtual" 
+X *		that vfork isn't necessary.  (Besides, SGI's vfork is weird).
+X *		Note that some machines eg. rs6000 have a vfork, but not
+X *		with the berkeley semantics, so we cannot use it there either.
+X */
+X#undef VFORK
+X
+X/*
+X * BSDJOBS	You have BSD-style job control (both process groups and
+X *		a tty that deals correctly
+X */
+X#undef BSDJOBS
+X
+X/*
+X * BSDSIGS	You have 4.2-style signals, rather than USG style.
+X *		Note: POSIX systems should not define this unless they
+X *		have sigvec() and friends (ie: 4.3BSD-RENO, HP-UX).
+X */
+X#undef BSDSIGS
+X
+X/*
+X * BSDTIMES	You have BSD-style process time stuff (like rusage)
+X *		This may or may not be true.  For example, Apple Unix
+X *		(OREO) has BSDJOBS and BSDSIGS but not BSDTIMES.
+X */
+X#undef BSDTIMES
+X
+X/*
+X * BSDNICE	Your system uses setpriority() instead of nice, to
+X *		change a processes scheduling priority
+X */
+X#undef BSDNICE
+X
+X/*
+X * TERMIO	You have struct termio instead of struct sgttyb.
+X * 		This is usually the case for SVID systems, where
+X *		BSD uses sgttyb. POSIX systems should define this
+X *		anyway, even though they use struct termios.
+X */
+X#define TERMIO
+X
+X/*
+X * SVID		Your machine is SVID complient (Sys V, HPUX, A/UX)
+X *		NOTE: don't do this if you are on a Pyramid -- tcsh is
+X *		built in a BSD universe.
+X *		Set SVID to 1, 2, 3, or 4, depending the version of System V
+X *		you are running. Or set it to 0 if you are not SVID based
+X */
+X#define SVID	3
+X
+X/*
+X * YPBUGS	Work around Sun YP bugs that cause expansion of ~username
+X *		to send command output to /dev/null
+X */
+X#undef YPBUGS
+X
+X/*
+X * SIGVOID	Define this if your signal handlers return void.  On older
+X *		systems, signal returns int, but on newer ones, it returns void.
+X */
+X#define SIGVOID 
+X
+X/*
+X * HAVEDUP2	Define this if your system supports dup2().
+X */
+X#define HAVEDUP2
+X
+X/*
+X * UTHOST	Does the utmp file have a host field?
+X */
+X#undef UTHOST
+X
+X/*
+X * DIRENT	Your system has <dirent.h> instead of <sys/dir.h>
+X */
+X#define DIRENT
+X/****************** local defines *********************/
+X/*
+X *		The preprocessor only defines 'unix' and 'ns32000', 
+X * 		which is not enough to decide about HOSTTYPE. 
+X */
+X#define OPUS
+X
+X/****************** configurable hacks ****************/
+X/* have been moved to config_f.h */
+X#include "config_f.h"
+X#undef NLS
+END_OF_FILE
+if test 3115 -ne `wc -c <'config/config.opus'`; then
+    echo shar: \"'config/config.opus'\" unpacked with wrong size!
+fi
+# end of 'config/config.opus'
+fi
+if test -f 'config/config.sco+odt' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'config/config.sco+odt'\"
+else
+echo shar: Extracting \"'config/config.sco+odt'\" \(3035 characters\)
+sed "s/^X//" >'config/config.sco+odt' <<'END_OF_FILE'
+X/*
+X * config.h -- configure various defines for tcsh
+X *
+X * For Sco Unix 3.2.0 and ODT 1.0
+X *
+X * All source files should #include this FIRST.
+X *
+X * Edit this to match your system type.
+X */
+X
+X/****************** System dependant compilation flags ****************/
+X/*
+X * POSIX	This system supports IEEE Std 1003.1-1988 (POSIX).
+X */
+X#define POSIX
+X
+X/*
+X * POSIXJOBS	This system supports the optional IEEE Std 1003.1-1988 (POSIX)
+X *		job control facilities.
+X */
+X#undef POSIXJOBS
+X
+X/*
+X * VFORK	This machine has a vfork().  
+X *		It used to be that for job control to work, this define
+X *		was mandatory. This is not the case any more.
+X *		If you think you still need it, but you don't have vfork, 
+X *		define this anyway and then do #define vfork fork.  
+X *		I do this anyway on a Sun because of yellow pages brain damage,
+X *		[should not be needed under 4.1]
+X *		and on the iris4d cause	SGI's fork is sufficiently "virtual" 
+X *		that vfork isn't necessary.  (Besides, SGI's vfork is weird).
+X *		Note that some machines eg. rs6000 have a vfork, but not
+X *		with the berkeley semantics, so we cannot use it there either.
+X */
+X#undef VFORK
+X
+X/*
+X * BSDJOBS	You have BSD-style job control (both process groups and
+X *		a tty that deals correctly
+X */
+X#undef BSDJOBS
+X
+X/*
+X * BSDSIGS	You have 4.2-style signals, rather than USG style.
+X *		Note: POSIX systems should not define this unless they
+X *		have sigvec() and friends (ie: 4.3BSD-RENO, HP-UX).
+X */
+X#undef BSDSIGS
+X
+X/*
+X * BSDTIMES	You have BSD-style process time stuff (like rusage)
+X *		This may or may not be true.  For example, Apple Unix
+X *		(OREO) has BSDJOBS and BSDSIGS but not BSDTIMES.
+X */
+X#undef BSDTIMES
+X
+X/*
+X * BSDNICE	Your system uses setpriority() instead of nice, to
+X *		change a processes scheduling priority
+X */
+X#undef BSDNICE
+X
+X/*
+X * TERMIO	You have struct termio instead of struct sgttyb.
+X * 		This is usually the case for SVID systems, where
+X *		BSD uses sgttyb. POSIX systems should define this
+X *		anyway, even though they use struct termios.
+X */
+X#define TERMIO
+X
+X/*
+X * SVID		Your machine is SVID complient (Sys V, HPUX, A/UX)
+X *		NOTE: don't do this if you are on a Pyramid -- tcsh is
+X *		built in a BSD universe.
+X *		Set SVID to 1, 2, 3, or 4, depending the version of System V
+X *		you are running. Or set it to 0 if you are not SVID based
+X */
+X#define SVID	3
+X
+X/*
+X * YPBUGS	Work around Sun YP bugs that cause expansion of ~username
+X *		to send command output to /dev/null
+X */
+X#undef YPBUGS
+X
+X/*
+X * SIGVOID	Define this if your signal handlers return void.  On older
+X *		systems, signal returns int, but on newer ones, it returns void.
+X */
+X#define SIGVOID 
+X
+X/*
+X * HAVEDUP2	Define this if your system supports dup2().
+X */
+X#undef HAVEDUP2
+X
+X/*
+X * UTHOST	Does the utmp file have a host field?
+X */
+X#undef UTHOST
+X
+X/*
+X * DIRENT	Your system has <dirent.h> instead of <sys/dir.h>
+X */
+X#define DIRENT
+X/****************** local defines *********************/
+X#define SCO
+X#define ODT
+X/****************** configurable hacks ****************/
+X/* have been moved to config_f.h */
+X#include "config_f.h"
+END_OF_FILE
+if test 3035 -ne `wc -c <'config/config.sco+odt'`; then
+    echo shar: \"'config/config.sco+odt'\" unpacked with wrong size!
+fi
+# end of 'config/config.sco+odt'
+fi
+if test -f 'config/config.sgi' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'config/config.sgi'\"
+else
+echo shar: Extracting \"'config/config.sgi'\" \(3760 characters\)
+sed "s/^X//" >'config/config.sgi' <<'END_OF_FILE'
+X/*
+X * config.h -- configure various defines for tcsh
+X *
+X * All source files should #include this FIRST.
+X *
+X * Edit this to match your system type.
+X */
+X
+X/****************** System dependant compilation flags ****************/
+X/*
+X * POSIX	This system supports IEEE Std 1003.1-1988 (POSIX).
+X */
+X#undef POSIX
+X
+X/*
+X * POSIXJOBS	This system supports the optional IEEE Std 1003.1-1988 (POSIX)
+X *		job control facilities.
+X */
+X#undef POSIXJOBS
+X
+X/*
+X * VFORK	This machine has a vfork().  
+X *		It used to be that for job control to work, this define
+X *		was mandatory. This is not the case any more.
+X *		If you think you still need it, but you don't have vfork, 
+X *		define this anyway and then do #define vfork fork.  
+X *		I do this anyway on a Sun because of yellow pages brain damage,
+X *		[should not be needed under 4.1]
+X *		and on the iris4d cause	SGI's fork is sufficiently "virtual" 
+X *		that vfork isn't necessary.  (Besides, SGI's vfork is weird).
+X *		Note that some machines eg. rs6000 have a vfork, but not
+X *		with the berkeley semantics, so we cannot use it there either.
+X */
+X#undef VFORK
+X
+X/*
+X * BSDJOBS	You have BSD-style job control (both process groups and
+X *		a tty that deals correctly
+X */
+X#ifdef mips
+X# define BSDJOBS
+X#else
+X# undef BSDJOBS
+X#endif
+X
+X/*
+X * BSDSIGS	You have 4.2-style signals, rather than USG style.
+X *		Note: POSIX systems should not define this unless they
+X *		have sigvec() and friends (ie: 4.3BSD-RENO, HP-UX).
+X */
+X#undef BSDSIGS
+X
+X/*
+X * BSDTIMES	You have BSD-style process time stuff (like rusage)
+X *		This may or may not be true.  For example, Apple Unix
+X *		(OREO) has BSDJOBS and BSDSIGS but not BSDTIMES.
+X */
+X#ifdef mips
+X# define BSDTIMES
+X#else
+X# undef BSDTIMES
+X#endif
+X
+X/*
+X * BSDNICE	Your system uses setpriority() instead of nice, to
+X *		change a processes scheduling priority
+X */
+X#ifdef mips
+X# define BSDNICE
+X#else
+X# undef BSDNICE
+X#endif
+X
+X/*
+X * TERMIO	You have struct termio instead of struct sgttyb.
+X * 		This is usually the case for SVID systems, where
+X *		BSD uses sgttyb. POSIX systems should define this
+X *		anyway, even though they use struct termios.
+X */
+X#define TERMIO
+X
+X/*
+X * SVID		Your machine is SVID complient (Sys V, HPUX, A/UX)
+X *		NOTE: don't do this if you are on a Pyramid -- tcsh is
+X *		built in a BSD universe.
+X *		Set SVID to 1, 2, 3, or 4, depending the version of System V
+X *		you are running. Or set it to 0 if you are not SVID based
+X */
+X#ifdef mips
+X# define SVID	3
+X#else
+X/* 
+X * For the 3000:
+X * We may not technically be compliant, and I don't know whether we are
+X * SVR1 or SVR2.  We're pretty System V-ish, though, so we won't say 0.
+X * We'll guess 1.  There are no checks for SVID <= 1 vs. SVID >= 2 at
+X * current writing anyway. 
+X */
+X# define SVID	1
+X#endif
+X
+X/*
+X * YPBUGS	Work around Sun YP bugs that cause expansion of ~username
+X *		to send command output to /dev/null
+X */
+X#undef YPBUGS
+X
+X/*
+X * SIGVOID	Define this if your signal handlers return void.  On older
+X *		systems, signal returns int, but on newer ones, it returns void.
+X */
+X#ifdef mips
+X# define SIGVOID 
+X#else
+X# undef SIGVOID 
+X#endif
+X
+X/*
+X * HAVEDUP2	Define this if your system supports dup2().
+X */
+X#ifdef mips
+X# define HAVEDUP2
+X#else
+X# undef HAVEDUP2
+X#endif
+X
+X/*
+X * UTHOST	Does the utmp file have a host field?
+X */
+X#undef UTHOST
+X
+X/*
+X * DIRENT	Your system has <dirent.h> instead of <sys/dir.h>
+X */
+X#define DIRENT
+X/****************** local defines *********************/
+X#ifdef mips
+X/*
+X * IRIS4D	You are running on an Iris 4D
+X */
+X# define IRIS4D
+X
+X/*
+X * IRIX3_3	You are running IRIX 3.3 (or later)
+X */
+X# define IRIX3_3
+X#endif
+X
+X#ifdef m68000
+X/*
+X * IRIS3D	You are running on an Iris 3000 series
+X */
+X# define IRIS3D
+X#endif
+X
+X/****************** configurable hacks ****************/
+X/* have been moved to config_f.h */
+X#include "config_f.h"
+X
+X#undef NLS
+END_OF_FILE
+if test 3760 -ne `wc -c <'config/config.sgi'`; then
+    echo shar: \"'config/config.sgi'\" unpacked with wrong size!
+fi
+# end of 'config/config.sgi'
+fi
+if test -f 'config/config.sunos3' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'config/config.sunos3'\"
+else
+echo shar: Extracting \"'config/config.sunos3'\" \(3092 characters\)
+sed "s/^X//" >'config/config.sunos3' <<'END_OF_FILE'
+X/*
+X * config.h -- configure various defines for tcsh
+X *
+X * All source files should #include this FIRST.
+X *
+X * Edit this to match your system type.
+X */
+X
+X/****************** System dependant compilation flags ****************/
+X/*
+X * POSIX	This system supports IEEE Std 1003.1-1988 (POSIX).
+X */
+X#undef POSIX
+X
+X/*
+X * POSIXJOBS	This system supports the optional IEEE Std 1003.1-1988 (POSIX)
+X *		job control facilities.
+X */
+X#undef POSIXJOBS
+X
+X/*
+X * VFORK	This machine has a vfork().  
+X *		It used to be that for job control to work, this define
+X *		was mandatory. This is not the case any more.
+X *		If you think you still need it, but you don't have vfork, 
+X *		define this anyway and then do #define vfork fork.  
+X *		I do this anyway on a Sun because of yellow pages brain damage,
+X *		[should not be needed under 4.1]
+X *		and on the iris4d cause	SGI's fork is sufficiently "virtual" 
+X *		that vfork isn't necessary.  (Besides, SGI's vfork is weird).
+X *		Note that some machines eg. rs6000 have a vfork, but not
+X *		with the berkeley semantics, so we cannot use it there either.
+X */
+X#define VFORK
+X
+X/*
+X * BSDJOBS	You have BSD-style job control (both process groups and
+X *		a tty that deals correctly
+X */
+X#define BSDJOBS
+X
+X/*
+X * BSDSIGS	You have 4.2-style signals, rather than USG style.
+X *		Note: POSIX systems should not define this unless they
+X *		have sigvec() and friends (ie: 4.3BSD-RENO, HP-UX).
+X */
+X#define BSDSIGS
+X
+X/*
+X * BSDTIMES	You have BSD-style process time stuff (like rusage)
+X *		This may or may not be true.  For example, Apple Unix
+X *		(OREO) has BSDJOBS and BSDSIGS but not BSDTIMES.
+X */
+X#define BSDTIMES
+X
+X/*
+X * BSDNICE	Your system uses setpriority() instead of nice, to
+X *		change a processes scheduling priority
+X */
+X#define BSDNICE
+X
+X/*
+X * TERMIO	You have struct termio instead of struct sgttyb.
+X * 		This is usually the case for SVID systems, where
+X *		BSD uses sgttyb. POSIX systems should define this
+X *		anyway, even though they use struct termios.
+X */
+X#undef TERMIO
+X
+X/*
+X * SVID		Your machine is SVID complient (Sys V, HPUX, A/UX)
+X *		NOTE: don't do this if you are on a Pyramid -- tcsh is
+X *		built in a BSD universe.
+X *		Set SVID to 1, 2, 3, or 4, depending the version of System V
+X *		you are running. Or set it to 0 if you are not SVID based
+X */
+X#define SVID	0
+X
+X/*
+X * YPBUGS	Work around Sun YP bugs that cause expansion of ~username
+X *		to send command output to /dev/null
+X *		do this for all flavors of SunOS and anything else that has YP.
+X */
+X#define YPBUGS
+X
+X/*
+X * SIGVOID	Define this if your signal handlers return void.  On older
+X *		systems, signal returns int, but on newer ones, it returns void.
+X */
+X#undef SIGVOID 
+X
+X/*
+X * HAVEDUP2	Define this if your system supports dup2().
+X */
+X#define HAVEDUP2
+X
+X/*
+X * UTHOST	Does the utmp file have a host field?
+X */
+X#define UTHOST
+X
+X/*
+X * DIRENT	Your system has <dirent.h> instead of <sys/dir.h>
+X */
+X#undef DIRENT
+X/****************** local defines *********************/
+X#define BSD	/* We really look like BSD 4.2 */
+X/****************** configurable hacks ****************/
+X/* have been moved to config_f.h */
+X#include "config_f.h"
+END_OF_FILE
+if test 3092 -ne `wc -c <'config/config.sunos3'`; then
+    echo shar: \"'config/config.sunos3'\" unpacked with wrong size!
+fi
+# end of 'config/config.sunos3'
+fi
+if test -f 'config/config.sunos40' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'config/config.sunos40'\"
+else
+echo shar: Extracting \"'config/config.sunos40'\" \(3124 characters\)
+sed "s/^X//" >'config/config.sunos40' <<'END_OF_FILE'
+X/*
+X * config.h -- configure various defines for tcsh
+X *
+X * All source files should #include this FIRST.
+X *
+X * Edit this to match your system type.
+X */
+X
+X/****************** System dependant compilation flags ****************/
+X/*
+X * POSIX	This system supports IEEE Std 1003.1-1988 (POSIX).
+X */
+X#undef POSIX
+X
+X/*
+X * POSIXJOBS	This system supports the optional IEEE Std 1003.1-1988 (POSIX)
+X *		job control facilities.
+X */
+X#undef POSIXJOBS
+X
+X/*
+X * VFORK	This machine has a vfork().  
+X *		It used to be that for job control to work, this define
+X *		was mandatory. This is not the case any more.
+X *		If you think you still need it, but you don't have vfork, 
+X *		define this anyway and then do #define vfork fork.  
+X *		I do this anyway on a Sun because of yellow pages brain damage,
+X *		[should not be needed under 4.1]
+X *		and on the iris4d cause	SGI's fork is sufficiently "virtual" 
+X *		that vfork isn't necessary.  (Besides, SGI's vfork is weird).
+X *		Note that some machines eg. rs6000 have a vfork, but not
+X *		with the berkeley semantics, so we cannot use it there either.
+X */
+X#define VFORK
+X
+X/*
+X * BSDJOBS	You have BSD-style job control (both process groups and
+X *		a tty that deals correctly
+X */
+X#define BSDJOBS
+X
+X/*
+X * BSDSIGS	You have 4.2-style signals, rather than USG style.
+X *		Note: POSIX systems should not define this unless they
+X *		have sigvec() and friends (ie: 4.3BSD-RENO, HP-UX).
+X */
+X#define BSDSIGS
+X
+X/*
+X * BSDTIMES	You have BSD-style process time stuff (like rusage)
+X *		This may or may not be true.  For example, Apple Unix
+X *		(OREO) has BSDJOBS and BSDSIGS but not BSDTIMES.
+X */
+X#define BSDTIMES
+X
+X/*
+X * BSDNICE	Your system uses setpriority() instead of nice, to
+X *		change a processes scheduling priority
+X */
+X#define BSDNICE
+X
+X/*
+X * TERMIO	You have struct termio instead of struct sgttyb.
+X * 		This is usually the case for SVID systems, where
+X *		BSD uses sgttyb. POSIX systems should define this
+X *		anyway, even though they use struct termios.
+X */
+X#undef TERMIO
+X
+X/*
+X * SVID		Your machine is SVID complient (Sys V, HPUX, A/UX)
+X *		NOTE: don't do this if you are on a Pyramid -- tcsh is
+X *		built in a BSD universe.
+X *		Set SVID to 1, 2, 3, or 4, depending the version of System V
+X *		you are running. Or set it to 0 if you are not SVID based
+X */
+X#define SVID	0
+X
+X/*
+X * YPBUGS	Work around Sun YP bugs that cause expansion of ~username
+X *		to send command output to /dev/null
+X *		This is fixed in sunos 4.1, broken in 4.0..
+X */
+X#define YPBUGS
+X
+X/*
+X * SIGVOID	Define this if your signal handlers return void.  On older
+X *		systems, signal returns int, but on newer ones, it returns void.
+X */
+X#define SIGVOID 
+X
+X/*
+X * HAVEDUP2	Define this if your system supports dup2().
+X */
+X#define HAVEDUP2
+X
+X/*
+X * UTHOST	Does the utmp file have a host field?
+X */
+X#define UTHOST
+X
+X/*
+X * DIRENT	Your system has <dirent.h> instead of <sys/dir.h>
+X */
+X#define DIRENT
+X/****************** local defines *********************/
+X/*
+X * SUNOS4	You are running SunOS 4 (on a Sun 2, 3, 4, or 386i)
+X */
+X#define SUNOS4
+X/****************** configurable hacks ****************/
+X/* have been moved to config_f.h */
+X#include "config_f.h"
+X
+X#undef NLS
+END_OF_FILE
+if test 3124 -ne `wc -c <'config/config.sunos40'`; then
+    echo shar: \"'config/config.sunos40'\" unpacked with wrong size!
+fi
+# end of 'config/config.sunos40'
+fi
+if test -f 'config/config.sunos41' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'config/config.sunos41'\"
+else
+echo shar: Extracting \"'config/config.sunos41'\" \(3113 characters\)
+sed "s/^X//" >'config/config.sunos41' <<'END_OF_FILE'
+X/*
+X * config.h -- configure various defines for tcsh
+X *
+X * All source files should #include this FIRST.
+X *
+X * Edit this to match your system type.
+X */
+X
+X/****************** System dependant compilation flags ****************/
+X/*
+X * POSIX	This system supports IEEE Std 1003.1-1988 (POSIX).
+X */
+X#define POSIX
+X
+X/*
+X * POSIXJOBS	This system supports the optional IEEE Std 1003.1-1988 (POSIX)
+X *		job control facilities.
+X */
+X#undef POSIXJOBS
+X
+X/*
+X * VFORK	This machine has a vfork().  
+X *		It used to be that for job control to work, this define
+X *		was mandatory. This is not the case any more.
+X *		If you think you still need it, but you don't have vfork, 
+X *		define this anyway and then do #define vfork fork.  
+X *		I do this anyway on a Sun because of yellow pages brain damage,
+X *		[should not be needed under 4.1]
+X *		and on the iris4d cause	SGI's fork is sufficiently "virtual" 
+X *		that vfork isn't necessary.  (Besides, SGI's vfork is weird).
+X *		Note that some machines eg. rs6000 have a vfork, but not
+X *		with the berkeley semantics, so we cannot use it there either.
+X */
+X#define VFORK
+X
+X/*
+X * BSDJOBS	You have BSD-style job control (both process groups and
+X *		a tty that deals correctly
+X */
+X#define BSDJOBS
+X
+X/*
+X * BSDSIGS	You have 4.2-style signals, rather than USG style.
+X *		Note: POSIX systems should not define this unless they
+X *		have sigvec() and friends (ie: 4.3BSD-RENO, HP-UX).
+X */
+X#define BSDSIGS
+X
+X/*
+X * BSDTIMES	You have BSD-style process time stuff (like rusage)
+X *		This may or may not be true.  For example, Apple Unix
+X *		(OREO) has BSDJOBS and BSDSIGS but not BSDTIMES.
+X */
+X#define BSDTIMES
+X
+X/*
+X * BSDNICE	Your system uses setpriority() instead of nice, to
+X *		change a processes scheduling priority
+X */
+X#define BSDNICE
+X
+X/*
+X * TERMIO	You have struct termio instead of struct sgttyb.
+X * 		This is usually the case for SVID systems, where
+X *		BSD uses sgttyb. POSIX systems should define this
+X *		anyway, even though they use struct termios.
+X */
+X#define TERMIO
+X
+X/*
+X * SVID		Your machine is SVID complient (Sys V, HPUX, A/UX)
+X *		NOTE: don't do this if you are on a Pyramid -- tcsh is
+X *		built in a BSD universe.
+X *		Set SVID to 1, 2, 3 or 4, depending the version of System V
+X *		you are running. Or set it to 0 if you are not SVID based
+X */
+X#define SVID	0
+X
+X/*
+X * YPBUGS	Work around Sun YP bugs that cause expansion of ~username
+X *		to send command output to /dev/null
+X *		This is fixed in sunos 4.1, broken in 4.0..
+X */
+X#undef YPBUGS
+X
+X/*
+X * SIGVOID	Define this if your signal handlers return void.  On older
+X *		systems, signal returns int, but on newer ones, it returns void.
+X */
+X#define SIGVOID 
+X
+X/*
+X * HAVEDUP2	Define this if your system supports dup2().
+X */
+X#define HAVEDUP2
+X
+X/*
+X * UTHOST	Does the utmp file have a host field?
+X */
+X#define UTHOST
+X
+X/*
+X * DIRENT	Your system has <dirent.h> instead of <sys/dir.h>
+X */
+X#define DIRENT
+X/****************** local defines *********************/
+X/*
+X * SUNOS4	You are running SunOS 4 (on a Sun 2, 3, 4, or 386i)
+X */
+X#define SUNOS4
+X
+X/****************** configurable hacks ****************/
+X/* have been moved to config_f.h */
+X#include "config_f.h"
+END_OF_FILE
+if test 3113 -ne `wc -c <'config/config.sunos41'`; then
+    echo shar: \"'config/config.sunos41'\" unpacked with wrong size!
+fi
+# end of 'config/config.sunos41'
+fi
+if test -f 'config/config.sxa' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'config/config.sxa'\"
+else
+echo shar: Extracting \"'config/config.sxa'\" \(3209 characters\)
+sed "s/^X//" >'config/config.sxa' <<'END_OF_FILE'
+X/*
+X * config.h for 
+X *      PFU/Fujitsu A-xx computer
+X * running
+X *      SX/A Edition 60 or later, without BSD/X option.
+X * (for systems with BSD/X, use config.bsd and /usr/bsd/bin/cc)
+X */
+X/*
+X * Use followings in Makefile.
+X * w/o BSD/X
+X *	CC=	/bin/cc
+X * with BSD/X
+X *	CC=	/usr/bsd/bin/cc
+X *
+X * define KANJI in config_f.h if you need it.
+X */
+X
+X
+X/****************** System dependant compilation flags ****************/
+X/*
+X * POSIX	This system supports IEEE Std 1003.1-1988 (POSIX).
+X */
+X#undef POSIX
+X
+X/*
+X * POSIXJOBS	This system supports the optional IEEE Std 1003.1-1988 (POSIX)
+X *		job control facilities.
+X */
+X#undef POSIXJOBS
+X
+X/*
+X * VFORK	This machine has a vfork().  
+X *		It used to be that for job control to work, this define
+X *		was mandatory. This is not the case any more.
+X *		If you think you still need it, but you don't have vfork, 
+X *		define this anyway and then do #define vfork fork.  
+X *		I do this anyway on a Sun because of yellow pages brain damage,
+X *		[should not be needed under 4.1]
+X *		and on the iris4d cause	SGI's fork is sufficiently "virtual" 
+X *		that vfork isn't necessary.  (Besides, SGI's vfork is weird).
+X *		Note that some machines eg. rs6000 have a vfork, but not
+X *		with the berkeley semantics, so we cannot use it there either.
+X */
+X#undef VFORK
+X
+X/*
+X * BSDJOBS	You have BSD-style job control (both process groups and
+X *		a tty that deals correctly
+X */
+X#undef BSDJOBS
+X
+X/*
+X * BSDSIGS	You have 4.2-style signals, rather than USG style.
+X *		Note: POSIX systems should not define this unless they
+X *		have sigvec() and friends (ie: 4.3BSD-RENO, HP-UX).
+X */
+X#undef BSDSIGS
+X
+X/*
+X * BSDTIMES	You have BSD-style process time stuff (like rusage)
+X *		This may or may not be true.  For example, Apple Unix
+X *		(OREO) has BSDJOBS and BSDSIGS but not BSDTIMES.
+X */
+X#define BSDTIMES
+X
+X/*
+X * BSDNICE	Your system uses setpriority() instead of nice, to
+X *		change a processes scheduling priority
+X */
+X#undef BSDNICE
+X
+X/*
+X * TERMIO	You have struct termio instead of struct sgttyb.
+X * 		This is usually the case for SVID systems, where
+X *		BSD uses sgttyb. POSIX systems should define this
+X *		anyway, even though they use struct termios.
+X */
+X#define TERMIO
+X
+X/*
+X * SVID		Your machine is SVID complient (Sys V, HPUX, A/UX)
+X *		NOTE: don't do this if you are on a Pyramid -- tcsh is
+X *		built in a BSD universe.
+X *		Set SVID to 1, 2, 3, or 4, depending the version of System V
+X *		you are running. Or set it to 0 if you are not SVID based
+X */
+X#define SVID	3
+X
+X/*
+X * YPBUGS	Work around Sun YP bugs that cause expansion of ~username
+X *		to send command output to /dev/null
+X */
+X#undef YPBUGS
+X
+X/*
+X * SIGVOID	Define this if your signal handlers return void.  On older
+X *		systems, signal returns int, but on newer ones, it returns void.
+X */
+X#define SIGVOID 
+X
+X/*
+X * HAVEDUP2	Define this if your system supports dup2().
+X */
+X#undef HAVEDUP2
+X
+X/*
+X * UTHOST	Does the utmp file have a host field?
+X */
+X#undef UTHOST
+X
+X/*
+X * DIRENT	Your system has <dirent.h> instead of <sys/dir.h>
+X */
+X#define DIRENT
+X/****************** local defines *********************/
+X/****************** configurable hacks ****************/
+X/* have been moved to config_f.h */
+X#include "config_f.h"
+X/*
+X * SX/A does not have NLS
+X */
+X#undef NLS
+END_OF_FILE
+if test 3209 -ne `wc -c <'config/config.sxa'`; then
+    echo shar: \"'config/config.sxa'\" unpacked with wrong size!
+fi
+# end of 'config/config.sxa'
+fi
+if test -f 'config/config.sysv4' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'config/config.sysv4'\"
+else
+echo shar: Extracting \"'config/config.sysv4'\" \(3247 characters\)
+sed "s/^X//" >'config/config.sysv4' <<'END_OF_FILE'
+X/*
+X * config.h -- configure various defines for tcsh
+X *
+X * All source files should #include this FIRST.
+X *
+X * Edit this to match your system type.
+X */
+X
+X/****************** System dependant compilation flags ****************/
+X/*
+X * POSIX	This system supports IEEE Std 1003.1-1988 (POSIX).
+X */
+X#define POSIX
+X
+X/*
+X * POSIXJOBS	This system supports the optional IEEE Std 1003.1-1988 (POSIX)
+X *		job control facilities.
+X */
+X#define POSIXJOBS
+X
+X/*
+X * VFORK	This machine has a vfork().  
+X *		It used to be that for job control to work, this define
+X *		was mandatory. This is not the case any more.
+X *		If you think you still need it, but you don't have vfork, 
+X *		define this anyway and then do #define vfork fork.  
+X *		I do this anyway on a Sun because of yellow pages brain damage,
+X *		[should not be needed under 4.1]
+X *		and on the iris4d cause	SGI's fork is sufficiently "virtual" 
+X *		that vfork isn't necessary.  (Besides, SGI's vfork is weird).
+X *		Note that some machines eg. rs6000 have a vfork, but not
+X *		with the berkeley semantics, so we cannot use it there either.
+X */
+X#undef VFORK
+X
+X/*
+X * BSDJOBS	You have BSD-style job control (both process groups and
+X *		a tty that deals correctly
+X */
+X#define BSDJOBS
+X
+X/*
+X * BSDSIGS	You have 4.2-style signals, rather than USG style.
+X *		Note: POSIX systems should not define this unless they
+X *		have sigvec() and friends (ie: 4.3BSD-RENO, HP-UX).
+X */
+X#undef BSDSIGS
+X
+X/*
+X * BSDTIMES	You have BSD-style process time stuff (like rusage)
+X *		This may or may not be true.  For example, Apple Unix
+X *		(OREO) has BSDJOBS and BSDSIGS but not BSDTIMES.
+X */
+X#define BSDTIMES
+X
+X/*
+X * BSDNICE	Your system uses setpriority() instead of nice, to
+X *		change a processes scheduling priority
+X */
+X#undef BSDNICE
+X
+X/*
+X * TERMIO	You have struct termio instead of struct sgttyb.
+X * 		This is usually the case for SVID systems, where
+X *		BSD uses sgttyb. POSIX systems should define this
+X *		anyway, even though they use struct termios.
+X */
+X#define TERMIO
+X
+X/*
+X * SVID		Your machine is SVID complient (Sys V, HPUX, A/UX)
+X *		NOTE: don't do this if you are on a Pyramid -- tcsh is
+X *		built in a BSD universe.
+X *		Set SVID to 1, 2, or 3, depending the version of System V
+X *		you are running. Or set it to 0 if you are not SVID based
+X */
+X#define SVID	4
+X
+X/*
+X * YPBUGS	Work around Sun YP bugs that cause expansion of ~username
+X *		to send command output to /dev/null
+X */
+X#undef YPBUGS
+X
+X/*
+X * SIGVOID	Define this if your signal handlers return void.  On older
+X *		systems, signal returns int, but on newer ones, it returns void.
+X */
+X#define SIGVOID 
+X
+X/*
+X * HAVEDUP2	Define this if your system supports dup2().
+X */
+X#define HAVEDUP2
+X
+X/*
+X * HAVEUTMPX	Define if you have extended utmp (utmpx).
+X *		(common for svr4 systems)
+X */
+X#define HAVEUTMPX
+X
+X/*
+X * UTHOST	Does the utmp file have a host field?
+X */
+X#ifdef HAVEUTMPX
+X# define UTHOST
+X#else
+X# undef UTHOST
+X#endif /* HAVEUTMPX */
+X
+X/*
+X * DIRENT	Your system has <dirent.h> instead of <sys/dir.h>
+X */
+X#define DIRENT
+X/****************** local defines *********************/
+X#ifndef BSDTIMES
+X# define NEEDgethostname
+X#endif
+X/*
+X * Shadow passwd file
+X */
+X#define PW_SHADOW
+X
+X/****************** configurable hacks ****************/
+X/* have been moved to config_f.h */
+X#include "config_f.h"
+X
+END_OF_FILE
+if test 3247 -ne `wc -c <'config/config.sysv4'`; then
+    echo shar: \"'config/config.sysv4'\" unpacked with wrong size!
+fi
+# end of 'config/config.sysv4'
+fi
+if test -f 'glob.h' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'glob.h'\"
+else
+echo shar: Extracting \"'glob.h'\" \(3219 characters\)
+sed "s/^X//" >'glob.h' <<'END_OF_FILE'
+X/*
+X * Copyright (c) 1989 The Regents of the University of California.
+X * All rights reserved.
+X *
+X * This code is derived from software contributed to Berkeley by
+X * Guido van Rossum.
+X *
+X * Redistribution and use in source and binary forms, with or without
+X * modification, are permitted provided that the following conditions
+X * are met:
+X * 1. Redistributions of source code must retain the above copyright
+X *    notice, this list of conditions and the following disclaimer.
+X * 2. Redistributions in binary form must reproduce the above copyright
+X *    notice, this list of conditions and the following disclaimer in the
+X *    documentation and/or other materials provided with the distribution.
+X * 3. All advertising materials mentioning features or use of this software
+X *    must display the following acknowledgement:
+X *	This product includes software developed by the University of
+X *	California, Berkeley and its contributors.
+X * 4. Neither the name of the University nor the names of its contributors
+X *    may be used to endorse or promote products derived from this software
+X *    without specific prior written permission.
+X *
+X * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+X * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+X * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+X * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+X * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+X * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+X * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+X * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+X * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+X * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+X * SUCH DAMAGE.
+X *
+X *	@(#)glob.h	5.6 (Berkeley) 4/3/91
+X */
+X
+X#ifndef _GLOB_H_
+X#define	_GLOB_H_
+X
+typedef struct {
+X	int gl_pathc;		/* count of total paths so far */
+X	int gl_matchc;		/* count of paths matching pattern */
+X	int gl_offs;		/* reserved at beginning of gl_pathv */
+X	int gl_flags;		/* copy of flags parameter to glob() */
+X	int (*gl_errfunc)();	/* copy of errfunc parameter to glob() */
+X	char **gl_pathv;	/* list of paths matching pattern */
+X} glob_t;
+X
+X#define	GLOB_APPEND	0x001	/* append to output from previous call */
+X#define	GLOB_DOOFFS	0x002	/* use gl_offs */
+X#define	GLOB_ERR	0x004	/* return on error */
+X#define	GLOB_MAGCHAR	0x008	/* pattern had globbing characters */
+X#define	GLOB_MARK	0x010	/* append / to matching directories */
+X#define	GLOB_NOCHECK	0x020	/* return pattern itself if nothing matches */
+X#define	GLOB_NOSORT	0x040	/* don't sort */
+X#define	GLOB_QUOTE	0x080	/* quote special chars with \ */
+X#define GLOB_NOMAGIC	0x100	/* like GLOB_NOCHECK but only if the pattern
+X				 * did not have any magic characters */
+X#define	GLOB_ALTNOT	0x200	/* use alternate glob character [^ not !] */
+X
+X#define	GLOB_NOSPACE	(-1)	/* malloc call failed */
+X#define	GLOB_ABEND	(-2)	/* unignored error */
+X
+int glob __P((const char *, int, int (*)(char *, int), glob_t *));
+void globfree __P((glob_t *));
+X
+X#endif /* !_GLOB_H_ */
+END_OF_FILE
+if test 3219 -ne `wc -c <'glob.h'`; then
+    echo shar: \"'glob.h'\" unpacked with wrong size!
+fi
+# end of 'glob.h'
+fi
+if test -f 'pathnames.h' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'pathnames.h'\"
+else
+echo shar: Extracting \"'pathnames.h'\" \(3304 characters\)
+sed "s/^X//" >'pathnames.h' <<'END_OF_FILE'
+X/* $Header: /home/hyperion/mu/christos/src/sys/tcsh-6.01/RCS/pathnames.h,v 3.4 1991/12/14 20:45:46 christos Exp $ */
+X/*
+X * pathnames.h: Location of things to find
+X */
+X/*-
+X * Copyright (c) 1980, 1991 The Regents of the University of California.
+X * All rights reserved.
+X *
+X * Redistribution and use in source and binary forms, with or without
+X * modification, are permitted provided that the following conditions
+X * are met:
+X * 1. Redistributions of source code must retain the above copyright
+X *    notice, this list of conditions and the following disclaimer.
+X * 2. Redistributions in binary form must reproduce the above copyright
+X *    notice, this list of conditions and the following disclaimer in the
+X *    documentation and/or other materials provided with the distribution.
+X * 3. All advertising materials mentioning features or use of this software
+X *    must display the following acknowledgement:
+X *	This product includes software developed by the University of
+X *	California, Berkeley and its contributors.
+X * 4. Neither the name of the University nor the names of its contributors
+X *    may be used to endorse or promote products derived from this software
+X *    without specific prior written permission.
+X *
+X * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+X * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+X * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+X * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+X * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+X * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+X * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+X * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+X * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+X * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+X * SUCH DAMAGE.
+X */
+X#ifndef _h_pathnames
+X#define _h_pathnames
+X
+X#ifdef CMUCS
+X#define _PATH_LOCAL		"/usr/cs/bin"
+X#else
+X#define _PATH_LOCAL		"/usr/local/bin"
+X#endif
+X
+X#define _PATH_USRBIN		"/usr/bin"
+X#define _PATH_USRUCB		"/usr/ucb"
+X#define _PATH_USRBSD		"/usr/bsd"
+X#define _PATH_BIN		"/bin"
+X
+X#if defined(convex) || defined(__convex__) || defined(stellar)
+X# define _PATH_DOTLOGIN		"/etc/login"
+X# define _PATH_DOTLOGOUT	"/etc/logout"
+X# define _PATH_DOTCSHRC		"/etc/cshrc"
+X#endif /* convex || __convex__ || stellar */
+X
+X#if defined(sgi) || defined(OREO) || defined(cray)
+X# define _PATH_DOTLOGIN		"/etc/cshrc"
+X#endif /* sgi || OREO || cray */
+X
+X#if defined(NeXT)
+X# define _PATH_DOTLOGIN		"/etc/login.std"
+X# define _PATH_DOTLOGOUT	"/etc/logout.std"
+X# define _PATH_DOTCSHRC		"/etc/cshrc.std"
+X#endif /* NeXT */
+X
+X#ifndef _PATH_DOTLOGIN
+X# define _PATH_DOTCSHRC		"/etc/csh.cshrc"
+X# define _PATH_DOTLOGIN		"/etc/csh.login"
+X# define _PATH_DOTLOGOUT	"/etc/csh.logout"
+X#endif
+X
+X#define _PATH_DEVNULL		"/dev/null"
+X
+X#define _PATH_BSHELL		"/bin/sh"
+X#ifdef notdef
+X# define _PATH_CSHELL 		"/bin/csh"
+X#endif
+X#ifndef _PATH_TCSHELL
+X#define _PATH_TCSHELL		"/usr/local/bin/tcsh"
+X#endif
+X
+X#define _PATH_LOGIN		"/bin/login"
+X#ifdef NEWGRP
+X# define _PATH_BIN_NEWGRP	"/bin/newgrp"
+X# define _PATH_USRBIN_NEWGRP	"/usr/bin/newgrp"
+X#endif
+X
+X#endif /* _h_pathnames */
+END_OF_FILE
+if test 3304 -ne `wc -c <'pathnames.h'`; then
+    echo shar: \"'pathnames.h'\" unpacked with wrong size!
+fi
+# end of 'pathnames.h'
+fi
+if test -f 'tw.decls.h' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'tw.decls.h'\"
+else
+echo shar: Extracting \"'tw.decls.h'\" \(3346 characters\)
+sed "s/^X//" >'tw.decls.h' <<'END_OF_FILE'
+X/* $Header: /home/hyperion/mu/christos/src/sys/tcsh-6.01/RCS/tw.decls.h,v 3.0 1991/07/04 21:49:28 christos Exp $ */
+X/*
+X * tw.decls.h: Tenex external declarations
+X */
+X/*-
+X * Copyright (c) 1980, 1991 The Regents of the University of California.
+X * All rights reserved.
+X *
+X * Redistribution and use in source and binary forms, with or without
+X * modification, are permitted provided that the following conditions
+X * are met:
+X * 1. Redistributions of source code must retain the above copyright
+X *    notice, this list of conditions and the following disclaimer.
+X * 2. Redistributions in binary form must reproduce the above copyright
+X *    notice, this list of conditions and the following disclaimer in the
+X *    documentation and/or other materials provided with the distribution.
+X * 3. All advertising materials mentioning features or use of this software
+X *    must display the following acknowledgement:
+X *	This product includes software developed by the University of
+X *	California, Berkeley and its contributors.
+X * 4. Neither the name of the University nor the names of its contributors
+X *    may be used to endorse or promote products derived from this software
+X *    without specific prior written permission.
+X *
+X * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+X * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+X * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+X * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+X * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+X * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+X * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+X * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+X * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+X * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+X * SUCH DAMAGE.
+X */
+X#ifndef _h_tw_decls
+X#define _h_tw_decls
+X
+X/*
+X * tw.help.c
+X */
+extern	void		  do_help		__P((Char *));
+X
+X/*
+X * tw.parse.c
+X */
+extern	 int		  tenematch		__P((Char *, int, int, 
+X						     COMMAND));
+extern	 int		  t_search		__P((Char *, Char *, COMMAND, 
+X						     int, int, int));
+extern	 int		  starting_a_command	__P((Char *, Char *));
+extern	 void		  copyn			__P((Char *, Char *, int));
+extern	 void		  catn			__P((Char *, Char *, int));
+extern	 int		  fcompare		__P((Char **, Char **));
+extern	 void		  print_by_column	__P((Char *, Char *[], int, 
+X						     int));
+extern	 int		  StrQcmp		__P((Char *, Char *));
+X
+X/*
+X * tw.init.c
+X */
+extern	 void	  	  tw_clear_comm_list	__P((void));
+extern	 void	  	  tw_sort_comms		__P((void));
+extern	 void	  	  tw_add_comm_name	__P((Char *));
+extern	 void	  	  tw_add_builtins	__P((void));
+extern	 void	  	  tw_add_aliases	__P((void));
+extern	 struct	varent	 *tw_start_shell_list	__P((void));
+extern	 Char	 	 *tw_next_shell_var	__P((struct varent **));
+extern	 Char		**tw_start_env_list	__P((void));
+extern	 Char	 	 *Getenv		__P((Char *));
+extern	 Char	 	 *tw_next_env_var	__P((Char ***));
+X
+X/*
+X * tw.spell.c
+X */
+extern	 int		  spell_me		__P((Char *, int, int));
+extern	 int		  spdir			__P((Char *, Char *, Char *, 
+X						     Char *));
+extern	 int		  spdist		__P((Char *, Char *));
+X
+X#endif				/* _h_tw_decls */
+END_OF_FILE
+if test 3346 -ne `wc -c <'tw.decls.h'`; then
+    echo shar: \"'tw.decls.h'\" unpacked with wrong size!
+fi
+# end of 'tw.decls.h'
+fi
+echo shar: End of archive 2 \(of 18\).
+cp /dev/null ark2isdone
+MISSING=""
+for I in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 ; do
+    if test ! -f ark${I}isdone ; then
+	MISSING="${MISSING} ${I}"
+    fi
+done
+if test "${MISSING}" = "" ; then
+    echo You have unpacked all 18 archives.
+    rm -f ark[1-9]isdone ark[1-9][0-9]isdone
+else
+    echo You still need to unpack the following archives:
+    echo "        " ${MISSING}
+fi
+##  End of shell archive.
+exit 0

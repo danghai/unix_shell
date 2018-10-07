@@ -1,0 +1,1057 @@
+From: how%milhow1@uunet.uu.net (Mike Howard)
+Newsgroups: comp.sources.unix
+Subject: v28i203: simple_menu-3.1 - a simple shell-level menu system, V3.1->V3.2, Patch02
+Date: 22 Nov 1994 01:10:07 -0800
+Organization: Vixie Enterprises
+Sender: vixie@vix.com
+Approved: vixie@gw.home.vix.com
+Message-ID: <3aschf$sbo@gw.home.vix.com>
+
+Submitted-By: how%milhow1@uunet.uu.net (Mike Howard)
+Posting-Number: Volume 28, Issue 203
+Archive-Name: simple_menu-3.1/patch02
+
+This is part 2 of 3 patches which take simple_menu-3.1 to simple_menu-3.2.
+All changes relate to compilation problems encountered on various systems.
+
+You need to unshar this with patch01 and patch03 and then read "Instructions".
+
+#! /bin/sh
+# This is a shell archive.  Remove anything before this line, then unpack
+# it by saving it into a file and typing "sh file".  To overwrite existing
+# files, type "sh file -c".  You can also feed this as standard input via
+# unshar, or by typing "sh <file", e.g..  If this archive is complete, you
+# will see the following message at the end:
+#		"End of archive 2 (of 3)."
+# Contents:  patches.ac
+# Wrapped by mike@clove2 on Thu Nov 17 12:40:36 1994
+PATH=/bin:/usr/bin:/usr/ucb ; export PATH
+if test -f 'patches.ac' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'patches.ac'\"
+else
+echo shar: Extracting \"'patches.ac'\" \(25687 characters\)
+sed "s/^X//" >'patches.ac' <<'END_OF_FILE'
+X  
+X! VOID_TYPE
+X! yyerror(s)
+X  char *s;
+X  {
+X    printf("%s - around line %d\n", s, line_number);
+X  }
+X--- 1519,1541 ----
+X    return cp;
+X  }
+X  
+X! #if defined(__STDC__) || defined(__cplusplus)
+X! VOID_TYPE Free(char *ptr)
+X! #else
+X! VOID_TYPE Free(ptr)
+X       char *ptr;
+X+ #endif
+X  {
+X    if (ptr)
+X      free(ptr);
+X  }
+X  
+X! #if defined(__STDC__) || defined(__cplusplus)
+X! VOID_TYPE yyerror(char *s)
+X! #else
+X! VOID_TYPE yyerror(s)
+X  char *s;
+X+ #endif
+X  {
+X    printf("%s - around line %d\n", s, line_number);
+X  }
+X***************
+X*** 1438,1447 ****
+X  #define do_indent(x)  { int y=x;while (y-->0)putchar(' '); }
+X  #define if_indent(x)  if (x)do_indent(2)
+X  
+X! VOID_TYPE
+X! prt_item(item_ptr, action_list_idx)
+X       struct item *item_ptr;
+X       int action_list_idx;
+X  {
+X    struct parm *p_ptr;
+X    struct ev_var_val *evv_ptr;
+X--- 1543,1555 ----
+X  #define do_indent(x)  { int y=x;while (y-->0)putchar(' '); }
+X  #define if_indent(x)  if (x)do_indent(2)
+X  
+X! #if defined(__STDC__) || defined(__cplusplus)
+X! VOID_TYPE prt_item(struct item *item_ptr, int action_list_idx)
+X! #else
+X! VOID_TYPE prt_item(item_ptr, action_list_idx)
+X       struct item *item_ptr;
+X       int action_list_idx;
+X+ #endif
+X  {
+X    struct parm *p_ptr;
+X    struct ev_var_val *evv_ptr;
+X***************
+X*** 1560,1569 ****
+X    }
+X  }
+X  
+X! VOID_TYPE
+X! prt_prompt_string(p_ptr, action_list_idx)
+X  struct prompt_string *p_ptr;
+X  int action_list_idx;
+X  {
+X    if (!p_ptr)
+X      {
+X--- 1668,1680 ----
+X    }
+X  }
+X  
+X! #if defined(__STDC__) || defined(__cplusplus)
+X! VOID_TYPE prt_prompt_string(struct prompt_string *p_ptr, int action_list_idx)
+X! #else
+X! VOID_TYPE prt_prompt_string(p_ptr, action_list_idx)
+X  struct prompt_string *p_ptr;
+X  int action_list_idx;
+X+ #endif
+X  {
+X    if (!p_ptr)
+X      {
+X***************
+X*** 1598,1606 ****
+X    putchar('\n');
+X  }
+X  
+X! prt_command(cmd, action_list_idx)
+X  char *cmd;
+X  int action_list_idx;
+X  {
+X    int indent;  /* this is not necessary the way the code is written.
+X  		  it is a creaping feature because I may put in some
+X--- 1709,1721 ----
+X    putchar('\n');
+X  }
+X  
+X! #if defined(__STDC__) || defined(__cplusplus)
+X! VOID_TYPE prt_command(char *cmd, int action_list_idx)
+X! #else
+X! VOID_TYPE prt_command(cmd, action_list_idx)
+X  char *cmd;
+X  int action_list_idx;
+X+ #endif
+X  {
+X    int indent;  /* this is not necessary the way the code is written.
+X  		  it is a creaping feature because I may put in some
+X***************
+X*** 1630,1639 ****
+X    printf("%%)\n");
+X  }
+X  
+X! VOID_TYPE
+X! prt_evv_ptr(evv_ptr, action_list_idx)
+X  struct ev_var_val *evv_ptr;
+X  int action_list_idx;
+X  {
+X    if_indent(action_list_idx);
+X    switch (evv_ptr->flag) {
+X--- 1745,1757 ----
+X    printf("%%)\n");
+X  }
+X  
+X! #if defined(__STDC__) || defined(__cplusplus)
+X! VOID_TYPE prt_evv_ptr(struct ev_var_val *evv_ptr, int action_list_idx)
+X! #else
+X! VOID_TYPE prt_evv_ptr(evv_ptr, action_list_idx)
+X  struct ev_var_val *evv_ptr;
+X  int action_list_idx;
+X+ #endif
+X  {
+X    if_indent(action_list_idx);
+X    switch (evv_ptr->flag) {
+X***************
+X*** 1660,1668 ****
+X    }
+X  }
+X  
+X! VOID_TYPE
+X! simple_menu_exit(code)
+X       int code;
+X  {
+X    close_terminal();
+X  
+X--- 1778,1789 ----
+X    }
+X  }
+X  
+X! #if defined(__STDC__) || defined(__cplusplus)
+X! VOID_TYPE simple_menu_exit(int code)
+X! #else
+X! VOID_TYPE simple_menu_exit(code)
+X       int code;
+X+ #endif
+X  {
+X    close_terminal();
+X  
+X*** Release-3.1/common_src/port.c	Wed Sep 21 14:20:45 1994
+X--- Release-3.2/common_src/port.c	Tue Oct 18 12:24:04 1994
+X***************
+X*** 1,10 ****
+X  /*
+X!   $Id: port.c,v 3.1 1994/01/27 20:36:00 mike Exp $
+X    $Author: mike $
+X!   $Date: 1994/01/27 20:36:00 $
+X    $Log: port.c,v $
+X!  * Revision 3.1  1994/01/27  20:36:00  mike
+X!  * removed conditioning on HAVE_TEMPNAM when creating prototypes.h
+X   *
+X   * Revision 3.1  1994/01/27  20:36:00  mike
+X   * removed conditioning on HAVE_TEMPNAM when creating prototypes.h
+X--- 1,10 ----
+X  /*
+X!   $Id: port.c,v 3.2 1994/10/18 16:24:00 mike Exp $
+X    $Author: mike $
+X!   $Date: 1994/10/18 16:24:00 $
+X    $Log: port.c,v $
+X!  * Revision 3.2  1994/10/18  16:24:00  mike
+X!  * added conditionals for various compilers
+X   *
+X   * Revision 3.1  1994/01/27  20:36:00  mike
+X   * removed conditioning on HAVE_TEMPNAM when creating prototypes.h
+X***************
+X*** 45,53 ****
+X  # define S_IRWXO  0000007
+X  #endif
+X  
+X! static int
+X! bad_dir(path)
+X  char *path;
+X  {
+X    struct stat stat_buf;
+X  
+X--- 45,56 ----
+X  # define S_IRWXO  0000007
+X  #endif
+X  
+X! #if defined(__STDC__) || defined(__cplusplus)
+X! static int bad_dir(char *path)
+X! #else
+X! static int bad_dir(path)
+X  char *path;
+X+ #endif
+X  {
+X    struct stat stat_buf;
+X  
+X***************
+X*** 64,72 ****
+X    return (stat_buf.st_mode & S_IRWXO) == S_IRWXO ? 0 : 1;
+X  }
+X  
+X! static int
+X! inc_fname(fname)
+X  char *fname;
+X  {
+X    char *cp = fname + 5;
+X  
+X--- 67,78 ----
+X    return (stat_buf.st_mode & S_IRWXO) == S_IRWXO ? 0 : 1;
+X  }
+X  
+X! #if defined(__STDC__) || defined(__cplusplus)
+X! static int inc_fname(char *fname)
+X! #else
+X! static int inc_fname(fname)
+X  char *fname;
+X+ #endif
+X  {
+X    char *cp = fname + 5;
+X  
+X***************
+X*** 78,87 ****
+X    return -1;
+X  }
+X  
+X! char *
+X! tempnam(dir, prf)
+X  char *dir;
+X  char *prf;
+X  {
+X    int   fd;
+X    char *getenv();
+X--- 84,96 ----
+X    return -1;
+X  }
+X  
+X! #if defined(__STDC__) || defined(__cplusplus)
+X! char *tempnam(char *dir, char *prf)
+X! #else
+X! char *tempnam(dir, prf)
+X  char *dir;
+X  char *prf;
+X+ #endif
+X  {
+X    int   fd;
+X    char *getenv();
+X*** Release-3.1/common_src/generic_dsp.c	Wed Sep 21 14:19:02 1994
+X--- Release-3.2/common_src/generic_dsp.c	Thu Oct 20 17:32:38 1994
+X***************
+X*** 2,11 ****
+X    this is a stubs file, used only to generate prototypes.h and to
+X    define the functions needed to support a new display
+X  
+X!   $Id: generic_dsp.c,v 3.1 1994/09/21 18:18:46 mike Exp $
+X    $Author: mike $
+X!   $Date: 1994/09/21 18:18:46 $
+X    $Log: generic_dsp.c,v $
+X   * Revision 3.1  1994/09/21  18:18:46  mike
+X   * added hooks for multi-page menus
+X   *
+X--- 2,14 ----
+X    this is a stubs file, used only to generate prototypes.h and to
+X    define the functions needed to support a new display
+X  
+X!   $Id: generic_dsp.c,v 3.2 1994/10/18 16:22:57 mike Exp mike $
+X    $Author: mike $
+X!   $Date: 1994/10/18 16:22:57 $
+X    $Log: generic_dsp.c,v $
+X+  * Revision 3.2  1994/10/18  16:22:57  mike
+X+  * added conditionals for various compilers
+X+  *
+X   * Revision 3.1  1994/09/21  18:18:46  mike
+X   * added hooks for multi-page menus
+X   *
+X***************
+X*** 68,157 ****
+X  
+X  /* terminal handling */
+X  
+X! VOID_TYPE
+X! init_terminal()
+X  {
+X  }
+X  
+X! VOID_TYPE
+X! prepare_for_subshell()
+X  {
+X  }
+X  
+X! VOID_TYPE
+X! return_from_subshell()
+X  {
+X  }
+X  
+X! VOID_TYPE
+X! close_terminal()
+X  {
+X  }
+X  
+X  /* menu handling */
+X  
+X! VOID_TYPE
+X! init_menu(menu_ptr)
+X  struct menu *menu_ptr;
+X  {
+X  }
+X  
+X! VOID_TYPE
+X! close_menu(menu_ptr)
+X  struct menu *menu_ptr;
+X  {
+X  }
+X  
+X! VOID_TYPE
+X! display_menu()
+X  {
+X  }
+X  
+X! VOID_TYPE
+X! re_paginate_menu()
+X  {
+X  }
+X  
+X! VOID_TYPE
+X! change_menu_page_next()
+X  {
+X  }
+X  
+X! VOID_TYPE
+X! change_menu_page_previous()
+X  {
+X  }
+X  
+X! int
+X! get_user_rsp()
+X  {
+X  }
+X  
+X! char *
+X! get_variable_value(prompt, deflt)
+X  char *prompt;
+X  char *deflt;
+X  {
+X  }
+X  
+X! VOID_TYPE
+X! do_pause(flag)
+X  int flag;
+X  {
+X  }
+X  
+X! VOID_TYPE
+X! display_msg(text)
+X  char *text;
+X  {
+X  }
+X  
+X! VOID_TYPE
+X! undisplay_msg()
+X  {
+X  }
+X  
+X! VOID_TYPE
+X! beep()
+X  {
+X  }
+X--- 71,165 ----
+X  
+X  /* terminal handling */
+X  
+X! VOID_TYPE init_terminal()
+X! 
+X  {
+X  }
+X  
+X! VOID_TYPE prepare_for_subshell()
+X  {
+X  }
+X  
+X! VOID_TYPE return_from_subshell()
+X  {
+X  }
+X  
+X! VOID_TYPE close_terminal()
+X  {
+X  }
+X  
+X  /* menu handling */
+X  
+X! #if defined(__STDC__) || defined(__cplusplus)
+X! VOID_TYPE init_menu(struct menu *menu_ptr)
+X! #else
+X! VOID_TYPE init_menu(menu_ptr)
+X  struct menu *menu_ptr;
+X+ #endif
+X  {
+X  }
+X  
+X! #if defined(__STDC__) || defined(__cplusplus)
+X! VOID_TYPE close_menu(struct menu *menu_ptr)
+X! #else
+X! VOID_TYPE close_menu(menu_ptr)
+X  struct menu *menu_ptr;
+X+ #endif
+X  {
+X  }
+X  
+X! VOID_TYPE display_menu()
+X  {
+X  }
+X  
+X! VOID_TYPE re_paginate_menu()
+X  {
+X  }
+X  
+X! VOID_TYPE change_menu_page_next()
+X  {
+X  }
+X  
+X! VOID_TYPE change_menu_page_previous()
+X  {
+X  }
+X  
+X! int get_user_rsp()
+X  {
+X  }
+X  
+X! #if defined(__STDC__) || defined(__cplusplus)
+X! char *get_variable_value(char *prompt, char *deflt)
+X! #else
+X! char *get_variable_value(prompt, deflt)
+X  char *prompt;
+X  char *deflt;
+X+ #endif
+X  {
+X  }
+X  
+X! #if defined(__STDC__) || defined(__cplusplus)
+X! VOID_TYPE do_pause(int flag)
+X! #else
+X! VOID_TYPE do_pause(flag)
+X  int flag;
+X+ #endif
+X  {
+X  }
+X  
+X! #if defined(__STDC__) || defined(__cplusplus)
+X! VOID_TYPE display_msg(char *text)
+X! #else
+X! VOID_TYPE display_msg(text)
+X  char *text;
+X+ #endif
+X  {
+X  }
+X  
+X! VOID_TYPE undisplay_msg()
+X  {
+X  }
+X  
+X! VOID_TYPE do_beep()
+X  {
+X  }
+X*** Release-3.1/common_src/Makefile.in	Wed Sep 28 06:55:54 1994
+X--- Release-3.2/common_src/Makefile.in	Tue Nov  8 08:54:08 1994
+X***************
+X*** 36,42 ****
+X  #  common_src - bottom of Makefile
+X  
+X  incldir = @srcdir@/../incl
+X! CFLAGS = -g -I$(incldir)
+X  YFLAGS = -d
+X  
+X  SRCS = scanner.c grammar.y simple_menu.c port.c
+X--- 36,42 ----
+X  #  common_src - bottom of Makefile
+X  
+X  incldir = @srcdir@/../incl
+X! CFLAGS = -I$(incldir) @copts@
+X  YFLAGS = -d
+X  
+X  SRCS = scanner.c grammar.y simple_menu.c port.c
+X*** Release-3.1/doc/s_menu.texiaa	Wed Sep 28 06:55:39 1994
+X--- Release-3.2/doc/s_menu.texiaa	Tue Nov  8 08:53:54 1994
+X***************
+X*** 79,84 ****
+X--- 79,85 ----
+X  * Variables::            Various Variables
+X  * Invoking Simple_Menu:: How to run the interpreter
+X  * How Scripts are Run::  Details of how Shell scripts are executed
+X+ * Debugging::            How I debug scripts
+X  * Syntactic Details::    Various details of syntax
+X  * Concept Index::        Index to concepts
+X  * Copying Conditions::   Text of GNU Public License
+X***************
+X*** 566,569 ****
+X  ;
+X  @end example
+X  
+X- An older syntax is still supported for backward compatibility.  This
+X--- 567,569 ----
+X*** Release-3.1/doc/s_menu.texiab	Wed Sep 28 06:55:39 1994
+X--- Release-3.2/doc/s_menu.texiab	Tue Nov  8 08:53:54 1994
+X***************
+X*** 1,3 ****
+X--- 1,4 ----
+X+ An older syntax is still supported for backward compatibility.  This
+X  syntax assumes that the prelude will consist of a single shell script.
+X  In this case, the keyword @code{shell} may be omitted from the single
+X  shell action.  This syntax will probably be dropped in version 4.
+X***************
+X*** 492,498 ****
+X  compile time.
+X  @end itemize
+X  
+X! @node How Scripts are Run, Syntactic Details, Invoking Simple_Menu, Top
+X  @comment  node-name,  next,  previous,  up
+X  
+X  @chapter How Scripts are Run
+X--- 493,499 ----
+X  compile time.
+X  @end itemize
+X  
+X! @node How Scripts are Run, Debugging, Invoking Simple_Menu, Top
+X  @comment  node-name,  next,  previous,  up
+X  
+X  @chapter How Scripts are Run
+X***************
+X*** 532,535 ****
+X  
+X  Note: this execution model was designed for terminal operation.  The X
+X  Window System adds additional possibilities because additional virtual
+X- terminals can be spawned to run processes.  There is no direct support
+X--- 533,535 ----
+X*** Release-3.1/doc/s_menu.texiac	Wed Sep 28 06:55:39 1994
+X--- Release-3.2/doc/s_menu.texiac	Tue Nov  8 08:53:54 1994
+X***************
+X*** 1,3 ****
+X--- 1,4 ----
+X+ terminals can be spawned to run processes.  There is no direct support
+X  for this at present, but it can be hacked by scripts such as:
+X  
+X  @example
+X***************
+X*** 26,32 ****
+X  SCO Xenix].  Anyway, there are quite a few possibilities and room for
+X  support, rather than 'allowance'.
+X  
+X! @node Syntactic Details, Concept Index, How Scripts are Run, Top
+X  @comment  node-name,  next,  previous,  up
+X  
+X  @chapter Syntactic Details
+X--- 27,149 ----
+X  SCO Xenix].  Anyway, there are quite a few possibilities and room for
+X  support, rather than 'allowance'.
+X  
+X! @node Debugging, Syntactic Details, How Scripts are Run, Top
+X! @comment  node-name,  next,  previous,  up
+X! 
+X! @chapter Debugging
+X! @cindex Debugging Menu Definition File Syntax
+X! 
+X! Admittedly, @code{simple_menu}'s debugging features are minimal.  Some
+X! might say, with some justification, abysmal.  In spite of this, I spend
+X! almost no time debugging scripts, so I think that, properly used, the
+X! debugging features supplied are (at least barely) adequate.  [One of the
+X! top priorities for future work on this package is to implement some
+X! reasonable error handling.  If the package develops a following, I'll
+X! probably do this, else not.]
+X! 
+X! First of all, menu scripts are not like programs.  Typically, there is
+X! no real advantage in going through a lengthy design phase.  The goals
+X! are always the same: present a set of choices to users which allow them
+X! to run a fixed set of parameterized scripts.  The structure of a user
+X! menu is always the same: a hierarchy of menus.  As a result, it is
+X! natural and normal to develop menu definitions incrementally.
+X! 
+X! Second, almost all of the work done on menu scripts is maintenance.  We
+X! normally have to add features, remove features, and reorganize the menu
+X! structure.  These actions are usually in response to single requests, so
+X! again, we are involved in incremental modifications.
+X! 
+X! As an aside, menu reorganization rarely leads to errors if it is done
+X! by cutting and pasting.  This was one of my motivations for writing
+X! @code{simple_menu} in the first place.
+X! 
+X! @code{simple_menu} debugging support consists of a debugging mode with
+X! varying amounts of output.  The debugging mode parses the menu
+X! definition file and then prints out the structure so that you can see
+X! what it understood and also displays the menu and submenus the user will
+X! see.  Up to 3 levels of debugging detail are supported.  Practically
+X! speaking, the first level is only moderately useful after you are used
+X! to the software, the second level was a mistake because it is
+X! insufficient to locate errors, and the third level is too verbose to be
+X! comfortable, but is sufficient to find and correct errors.
+X! 
+X! The following sections expand the process of finding and correcting an
+X! error in the menu in ./samples/bad.menu.
+X! 
+X! @section Finding an Error
+X! 
+X! @code{simple_menu} announces errors in a cryptic, uninformative way, by
+X! stopping at the first syntax error it finds and printing out a message.
+X! For example:
+X! 
+X! @example
+X! bash$ simple_menu ./bad.menu
+X! parse error - around line 0
+X! usage: simple_menu [3.3] [-h | option(s)] [menu-file | -]
+X! Parse Error
+X! @end example
+X! 
+X! The next step is to run in debugging mode.
+X! 
+X! @section Diagnosing an Error
+X! 
+X! The lowest level of debugging adds nothing, so it is just as well to
+X! skip it.  Here is an example:
+X! 
+X! @example
+X! bash$ simple_menu -D ./bad.menu
+X! parse error - around line 0
+X! usage: simple_menu [3.3] [-h | option(s)] [menu-file | -]
+X! Parse Error
+X! @end example
+X! 
+X! The Second level of debugging provides more information, but is
+X! insufficient to be useful:
+X! 
+X! @example
+X! bash$ simple_menu -DD ./bad.menu
+X! 
+X! Menu MAIN Title ''
+X! parse error - around line 0
+X! usage: simple_menu [3.3] [-h | option(s)] [menu-file | -]
+X! Parse Error
+X! @end example
+X! 
+X! The third level is usually too voluminous, so I usually only clip out
+X! the last few lines.  These are usually sufficient to identify and fix
+X! the bug.
+X! 
+X! @example
+X! bash$ simple_menu -DDD ./bad.menu
+X! scanner: line 0: token: title matches title
+X! scanner: line 0 - found Text-String
+X! 'A Menu with Bugs'
+X! scanner: line 0 - returning =
+X! 
+X! Menu MAIN Title ''
+X! parse error - around line 0
+X! usage: simple_menu [3.3] [-h | option(s)] [menu-file | -]
+X! Parse Error
+X! @end example
+X! 
+X! The key is that the last token the scanner routine returned was
+X! @code{=}.  This caused the parser to get sick somewhere around line 0.
+X! Examining the menu definition file, reveals a syntax error after in the
+X! @code{title} statement prompt string.  The title statement prompt string
+X! must consist of a sequence of Text and Variable names connected by the
+X! symbols @code{|}, @code{+}, or @code{+n}.
+X! 
+X! @example
+X! title 'A Menu with Bugs' ==
+X! 
+X! bold clear
+X! 
+X! shell 'bafo'
+X! %( echo barf %)
+X! ;
+X! @end example
+X! 
+X! @node Syntactic Details, Concept Index, Debugging, Top
+X  @comment  node-name,  next,  previous,  up
+X  
+X  @chapter Syntactic Details
+X*** Release-3.1/doc/s_menu.msab	Wed Sep 28 06:55:38 1994
+X--- Release-3.2/doc/s_menu.msab	Tue Nov  8 08:53:53 1994
+X***************
+X*** 543,605 ****
+X  .PP
+X  .PP
+X  .bp
+X! .ds __ Syntactic\ Details
+X  .NH 1
+X  \&\*(__ 
+X  .XS 
+X  \&\n(H1	\*(__ 
+X  .XE
+X  \&\fR
+X! .iX "c Syntactic Details"
+X  .PP
+X! This section gets into various uglinesses of syntax.
+X! .PP
+X! .PP
+X! .PP
+X! .ds __ Names
+X! .NH 2
+X! \&\*(__ 
+X! .XS 
+X! \&\n(H1.\n(H2      \*(__ 
+X! .XE
+X! \&\fR
+X! .iX "c The Syntax of Variable and Menu Names"
+X! .PP
+X! Names consist of characters from the set: [ A-Z a-z 0-9 _ ].  Within the
+X! Menu Definition File Names are recognized by being enclosed in
+X! double quote marks: \fR\&\f(CW"FOO"\fR, \fR\&\f(CW"FROG_MENU_1"\fR, \fR\&\f(CW"PARM"\fR.
+X! .PP
+X! Names are used within the Menu Definition File to refer to
+X! .PP
+X! .IP \(bu\ \ 
+X! Menus
+X! .IP \(bu\ \ 
+X! Global Variables
+X! .IP \(bu\ \ 
+X! Shell Item Parameters
+X! .PP
+X! .PP
+X! .ds __ Text\ Strings
+X! .NH 2
+X! \&\*(__ 
+X! .XS 
+X! \&\n(H1.\n(H2      \*(__ 
+X! .XE
+X! \&\fR
+X! .iX "c The Syntax of static Text Strings"
+X! .PP
+X! \&\fIText strings\fR are used to define static text within the Menu
+X! Definition File.  Text strings can consist of any characters
+X! whatsoever and may be written in one of two different ways.  The syntax
+X! used is more stylistic than inherent.
+X! .PP
+X! Text Style 1: Text is enclosed in single quote marks.  The single
+X! quote mark may be included by doubling it.  This is the old FORTRAN
+X! style literal text and is convenient for menu titles, parameter prompts,
+X! and etc.
+X! .PP
+X! Text Style 2: Text is enclosed in matching \fR\&\f(CW%(\fR and \fR\&\f(CW%)\fR
+X! symbols.  This style is convenient for writing shell scripts, where the
+X! single quote mark is used extensively, making it painful to 'double' it.
+X! In this style, the only sequence which needs to be 'escaped' is the
+X! terminating \fR\&\f(CW%)\fR.  This can be done by prefixing it by a percent
+X--- 543,581 ----
+X  .PP
+X  .PP
+X  .bp
+X! .ds __ Debugging
+X  .NH 1
+X  \&\*(__ 
+X  .XS 
+X  \&\n(H1	\*(__ 
+X  .XE
+X  \&\fR
+X! .iX "c Debugging Menu Definition File Syntax"
+X  .PP
+X! Admittedly, \fR\&\f(CWsimple_menu\fR's debugging features are minimal.  Some
+X! might say, with some justification, abysmal.  In spite of this, I spend
+X! almost no time debugging scripts, so I think that, properly used, the
+X! debugging features supplied are (at least barely) adequate.  [One of the
+X! top priorities for future work on this package is to implement some
+X! reasonable error handling.  If the package develops a following, I'll
+X! probably do this, else not.]
+X! .PP
+X! First of all, menu scripts are not like programs.  Typically, there is
+X! no real advantage in going through a lengthy design phase.  The goals
+X! are always the same: present a set of choices to users which allow them
+X! to run a fixed set of parameterized scripts.  The structure of a user
+X! menu is always the same: a hierarchy of menus.  As a result, it is
+X! natural and normal to develop menu definitions incrementally.
+X! .PP
+X! Second, almost all of the work done on menu scripts is maintenance.  We
+X! normally have to add features, remove features, and reorganize the menu
+X! structure.  These actions are usually in response to single requests, so
+X! again, we are involved in incremental modifications.
+X! .PP
+X! As an aside, menu reorganization rarely leads to errors if it is done
+X! by cutting and pasting.  This was one of my motivations for writing
+X! \&\fR\&\f(CWsimple_menu\fR in the first place.
+X! .PP
+X! \&\fR\&\f(CWsimple_menu\fR debugging support consists of a debugging mode with
+X! varying amounts of output.  The debugging mode parses the menu
+X! definition file and then prints out the structure so that you can see
+X*** Release-3.1/doc/s_menu.msac	Wed Sep 28 06:55:38 1994
+X--- Release-3.2/doc/s_menu.msac	Tue Nov  8 08:53:53 1994
+X***************
+X*** 1,3 ****
+X--- 1,170 ----
+X+ what it understood and also displays the menu and submenus the user will
+X+ see.  Up to 3 levels of debugging detail are supported.  Practically
+X+ speaking, the first level is only moderately useful after you are used
+X+ to the software, the second level was a mistake because it is
+X+ insufficient to locate errors, and the third level is too verbose to be
+X+ comfortable, but is sufficient to find and correct errors.
+X+ .PP
+X+ The following sections expand the process of finding and correcting an
+X+ error in the menu in ./samples/bad.menu.
+X+ .PP
+X+ .ds __ Finding\ an\ Error
+X+ .NH 2
+X+ \&\*(__ 
+X+ .XS 
+X+ \&\n(H1.\n(H2      \*(__ 
+X+ .XE
+X+ \&\fR
+X+ .PP
+X+ \&\fR\&\f(CWsimple_menu\fR announces errors in a cryptic, uninformative way, by
+X+ stopping at the first syntax error it finds and printing out a message.
+X+ For example:
+X+ .PP
+X+ .ID
+X+ \&\fR\&\f(CW
+X+ bash$ simple_menu ./bad.menu
+X+ parse error - around line 0
+X+ usage: simple_menu [3.3] [-h | option(s)] [menu-file | -]
+X+ Parse Error
+X+ .DE
+X+ \&\fR
+X+ .PP
+X+ The next step is to run in debugging mode.
+X+ .PP
+X+ .ds __ Diagnosing\ an\ Error
+X+ .NH 2
+X+ \&\*(__ 
+X+ .XS 
+X+ \&\n(H1.\n(H2      \*(__ 
+X+ .XE
+X+ \&\fR
+X+ .PP
+X+ The lowest level of debugging adds nothing, so it is just as well to
+X+ skip it.  Here is an example:
+X+ .PP
+X+ .ID
+X+ \&\fR\&\f(CW
+X+ bash$ simple_menu -D ./bad.menu
+X+ parse error - around line 0
+X+ usage: simple_menu [3.3] [-h | option(s)] [menu-file | -]
+X+ Parse Error
+X+ .DE
+X+ \&\fR
+X+ .PP
+X+ The Second level of debugging provides more information, but is
+X+ insufficient to be useful:
+X+ .PP
+X+ .ID
+X+ \&\fR\&\f(CW
+X+ bash$ simple_menu -DD ./bad.menu
+X+ \&\&
+X+ Menu MAIN Title ''
+X+ parse error - around line 0
+X+ usage: simple_menu [3.3] [-h | option(s)] [menu-file | -]
+X+ Parse Error
+X+ .DE
+X+ \&\fR
+X+ .PP
+X+ The third level is usually too voluminous, so I usually only clip out
+X+ the last few lines.  These are usually sufficient to identify and fix
+X+ the bug.
+X+ .PP
+X+ .ID
+X+ \&\fR\&\f(CW
+X+ bash$ simple_menu -DDD ./bad.menu
+X+ scanner: line 0: token: title matches title
+X+ scanner: line 0 - found Text-String
+X+ \&'A Menu with Bugs'
+X+ scanner: line 0 - returning =
+X+ \&\&
+X+ Menu MAIN Title ''
+X+ parse error - around line 0
+X+ usage: simple_menu [3.3] [-h | option(s)] [menu-file | -]
+X+ Parse Error
+X+ .DE
+X+ \&\fR
+X+ .PP
+X+ The key is that the last token the scanner routine returned was
+X+ \&\fR\&\f(CW=\fR.  This caused the parser to get sick somewhere around line 0.
+X+ Examining the menu definition file, reveals a syntax error after in the
+X+ \&\fR\&\f(CWtitle\fR statement prompt string.  The title statement prompt string
+X+ must consist of a sequence of Text and Variable names connected by the
+X+ symbols \fR\&\f(CW|\fR, \fR\&\f(CW+\fR, or \fR\&\f(CW+n\fR.
+X+ .PP
+X+ .ID
+X+ \&\fR\&\f(CW
+X+ title 'A Menu with Bugs' ==
+X+ \&\&
+X+ bold clear
+X+ \&\&
+X+ shell 'bafo'
+X+ %( echo barf %)
+X+ ;
+X+ .DE
+X+ \&\fR
+X+ .PP
+X+ .PP
+X+ .bp
+X+ .ds __ Syntactic\ Details
+X+ .NH 1
+X+ \&\*(__ 
+X+ .XS 
+X+ \&\n(H1	\*(__ 
+X+ .XE
+X+ \&\fR
+X+ .iX "c Syntactic Details"
+X+ .PP
+X+ This section gets into various uglinesses of syntax.
+X+ .PP
+X+ .PP
+X+ .PP
+X+ .ds __ Names
+X+ .NH 2
+X+ \&\*(__ 
+X+ .XS 
+X+ \&\n(H1.\n(H2      \*(__ 
+X+ .XE
+X+ \&\fR
+X+ .iX "c The Syntax of Variable and Menu Names"
+X+ .PP
+X+ Names consist of characters from the set: [ A-Z a-z 0-9 _ ].  Within the
+X+ Menu Definition File Names are recognized by being enclosed in
+X+ double quote marks: \fR\&\f(CW"FOO"\fR, \fR\&\f(CW"FROG_MENU_1"\fR, \fR\&\f(CW"PARM"\fR.
+X+ .PP
+X+ Names are used within the Menu Definition File to refer to
+X+ .PP
+X+ .IP \(bu\ \ 
+X+ Menus
+X+ .IP \(bu\ \ 
+X+ Global Variables
+X+ .IP \(bu\ \ 
+X+ Shell Item Parameters
+X+ .PP
+X+ .PP
+X+ .ds __ Text\ Strings
+X+ .NH 2
+X+ \&\*(__ 
+X+ .XS 
+X+ \&\n(H1.\n(H2      \*(__ 
+X+ .XE
+X+ \&\fR
+X+ .iX "c The Syntax of static Text Strings"
+X+ .PP
+X+ \&\fIText strings\fR are used to define static text within the Menu
+X+ Definition File.  Text strings can consist of any characters
+X+ whatsoever and may be written in one of two different ways.  The syntax
+X+ used is more stylistic than inherent.
+X+ .PP
+X+ Text Style 1: Text is enclosed in single quote marks.  The single
+X+ quote mark may be included by doubling it.  This is the old FORTRAN
+X+ style literal text and is convenient for menu titles, parameter prompts,
+X+ and etc.
+X+ .PP
+X+ Text Style 2: Text is enclosed in matching \fR\&\f(CW%(\fR and \fR\&\f(CW%)\fR
+X+ symbols.  This style is convenient for writing shell scripts, where the
+X+ single quote mark is used extensively, making it painful to 'double' it.
+X+ In this style, the only sequence which needs to be 'escaped' is the
+X+ terminating \fR\&\f(CW%)\fR.  This can be done by prefixing it by a percent
+X  sign, as in \fR\&\f(CW%%)\fR.  This escape feature makes it possible to write
+X  scripts which construct Menu Definition Files dynamically and feed them
+X  to \fBSimple_Menu\fR.  This sort of thing is useful in constructing
+X***************
+X*** 299,312 ****
+X  Special Values Variables;20
+X  How Shell Scripts are Run;24
+X  How Simple_Menu implements System Actions;24
+X! Syntactic Details;26
+X! The Syntax of Variable and Menu Names;26
+X! The Syntax of static Text Strings;26
+X! The Syntax of Prompt Strings;27
+X! The Syntax of Dynamic text Strings;27
+X! Execution Parms ;28
+X! Special Variables - in detail;28
+X! Menu Definition File Grammar;28
+X  .TE
+X  .PP
+X  .PP
+X--- 466,480 ----
+X  Special Values Variables;20
+X  How Shell Scripts are Run;24
+X  How Simple_Menu implements System Actions;24
+X! Debugging Menu Definition File Syntax;26
+X! Syntactic Details;29
+X! The Syntax of Variable and Menu Names;29
+X! The Syntax of static Text Strings;29
+X! The Syntax of Prompt Strings;30
+X! The Syntax of Dynamic text Strings;30
+X! Execution Parms ;31
+X! Special Variables - in detail;31
+X! Menu Definition File Grammar;31
+X  .TE
+X  .PP
+X  .PP
+END_OF_FILE
+if test 25687 -ne `wc -c <'patches.ac'`; then
+    echo shar: \"'patches.ac'\" unpacked with wrong size!
+fi
+# end of 'patches.ac'
+fi
+echo shar: End of archive 2 \(of 3\).
+cp /dev/null ark2isdone
+MISSING=""
+for I in 1 2 3 ; do
+    if test ! -f ark${I}isdone ; then
+	MISSING="${MISSING} ${I}"
+    fi
+done
+if test "${MISSING}" = "" ; then
+    echo You have unpacked all 3 archives.
+    rm -f ark[1-9]isdone
+else
+    echo You still need to unpack the following archives:
+    echo "        " ${MISSING}
+fi
+##  End of shell archive.
+exit 0
+

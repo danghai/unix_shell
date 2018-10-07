@@ -1,0 +1,132 @@
+Subject:  v21i030:  String function to do sed(1)/tr(1) manipulations, Part03/03
+Newsgroups: comp.sources.unix
+Approved: rsalz@uunet.UU.NET
+X-Checksum-Snefru: 797e8cf5 ef1397ef c5a1fd62 66276c18
+
+Submitted-by: Terry Jones <terry@pcsbst.pcs.com>
+Posting-number: Volume 21, Issue 30
+Archive-name: strsed/part03
+
+#!/bin/sh
+# this is part 3 of a multipart archive
+# do not concatenate these parts, unpack them in order with /bin/sh
+# file examples1 continued
+#
+CurArch=3
+if test ! -r s2_seq_.tmp
+then echo "Please unpack part 1 first!"
+     exit 1; fi
+( read Scheck
+  if test "$Scheck" != $CurArch
+  then echo "Please unpack part $Scheck next!"
+       exit 1;
+  else exit 0; fi
+) < s2_seq_.tmp || exit 1
+echo "x - Continuing file examples1"
+sed 's/^X//' << 'SHAR_EOF' >> examples1
+XThIs iS A TeSt lInEx
+Xhere is a line of text
+X/.//
+Xere is a line of text
+Xzap the last l in this sentence?
+X/l[^l]*/l/
+Xzap the ll in this sentence?
+Xzap the last l in this sentence?
+X/l[^l]*$/l/
+Xzap the last l
+Xfred\040is\0x20dead\32yes?
+Xg/\s/X/
+XfredXisXdeadXyes?
+Xfred\040is\0x20dead\32yes?
+X/.*/{\s}{\t}/
+Xfred	is	dead	yes?
+Xfred\011is\0x20dead\32yes?
+X/.*/{\0x9\s}{X\t}/
+XfredXis	dead	yes?
+Xcapitalise    first       letters of    words, preserving whitespace
+Xg/\([\t\s]*\)\(.\)\([a-z]*\)/\1\2{a-z}{A-Z}\3/
+XCapitalise    First       Letters Of    Words, Preserving Whitespace
+Xwont upcase
+X/.*/\0\1{a-z}{A-Z}/
+Xwont upcase
+Xupcase? nope, just X
+X/.*/X\1{a-z}{A-Z}/
+XX
+SHAR_EOF
+echo "File examples1 is complete"
+chmod 0644 examples1 || echo "restore of examples1 fails"
+set `wc -c examples1`;Sum=$1
+if test "$Sum" != "3096"
+then echo original size 3096, current size $Sum;fi
+echo "x - extracting examples2 (Text)"
+sed 's/^X//' << 'SHAR_EOF' > examples2 &&
+Xterry jones
+X/j../
+X6
+X9
+Xfred
+Xs/ed/
+X2
+X4
+Xdon't forget me oh no please don't forget me
+X/get.*get/
+X9
+X41
+Xdon't forget me oh no please don't forget me
+X/.*/
+X0
+X44
+Xhere is a line that we will not match with
+X/[0-9].*/
+X-1
+X-1
+Xhere is a line that we will match with
+X/[0-9]*/
+X0
+X0
+Xthis is a very silly line, a line for brucee who goes to buggery.
+Xg/[\s\t]*[^\s\t]*[\s\t]*[^\s\t]*[\s\t]*[^\s\t]*/
+X0
+X9
+Xanother very silly line, a line for brucee who goes to buggery.
+Xg/[\s\t]*[^\s\t]*[\s\t]*[^\s\t]*[\s\t]*[^\s\t]*$/
+X46
+X63
+Xthis will be tied to the front and so we'll miss
+X/^miss$/
+X-1
+X-1
+Xthis will not be tied to the front and so we'll hit
+X/hit$/
+X48
+X51
+SHAR_EOF
+chmod 0644 examples2 || echo "restore of examples2 fails"
+set `wc -c examples2`;Sum=$1
+if test "$Sum" != "632"
+then echo original size 632, current size $Sum;fi
+echo "x - extracting MANIFEST (Text)"
+sed 's/^X//' << 'SHAR_EOF' > MANIFEST &&
+X
+XThis shar comes with the following files...
+X
+XMakefile.................526
+XREADME...................2531
+Xcheck1.c.................775
+Xcheck2.c.................907
+Xexamples1................3096
+Xexamples2................632
+Xstrsed.3c................10496
+Xstrsed.c.................36464
+X
+XAnd this MANIFEST.
+X
+SHAR_EOF
+chmod 0644 MANIFEST || echo "restore of MANIFEST fails"
+set `wc -c MANIFEST`;Sum=$1
+if test "$Sum" != "305"
+then echo original size 305, current size $Sum;fi
+rm -f s2_seq_.tmp
+echo "You have unpacked the last part"
+exit 0
+

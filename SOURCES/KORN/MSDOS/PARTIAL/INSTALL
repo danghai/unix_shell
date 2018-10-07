@@ -1,0 +1,193 @@
+Shell Version 2.3	INSTALL				December 1994
+
+ MS-DOS SHELL - Copyright (c) 1990,4 Data Logic Limited and Charles Forsyth
+
+ This code is based on (in part) the shell program written by Charles
+ Forsyth and is subject to the following copyright restrictions:
+
+ 1.  Redistribution and use in source and binary forms are permitted
+     provided that the above copyright notice is duplicated in the
+     source form and the copyright notice in file sh6.c is displayed
+     on entry to the program.
+
+ 2.  The sources (or parts thereof) or objects generated from the
+     sources (or parts of sources) cannot be sold under any circumstances.
+
+    $Header: /usr/users/istewart/shell/sh2.3/Release/RCS/Install,v 2.3 1994/08/25 20:58:47 istewart Exp $
+
+    $Log: Install,v $
+	Revision 2.3  1994/08/25  20:58:47  istewart
+	MS Shell 2.3 Release
+
+	Revision 2.2  1993/12/03  13:32:52  istewart
+	Release 2.2
+
+	Revision 2.1  1992/12/14  11:13:55  istewart
+	BETA 215 Fixes and 2.1 Release
+
+	Revision 2.0  1992/04/13  17:40:33  Ian_Stewartson
+	MS-Shell 2.0 Baseline release
+
+
+	
+________________________________________________________________________________
+
+To rebuild and install the shell, you should follow the following the steps:
+
+1)  If you have the binary only version, skip steps 2 through 4.
+
+2)  Load the include files in the include directory into the standard location
+    (\msc\include or equivalent).  Read CHANGES file for the additional
+    definitions which are required in the standard Microsoft C5 & C6 include
+    files and edit them in to the appropriate files.
+
+    We have standardised our MSDOS and Unix include files such that the same
+    include file exists our Unix system and MSDOS systems.  This makes porting
+    a lot easier.  If you don't want to edit the standard include files, you
+    will have to generate an new include file for the shell and include it as
+    the first include in all the C sources for the additional library functions
+    and the Shell itself
+
+3)  Modify the library function open so that the O_NOINHERIT flag is passed to
+    MSDOS by the library.  This is not strictly necessary.  I did it using
+    CodeView to see where the library function masks the bottom three bits,
+    noted the bytes around this location, extracted the open function from the
+    library, patched the mask to be 0x83 instead of 0x03, and then replaced
+    the function in the library (Also see the Patch.Lib file).
+
+4)  Build the shell, either using make or
+
+    For MSDOS (using Microsoft C5.1 or 6).  Look at the makefile for the
+    flags to other compilers:
+
+	cl -c -AL -Olt sh*.c
+	masm /Ml sh0.asm
+	link sh0+sh1+sh2+sh3+sh4+sh5+sh6+sh7+sh8+sh9+sh10+sh11+sh12+sh13/noi/noe/stack:0x8000, shdos16.exe;
+
+	Note that the order is important.  SH0.OBJ must be the first object
+	file in the load line.
+    
+    For OS/2 (using Microsoft C6).  Look at the makefile for the flags to
+    other compilers:
+
+	cl -o shos216 -AL -Olt -DOS2 sh*.c sh.def -F 8000
+
+5)  Install the shell executable in its correct location.  The executable is
+    either shdos16.exe or shdos32.exe (for MSDOS 3 to 6), shos216.exe (for
+    OS/2 1.x.), or shos216.exe or shos232.exe (for OS/2 2.x.), shemx.exe
+    (if you have the EMX run-time environment on OS/2 2.x), shnt.exe 
+    (Windows NT).  Copy this file to sh.exe in the correct directory.  If
+    you don't change the name, or change the name to something else, you
+    must also change the name of sh.ini to the same name.  For example:
+    shdos.exe is matched with shdos.ini and sh210.exe is matched with
+    sh210.ini.
+
+    If you use shemx.exe, you will need the EMX run-time environment
+    (emxrt) installed.
+
+    Read the Notes file to see if there are any know problems with a
+    particular environment.
+
+6)  Modify the initialisation file sh.ini for your edit key preferences.
+    The shell does the appropriate binding to VI and EMACS editing commands
+    for those command line edit modes (however, you can also change the
+    EMACS bindings using the bind command - see manual page) and install it
+    in the same directory as the executable, with the same name (different
+    extension).
+
+7)  Modify the scripts as appropriate for your installation and install
+    them in the correct directories.  Ok, the scripts in the archive are
+    sample scripts from my system.  It is highly unlikely that they will
+    work on your system - they are just there for you to see what can be
+    done in the scripts, SO MODIFY THEM TO MEET YOUR ENVIRONMENT and read
+    the manual pages to see which environment variables the shell requires.
+    Some of the variables are set up for the companion uxutl???.zip
+    programs.
+
+    ${HOME}/profile.sh	- your profile (NOT MINE) in your ${HOME} directory.
+    /etc/profile.sh	- your /etc profile (NOT MINE).  The variable
+			  Rootdrive in sh.ini determines which drive this
+			  file is located on.  A value of 3 is drive C, 4 D,
+			  etc.
+    sh.rc		- your ${ENV} file (NOT MINE).  Anywhere as long as
+			  ${ENV} in either ${HOME}/profile, /etc/profile or
+			  the environment from which you start the shell
+			  (autoexec.bat) declare the variable.
+
+			  Note:  This file is usuful for selecting the swap
+				 mode on startup.
+
+    extend.lst          - your Extended command line processing file (NOT MINE).
+    			  Anywhere as long as ${EXTENDED_LINE} in either
+			  ${HOME}/profile, /etc/profile or the environment
+			  from which you start the shell (autoexec.bat)
+			  declare the file.
+
+			  Note:  The utilities I use are NOT the GNU utilities.
+			  They are programs I've written or ported from non-GNU
+			  sources and they contain my version of stdargv.c
+			  which provides @filename support.  So if you are
+			  not using uxutl22[abcd].zip or are running under
+			  OS/2, you will need to remove the UNIX commands
+			  from this file (unless you have rebuild with my
+			  stdargv.c).
+    
+    For example:
+
+    Suppose you have a /system/bin directory on drive E in which you have
+    both the 16 and 32 bit versions of the shell, a home directory on drive D
+    (/usr/ian), and the root drive is F.  Then
+
+    In E:/SYSTEM/BIN, you should have the files (assuming you are running DOS):
+
+	shdos16.exe
+	shdos32.exe
+	shdos16.ini
+	shdos32.ini
+    
+    In F:/ETC, you should have the file:
+
+	profile.sh		# The /etc version
+    
+    In D:/USR/IAN, you should have the file:
+
+	profile.sh		# The ${HOME} version
+
+    The value of RootDrive in e:/bin/shdos{16,32}.ini should be 6.
+
+    The location of sh.rc and extend.lst then up to you.  I normally put
+    extend.lst in the same directory as the shell executable and sh.rc
+    either in /etc or ${HOME}.
+
+    There a number of other options.  You could combine /etc/profile and
+    ${HOME}/profile into one file and only have the /etc version or the
+    ${HOME} version.  You normally only require the ${ENV} file if you set
+    up aliases or functions which you want in every interactive shell.
+
+    If you don't currently know about writing shell scripts, the best thing
+    to do is to get a book on the Bourne or Korn Shell.
+
+    The only real different is that you have control over the /etc profile
+    which on UNIX is under the control of the system administrator
+    (although this could also be true on Windows NT).  You define the drive
+    on which this file is located (via the sh.ini file).  Also, the value
+    of ${HOME} is normally set up for you under UNIX as part of the login
+    process.  Under DOS, OS/2 or Windows NT (not sure), you have to set up
+    the value of ${HOME} yourself in either autoexec.bat or /etc/profile.
+
+8)  Type "sh -0" and see what happens.
+
+9) If you have problems, check that the environment variables are set
+    correctly.  Use the set command under the MSDOS command.com and in the
+    shell.
+
+    Remember that some commands require DOS format file names and environment
+    variables.  So check the setting of these variables (using the shell's
+    msdos command) and the entries in ${EXTENDED_LINE}.
+
+10) I would say, if everything else fails, e-mail me.  But after 9th
+    September 94, I will not be on Internet.  You could write to be at the
+    address in the ReadMe file, get the source and see if you can fix the
+    problem yourself or try one of the MSDOS or OS/2 newsgroups - there may
+    be some one there who is using the shell who can help you.  I'll update
+    the files as soon as I get a new internet account.

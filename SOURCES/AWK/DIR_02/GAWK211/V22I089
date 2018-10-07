@@ -1,0 +1,1581 @@
+From: rsalz@uunet.uu.net (Rich Salz)
+Newsgroups: comp.sources.unix
+Subject: v22i089:  GNU AWK, version 2.11, Part03/16
+Message-ID: <2622@litchi.bbn.com>
+Date: 6 Jun 90 16:36:17 GMT
+Approved: rsalz@uunet.UU.NET
+
+Submitted-by: "Arnold D. Robbins" <arnold@unix.cc.emory.edu>
+Posting-number: Volume 22, Issue 89
+Archive-name: gawk2.11/part03
+
+#! /bin/sh
+# This is a shell archive.  Remove anything before this line, then feed it
+# into a shell via "sh file" or similar.  To overwrite existing files,
+# type "sh file -c".
+# The tool that generated this appeared in the comp.sources.unix newsgroup;
+# send mail to comp-sources-unix@uunet.uu.net if you want that tool.
+# Contents:  ./gawk.texinfo.04 ./missing.d/strtod.c
+# Wrapped by rsalz@litchi.bbn.com on Wed Jun  6 12:24:47 1990
+PATH=/bin:/usr/bin:/usr/ucb ; export PATH
+echo If this archive is complete, you will see the following message:
+echo '          "shar: End of archive 3 (of 16)."'
+if test -f './gawk.texinfo.04' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'./gawk.texinfo.04'\"
+else
+  echo shar: Extracting \"'./gawk.texinfo.04'\" \(49666 characters\)
+  sed "s/^X//" >'./gawk.texinfo.04' <<'END_OF_FILE'
+Xoften necessary to insure that it happens where you want it to by
+Xenclosing the items to be concatenated in parentheses.  For example, the
+Xfollowing code fragment does not concatenate @code{file} and @code{name}
+Xas you might expect:
+X
+X@example
+Xfile = "file"
+Xname = "name"
+Xprint "something meaningful" > file name
+X@end example
+X
+X@noindent
+XIt is necessary to use the following:
+X
+X@example
+Xprint "something meaningful" > (file name)
+X@end example
+X
+XWe recommend you use parentheses around concatenation in all but the
+Xmost common contexts (such as in the right-hand operand of @samp{=}).
+X
+X@ignore
+X@code{gawk} actually now allows a concatenation on the right hand
+Xside of a @code{>} redirection, but other @code{awk}s don't.  So for
+Xnow we won't mention that fact.
+X@end ignore
+X
+X@node Comparison Ops, Boolean Ops, Concatenation, Expressions
+X@section Comparison Expressions
+X@cindex comparison expressions
+X@cindex expressions, comparison
+X@cindex relational operators
+X@cindex operators, relational
+X@cindex regexp operators
+X
+X@dfn{Comparison expressions} compare strings or numbers for
+Xrelationships such as equality.  They are written using @dfn{relational
+Xoperators}, which are a superset of those in C.  Here is a table of
+Xthem:
+X
+X@table @code
+X@item @var{x} < @var{y}
+XTrue if @var{x} is less than @var{y}.
+X
+X@item @var{x} <= @var{y}
+XTrue if @var{x} is less than or equal to @var{y}.
+X
+X@item @var{x} > @var{y}
+XTrue if @var{x} is greater than @var{y}.
+X
+X@item @var{x} >= @var{y}
+XTrue if @var{x} is greater than or equal to @var{y}.
+X
+X@item @var{x} == @var{y}
+XTrue if @var{x} is equal to @var{y}.
+X
+X@item @var{x} != @var{y}
+XTrue if @var{x} is not equal to @var{y}.
+X
+X@item @var{x} ~ @var{y}
+XTrue if the string @var{x} matches the regexp denoted by @var{y}.
+X
+X@item @var{x} !~ @var{y}
+XTrue if the string @var{x} does not match the regexp denoted by @var{y}.
+X
+X@item @var{subscript} in @var{array}
+XTrue if array @var{array} has an element with the subscript @var{subscript}.
+X@end table
+X
+XComparison expressions have the value 1 if true and 0 if false.
+X
+XThe operands of a relational operator are compared as numbers if they
+Xare both numbers.  Otherwise they are converted to, and compared as,
+Xstrings (@pxref{Conversion}).  Strings are compared by comparing the
+Xfirst character of each, then the second character of each, and so on.
+XThus, @code{"10"} is less than @code{"9"}.
+X
+XFor example,
+X
+X@example
+X$1 == "foo"
+X@end example
+X
+X@noindent
+Xhas the value of 1, or is true, if the first field of the current input
+Xrecord is precisely @samp{foo}.  By contrast, 
+X
+X@example
+X$1 ~ /foo/
+X@end example
+X
+X@noindent
+Xhas the value 1 if the first field contains @samp{foo}.
+X
+XThe right hand operand of the @samp{~} and @samp{!~} operators may be
+Xeither a constant regexp (@code{/@dots{}/}), or it may be an ordinary
+Xexpression, in which case the value of the expression as a string is a
+Xdynamic regexp (@pxref{Regexp Usage}).
+X
+X@cindex regexp as expression
+XIn very recent implementations of @code{awk}, a constant regular
+Xexpression in slashes by itself is also an expression.  The regexp
+X@code{/@var{regexp}/} is an abbreviation for this comparison expression:
+X
+X@example
+X$0 ~ /@var{regexp}/
+X@end example
+X
+XIn some contexts it may be necessary to write parentheses around the
+Xregexp to avoid confusing the @code{gawk} parser.  For example,
+X@code{(/x/ - /y/) > threshold} is not allowed, but @code{((/x/) - (/y/))
+X> threshold} parses properly.
+X
+XOne special place where @code{/foo/} is @emph{not} an abbreviation for
+X@code{$0 ~ /foo/} is when it is the right-hand operand of @samp{~} or
+X@samp{!~}!
+X
+X@node Boolean Ops, Assignment Ops, Comparison Ops, Expressions
+X@section Boolean Expressions
+X@cindex expressions, boolean
+X@cindex boolean expressions
+X@cindex operators, boolean
+X@cindex boolean operators
+X@cindex logical operations
+X@cindex and operator
+X@cindex or operator
+X@cindex not operator
+X
+XA @dfn{boolean expression} is combination of comparison expressions or
+Xmatching expressions, using the @dfn{boolean operators} ``or''
+X(@samp{||}), ``and'' (@samp{&&}), and ``not'' (@samp{!}), along with
+Xparentheses to control nesting.  The truth of the boolean expression is
+Xcomputed by combining the truth values of the component expressions.
+X
+XBoolean expressions can be used wherever comparison and matching
+Xexpressions can be used.  They can be used in @code{if} and @code{while}
+Xstatements.  They have numeric values (1 if true, 0 if false), which
+Xcome into place if the result of the boolean expression is stored in a
+Xvariable, or used in arithmetic.
+X
+XIn addition, every boolean expression is also a valid boolean pattern, so
+Xyou can use it as a pattern to control the execution of rules.
+X
+XHere are descriptions of the three boolean operators, with an example of
+Xeach.  It may be instructive to compare these examples with the
+Xanalogous examples of boolean patterns (@pxref{Boolean Patterns}), which
+Xuse the same boolean operators in patterns instead of expressions.
+X
+X@table @code
+X@item @var{boolean1} && @var{boolean2}
+XTrue if both @var{boolean1} and @var{boolean2} are true.  For example,
+Xthe following statement prints the current input record if it contains
+Xboth @samp{2400} and @samp{foo}.@refill
+X
+X@example
+Xif ($0 ~ /2400/ && $0 ~ /foo/) print
+X@end example
+X
+XThe subexpression @var{boolean2} is evaluated only if @var{boolean1}
+Xis true.  This can make a difference when @var{boolean2} contains
+Xexpressions that have side effects: in the case of @code{$0 ~ /foo/ &&
+X($2 == bar++)}, the variable @code{bar} is not incremented if there is
+Xno @samp{foo} in the record.
+X
+X@item @var{boolean1} || @var{boolean2}
+XTrue if at least one of @var{boolean1} and @var{boolean2} is true.
+XFor example, the following command prints all records in the input
+Xfile @file{BBS-list} that contain @emph{either} @samp{2400} or
+X@samp{foo}, or both.@refill
+X
+X@example
+Xawk '@{ if ($0 ~ /2400/ || $0 ~ /foo/) print @}' BBS-list
+X@end example
+X
+XThe subexpression @var{boolean2} is evaluated only if @var{boolean1}
+Xis false.  This can make a difference when @var{boolean2} contains
+Xexpressions that have side effects.
+X
+X@item !@var{boolean}
+XTrue if @var{boolean} is false.  For example, the following program prints
+Xall records in the input file @file{BBS-list} that do @emph{not} contain the
+Xstring @samp{foo}.
+X
+X@example
+Xawk '@{ if (! ($0 ~ /foo/)) print @}' BBS-list
+X@end example
+X@end table
+X
+X@node Assignment Ops, Increment Ops, Boolean Ops, Expressions
+X@section Assignment Expressions
+X@cindex assignment operators
+X@cindex operators, assignment
+X@cindex expressions, assignment
+X
+XAn @dfn{assignment} is an expression that stores a new value into a
+Xvariable.  For example, let's assign the value 1 to the variable
+X@code{z}:@refill
+X
+X@example
+Xz = 1
+X@end example
+X
+XAfter this expression is executed, the variable @code{z} has the value 1.
+XWhatever old value @code{z} had before the assignment is forgotten.
+X
+XAssignments can store string values also.  For example, this would store
+Xthe value @code{"this food is good"} in the variable @code{message}:
+X
+X@example
+Xthing = "food"
+Xpredicate = "good"
+Xmessage = "this " thing " is " predicate
+X@end example
+X
+X@noindent
+X(This also illustrates concatenation of strings.)
+X
+XThe @samp{=} sign is called an @dfn{assignment operator}.  It is the
+Xsimplest assignment operator because the value of the right-hand
+Xoperand is stored unchanged.
+X
+X@cindex side effect
+XMost operators (addition, concatenation, and so on) have no effect
+Xexcept to compute a value.  If you ignore the value, you might as well
+Xnot use the operator.  An assignment operator is different; it does
+Xproduce a value, but even if you ignore the value, the assignment still
+Xmakes itself felt through the alteration of the variable.  We call this
+Xa @dfn{side effect}.
+X
+X@cindex lvalue
+XThe left-hand operand of an assignment need not be a variable
+X(@pxref{Variables}); it can also be a field (@pxref{Changing Fields}) or
+Xan array element (@pxref{Arrays}).  These are all called @dfn{lvalues},
+Xwhich means they can appear on the left-hand side of an assignment operator.
+XThe right-hand operand may be any expression; it produces the new value
+Xwhich the assignment stores in the specified variable, field or array
+Xelement.
+X
+XIt is important to note that variables do @emph{not} have permanent types.
+XThe type of a variable is simply the type of whatever value it happens
+Xto hold at the moment.  In the following program fragment, the variable
+X@code{foo} has a numeric value at first, and a string value later on:
+X
+X@example
+Xfoo = 1
+Xprint foo
+Xfoo = "bar"
+Xprint foo
+X@end example
+X
+X@noindent
+XWhen the second assignment gives @code{foo} a string value, the fact that
+Xit previously had a numeric value is forgotten.
+X
+XAn assignment is an expression, so it has a value: the same value that
+Xis assigned.  Thus, @code{z = 1} as an expression has the value 1.
+XOne consequence of this is that you can write multiple assignments together:
+X
+X@example
+Xx = y = z = 0
+X@end example
+X
+X@noindent
+Xstores the value 0 in all three variables.  It does this because the
+Xvalue of @code{z = 0}, which is 0, is stored into @code{y}, and then
+Xthe value of @code{y = z = 0}, which is 0, is stored into @code{x}.
+X
+XYou can use an assignment anywhere an expression is called for.  For
+Xexample, it is valid to write @code{x != (y = 1)} to set @code{y} to 1
+Xand then test whether @code{x} equals 1.  But this style tends to make
+Xprograms hard to read; except in a one-shot program, you should
+Xrewrite it to get rid of such nesting of assignments.  This is never very
+Xhard.
+X
+XAside from @samp{=}, there are several other assignment operators that
+Xdo arithmetic with the old value of the variable.  For example, the
+Xoperator @samp{+=} computes a new value by adding the right-hand value
+Xto the old value of the variable.  Thus, the following assignment adds
+X5 to the value of @code{foo}:
+X
+X@example
+Xfoo += 5
+X@end example
+X
+X@noindent
+XThis is precisely equivalent to the following:
+X
+X@example
+Xfoo = foo + 5
+X@end example
+X
+X@noindent
+XUse whichever one makes the meaning of your program clearer.
+X
+XHere is a table of the arithmetic assignment operators.  In each
+Xcase, the right-hand operand is an expression whose value is converted
+Xto a number.
+X
+X@table @code
+X@item @var{lvalue} += @var{increment}
+XAdds @var{increment} to the value of @var{lvalue} to make the new value
+Xof @var{lvalue}.
+X
+X@item @var{lvalue} -= @var{decrement}
+XSubtracts @var{decrement} from the value of @var{lvalue}.
+X
+X@item @var{lvalue} *= @var{coefficient}
+XMultiplies the value of @var{lvalue} by @var{coefficient}.
+X
+X@item @var{lvalue} /= @var{quotient}
+XDivides the value of @var{lvalue} by @var{quotient}.
+X
+X@item @var{lvalue} %= @var{modulus}
+XSets @var{lvalue} to its remainder by @var{modulus}.
+X
+X@item @var{lvalue} ^= @var{power}
+X@itemx @var{lvalue} **= @var{power}
+XRaises @var{lvalue} to the power @var{power}.
+X@end table
+X
+X@node Increment Ops, Conversion, Assignment Ops, Expressions
+X@section Increment Operators
+X
+X@cindex increment operators
+X@cindex operators, increment
+X@dfn{Increment operators} increase or decrease the value of a variable
+Xby 1.  You could do the same thing with an assignment operator, so
+Xthe increment operators add no power to the @code{awk} language; but they
+Xare convenient abbreviations for something very common.
+X
+XThe operator to add 1 is written @samp{++}.  It can be used to increment
+Xa variable either before or after taking its value.
+X
+XTo pre-increment a variable @var{v}, write @code{++@var{v}}.  This adds
+X1 to the value of @var{v} and that new value is also the value of this
+Xexpression.  The assignment expression @code{@var{v} += 1} is completely
+Xequivalent.
+X
+XWriting the @samp{++} after the variable specifies post-increment.  This
+Xincrements the variable value just the same; the difference is that the
+Xvalue of the increment expression itself is the variable's @emph{old}
+Xvalue.  Thus, if @code{foo} has value 4, then the expression @code{foo++}
+Xhas the value 4, but it changes the value of @code{foo} to 5.
+X
+XThe post-increment @code{foo++} is nearly equivalent to writing @code{(foo
+X+= 1) - 1}.  It is not perfectly equivalent because all numbers in
+X@code{awk} are floating point: in floating point, @code{foo + 1 - 1} does
+Xnot necessarily equal @code{foo}.  But the difference is minute as
+Xlong as you stick to numbers that are fairly small (less than a trillion).
+X
+XAny lvalue can be incremented.  Fields and array elements are incremented
+Xjust like variables.
+X
+XThe decrement operator @samp{--} works just like @samp{++} except that
+Xit subtracts 1 instead of adding.  Like @samp{++}, it can be used before
+Xthe lvalue to pre-decrement or after it to post-decrement.
+X
+XHere is a summary of increment and decrement expressions.
+X
+X@table @code
+X@item ++@var{lvalue}
+XThis expression increments @var{lvalue} and the new value becomes the
+Xvalue of this expression.
+X
+X@item @var{lvalue}++
+XThis expression causes the contents of @var{lvalue} to be incremented.
+XThe value of the expression is the @emph{old} value of @var{lvalue}.
+X
+X@item --@var{lvalue}
+XLike @code{++@var{lvalue}}, but instead of adding, it subtracts.  It
+Xdecrements @var{lvalue} and delivers the value that results.
+X
+X@item @var{lvalue}--
+XLike @code{@var{lvalue}++}, but instead of adding, it subtracts.  It
+Xdecrements @var{lvalue}.  The value of the expression is the @emph{old}
+Xvalue of @var{lvalue}.
+X@end table
+X
+X@node Conversion, Conditional Exp, Increment Ops, Expressions
+X@section Conversion of Strings and Numbers
+X
+X@cindex conversion of strings and numbers
+XStrings are converted to numbers, and numbers to strings, if the context
+Xof the @code{awk} program demands it.  For example, if the value of
+Xeither @code{foo} or @code{bar} in the expression @code{foo + bar}
+Xhappens to be a string, it is converted to a number before the addition
+Xis performed.  If numeric values appear in string concatenation, they
+Xare converted to strings.  Consider this:@refill
+X
+X@example
+Xtwo = 2; three = 3
+Xprint (two three) + 4
+X@end example
+X
+X@noindent
+XThis eventually prints the (numeric) value 27.  The numeric values of
+Xthe variables @code{two} and @code{three} are converted to strings and
+Xconcatenated together, and the resulting string is converted back to the
+Xnumber 23, to which 4 is then added.
+X
+XIf, for some reason, you need to force a number to be converted to a
+Xstring, concatenate the null string with that number.  To force a string
+Xto be converted to a number, add zero to that string.
+X
+XStrings are converted to numbers by interpreting them as numerals:
+X@code{"2.5"} converts to 2.5, and @code{"1e3"} converts to 1000.
+XStrings that can't be interpreted as valid numbers are converted to
+Xzero.
+X
+X@vindex OFMT
+XThe exact manner in which numbers are converted into strings is controlled
+Xby the @code{awk} built-in variable @code{OFMT} (@pxref{Built-in Variables}).
+XNumbers are converted using a special
+Xversion of the @code{sprintf} function (@pxref{Built-in}) with @code{OFMT}
+Xas the format specifier.@refill
+X
+X@code{OFMT}'s default value is @code{"%.6g"}, which prints a value with
+Xat least six significant digits.  For some applications you will want to
+Xchange it to specify more precision.  Double precision on most modern
+Xmachines gives you 16 or 17 decimal digits of precision.
+X
+XStrange results can happen if you set @code{OFMT} to a string that doesn't
+Xtell @code{sprintf} how to format floating point numbers in a useful way.
+XFor example, if you forget the @samp{%} in the format, all numbers will be
+Xconverted to the same constant string.@refill
+X
+X@node Conditional Exp, Function Calls, Conversion, Expressions
+X@section Conditional Expressions
+X@cindex conditional expression
+X@cindex expression, conditional
+X
+XA @dfn{conditional expression} is a special kind of expression with
+Xthree operands.  It allows you to use one expression's value to select
+Xone of two other expressions.
+X
+XThe conditional expression looks the same as in the C language:
+X
+X@example
+X@var{selector} ? @var{if-true-exp} : @var{if-false-exp}
+X@end example
+X
+X@noindent
+XThere are three subexpressions.  The first, @var{selector}, is always
+Xcomputed first.  If it is ``true'' (not zero) then @var{if-true-exp} is
+Xcomputed next and its value becomes the value of the whole expression.
+XOtherwise, @var{if-false-exp} is computed next and its value becomes the
+Xvalue of the whole expression.
+X
+XFor example, this expression produces the absolute value of @code{x}:
+X
+X@example
+Xx > 0 ? x : -x
+X@end example
+X
+XEach time the conditional expression is computed, exactly one of
+X@var{if-true-exp} and @var{if-false-exp} is computed; the other is ignored.
+XThis is important when the expressions contain side effects.  For example,
+Xthis conditional expression examines element @code{i} of either array
+X@code{a} or array @code{b}, and increments @code{i}.
+X
+X@example
+Xx == y ? a[i++] : b[i++]
+X@end example
+X
+X@noindent
+XThis is guaranteed to increment @code{i} exactly once, because each time
+Xone or the other of the two increment expressions is executed,
+Xand the other is not.
+X
+X@node Function Calls, Precedence, Conditional Exp, Expressions
+X@section Function Calls
+X@cindex function call
+X@cindex calling a function
+X
+XA @dfn{function} is a name for a particular calculation.  Because it has
+Xa name, you can ask for it by name at any point in the program.  For
+Xexample, the function @code{sqrt} computes the square root of a number.
+X
+XA fixed set of functions are @dfn{built in}, which means they are
+Xavailable in every @code{awk} program.  The @code{sqrt} function is one
+Xof these.  @xref{Built-in}, for a list of built-in functions and their
+Xdescriptions.  In addition, you can define your own functions in the
+Xprogram for use elsewhere in the same program.  @xref{User-defined},
+Xfor how to do this.
+X
+X@cindex arguments in function call
+XThe way to use a function is with a @dfn{function call} expression,
+Xwhich consists of the function name followed by a list of
+X@dfn{arguments} in parentheses.  The arguments are expressions which
+Xgive the raw materials for the calculation that the function will do.
+XWhen there is more than one argument, they are separated by commas.  If
+Xthere are no arguments, write just @samp{()} after the function name.
+XHere are some examples:
+X
+X@example
+Xsqrt(x**2 + y**2)    # @r{One argument}
+Xatan2(y, x)          # @r{Two arguments}
+Xrand()               # @r{No arguments}
+X@end example
+X
+X@strong{Do not put any space between the function name and the
+Xopen-parenthesis!}  A user-defined function name looks just like the name of
+Xa variable, and space would make the expression look like concatenation
+Xof a variable with an expression inside parentheses.  Space before the
+Xparenthesis is harmless with built-in functions, but it is best not to get
+Xinto the habit of using space, lest you do likewise for a user-defined
+Xfunction one day by mistake.
+X
+XEach function expects a particular number of arguments.  For example, the
+X@code{sqrt} function must be called with a single argument, the number
+Xto take the square root of:
+X
+X@example
+Xsqrt(@var{argument})
+X@end example
+X
+XSome of the built-in functions allow you to omit the final argument.
+XIf you do so, they use a reasonable default.  @xref{Built-in},
+Xfor full details.  If arguments are omitted in calls to user-defined
+Xfunctions, then those arguments are treated as local variables,
+Xinitialized to the null string (@pxref{User-defined}).
+X
+XLike every other expression, the function call has a value, which is
+Xcomputed by the function based on the arguments you give it.  In this
+Xexample, the value of @code{sqrt(@var{argument})} is the square root of the
+Xargument.  A function can also have side effects, such as assigning the
+Xvalues of certain variables or doing I/O.
+X
+XHere is a command to read numbers, one number per line, and print the
+Xsquare root of each one:
+X
+X@example
+Xawk '@{ print "The square root of", $1, "is", sqrt($1) @}'
+X@end example
+X
+X@node Precedence,, Function Calls, Expressions
+X@section Operator Precedence: How Operators Nest
+X@cindex precedence
+X@cindex operator precedence
+X
+X@dfn{Operator precedence} determines how operators are grouped, when
+Xdifferent operators appear close by in one expression.  For example,
+X@samp{*} has higher precedence than @samp{+}; thus, @code{a + b * c}
+Xmeans to multiply @code{b} and @code{c}, and then add @code{a} to the
+Xproduct.
+X
+XYou can overrule the precedence of the operators by writing parentheses
+Xyourself.  You can think of the precedence rules as saying where the
+Xparentheses are assumed if you do not write parentheses yourself.  In
+Xfact, it is wise always to use parentheses whenever you have an unusual
+Xcombination of operators, because other people who read the program may
+Xnot remember what the precedence is in this case.  You might forget,
+Xtoo; then you could make a mistake.  Explicit parentheses will prevent
+Xany such mistake.
+X
+XWhen operators of equal precedence are used together, the leftmost
+Xoperator groups first, except for the assignment, conditional and
+Xand exponentiation operators, which group in the opposite order.
+XThus, @code{a - b + c} groups as @code{(a - b) + c};
+X@code{a = b = c} groups as @code{a = (b = c)}.
+X
+XThe precedence of prefix unary operators does not matter as long as only
+Xunary operators are involved, because there is only one way to parse
+Xthem---innermost first.  Thus, @code{$++i} means @code{$(++i)} and
+X@code{++$x} means @code{++($x)}.  However, when another operator follows
+Xthe operand, then the precedence of the unary operators can matter.
+XThus, @code{$x**2} means @code{($x)**2}, but @code{-x**2} means
+X@code{-(x**2)}, because @samp{-} has lower precedence than @samp{**}
+Xwhile @samp{$} has higher precedence.
+X
+XHere is a table of the operators of @code{awk}, in order of increasing
+Xprecedence:
+X
+X@table @asis
+X@item assignment
+X@samp{=}, @samp{+=}, @samp{-=}, @samp{*=}, @samp{/=}, @samp{%=},
+X@samp{^=}, @samp{**=}.  These operators group right-to-left.
+X
+X@item conditional
+X@samp{?:}.  These operators group right-to-left.
+X
+X@item logical ``or''.
+X@samp{||}.
+X
+X@item logical ``and''.
+X@samp{&&}.
+X
+X@item array membership
+X@code{in}.
+X
+X@item matching
+X@samp{~}, @samp{!~}.
+X
+X@item relational, and redirection
+XThe relational operators and the redirections have the same precedence
+Xlevel.  Characters such as @samp{>} serve both as relationals and as
+Xredirections; the context distinguishes between the two meanings.
+X
+XThe relational operators are @samp{<}, @samp{<=}, @samp{==}, @samp{!=},
+X@samp{>=} and @samp{>}.
+X
+XThe I/O redirection operators are @samp{<}, @samp{>}, @samp{>>} and
+X@samp{|}.
+X
+XNote that I/O redirection operators in @code{print} and @code{printf}
+Xstatements belong to the statement level, not to expressions.  The
+Xredirection does not produce an expression which could be the operand of
+Xanother operator.  As a result, it does not make sense to use a
+Xredirection operator near another operator of lower precedence, without
+Xparentheses.  Such combinations, for example @samp{print foo > a ? b :
+Xc}, result in syntax errors.
+X
+X@item concatentation
+XNo special token is used to indicate concatenation.
+XThe operands are simply written side by side.
+X@c This is supposedly being fixed
+X@ignore
+XConcatenation has the same precedence as relational and redirection
+Xoperators.  These operators nest left to right.  Thus, @code{4 5 > 6}
+Xconcatenates first, yielding 1, while @code{6 < 4 5} compares first, and
+Xyields @code{"05"}.
+X@end ignore
+X
+X@item add, subtract
+X@samp{+}, @samp{-}.
+X
+X@item multiply, divide, mod
+X@samp{*}, @samp{/}, @samp{%}.
+X
+X@item unary plus, minus, ``not''
+X@samp{+}, @samp{-}, @samp{!}.
+X
+X@item exponentiation
+X@samp{^}, @samp{**}.  These operators group right-to-left.
+X
+X@item increment, decrement
+X@samp{++}, @samp{--}.
+X
+X@item field
+X@samp{$}.
+X@end table
+X
+X@node Statements, Arrays, Expressions, Top
+X@chapter Actions: Control Statements
+X@cindex control statement
+X
+X@dfn{Control statements} such as @code{if}, @code{while}, and so on
+Xcontrol the flow of execution in @code{awk} programs.  Most of the
+Xcontrol statements in @code{awk} are patterned on similar statements in
+XC.
+X
+XAll the control statements start with special keywords such as @code{if}
+Xand @code{while}, to distinguish them from simple expressions.
+X
+XMany control statements contain other statements; for example, the
+X@code{if} statement contains another statement which may or may not be
+Xexecuted.  The contained statement is called the @dfn{body}.  If you
+Xwant to include more than one statement in the body, group them into a
+Xsingle compound statement with curly braces, separating them with
+Xnewlines or semicolons.
+X
+X@menu
+X* If Statement::            Conditionally execute some @code{awk} statements.
+X
+X* While Statement::         Loop until some condition is satisfied.
+X
+X* Do Statement::            Do specified action while looping until some
+X                            condition is satisfied.
+X
+X* For Statement::           Another looping statement, that provides
+X                            initialization and increment clauses.
+X
+X* Break Statement::         Immediately exit the innermost enclosing loop.
+X
+X* Continue Statement::      Skip to the end of the innermost enclosing loop.
+X
+X* Next Statement::          Stop processing the current input record.
+X
+X* Exit Statement::          Stop execution of @code{awk}.
+X@end menu
+X
+X@node If Statement, While Statement, Statements, Statements
+X@section The @code{if} Statement
+X
+X@cindex @code{if} statement
+XThe @code{if}-@code{else} statement is @code{awk}'s decision-making
+Xstatement.  It looks like this:@refill
+X
+X@example
+Xif (@var{condition}) @var{then-body} @r{[}else @var{else-body}@r{]}
+X@end example
+X
+X@noindent
+XHere @var{condition} is an expression that controls what the rest of the
+Xstatement will do.  If @var{condition} is true, @var{then-body} is
+Xexecuted; otherwise, @var{else-body} is executed (assuming that the
+X@code{else} clause is present).  The @code{else} part of the statement is
+Xoptional.  The condition is considered false if its value is zero or
+Xthe null string, true otherwise.@refill
+X
+XHere is an example:
+X
+X@example
+Xif (x % 2 == 0)
+X    print "x is even"
+Xelse
+X    print "x is odd"
+X@end example
+X
+XIn this example, if the expression @code{x % 2 == 0} is true (that is,
+Xthe value of @code{x} is divisible by 2), then the first @code{print}
+Xstatement is executed, otherwise the second @code{print} statement is
+Xperformed.@refill
+X
+XIf the @code{else} appears on the same line as @var{then-body}, and
+X@var{then-body} is not a compound statement (i.e., not surrounded by
+Xcurly braces), then a semicolon must separate @var{then-body} from
+X@code{else}.  To illustrate this, let's rewrite the previous example:
+X
+X@group
+X@example
+Xawk '@{ if (x % 2 == 0) print "x is even"; else
+X        print "x is odd" @}'
+X@end example
+X@end group
+X
+X@noindent
+XIf you forget the @samp{;}, @code{awk} won't be able to parse the
+Xstatement, and you will get a syntax error.
+X
+XWe would not actually write this example this way, because a human
+Xreader might fail to see the @code{else} if it were not the first thing
+Xon its line.
+X
+X@node While Statement, Do Statement, If Statement, Statements
+X@section The @code{while} Statement
+X@cindex @code{while} statement
+X@cindex loop
+X@cindex body of a loop
+X
+XIn programming, a @dfn{loop} means a part of a program that is (or at least can
+Xbe) executed two or more times in succession.
+X
+XThe @code{while} statement is the simplest looping statement in
+X@code{awk}.  It repeatedly executes a statement as long as a condition is
+Xtrue.  It looks like this:
+X
+X@example
+Xwhile (@var{condition})
+X  @var{body}
+X@end example
+X
+X@noindent
+XHere @var{body} is a statement that we call the @dfn{body} of the loop,
+Xand @var{condition} is an expression that controls how long the loop
+Xkeeps running.
+X
+XThe first thing the @code{while} statement does is test @var{condition}.
+XIf @var{condition} is true, it executes the statement @var{body}.
+X(Truth, as usual in @code{awk}, means that the value of @var{condition}
+Xis not zero and not a null string.)  After @var{body} has been executed,
+X@var{condition} is tested again, and if it is still true, @var{body} is
+Xexecuted again.  This process repeats until @var{condition} is no longer
+Xtrue.  If @var{condition} is initially false, the body of the loop is
+Xnever executed.@refill
+X
+XThis example prints the first three fields of each record, one per line.
+X
+X@example
+Xawk '@{ i = 1
+X       while (i <= 3) @{
+X           print $i
+X           i++
+X       @}
+X@}'
+X@end example
+X
+X@noindent
+XHere the body of the loop is a compound statement enclosed in braces,
+Xcontaining two statements.
+X
+XThe loop works like this: first, the value of @code{i} is set to 1.
+XThen, the @code{while} tests whether @code{i} is less than or equal to
+Xthree.  This is the case when @code{i} equals one, so the @code{i}-th
+Xfield is printed.  Then the @code{i++} increments the value of @code{i}
+Xand the loop repeats.  The loop terminates when @code{i} reaches 4.
+X
+XAs you can see, a newline is not required between the condition and the
+Xbody; but using one makes the program clearer unless the body is a
+Xcompound statement or is very simple.  The newline after the open-brace
+Xthat begins the compound statement is not required either, but the
+Xprogram would be hard to read without it.
+X
+X@node Do Statement, For Statement, While Statement, Statements
+X@section The @code{do}-@code{while} Statement
+X
+XThe @code{do} loop is a variation of the @code{while} looping statement.
+XThe @code{do} loop executes the @var{body} once, then repeats @var{body}
+Xas long as @var{condition} is true.  It looks like this:
+X
+X@group
+X@example
+Xdo
+X  @var{body}
+Xwhile (@var{condition})
+X@end example
+X@end group
+X
+XEven if @var{condition} is false at the start, @var{body} is executed at
+Xleast once (and only once, unless executing @var{body} makes
+X@var{condition} true).  Contrast this with the corresponding
+X@code{while} statement:
+X
+X@example
+Xwhile (@var{condition})
+X  @var{body}
+X@end example
+X
+X@noindent
+XThis statement does not execute @var{body} even once if @var{condition}
+Xis false to begin with.
+X
+XHere is an example of a @code{do} statement:
+X
+X@example
+Xawk '@{ i = 1
+X       do @{
+X          print $0
+X          i++
+X       @} while (i <= 10)
+X@}'
+X@end example
+X
+X@noindent
+Xprints each input record ten times.  It isn't a very realistic example,
+Xsince in this case an ordinary @code{while} would do just as well.  But
+Xthis reflects actual experience; there is only occasionally a real use
+Xfor a @code{do} statement.@refill
+X
+X@node For Statement, Break Statement, Do Statement, Statements
+X@section The @code{for} Statement
+X@cindex @code{for} statement
+X
+XThe @code{for} statement makes it more convenient to count iterations of a
+Xloop.  The general form of the @code{for} statement looks like this:@refill
+X
+X@example
+Xfor (@var{initialization}; @var{condition}; @var{increment})
+X  @var{body}
+X@end example
+X
+X@noindent
+XThis statement starts by executing @var{initialization}.  Then, as long
+Xas @var{condition} is true, it repeatedly executes @var{body} and then
+X@var{increment}.  Typically @var{initialization} sets a variable to
+Xeither zero or one, @var{increment} adds 1 to it, and @var{condition}
+Xcompares it against the desired number of iterations.
+X
+XHere is an example of a @code{for} statement:
+X
+X@example
+Xawk '@{ for (i = 1; i <= 3; i++)
+X          print $i
+X@}'
+X@end example
+X
+X@noindent
+XThis prints the first three fields of each input record, one field per
+Xline.
+X
+XIn the @code{for} statement, @var{body} stands for any statement, but
+X@var{initialization}, @var{condition} and @var{increment} are just
+Xexpressions.  You cannot set more than one variable in the
+X@var{initialization} part unless you use a multiple assignment statement
+Xsuch as @code{x = y = 0}, which is possible only if all the initial values
+Xare equal.  (But you can initialize additional variables by writing
+Xtheir assignments as separate statements preceding the @code{for} loop.)
+X
+XThe same is true of the @var{increment} part; to increment additional
+Xvariables, you must write separate statements at the end of the loop.
+XThe C compound expression, using C's comma operator, would be useful in
+Xthis context, but it is not supported in @code{awk}.
+X
+XMost often, @var{increment} is an increment expression, as in the
+Xexample above.  But this is not required; it can be any expression
+Xwhatever.  For example, this statement prints all the powers of 2
+Xbetween 1 and 100:
+X
+X@example
+Xfor (i = 1; i <= 100; i *= 2)
+X  print i
+X@end example
+X
+XAny of the three expressions in the parentheses following @code{for} may
+Xbe omitted if there is nothing to be done there.  Thus, @w{@samp{for (;x
+X> 0;)}} is equivalent to @w{@samp{while (x > 0)}}.  If the
+X@var{condition} is omitted, it is treated as @var{true}, effectively
+Xyielding an infinite loop.@refill
+X
+XIn most cases, a @code{for} loop is an abbreviation for a @code{while}
+Xloop, as shown here:
+X
+X@example
+X@var{initialization}
+Xwhile (@var{condition}) @{
+X  @var{body}
+X  @var{increment}
+X@}
+X@end example
+X
+X@noindent
+XThe only exception is when the @code{continue} statement
+X(@pxref{Continue Statement}) is used inside the loop; changing a
+X@code{for} statement to a @code{while} statement in this way can change
+Xthe effect of the @code{continue} statement inside the loop.
+X
+XThere is an alternate version of the @code{for} loop, for iterating over
+Xall the indices of an array:
+X
+X@example
+Xfor (i in array)
+X    @var{do something with} array[i]
+X@end example
+X
+X@noindent
+X@xref{Arrays}, for more information on this version of the @code{for} loop.
+X
+XThe @code{awk} language has a @code{for} statement in addition to a
+X@code{while} statement because often a @code{for} loop is both less work to
+Xtype and more natural to think of.  Counting the number of iterations is
+Xvery common in loops.  It can be easier to think of this counting as part
+Xof looping rather than as something to do inside the loop.
+X
+XThe next section has more complicated examples of @code{for} loops.
+X
+X@node Break Statement, Continue Statement, For Statement, Statements
+X@section The @code{break} Statement
+X@cindex @code{break} statement
+X@cindex loops, exiting
+X
+XThe @code{break} statement jumps out of the innermost @code{for},
+X@code{while}, or @code{do}-@code{while} loop that encloses it.  The
+Xfollowing example finds the smallest divisor of any integer, and also
+Xidentifies prime numbers:@refill
+X
+X@example
+Xawk '# find smallest divisor of num
+X     @{ num = $1
+X       for (div = 2; div*div <= num; div++)
+X         if (num % div == 0)
+X           break
+X       if (num % div == 0)
+X         printf "Smallest divisor of %d is %d\n", num, div
+X       else
+X         printf "%d is prime\n", num  @}'
+X@end example
+X
+XWhen the remainder is zero in the first @code{if} statement, @code{awk}
+Ximmediately @dfn{breaks out} of the containing @code{for} loop.  This means
+Xthat @code{awk} proceeds immediately to the statement following the loop
+Xand continues processing.  (This is very different from the @code{exit}
+Xstatement (@pxref{Exit Statement}) which stops the entire @code{awk}
+Xprogram.)@refill
+X
+XHere is another program equivalent to the previous one.  It illustrates how
+Xthe @var{condition} of a @code{for} or @code{while} could just as well be
+Xreplaced with a @code{break} inside an @code{if}:
+X
+X@example
+Xawk '# find smallest divisor of num
+X     @{ num = $1
+X       for (div = 2; ; div++) @{
+X         if (num % div == 0) @{
+X           printf "Smallest divisor of %d is %d\n", num, div
+X           break
+X         @}
+X         if (div*div > num) @{
+X           printf "%d is prime\n", num
+X           break
+X         @}
+X       @}
+X@}'
+X@end example
+X
+X@node Continue Statement, Next Statement, Break Statement, Statements
+X@section The @code{continue} Statement
+X
+X@cindex @code{continue} statement
+XThe @code{continue} statement, like @code{break}, is used only inside
+X@code{for}, @code{while}, and @code{do}-@code{while} loops.  It skips
+Xover the rest of the loop body, causing the next cycle around the loop
+Xto begin immediately.  Contrast this with @code{break}, which jumps out
+Xof the loop altogether.  Here is an example:@refill
+X
+X@example
+X# print names that don't contain the string "ignore"
+X
+X# first, save the text of each line
+X@{ names[NR] = $0 @}
+X
+X# print what we're interested in
+XEND @{
+X   for (x in names) @{
+X       if (names[x] ~ /ignore/)
+X           continue
+X       print names[x]
+X   @}
+X@}
+X@end example
+X
+XIf one of the input records contains the string @samp{ignore}, this
+Xexample skips the print statement for that record, and continues back to
+Xthe first statement in the loop.
+X
+XThis isn't a practical example of @code{continue}, since it would be
+Xjust as easy to write the loop like this:
+X
+X@example
+Xfor (x in names)
+X  if (names[x] !~ /ignore/)
+X    print names[x]
+X@end example
+X
+XThe @code{continue} statement in a @code{for} loop directs @code{awk} to
+Xskip the rest of the body of the loop, and resume execution with the
+Xincrement-expression of the @code{for} statement.  The following program
+Xillustrates this fact:@refill
+X
+X@example
+Xawk 'BEGIN @{
+X     for (x = 0; x <= 20; x++) @{
+X         if (x == 5)
+X             continue
+X         printf ("%d ", x)
+X     @}
+X     print ""
+X@}'
+X@end example
+X
+X@noindent
+XThis program prints all the numbers from 0 to 20, except for 5, for
+Xwhich the @code{printf} is skipped.  Since the increment @code{x++}
+Xis not skipped, @code{x} does not remain stuck at 5.  Contrast the
+X@code{for} loop above with the @code{while} loop:
+X
+X@example
+Xawk 'BEGIN @{
+X     x = 0
+X     while (x <= 20) @{
+X         if (x == 5)
+X             continue
+X         printf ("%d ", x)
+X         x++
+X     @}
+X     print ""
+X@}'
+X@end example
+X
+X@noindent
+XThis program loops forever once @code{x} gets to 5.
+X
+X@node Next Statement, Exit Statement, Continue Statement, Statements
+X@section The @code{next} Statement
+X@cindex @code{next} statement
+X
+XThe @code{next} statement forces @code{awk} to immediately stop processing
+Xthe current record and go on to the next record.  This means that no
+Xfurther rules are executed for the current record.  The rest of the
+Xcurrent rule's action is not executed either.
+X
+XContrast this with the effect of the @code{getline} function
+X(@pxref{Getline}).  That too causes @code{awk} to read the next record
+Ximmediately, but it does not alter the flow of control in any way.  So
+Xthe rest of the current action executes with a new input record.
+X
+XAt the grossest level, @code{awk} program execution is a loop that reads
+Xan input record and then tests each rule's pattern against it.  If you
+Xthink of this loop as a @code{for} statement whose body contains the
+Xrules, then the @code{next} statement is analogous to a @code{continue}
+Xstatement: it skips to the end of the body of this implicit loop, and
+Xexecutes the increment (which reads another record).
+X
+XFor example, if your @code{awk} program works only on records with four
+Xfields, and you don't want it to fail when given bad input, you might
+Xuse this rule near the beginning of the program:
+X
+X@example
+XNF != 4 @{
+X  printf("line %d skipped: doesn't have 4 fields", FNR) > "/dev/stderr"
+X  next
+X@}
+X@end example
+X
+X@noindent
+Xso that the following rules will not see the bad record.  The error
+Xmessage is redirected to the standard error output stream, as error
+Xmessages should be.  @xref{Special Files}.
+X
+XThe @code{next} statement is not allowed in a @code{BEGIN} or @code{END}
+Xrule.
+X
+X@node Exit Statement, , Next Statement, Statements
+X@section The @code{exit} Statement
+X
+X@cindex @code{exit} statement
+XThe @code{exit} statement causes @code{awk} to immediately stop
+Xexecuting the current rule and to stop processing input; any remaining input
+Xis ignored.@refill
+X
+XIf an @code{exit} statement is executed from a @code{BEGIN} rule the
+Xprogram stops processing everything immediately.  No input records are
+Xread.  However, if an @code{END} rule is present, it is executed
+X(@pxref{BEGIN/END}).
+X
+XIf @code{exit} is used as part of an @code{END} rule, it causes
+Xthe program to stop immediately.
+X
+XAn @code{exit} statement that is part an ordinary rule (that is, not part
+Xof a @code{BEGIN} or @code{END} rule) stops the execution of any further
+Xautomatic rules, but the @code{END} rule is executed if there is one.
+XIf you don't want the @code{END} rule to do its job in this case, you
+Xcan set a variable to nonzero before the @code{exit} statement, and check
+Xthat variable in the @code{END} rule.
+X
+XIf an argument is supplied to @code{exit}, its value is used as the exit
+Xstatus code for the @code{awk} process.  If no argument is supplied,
+X@code{exit} returns status zero (success).@refill
+X
+XFor example, let's say you've discovered an error condition you really
+Xdon't know how to handle.  Conventionally, programs report this by
+Xexiting with a nonzero status.  Your @code{awk} program can do this
+Xusing an @code{exit} statement with a nonzero argument.  Here's an
+Xexample of this:@refill
+X
+X@example
+XBEGIN @{
+X       if (("date" | getline date_now) < 0) @{
+X         print "Can't get system date" > "/dev/stderr"
+X         exit 4
+X       @}
+X@}
+X@end example
+X
+X@node Arrays, Built-in, Statements, Top
+X@chapter Arrays in @code{awk}
+X
+XAn @dfn{array} is a table of various values, called @dfn{elements}.  The
+Xelements of an array are distinguished by their @dfn{indices}.  Indices
+Xmay be either numbers or strings.  Each array has a name, which looks
+Xlike a variable name, but must not be in use as a variable name in the
+Xsame @code{awk} program.
+X
+X@menu
+X* Intro: Array Intro.      Basic facts about arrays in @code{awk}.
+X* Reference to Elements::  How to examine one element of an array.
+X* Assigning Elements::     How to change an element of an array.
+X* Example: Array Example.  Sample program explained.
+X
+X* Scanning an Array::      A variation of the @code{for} statement.  It loops
+X                           through the indices of an array's existing elements.
+X
+X* Delete::                 The @code{delete} statement removes an element from an array.
+X
+X* Multi-dimensional::      Emulating multi-dimensional arrays in @code{awk}.
+X* Multi-scanning::         Scanning multi-dimensional arrays.
+X@end menu
+X
+X@node Array Intro, Reference to Elements, Arrays, Arrays
+X@section Introduction to Arrays
+X
+X@cindex arrays
+XThe @code{awk} language has one-dimensional @dfn{arrays} for storing groups
+Xof related strings or numbers.
+X
+XEvery @code{awk} array must have a name.  Array names have the same
+Xsyntax as variable names; any valid variable name would also be a valid
+Xarray name.  But you cannot use one name in both ways (as an array and
+Xas a variable) in one @code{awk} program.
+X
+XArrays in @code{awk} superficially resemble arrays in other programming
+Xlanguages; but there are fundamental differences.  In @code{awk}, you
+Xdon't need to specify the size of an array before you start to use it.
+XWhat's more, in @code{awk} any number or even a string may be used as an
+Xarray index.
+X
+XIn most other languages, you have to @dfn{declare} an array and specify
+Xhow many elements or components it has.  In such languages, the
+Xdeclaration causes a contiguous block of memory to be allocated for that
+Xmany elements.  An index in the array must be a positive integer; for
+Xexample, the index 0 specifies the first element in the array, which is
+Xactually stored at the beginning of the block of memory.  Index 1
+Xspecifies the second element, which is stored in memory right after the
+Xfirst element, and so on.  It is impossible to add more elements to the
+Xarray, because it has room for only as many elements as you declared.
+X
+XA contiguous array of four elements might look like this, conceptually,
+Xif the element values are 8, @code{"foo"}, @code{""} and 30:@refill
+X
+X@example
+X+---------+---------+--------+---------+
+X|    8    |  "foo"  |   ""   |    30   |    @r{value}
+X+---------+---------+--------+---------+
+X     0         1         2         3        @r{index}
+X@end example
+X
+X@noindent
+XOnly the values are stored; the indices are implicit from the order of
+Xthe values.  8 is the value at index 0, because 8 appears in the
+Xposition with 0 elements before it.
+X
+X@cindex arrays, definition of
+X@cindex associative arrays
+XArrays in @code{awk} are different: they are @dfn{associative}.  This means
+Xthat each array is a collection of pairs: an index, and its corresponding
+Xarray element value:
+X
+X@example
+X@r{Element} 4     @r{Value} 30
+X@r{Element} 2     @r{Value} "foo"
+X@r{Element} 1     @r{Value} 8
+X@r{Element} 3     @r{Value} ""
+X@end example
+X
+X@noindent
+XWe have shown the pairs in jumbled order because their order doesn't
+Xmean anything.
+X
+XOne advantage of an associative array is that new pairs can be added
+Xat any time.  For example, suppose we add to that array a tenth element
+Xwhose value is @w{@code{"number ten"}}.  The result is this:
+X
+X@example
+X@r{Element} 10    @r{Value} "number ten"
+X@r{Element} 4     @r{Value} 30
+X@r{Element} 2     @r{Value} "foo"
+X@r{Element} 1     @r{Value} 8
+X@r{Element} 3     @r{Value} ""
+X@end example
+X
+X@noindent
+XNow the array is @dfn{sparse} (i.e., some indices are missing): it has
+Xelements 4 and 10, but doesn't have elements 5, 6, 7, 8, or 9.@refill
+X
+XAnother consequence of associative arrays is that the indices don't
+Xhave to be positive integers.  Any number, or even a string, can be
+Xan index.  For example, here is an array which translates words from
+XEnglish into French:
+X
+X@example
+X@r{Element} "dog" @r{Value} "chien"
+X@r{Element} "cat" @r{Value} "chat"
+X@r{Element} "one" @r{Value} "un"
+X@r{Element} 1     @r{Value} "un"
+X@end example
+X
+X@noindent
+XHere we decided to translate the number 1 in both spelled-out and
+Xnumeric form---thus illustrating that a single array can have both
+Xnumbers and strings as indices.
+X
+XWhen @code{awk} creates an array for you, e.g., with the @code{split}
+Xbuilt-in function (@pxref{String Functions}), that array's indices
+Xare consecutive integers starting at 1.
+X
+X@node Reference to Elements, Assigning Elements, Array Intro, Arrays
+X@section Referring to an Array Element
+X@cindex array reference
+X@cindex element of array
+X@cindex reference to array
+X
+XThe principal way of using an array is to refer to one of its elements.
+XAn array reference is an expression which looks like this:
+X
+X@example
+X@var{array}[@var{index}]
+X@end example
+X
+X@noindent
+XHere @var{array} is the name of an array.  The expression @var{index} is
+Xthe index of the element of the array that you want.
+X
+XThe value of the array reference is the current value of that array
+Xelement.  For example, @code{foo[4.3]} is an expression for the element
+Xof array @code{foo} at index 4.3.
+X
+XIf you refer to an array element that has no recorded value, the value
+Xof the reference is @code{""}, the null string.  This includes elements
+Xto which you have not assigned any value, and elements that have been
+Xdeleted (@pxref{Delete}).  Such a reference automatically creates that
+Xarray element, with the null string as its value.  (In some cases,
+Xthis is unfortunate, because it might waste memory inside @code{awk}).
+X
+X@cindex arrays, determining presence of elements
+XYou can find out if an element exists in an array at a certain index with
+Xthe expression:
+X
+X@example
+X@var{index} in @var{array}
+X@end example
+X
+X@noindent
+XThis expression tests whether or not the particular index exists,
+Xwithout the side effect of creating that element if it is not present.
+XThe expression has the value 1 (true) if @code{@var{array}[@var{index}]}
+Xexists, and 0 (false) if it does not exist.@refill
+X
+XFor example, to test whether the array @code{frequencies} contains the
+Xindex @code{"2"}, you could write this statement:@refill
+X
+X@example
+Xif ("2" in frequencies) print "Subscript \"2\" is present."
+X@end example
+X
+XNote that this is @emph{not} a test of whether or not the array
+X@code{frequencies} contains an element whose @emph{value} is @code{"2"}.
+X(There is no way to do that except to scan all the elements.)  Also, this
+X@emph{does not} create @code{frequencies["2"]}, while the following
+X(incorrect) alternative would do so:@refill
+X
+X@example
+Xif (frequencies["2"] != "") print "Subscript \"2\" is present."
+X@end example
+X
+X@node Assigning Elements, Array Example, Reference to Elements, Arrays
+X@section Assigning Array Elements
+X@cindex array assignment
+X@cindex element assignment
+X
+XArray elements are lvalues: they can be assigned values just like
+X@code{awk} variables:
+X
+X@example
+X@var{array}[@var{subscript}] = @var{value}
+X@end example
+X
+X@noindent
+XHere @var{array} is the name of your array.  The expression
+X@var{subscript} is the index of the element of the array that you want
+Xto assign a value.  The expression @var{value} is the value you are
+Xassigning to that element of the array.@refill
+X
+X@node Array Example, Scanning an Array, Assigning Elements, Arrays
+X@section Basic Example of an Array
+X
+XThe following program takes a list of lines, each beginning with a line
+Xnumber, and prints them out in order of line number.  The line numbers are
+Xnot in order, however, when they are first read:  they are scrambled.  This
+Xprogram sorts the lines by making an array using the line numbers as
+Xsubscripts.  It then prints out the lines in sorted order of their numbers.
+XIt is a very simple program, and gets confused if it encounters repeated
+Xnumbers, gaps, or lines that don't begin with a number.@refill
+X
+X@example
+X@{
+X  if ($1 > max)
+X    max = $1
+X  arr[$1] = $0
+X@}
+X
+XEND @{
+X  for (x = 1; x <= max; x++)
+X    print arr[x]
+X@}
+X@end example
+X
+X@ignore
+XThe first rule just initializes the variable @code{max}.  (This is not
+Xstrictly necessary, since an uninitialized variable has the null string
+Xas its value, and the null string is effectively zero when used in
+Xa context where a number is required.)
+X@end ignore
+X
+XThe first rule keeps track of the largest line number seen so far;
+Xit also stores each line into the array @code{arr}, at an index that
+Xis the line's number.
+X
+XThe second rule runs after all the input has been read, to print out
+Xall the lines.
+X
+XWhen this program is run with the following input:
+X
+X@example
+X5  I am the Five man
+X2  Who are you?  The new number two!
+X4  . . . And four on the floor
+X1  Who is number one?
+X3  I three you.
+X@end example
+X
+X@noindent
+Xits output is this:
+X
+X@example
+X1  Who is number one?
+X2  Who are you?  The new number two!
+X3  I three you.
+X4  . . . And four on the floor
+X5  I am the Five man
+X@end example
+X
+END_OF_FILE
+  if test 49666 -ne `wc -c <'./gawk.texinfo.04'`; then
+    echo shar: \"'./gawk.texinfo.04'\" unpacked with wrong size!
+  fi
+  # end of './gawk.texinfo.04'
+fi
+if test -f './missing.d/strtod.c' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'./missing.d/strtod.c'\"
+else
+  echo shar: Extracting \"'./missing.d/strtod.c'\" \(2023 characters\)
+  sed "s/^X//" >'./missing.d/strtod.c' <<'END_OF_FILE'
+X/*
+X * strtod.c
+X *
+X * Stupid version of System V strtod(3) library routine.
+X * Does no overflow/underflow checking.
+X *
+X * A real number is defined to be
+X *	optional leading white space
+X *	optional sign
+X *	string of digits with optional decimal point
+X *	optional 'e' or 'E'
+X *		followed by optional sign or space
+X *		followed by an integer
+X *
+X * if ptr is not NULL a pointer to the character terminating the
+X * scan is returned in *ptr.  If no number formed, *ptr is set to str
+X * and 0 is returned.
+X *
+X * For speed, we don't do the conversion ourselves.  Instead, we find
+X * the end of the number and then call atof() to do the dirty work.
+X * This bought us a 10% speedup on a sample program at uunet.uu.net.
+X */
+X
+X#include <ctype.h>
+X
+Xextern double atof();
+X
+Xdouble
+Xstrtod (s, ptr)
+Xregister char *s, **ptr;
+X{
+X	double ret = 0.0;
+X	char *start = s;
+X	char *begin = NULL;
+X	int success = 0;
+X
+X	/* optional white space */
+X	while (isspace(*s))
+X		s++;
+X
+X	/* optional sign */
+X	if (*s == '+' || *s == '-') {
+X		s++;
+X		if (*(s-1) == '-')
+X			begin = s - 1;
+X		else
+X			begin = s;
+X	}
+X
+X	/* string of digits with optional decimal point */
+X	if (isdigit(*s) && ! begin)
+X		begin = s;
+X
+X	while (isdigit(*s)) {
+X		s++;
+X		success++;
+X	}
+X
+X	if (*s == '.') {
+X		if (! begin)
+X			begin = s;
+X		s++;
+X		while (isdigit(*s))
+X			s++;
+X		success++;
+X	}
+X
+X	if (s == start || success == 0)		/* nothing there */
+X		goto out;
+X
+X	/*
+X 	 *	optional 'e' or 'E'
+X	 *		followed by optional sign or space
+X	 *		followed by an integer
+X	 */
+X
+X	if (*s == 'e' || *s == 'E') {
+X		s++;
+X
+X		/* XXX - atof probably doesn't allow spaces here */
+X		while (isspace(*s))
+X			s++;
+X
+X		if (*s == '+' || *s == '-')
+X			s++;
+X
+X		while (isdigit(*s))
+X			s++;
+X	}
+X
+X	/* go for it */
+X	ret = atof(begin);
+X
+Xout:
+X	if (! success)
+X		s = start;	/* in case all we did was skip whitespace */
+X
+X	if (ptr)
+X		*ptr = s;
+X
+X	return ret;
+X}
+X
+X#ifdef TEST
+Xmain (argc, argv)
+Xint argc;
+Xchar **argv;
+X{
+X	double d;
+X	char *p;
+X
+X	for (argc--, argv++; argc; argc--, argv++) {
+X		d = strtod (*argv, & p);
+X		printf ("%lf [%s]\n", d, p);
+X	}
+X}
+X#endif
+END_OF_FILE
+  if test 2023 -ne `wc -c <'./missing.d/strtod.c'`; then
+    echo shar: \"'./missing.d/strtod.c'\" unpacked with wrong size!
+  fi
+  # end of './missing.d/strtod.c'
+fi
+echo shar: End of archive 3 \(of 16\).
+cp /dev/null ark3isdone
+MISSING=""
+for I in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 ; do
+    if test ! -f ark${I}isdone ; then
+	MISSING="${MISSING} ${I}"
+    fi
+done
+if test "${MISSING}" = "" ; then
+    echo You have unpacked all 16 archives.
+    rm -f ark[1-9]isdone ark[1-9][0-9]isdone
+else
+    echo You still must unpack the following archives:
+    echo "        " ${MISSING}
+fi
+exit 0
+exit 0 # Just in case...
+-- 
+Please send comp.sources.unix-related mail to rsalz@uunet.uu.net.
+Use a domain-based address or give alternate paths, or you may lose out.

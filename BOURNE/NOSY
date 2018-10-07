@@ -1,0 +1,9 @@
+#!/bin/sh
+# Script name:  nosy
+
+	echo  -n "Are you happy? "   or  echo "Are you happy?\c"
+read answer
+	echo $answer is the right response.
+	echo  -n "What is your full name? "
+read first middle last
+	print "Hello  $first"

@@ -1,0 +1,323 @@
+README for UNIX Shells by Example by Ellie Quigley
+
+September 11, 1996
+
+korn:	Korn-shell scripts from the examples in the book.
+
+csh:	C-shell scripts from the examples in the book.
+
+bourne:	Bourne-shell scripts from the examples in the book.
+
+The following directories under the "sources" directory
+contain the following public domain, freeware, and
+shareware programs/source code.  Whenever possible, source
+code and scripts are provided.  Not all platform were
+possible.  Some of the UNIX tools are also provide for
+non-UNIX systems such as MSDOS, Windows, NT, Amiga, Macs,
+etc.
+
+ash:    Ash is a version of sh with features similar to  those  of
+	the  System  V shell.
+	ash/linux/ashlinux.tar:  NetBSD's ash (Almquist sh) for Linux.
+		This tar file contains the source code for the 93/09/18,
+		version 0.2, release of NetBSD Ash shell.  It has been
+		ported to Linux platform along with patches to function
+		correctly.
+
+awk:    Awk is a programming language that permits easy manipulation
+	of structured data and the generation of formatted reports.     
+	There are some source script available under the dir_01 and
+	dir_02 directory tree.  Under the dir_02/gawk211, is the shell
+	archive to compile to provide gawk version 211.  Basic Bourne
+	shell is all required to compile.
+	awk/amiga/bawk.lha:	  awk for the amiga platform.
+	awk/dir_01/source.txt:	  description of all the 'awk' script files.
+	awk/dir_01/changeca.awk:  ChangeCase is a standard AWK, GNU Copylefted
+				  function for converting the case of a string
+				  to either upper or lower case. 
+        awk/dir_01/checkdat.awk:  CheckData is a standard AWK, GNU Copylefted
+				  function for checking data for a specified
+				  type and length.
+        awk/dir_01/checkpas.awk:  CheckPassword is a standard AWK, GNU
+				  Copylefted function for specified username in
+				  local /etc/passwd and system-wide passwd.
+        awk/dir_01/date2dat.awk:  Date2Date is a standard AWK, GNU Copylefted
+				  function for converting a date(1) format date
+				  into an American MM/DD/YY format.
+        awk/dir_01/date2yym.awk:  Date2YYMMDD is a slightly modified version of
+				  this function which converts date(1) to the
+				  Canadian/International format YY/MM/DD.
+        awk/dir_01/datetoda.awk:  DateToWeekDay is a standard AWK, (possible
+				  mawk extensions), program to compute the
+				  weekday given the date.
+        awk/dir_01/fromtoda.awk:  FromToday.awk is a standard AWK program which
+				  when passed an integer returns the date (and
+				  day) in that many days. i.e. On Dec Mon DEC
+				  24th "awk -f FromToday 1" would yield "Tue
+				  December 25th".
+        awk/dir_01/hour2dec.awk:  Hour2Dec is a standard AWK, GNU Copylefted
+				  function for converting HH:MM to hours and a
+				  decimal minute portion. i.e. It will convert
+				  1 hour 30 minutes to 1.5 hours.
+        awk/dir_01/makefit.awk:   MakeFit is a standard AWK, GNU Copylefted
+				  function which breaks test lines so they fit
+				  in the specified length.
+	awk/dir_01/makerege.awk:  make "word" into a Regular Expression.
+        awk/dir_01/pcl_prin.awk:  Creates PCL5 escape sequences for Laser.
+				  Printer (newer version)
+        awk/dir_01/printer.awk:   Creates PCL5 escape sequences for Laser.
+				  Printer (old version)
+        awk/dir_01/sql_fun.awk:   Generic Awk functions for sql reporting.
+				  (old version)
+        awk/dir_01/sql_func.awk:  Generic Awk functions for sql reporting.
+				  (newer version)
+        awk/dir_01/uncompre.awk:  UncompressUPC..awk is a standard AWK function
+				  which when passed a compressed (6 digit) UPC
+				  Code will uncompress it using the ISO rules
+				  and return the fill 10 digit code...
+	awk/dir_01/awkcc/...	  source code for the UNIPEN 1.0 parser.
+	awk/dir_02/gawk211/...    GNU AWK, version 2.11.
+				  This is the GNU version of AWK.  It is
+				  compatible with NAWK, the "new awk" described
+				  in the AWK book, and shipped with SysVr4.
+
+bash:   Bash is an sh-compatible command language interpreter that
+	executes  commands  read from the standard input or from a
+	file.  Bash also incorporates  useful  features  from  the
+	Korn and C shells (ksh and csh).
+	bash/atari/bash1135.zoo:  Bash shell for the Atari platform.
+        bash/bash105.tar:	  Source code for version 1.05 of Bash.
+	bash/bash1146.tar:        Source code for version 1.14.6 of Bash. 
+        bash/bournesh:		  Short description on Bash (Bourne Again SHell)
+        bash/linux/...:		  Source code for version 1.14.5 of Bash
+				  for Linux platform.
+ 	bash/hp-ux903/...:	  Source code for HPUX-9.03 along with packages
+				  that has source for statically linked binaries
+				  and dynamically linked binaries. 
+	bash/os2/...:		  Source code for version 1.12 of Bash for OS2.
+
+bourne: Also known as the sh shell, Bourne is the oldest of the current
+	shells and is available on all UNIX systems.  It is a bit
+	primitive and lacks job control features.  Under the bourne
+	directory is series of files that consists of the shell archive
+	for compiling bourne shell into a UNIX system.
+	bourne/...:		  Shell script archives: consist of files and
+				  context diffs to add many long-desired
+				  features into the Bourne shell.
+	bourne/overview/scrpt_sc: Example of a bourne script.
+	bourne/overview/shell_ov: Short description about bourne shell.
+	bourne/overview/shellov:  Table of features between different shells.
+
+csh:    The C shell was developed at Berkeley at part of their UNIX
+	implementation and has been by far the most popular shell 
+	for interactive use.  It has a lot of nice features that 
+	aren't available i the Bourne shell, including job control
+	and history.
+	csh/tcsh606:		  Short description on Tcsh(csh - C-shell).
+	csh/linux/...:		  Port of BSD C Shell (ver 5.26) from the 
+				  386BSD source tree for Linux platform.
+				  This creates version 5.26a for Linux.
+
+find:   Find is one of UNIX's most useful and important utilities.
+	It finds files that match a given set of parameters, ranging
+	from the file's name to its modification date.
+	find/hp-ux903/source/find-380.tar:  Source code for HPUX-903.
+				  This package contains the GNU find,
+				  xargs, and locate programs.  Find and
+				  xargs comply with POSIX 1003.2.
+
+gawk:   Gawk  is  the GNU Project's implementation of the AWK pro-
+	gramming language.  It conforms to the definition  of  the
+	language  in  the POSIX 1003.2 Command Language And Utili-
+	ties Standard.  This version  in  turn  is  based  on  the
+	description  in  The  AWK  Programming  Language,  by Aho,
+	Kernighan, and Weinberger, with  the  additional  features
+	defined  in  the  System  V Release 4 version of UNIX awk.
+	Gawk also provides some GNU-specific extensions.
+	gawk/gawkd300.tar:	  Documentation on gawk.
+	gawk/gawks300.tar:	  Source code for different platform.
+	gawk/hp-ux903/...:	  Source code for HPUX-9.03 along with packages
+                                  that has source for statically linked binaries
+                                  and dynamically linked binaries.
+
+grep:   Grep searches the named input files (or standard input  if
+	no files are named, or the file name - is given) for lines
+	containing a match to the given pattern.  By default, grep
+	prints the matching lines.  There are different favors/version
+	of grep: egrep, fgrep, agrep, etc.  Each one tries to solve some
+	problem or define a easier way of greping something.
+	grep/agrep201/hp-ux807/source/agrep-20-.tar:  Source code for version
+					2.04 of agrep for the HPUX-807.
+        grep/agrep201/hp-ux905/...:	Source code and dynamically and static
+					linked libraries for 2.04 agrep.
+	grep/agrep201/part01,part02,part03:  Shell script archive for agrep
+					version 2.01.
+        grep/agrep201/shellscr/...:	Shell script archive for agrep 2.01 and
+					'Steve shell' (ssh) also provided.
+        grep/egrep/egrep12/...:		Egrep version 1.2 shell script archive.
+        grep/fastgrep/...:		Fastgrep, another version of grep.
+        grep/greps-20.tar:		Grep 2.0 with source code.
+        grep/hgrep/...:			Hgrep is a trivial, but cute, front-end
+					for grep.  It takes the results of the
+					grep and highlights the word that was
+					searched for.  Another shell archive.
+        grep/hp-ux903/source/grep-20.tar: Grep 2.0 with source for the HPUX. 
+        grep/macitosh/egrep.hqx:	Egrep for the 9500 Macs and others.
+        grep/mailgrep/mgrep:		Mail grep  - aid to help read mail.
+	grep/nt/...:			Source code for a version of grep.
+ 	grep/windows/...:		LI is a Windows file viewer/finder/
+					editor/deleter/launcher/printer.
+	grep/windows/s-n-r/...:		Search and Replace for Windows.
+ 
+
+korn:   The Korn shell is compatible with the Bourne Shell, but has
+	most of the C shell's features plus some completely new     
+	features, like history editing.  It is also more reliable 
+	than the csh.
+	korn/class/...:			Some short notes and description on
+					the Korn shell - almost a class notes
+					format.
+	korn/korn*...:			Short description of different types
+					of Korn shells.
+	korn/linux/pdksh523.tar:	Source code for PDksh for linux platform.
+	korn/mint/ksh_v04a.lzh:		Source package for the 'mint' platform.
+	korn/msdos/...:			This is an implementation of the Unix
+					Shell for MSDOS.  As far as possible it
+					is compatible with the System V.4
+					program sh(1) with ksh(1) extension.
+	korn/nt/...:			ntsh.exe, as it exists right now is is
+					little more than a command interpreter.
+					ls.exe, is a dir listing execute
+					just like 'ls' in unix.
+	korn/pdksh-32.tar:		PD KornShell (version 3.2) can be
+					installed on 4.2+ BSD systems, System V,
+					and POSIX-compatable systems.
+	korn/quickref:			Short summary of some of the built-in
+					commands in Korn shells.
+	korn/sesctions:			Short description of korn shell. 
+
+less:   Less is a program similar to  more  (1),  but  which  allows
+	backward  movement  in the file as well as forward movement.
+	Also, less does not have  to  read  the  entire  input  file
+	before starting, so with large input files it starts up fas-
+	ter than text editors like vi.
+	less/less290.tar:		This is the distribution of "less",
+					a paginator similar to "more" or "pg".
+
+sed:    The sed utility reads the specified files, or the standard input
+	if no files are specified, modifying the input as specified by a
+	list of commands.  The input is then written to the standard output.
+	sed/hp-ux903/source/sed-205.tar:  Sed source for the HPUX-9.03.
+	sed/sed-204:			Short description about SED.
+	sed/sed-205.tar:		Source for sed version 2.05.
+
+shellarc:   This is an example of a shell archive.  Shell Archive is use 
+	    to distribute code when binary transmission is not possible.
+	    Most of the shell archive is readable but must follow
+	    instructions, usually included, for the archive to function
+	    correctly.
+	    shellarc/getether.sh:	find IP addrs for all local ether
+					addrs (V1.4).
+					This is a shell archive.
+	
+
+shellscr:   This directory holds another shell archive.  Notice that the
+	    archive are text based and broken in several files.  It is
+	    easier transmit them via email system which are usually text
+	    based (7-bits bytes) systems.
+	    shellscr/shellmen/...	a simple shell-level menu system,
+					V3.1.  This is a shell archive.
+
+sort:   Sort sorts,  merges,  or  compares all the lines from the given
+	files, or the standard input if no  files  are  given.   A
+	file  name  of `-' means standard input.  By default, sort
+	writes the results to the standard output.
+	sort/macitosh/sort-10.hqx:	Unix like sort tool for the Mac.	
+
+ssh:    In UNIX, creating another shell is not hard it the source code
+	is available.  If you do, please carry the authors vitals along
+	with your and his/hers permission.  This is only a file 
+	description another shell that can be had.
+	ssh/ssh-170:	Short description on ssh (Steve's Shell).
+
+strsed: This directory holds examples of shell archives for the sed
+	tool.  This are script files that would perform some function
+	when using sed.
+	strsed/...:	String function to do sed(1)/tr(1) manipulations.
+			This is a shell archive.
+
+tcsh:   Tcsh is an enhanced version of the Berkeley UNIX  C  shell
+	csh(1).   It  behaves exactly like the C shell, except for
+	the additional utilities.  More shell archives also available
+	in this directory for the tcsh.
+	tcsh/faq:		Some basic questions about Tcsh.
+	tcsh/hp-ux903/...:	Source code and linkage for the HPUX-903.
+	tcsh/ported:		Some information about porting Tcsh between
+				different platform.
+	tcsh/tcsh/...:		Shell archive for the Tcsh.
+	tcsh/tcsh-606.tar:	This is tcsh version 6.06.  Tcsh is a version
+				of the Berkeley C-Shell.  This package can
+				also be configured for different platform. 
+	tcsh/tcsh.man:		Man pages for the 6.06 version of Tcsh.
+	tcsh/tcsh601/...:	Another shell archive for the Tcsh. 
+
+unixtool:    UNIX is not the only platform that can have tools such as:
+	     shells (ksh, csh), sed, sort, tr, wc, grep, diff, more,
+	     cat.  This directory holds code for  amiga, atari, mac,
+	     msdos, win3, and win95.
+	     unixtool/amiga/pdksh-bi.lha:	Binary files for the PD(KSH).
+	     unixtool/amiga/pdksh-sr.lha:	Source files for the PD(KSH).
+						PD(KSH) is a version of Korn.
+	     unixtool/amiga/unixcmd.lha:	Basic set of Unix type cmds.
+	     unixtool/atari/...:		Basic set of Unix type cmds.
+	     unixtool/macintos/mac-shel.hqx:	MacShell is a Unix-like
+						command line interface for the
+						Macintosh.
+	     unixtool/macintos/mega-sou.hqx:	Source code is provided for
+						the nShell(tm) commands.The
+						nShell is a traditional
+						scripting environment for the
+						Apple Macintosh.	
+	     unixtool/msdos/...:		Set of Unix tools.
+	     unixtool/win3/...:			Shareware programs that provides
+						UNIX-like tool functionality
+						under Windows 3.1, Windows for
+						Workgroups and Windows 95.
+	     unixtool/win95/...:		Same as unixtool/win3/...
+
+zsh:    Zsh is a super set of ksh (korn shell).  It has few new
+	features.  Not all platform has a zsh yet.
+	zsh/linux/zsh-260.tar:	This is zsh version 2.6 (beta13) for the Linux
+				platform with source code.
+	zsh/zshell.txt:		Short description about zsh.
+
+=====================================================================
+Hint:
+
+To load/execute shell script archive "sh filename -c".
+
+------------------------------------------------------------------------
+Before		After			Action
+------------- ------------------ ---------------------------------------
+"filename"    "filename".Z       Compress "filename" 
+"filename".Z  "filename"         Uncompress "filename.Z" 
+"filename"    "filename".gz      Gzip "filename" 
+"filename".gz "filename"         Gunzip "filename.gz" 
+"filename"    "filename".tar     Tar "filename" 
+"filename"    "filename".tar.Z   Tar && compress "filename" 
+"directory"   "directory".tar.Z  Tar && compress "directory" 
+"filename"    "filename".tar.gz  Tar && gzip "filename" 
+"directory"   "directory".tar.gz Tar && gzip "directory" 
+=====================================================================
+Warning:  Some of source code and script are encode for a UNIX based
+	  system.  You may be able to view those files but would be
+	  unable to execute them in a non-UNIX platform.
+
+	  For the HP-UX systems, dynamic and static are precompiled
+	  code where the libraries are linked differently.
+
+
+
+
+
+

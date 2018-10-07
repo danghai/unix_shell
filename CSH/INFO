@@ -1,0 +1,11 @@
+#!/bin/csh -f
+# This script is called info
+
+echo Hello ${LOGNAME}!
+echo The hour is 'date +%H'
+echo "This machine is 'uname -n'"
+echo The calendar for this month is
+cal 7 1995
+echo The processes you are running are:
+ps -aux | grep  "^ *$LOGNAME"
+echo "Thanks for coming. See you soon\!\!"

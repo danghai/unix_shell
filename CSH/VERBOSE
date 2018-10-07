@@ -1,0 +1,8 @@
+#!/bin/csh
+
+	echo Hello $LOGNAME
+	echo The date is 'date'
+	set verbose
+	echo Your home shell is $SHELL
+	unset verbose
+	echo Good-bye $LOGNAME 

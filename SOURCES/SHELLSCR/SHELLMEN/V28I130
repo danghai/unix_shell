@@ -1,0 +1,1181 @@
+From: how%milhow1@uunet.uu.net (Mike Howard)
+Newsgroups: comp.sources.unix
+Subject: v28i130: simple_menu-3.1 - a simple shell-level menu system, V3.1, Part06/09
+Date: 5 Oct 1994 01:21:18 -0700
+Organization: Vixie Enterprises
+Sender: vixie@vix.com
+Approved: vixie@gw.home.vix.com
+Message-ID: <36tnlu$ug@gw.home.vix.com>
+References: <1.781345221.914@gw.home.vix.com>
+
+Submitted-By: how%milhow1@uunet.uu.net (Mike Howard)
+Posting-Number: Volume 28, Issue 130
+Archive-Name: simple_menu-3.1/part06
+
+#! /bin/sh
+# This is a shell archive.  Remove anything before this line, then unpack
+# it by saving it into a file and typing "sh file".  To overwrite existing
+# files, type "sh file -c".  You can also feed this as standard input via
+# unshar, or by typing "sh <file", e.g..  If this archive is complete, you
+# will see the following message at the end:
+#		"End of archive 6 (of 9)."
+# Contents:  ./doc/s_menu.msac ./doc/s_menu.texiab
+# Wrapped by mike@clove2 on Wed Sep 28 06:55:58 1994
+PATH=/bin:/usr/bin:/usr/ucb ; export PATH
+if test -f './doc/s_menu.msac' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'./doc/s_menu.msac'\"
+else
+echo shar: Extracting \"'./doc/s_menu.msac'\" \(19975 characters\)
+sed "s/^X//" >'./doc/s_menu.msac' <<'END_OF_FILE'
+Xsign, as in \fR\&\f(CW%%)\fR.  This escape feature makes it possible to write
+Xscripts which construct Menu Definition Files dynamically and feed them
+Xto \fBSimple_Menu\fR.  This sort of thing is useful in constructing
+X\&'print a file which matches a pattern' menus where the pattern is known,
+Xbut neither exact files nor the number are known except at run time.
+X.PP
+XNote that leading and trailing white-space is stripped from Text
+XStrings.  This is done to ensure that the prompts which are displayed
+Xare relatively compact and neat.  It is arguable that this is an error,
+Xbut it is consistent with the philosophy behind Simple_Menu:
+Xthe intent here is to make the job of creating menus easy by taking care
+Xof the details of format, user interrogation, and running the scripts.
+XGiving too detailed a control to the format of the displayed menu leans
+Xtoward \fBComplicated_Menu\fR.
+X.PP
+XNote: an obsolete 3rd style of static text is supported.  Text is
+Xdelimited by curly braces: { and }.  The closing brace may be escaped
+Xby preceding it with a back-slash, as in \e}.  The back-slash must be
+Xdoubled: \e\e.  This is the result of an initial bad design and should not
+Xbe used.  Eventually it will go away.
+X.PP
+X.PP
+X.ds __ Prompt\ Strings
+X.NH 2
+X\&\*(__ 
+X.XS 
+X\&\n(H1.\n(H2      \*(__ 
+X.XE
+X\&\fR
+X.iX "c The Syntax of Prompt Strings"
+X.iX "c The Syntax of Dynamic text Strings"
+X.PP
+XPrompt strings consist of \fIStatic Text\fR and \fIVariable Names\fR
+Xconcatenated together using any of three concatenation operators.
+X.PP
+X.IP \(bu\ \ 
+X\&\fR\&\f(CW+\fR operator - inserts a single space between the strings.
+X.IP \(bu\ \ 
+X\&\fR\&\f(CW|\fR operator - concatenates the two strings
+X.IP \(bu\ \ 
+X\&\fR\&\f(CW+n\fR operator - inserts a 'new line' between the strings
+X.PP
+XPrompt strings provide a way to provide context dependent prompts to the
+Xuser.  This is accomplished by evaluating all \fIGlobal Variables\fR
+Xused in the Prompt string each time it is displayed.
+X.PP
+XIn the following examples, assume that "FOO" has the value 'foo foo'
+X.PP
+X.IP 1.\ 
+X\&'string 1' + "FOO" + 'string 2' evaluates to:
+X.IP
+Xstring 1 foo foo string 2
+X.IP 2.\ 
+X\&' string 1 ' | "FOO" | ' string 2 ' evaluates to:
+X.IP
+Xstring 1foo foostring 2
+X.IP 3.\ 
+X\&'string 1' + "FOO" +n 'string 2' evaluates to:
+X.IP
+Xstring 1 foo foo
+Xstring 2
+X.PP
+X.PP
+X.ds __ Execution\ Parms
+X.NH 2
+X\&\*(__ 
+X.XS 
+X\&\n(H1.\n(H2      \*(__ 
+X.XE
+X\&\fR
+X.iX "c Execution Parms "
+X.iX "c Special Variables - in detail"
+X.PP
+XThree statements can be used to modify the default execution
+Xenvironment.
+X.PP
+X\&\fR\&\f(CWshell-path = 'new path' ;\fR is used to define the path to the shell
+Xwhich executes shell scripts.  The default value is \fI/bin/sh\fR.
+X.PP
+X\&\fR\&\f(CWasg-fmt = 'new fmt' ;\fR is used to change the assignment format used
+Xto initialized variables and parameters in the shell execution files,
+XSee section How Scripts are Run.  The 'new fmt' string must contain instances
+Xof the following two special symbols: \fR\&\f(CW$ID$\fR and \fR\&\f(CW$VALUE$\fR.
+XThe symbol \fR\&\f(CW$ID$\fR is replaced by the \fIName\fR of the variable or
+Xparameter.  The symbol \fR\&\f(CW$VALUE$\fR is replaced by the current value
+Xof the variable or parameter at the time the shell execution file is
+Xwritten.  The default value for 'new fmt' is \fR\&\f(CW$ID$=$VALUE$ ; export
+X$ID$\fR
+X.PP
+X\&\fR\&\f(CWnull-value = 'string' ;\fR is used to define the string to use for
+X\&\fR\&\f(CW$VALUE$\fR for variables and parameters which do not have values.
+XBy default it is the Null string, \fR\&\f(CW""\fR.
+X.PP
+X.PP
+X.ds __ Grammar
+X.NH 2
+X\&\*(__ 
+X.XS 
+X\&\n(H1.\n(H2      \*(__ 
+X.XE
+X\&\fR
+X.iX "c Menu Definition File Grammar"
+X.PP
+XThe following grammar was extracted from the yacc source 'grammar.y'.
+XKey words in this text which correspond to symbols in the grammar should be
+Xeasily discernible: generally dashes '-' have been replaced by
+Xunderscores '_' and the key words are written in CAPITAL letters.
+X.PP
+XTEXT refers to Text Strings.
+X.PP
+XMenu Definition File Grammar:
+X.PP
+X.ID
+X\&\fR\&\f(CW
+Xmenu_def_file : ev_list menu_list
+X	| menu_list
+X	;
+X\&\&
+Xev_list : ev_var
+X	| ev_list ev_var
+X	;
+X\&\&
+Xev_var : SHELL_PATH '=' TEXT ';'
+X	| ASG_FMT '=' TEXT ';'
+X	| NULL_VALUE '=' TEXT ';'
+X	| FROM_ENV NAME ';'
+X	| FROM_ENV NAME '=' TEXT ';'
+X	| GLOBAL NAME ';'
+X	| GLOBAL NAME '=' TEXT ';'
+X	| FROM_FILE TEXT NAME ';'
+X	| FROM_FILE TEXT NAME '=' TEXT ';'
+X	| FROM_SHELL NAME '=' TEXT ';'
+X	;
+X\&\&
+Xmenu_list : menu
+X	| menu_list menu
+X	;
+X\&\&
+Xmenu : title menu_flags item
+X	| title menu_flags RESTRICTED TEXT item
+X	| menu item
+X	| menu RESTRICTED TEXT item
+X	;
+X\&\&
+Xtitle : TITLE prompt_string
+X	| MENU NAME TITLE prompt_string
+X	;
+X\&\&
+Xprompt_string : prompt_item
+X	| prompt_string '|' prompt_item
+X	| prompt_string '+' prompt_item
+X	| prompt_string PLUS_NL prompt_item
+X	;
+X\&\&
+Xprompt_item : NAME
+X	| TEXT
+X	;
+X\&\&
+Xmenu_flags :
+X	| menu_flags menu_flag
+X	;
+X\&\&
+Xmenu_flag : CLEAR
+X	| BOLD
+X	| ALWAYS_SHOW
+X	| ONCE
+X	| ALPHA
+X	| WAIT
+X	| SCOPE_VARIABLES
+X	;
+X\&\&
+Xitem : ACTION prompt_string action_list ';'
+X	| SHELL prompt_string  TEXT  parms ';'
+X	| PRELUDE  prompt_string  TEXT  parms ';'
+X	| PRELUDE  prompt_string  action_list ';'
+X	| EPILOGUE  prompt_string  TEXT  parms ';'
+X	| EPILOGUE  prompt_string  action_list ';'
+X	| DO_MENU NAME prompt_string ';'
+X	| RESET_GLOBAL prompt_string ev_vals ';'
+X	| SKIP ';'
+X	| SKIP prompt_string ';'
+X	;
+X\&\&
+Xaction_list : conditioned_item
+X	| action_list conditioned_item
+X	;
+X\&\&
+Xconditioned_item : action_item
+X	| IFDEF NAME action_item
+X	| IFNDEF NAME action_item
+X	| IF NAME EQ TEXT action_item
+X	| IF NAME NEQ TEXT action_item
+X	;
+X\&\&
+Xaction_item : SHELL TEXT parms
+X	| RESET_GLOBAL ev_vals
+X	| DO_MENU NAME
+X	;
+X\&\&
+Xev_vals : /* empty */
+X	| ev_vals  GLOBAL NAME '=' TEXT
+X	| ev_vals  FROM_SHELL NAME '=' TEXT
+X	| ev_vals  FROM_FILE TEXT NAME
+X	| ev_vals FROM_USER NAME TEXT
+X	| ev_vals FROM_USER NAME TEXT VALIDATE_THROUGH TEXT
+X	;
+X\&\&
+Xparms : /* empty */
+X	| parms parm
+X	;
+X\&\&
+Xparm : PARM NAME prompt_string
+X	| PARM NAME '=' TEXT prompt_string
+X	| PARM NAME '=' NAME prompt_string
+X	;
+X\&\&
+X.DE
+X\&\fR
+X.PP
+XThe Terminal Symbols used in the grammar are associated with the
+Xfollowing key words:
+X.PP
+X.ID
+X\&\fR\&\f(CW
+XACTION - action-list
+XALPHA - alpha
+XALWAYS_SHOW - always-show
+XASG_FMT - asg-fmt
+XBOLD - bold
+XCLEAR - clear
+XDO_MENU - do-menu
+XEPILOGUE - epilogue
+XEQ - equals, eq, is
+XERROR - ERROR
+XFROM_ENV - from-env
+XFROM_FILE - from-file
+XFROM_SHELL - from-shell
+XFROM_USER - from-user, interactive
+XGLOBAL - global
+XIF - if
+XIFDEF - if-defined, ifdef
+XIFNDEF - if-not-defined, ifndef
+XMENU - menu
+XNEQ - is-not, neq, not-equal, not-eq
+XNULL_VALUE - null-value
+XONCE - once
+XPARM - parm
+XPRELUDE - prelude
+XRESET_GLOBAL - reset-global
+XRESTRICTED - restricted
+XSCOPE_VARIABLES - scope-variables
+XSHELL - item, shell
+XSHELL_PATH - shell-path
+XSKIP - skip
+XTITLE - title
+XVALIDATE_THROUGH - through, validate-through, validate-thru
+XWAIT - wait
+X.DE
+X\&\fR
+X.PP
+X.PP
+X.bp
+X.ds __ Concept\ Index
+X.NH 1
+X\&\*(__ 
+X.XS 
+X\&\n(H1	\*(__ 
+X.XE
+X\&\fR
+X.PP
+XConcept Index:
+X.sp 5
+X.TS H
+Xtab(;) ;
+Xl r.
+XTopic;Page
+X_
+X.TH
+XCopying Conditions;3
+XWhat Simple_Menu is;4
+XMenu Definition File;6
+XHow Menus are Defined;9
+Xthe Menu Title Statement;10
+XMenu Options;10
+XMenu Actions;11
+Xthe Menu Prelude;13
+Xthe Menu Epilogue;13
+XMenu Items;13
+Xthe Shell Menu Item;14
+Xthe Do-Menu Menu Item;15
+Xthe Skip Menu Item;15
+Xthe Reset Global Menu Item;16
+Xthe Action List Menu Item;17
+XVariables in General;18
+XVariable Assignment to Static Text;19
+XVariable Assignment From the Environment;19
+XVariable Assignment From File;19
+XVariable Assignment From Shell Scripts;20
+XSpecial Values Variables;20
+XHow Shell Scripts are Run;24
+XHow Simple_Menu implements System Actions;24
+XSyntactic Details;26
+XThe Syntax of Variable and Menu Names;26
+XThe Syntax of static Text Strings;26
+XThe Syntax of Prompt Strings;27
+XThe Syntax of Dynamic text Strings;27
+XExecution Parms ;28
+XSpecial Variables - in detail;28
+XMenu Definition File Grammar;28
+X.TE
+X.PP
+X.PP
+X.bp
+X.ds __ Copying\ Conditions
+X.NH 1
+X\&\*(__ 
+X.XS 
+X\&\n(H1	\*(__ 
+X.XE
+X\&\fR
+X.PP
+X.bp
+X.ds __ GNU\ GENERAL\ PUBLIC\ LICENSE
+X.XS 
+X\&\*(__ 
+X.XE
+X.SH 
+X\&\*(__ 
+X\&\fR
+X.ce
+XVersion\ 2,\ June\ 1991
+X.PP
+X.ID
+XCopyright \(co 1989, 1991 Free Software Foundation, Inc.
+X675 Mass Ave, Cambridge, MA 02139, USA
+X\&\&
+XEveryone is permitted to copy and distribute verbatim copies
+Xof this license document, but changing it is not allowed.
+X.DE
+X.PP
+X.ds __ Preamble
+X.XS 
+X\&\*(__ 
+X.XE
+X.SH 
+X\&\*(__ 
+X\&\fR
+X.PP
+X  The licenses for most software are designed to take away your
+Xfreedom to share and change it.  By contrast, the GNU General Public
+XLicense is intended to guarantee your freedom to share and change free
+Xsoftware---to make sure the software is free for all its users.  This
+XGeneral Public License applies to most of the Free Software
+XFoundation's software and to any other program whose authors commit to
+Xusing it.  (Some other Free Software Foundation software is covered by
+Xthe GNU Library General Public License instead.)  You can apply it to
+Xyour programs, too.
+X.PP
+X  When we speak of free software, we are referring to freedom, not
+Xprice.  Our General Public Licenses are designed to make sure that you
+Xhave the freedom to distribute copies of free software (and charge for
+Xthis service if you wish), that you receive source code or can get it
+Xif you want it, that you can change the software or use pieces of it
+Xin new free programs; and that you know you can do these things.
+X.PP
+X  To protect your rights, we need to make restrictions that forbid
+Xanyone to deny you these rights or to ask you to surrender the rights.
+XThese restrictions translate to certain responsibilities for you if you
+Xdistribute copies of the software, or if you modify it.
+X.PP
+X  For example, if you distribute copies of such a program, whether
+Xgratis or for a fee, you must give the recipients all the rights that
+Xyou have.  You must make sure that they, too, receive or can get the
+Xsource code.  And you must show them these terms so they know their
+Xrights.
+X.PP
+X  We protect your rights with two steps: (1) copyright the software, and
+X(2) offer you this license which gives you legal permission to copy,
+Xdistribute and/or modify the software.
+X.PP
+X  Also, for each author's protection and ours, we want to make certain
+Xthat everyone understands that there is no warranty for this free
+Xsoftware.  If the software is modified by someone else and passed on, we
+Xwant its recipients to know that what they have is not the original, so
+Xthat any problems introduced by others will not reflect on the original
+Xauthors' reputations.
+X.PP
+X  Finally, any free program is threatened constantly by software
+Xpatents.  We wish to avoid the danger that redistributors of a free
+Xprogram will individually obtain patent licenses, in effect making the
+Xprogram proprietary.  To prevent this, we have made it clear that any
+Xpatent must be licensed for everyone's free use or not licensed at all.
+X.PP
+X  The precise terms and conditions for copying, distribution and
+Xmodification follow.
+X.PP
+X.ds __ TERMS\ AND\ CONDITIONS\ FOR\ COPYING,\ DISTRIBUTION\ AND\ MODIFICATION
+X.XS 
+X\&\*(__ 
+X.XE
+X.SH 
+X\&\*(__ 
+X\&\fR
+X.PP
+X.IP 1.\ 
+XThis License applies to any program or other work which contains
+Xa notice placed by the copyright holder saying it may be distributed
+Xunder the terms of this General Public License.  The ``Program'', below,
+Xrefers to any such program or work, and a ``work based on the Program''
+Xmeans either the Program or any derivative work under copyright law:
+Xthat is to say, a work containing the Program or a portion of it,
+Xeither verbatim or with modifications and/or translated into another
+Xlanguage.  (Hereinafter, translation is included without limitation in
+Xthe term ``modification''.)  Each licensee is addressed as ``you''.
+X.IP
+XActivities other than copying, distribution and modification are not
+Xcovered by this License; they are outside its scope.  The act of
+Xrunning the Program is not restricted, and the output from the Program
+Xis covered only if its contents constitute a work based on the
+XProgram (independent of having been made by running the Program).
+XWhether that is true depends on what the Program does.
+X.IP
+X.IP 2.\ 
+XYou may copy and distribute verbatim copies of the Program's
+Xsource code as you receive it, in any medium, provided that you
+Xconspicuously and appropriately publish on each copy an appropriate
+Xcopyright notice and disclaimer of warranty; keep intact all the
+Xnotices that refer to this License and to the absence of any warranty;
+Xand give any other recipients of the Program a copy of this License
+Xalong with the Program.
+X.IP
+XYou may charge a fee for the physical act of transferring a copy, and
+Xyou may at your option offer warranty protection in exchange for a fee.
+X.IP
+X.IP 3.\ 
+XYou may modify your copy or copies of the Program or any portion
+Xof it, thus forming a work based on the Program, and copy and
+Xdistribute such modifications or work under the terms of Section 1
+Xabove, provided that you also meet all of these conditions:
+X.IP
+X.RS
+X.IP 1.\ 
+XYou must cause the modified files to carry prominent notices
+Xstating that you changed the files and the date of any change.
+X.IP
+X.IP 2.\ 
+XYou must cause any work that you distribute or publish, that in
+Xwhole or in part contains or is derived from the Program or any
+Xpart thereof, to be licensed as a whole at no charge to all third
+Xparties under the terms of this License.
+X.IP
+X.IP 3.\ 
+XIf the modified program normally reads commands interactively
+Xwhen run, you must cause it, when started running for such
+Xinteractive use in the most ordinary way, to print or display an
+Xannouncement including an appropriate copyright notice and a
+Xnotice that there is no warranty (or else, saying that you provide
+Xa warranty) and that users may redistribute the program under
+Xthese conditions, and telling the user how to view a copy of this
+XLicense.  (Exception: if the Program itself is interactive but
+Xdoes not normally print such an announcement, your work based on
+Xthe Program is not required to print an announcement.)
+X.RE
+X.IP
+XThese requirements apply to the modified work as a whole.  If
+Xidentifiable sections of that work are not derived from the Program,
+Xand can be reasonably considered independent and separate works in
+Xthemselves, then this License, and its terms, do not apply to those
+Xsections when you distribute them as separate works.  But when you
+Xdistribute the same sections as part of a whole which is a work based
+Xon the Program, the distribution of the whole must be on the terms of
+Xthis License, whose permissions for other licensees extend to the
+Xentire whole, and thus to each and every part regardless of who wrote it.
+X.IP
+XThus, it is not the intent of this section to claim rights or contest
+Xyour rights to work written entirely by you; rather, the intent is to
+Xexercise the right to control the distribution of derivative or
+Xcollective works based on the Program.
+X.IP
+XIn addition, mere aggregation of another work not based on the Program
+Xwith the Program (or with a work based on the Program) on a volume of
+Xa storage or distribution medium does not bring the other work under
+Xthe scope of this License.
+X.IP
+X.IP 4.\ 
+XYou may copy and distribute the Program (or a work based on it,
+Xunder Section 2) in object code or executable form under the terms of
+XSections 1 and 2 above provided that you also do one of the following:
+X.IP
+X.RS
+X.IP 1.\ 
+XAccompany it with the complete corresponding machine-readable
+Xsource code, which must be distributed under the terms of Sections
+X1 and 2 above on a medium customarily used for software interchange; or,
+X.IP
+X.IP 2.\ 
+XAccompany it with a written offer, valid for at least three
+Xyears, to give any third party, for a charge no more than your
+Xcost of physically performing source distribution, a complete
+Xmachine-readable copy of the corresponding source code, to be
+Xdistributed under the terms of Sections 1 and 2 above on a medium
+Xcustomarily used for software interchange; or,
+X.IP
+X.IP 3.\ 
+XAccompany it with the information you received as to the offer
+Xto distribute corresponding source code.  (This alternative is
+Xallowed only for noncommercial distribution and only if you
+Xreceived the program in object code or executable form with such
+Xan offer, in accord with Subsection b above.)
+X.RE
+X.IP
+XThe source code for a work means the preferred form of the work for
+Xmaking modifications to it.  For an executable work, complete source
+Xcode means all the source code for all modules it contains, plus any
+Xassociated interface definition files, plus the scripts used to
+Xcontrol compilation and installation of the executable.  However, as a
+Xspecial exception, the source code distributed need not include
+Xanything that is normally distributed (in either source or binary
+Xform) with the major components (compiler, kernel, and so on) of the
+Xoperating system on which the executable runs, unless that component
+Xitself accompanies the executable.
+X.IP
+XIf distribution of executable or object code is made by offering
+Xaccess to copy from a designated place, then offering equivalent
+Xaccess to copy the source code from the same place counts as
+Xdistribution of the source code, even though third parties are not
+Xcompelled to copy the source along with the object code.
+X.IP
+X.IP 5.\ 
+XYou may not copy, modify, sublicense, or distribute the Program
+Xexcept as expressly provided under this License.  Any attempt
+Xotherwise to copy, modify, sublicense or distribute the Program is
+Xvoid, and will automatically terminate your rights under this License.
+XHowever, parties who have received copies, or rights, from you under
+Xthis License will not have their licenses terminated so long as such
+Xparties remain in full compliance.
+X.IP
+X.IP 6.\ 
+XYou are not required to accept this License, since you have not
+Xsigned it.  However, nothing else grants you permission to modify or
+Xdistribute the Program or its derivative works.  These actions are
+Xprohibited by law if you do not accept this License.  Therefore, by
+Xmodifying or distributing the Program (or any work based on the
+XProgram), you indicate your acceptance of this License to do so, and
+Xall its terms and conditions for copying, distributing or modifying
+Xthe Program or works based on it.
+X.IP
+X.IP 7.\ 
+XEach time you redistribute the Program (or any work based on the
+XProgram), the recipient automatically receives a license from the
+Xoriginal licensor to copy, distribute or modify the Program subject to
+Xthese terms and conditions.  You may not impose any further
+Xrestrictions on the recipients' exercise of the rights granted herein.
+XYou are not responsible for enforcing compliance by third parties to
+Xthis License.
+X.IP
+X.IP 8.\ 
+XIf, as a consequence of a court judgment or allegation of patent
+Xinfringement or for any other reason (not limited to patent issues),
+Xconditions are imposed on you (whether by court order, agreement or
+Xotherwise) that contradict the conditions of this License, they do not
+Xexcuse you from the conditions of this License.  If you cannot
+Xdistribute so as to satisfy simultaneously your obligations under this
+XLicense and any other pertinent obligations, then as a consequence you
+Xmay not distribute the Program at all.  For example, if a patent
+Xlicense would not permit royalty-free redistribution of the Program by
+Xall those who receive copies directly or indirectly through you, then
+Xthe only way you could satisfy both it and this License would be to
+Xrefrain entirely from distribution of the Program.
+X.IP
+XIf any portion of this section is held invalid or unenforceable under
+Xany particular circumstance, the balance of the section is intended to
+Xapply and the section as a whole is intended to apply in other
+Xcircumstances.
+X.IP
+XIt is not the purpose of this section to induce you to infringe any
+Xpatents or other property right claims or to contest validity of any
+Xsuch claims; this section has the sole purpose of protecting the
+Xintegrity of the free software distribution system, which is
+Ximplemented by public license practices.  Many people have made
+Xgenerous contributions to the wide range of software distributed
+Xthrough that system in reliance on consistent application of that
+END_OF_FILE
+if test 19975 -ne `wc -c <'./doc/s_menu.msac'`; then
+    echo shar: \"'./doc/s_menu.msac'\" unpacked with wrong size!
+fi
+# end of './doc/s_menu.msac'
+fi
+if test -f './doc/s_menu.texiab' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'./doc/s_menu.texiab'\"
+else
+echo shar: Extracting \"'./doc/s_menu.texiab'\" \(19975 characters\)
+sed "s/^X//" >'./doc/s_menu.texiab' <<'END_OF_FILE'
+Xsyntax assumes that the prelude will consist of a single shell script.
+XIn this case, the keyword @code{shell} may be omitted from the single
+Xshell action.  This syntax will probably be dropped in version 4.
+X
+X@node Menu Epilogue, Menu Items, Menu Prelude, Menus
+X@comment  node-name,  next,  previous,  up
+X
+X@section Menu Epilogue
+X@cindex the Menu Epilogue
+X
+XThe Menu Epilogue is identical in syntax to the Menu Prelude, except
+Xfor the use of the word @code{epilogue}.
+X
+X@node Menu Items,         ,Menu Epilogue, Menus
+X@comment  node-name,  next,  previous,  up
+X
+X@section Menu Items
+X@cindex Menu Items
+X
+XMenu Items are user selectable actions.  They are displayed in the order
+Xin which they occur.  A modicum of format control is available by using
+Xthe @code{skip} pseudo-item to gather items into logical groups.
+X
+XThe following items are supported
+X
+X@itemize @bullet
+X@item
+X@code{shell} - defines a shell script, with optional user specified
+Xparameters.
+X@item
+X@code{do-menu} - calls a named sub-menu.
+X@item
+X@code{skip} - instructs the display driver to insert text or a line 
+Xbetween the preceding and following items in the menu display.
+X@item
+X@code{reset-global} - allows changes to global variables
+X@ref{Variables}.  Changes made here will be retained until the nearest
+Xscoping menu exits.
+X@code{action-list} - permits an arbitrary sequence of @strong{shell},
+X@strong{do-menu}, and @strong{reset-global} items to be assigned one
+Xchoice.
+X@end itemize
+X
+X@menu
+X* Shell::            execute a shell script
+X* Do Menu::          call a sub menu
+X* Skip::             group menu items
+X* Reset Global::     change values of global variables
+X* Action List::      sequence of menu items
+X@end menu
+X
+X@node    Shell,    Do Menu,      , Menu Items
+X@comment  node-name,  next,  previous,  up
+X
+X@subsection Shell Item
+X@cindex the Shell Menu Item
+X
+XA Shell Item defines an action which is executed by running a shell
+Xscript.
+X
+XA Shell Item begins with the key word @emph{shell} and is terminated by
+Xa semi-colon [;].  The body of the item consists of three sections:
+X@enumerate
+X@item
+Xa Prompt String, identifying text seen by the user which is displayed to
+Xthe user @xref{Prompt Strings}
+X@item
+Xa Text String, defining the shell script to be executed.  @xref{Text
+XStrings}
+X@item
+XZero or more Parameter definitions.  Each parameter definition begins
+Xwith the key word @emph{parm}, followed by a parameter name,
+X@xref{Names}, and ends with a prompt string.  Parameters can be
+Xoptionally initialized to the value of either a Text String or a Global
+XVariable.  The three possible variants in syntax are:
+X@itemize @bullet
+X@item
+Xparm "NAME"    'user prompt string'
+X@item
+Xparm "NAME" = 'static text initializer'  'user prompt string'
+X@item
+Xparm "NAME" = "GLOBAL_NAME"    'user prompt string'
+X@end itemize
+X@end enumerate
+X
+XParameters are essentially local variables which are defined for the
+XShell Item.  They inhabit a private name-space associated with the shell
+Xitem, so that no conflicts occur if a parameter name duplicates either a
+XGlobal Variable or a Parameter for a different Shell Item in the same or
+Xanother menu.
+X
+XWhen the user selects a Shell Item, each parameter is instantiated by
+Xprompting the user for a value using the supplied prompt string.  If the
+Xparameter has an initializer, that initial value is used by default and
+Xis displayed to the user during this initialization.  Then the shell
+Xscript is run.  @xref{How Scripts are Run}
+X
+XSyntax:
+X
+X@example
+Xshell @emph{prompt string for user}
+X@emph{text string defining the script}
+X@emph{parameter definitions}
+X;
+X@end example
+X
+X@node     Do Menu, Skip,     Shell,     Menu Items
+X@comment  node-name,  next,  previous,  up
+X
+X@subsection Do Menu
+X@cindex the Do-Menu Menu Item
+X
+XA Menu Item quite simply invokes a sub-menu.  The item consists of the
+Xkey word @emph{do-menu}, the Name of the menu @xref{Names}, a Prompt
+XString defining the item to the user, followed by a semi-colon [;].
+X
+XThe action causes the current menu to be suspended and the Named menu to
+Xbe started up.
+X
+X@example
+Xdo-menu "Menu-Name" @emph{prompt string for user} ;
+X@end example
+X
+X@node     Skip, Reset Global, Do Menu, Menu Items
+X@comment  node-name,  next,  previous,  up
+X
+X@subsection Skip
+X@cindex the Skip Menu Item
+X
+XA skip item is used to block groups of items into logic groups by
+Xinserting either a single blank line or the value of a Prompt String
+X@xref{Prompt Strings}.  It consists of the key word @emph{skip},
+Xoptionally followed by a Prompt String, and terminated by a semi-colon
+X[;].  The Prompt String is displayed in standout mode, or equivalent.
+X
+X@example
+Xskip ;   # inserts a blank line between the preceding and succeeding
+X         # items
+X
+Xskip 'a prompt string' + "Global_Variable" ; # inserts the value
+X                                             # of the Prompt String
+X                                             # in standout mode
+X@end example
+X
+X
+X@node  Reset Global, Action List, Skip, Menu Items
+X@comment  node-name,  next,  previous,  up
+X
+X@subsection Reset Global
+X@cindex the Reset Global Menu Item
+X
+XA Reset Global item is used to change the values of Global Variables.
+XThis item consists of the key word @emph{reset-globals} followed by one
+Xor more variable assignments and finally terminated by a semi-colon
+X[;].  The changed variables retain the new values until they are changed
+Xagain or the menu which defines their scope terminates.  Changed values
+Xdo not persist between sessions.  The default scope for all variables is
+Xthe MAIN menu, but lower scopes can be defined by the
+X@emph{scope-variables} menu option, @xref{Menu Options}.
+X
+XUnfortunately, there is a rich variety of ways in which variables may
+Xbe redefined.  These differ slightly from initial variable assignments
+Xin that:
+X
+X@itemize @bullet
+X@item
+XThere are no defaults - the assumption is that you know what to do in
+Xall cases.
+X@item
+XThere is provision for user interaction with or without validation.
+X@item
+XThere is no provision for checking in the environment.
+X@item
+XNo @emph{new} variables may be defined.
+X@end itemize
+X
+XThe following example illustrates both syntax and possible entries:
+X
+X@example
+Xreset-global
+Xglobal "VARIABLE" = 'Text String'  # value of the Text String is
+X                                   # assigned to VARIABLE
+Xfrom-shell "VAR" = %( shell script to run %) # the output of the
+X                                   # shell script is assigned to VAR
+Xfrom-file 'path-to-file' "VARIABLE" # the value associated with VARIABLE
+X                                   # found in the file 'path-to-file' is
+X                                   # assigned to VARIABLE
+X                                   # @xref{Variables}
+Xfrom-user "VAR" 'user prompt'      # user is prompted with 'user prompt'
+X                                   # user input is assigned to VAR
+Xfrom-user "VAR 'user prompt'       # user is prompted with 'user prompt'
+X  validate-through                 # user input is assigned to
+X                %( shell script %) # the variable USER_RESPONSE.
+X				   # shell script is then run and 
+X				   # it's output is assigned to VAR
+X;
+X@end example
+X
+XNote: In @code{from-shell} and @code{from-user} shell scripts, all
+Xglobal variables are defined, including the current value of the one
+Xbeing reset.
+X
+X@node  Action List,     , Reset Global, Menu Items
+X@comment  node-name,  next,  previous,  up
+X
+X@subsection Action List
+X@cindex the Action List Menu Item
+X
+XAn Action List item is used when you need to combine several actions
+Xwithin a single menu item.  For example, suppose you need initialize a
+Xcollection of variables depending upon the user using the menu and then
+Xexecute a sub-menu.  User keystrokes may be minimized by using an action
+Xsequence which performs the initialization and then calls the menu.  By
+Xconditioning the initialization on some key variable, the initialization
+Xcan be avoided during subsequent calls to the same menu.  For example:
+X
+X@example
+Xaction-list 'Do Major Work'
+Xif-not-defined "KEY_VARIABLE" do-menu "INITIALIZE_MENU"
+Xdo-menu "WORK_MENU"
+X
+Xmenu "INITIALIZE_MENU"
+X@emph{sequence of reset-global actions to set up the environment}
+X
+Xmenu "WORK_MENU"
+X@emph{sequence of work related shell scripts configured by variables}
+X@end example
+X
+X@node Variables, Invoking Simple_Menu, Menus, Top
+X@comment  node-name,  next,  previous,  up
+X
+X@chapter Variables
+X@cindex Variables in General
+X
+XOnly String valued variables are supported.  There are no operations on
+Xvariables other than assigning them new values and, implicitly,
+Xrestoring their previous values.  Two types of variables are supported:
+XGlobal Variables and Parameters.
+X
+XGlobal Variables must all be defined prior to the first menu definition.
+XThey persist until the menu session ends and are known to all menus.
+XTheir values may be changed by executing a @emph{reset-global} Menu Item
+Xwithin a menu.  This permanently changes the value of the effected
+Xvariables within their current scope.  The scope of values is initially
+Xthe MAIN menu, but all variables may be 're-scoped' by executing a menu
+Xwith the 'scope-variables' option, which causes the current values of
+Xall Global Variables to be pushed on the value stack maintained for each
+Xvariable.  Thus, since changes only effect the value on the top of the
+Xstack, the previous values will be restored when the scoping menu exits.
+X
+XGlobal Variables are intended for use in either configuration values
+Xwhich may be dependent on the actual machine the user is using or which
+Xthe user may want to set and retain for a variety of operations - say a
+Xthe name of one of several data-bases.  Examples might be, the user's
+Xfull name, a default printer, selecting a data server which depends on
+Xthe network the user is actually logged onto, etc.
+X
+XGlobal Variables are defined in the environment variable section of the
+XMenu Definition File, @xref{Menu Definition File}.  All of these
+Xassignments create and initialize Global Variables.  Syntactically, they
+Xall begin with a unique key word and are terminated by a semi-colon [;].
+XThe following variations are supported:
+X
+X@itemize @bullet
+X@item
+XStatic Text.  'hard coded' Values.
+X@item
+XFrom Environment.  Value from the environment
+X@item
+XFrom File.  Value from a configuration file.
+X@item
+XFrom Shell.  Value obtained by running a shell.
+X@item
+XSpecial Values.  Special configuration values.
+X@end itemize
+X
+X@menu
+X* Static Text::                'hard coded' Value
+X* From Environment::           Value from the Environment
+X* From File::                  Value from a configuration file
+X* From Shell::                 Value obtained by running a shell
+X* Special Values::             Special configuration values
+X@end menu
+X
+XParameters are variables which are defined locally for Shell Items,
+X@xref{Shell}.  They are instantiated immediately prior to running
+Xthe shell by interrogating the user.  These are used for frequently
+Xchanging values which may or may not require defaults.  Examples might
+Xbe a file to edit, a user to send mail to, etc.
+X
+XParameter initialization is covered elsewhere, @xref{Shell}.
+X
+X@node   Static Text, From Environment, , Variables
+X@comment  node-name,  next,  previous,  up
+X
+X@section Static Text
+X@cindex Variable Assignment to Static Text
+X
+XThe simplest assignment is to define and initialize a global variable.
+X
+X@example
+Xglobal "NAME" ;   # defines a variable and initializes it to the Null
+X                  # Value
+Xglobal "NAME" = 'a Text String' ; # defines a variable named NAME and
+X                                  # assigns it the value of the text
+X@end example
+X
+X@node From Environment, From File, Static Text, Variables
+X@comment  node-name,  next,  previous,  up
+X
+X@section From Environment
+X@cindex Variable Assignment From the Environment
+X
+XEnvironment variables may be taken from the environment.  This is kind
+Xof a convenience, because the job can be accomplished by using
+X'from-shell' initializations, but this is cleaner and faster.
+X
+X@example
+Xfrom-env "NAME" ;   # defines the variable NAME and looks for it in the
+X                    # user's environment.  If found, that value is
+X                    # assigned, otherwise the Null Value
+Xfrom-env "NAME" = 'a Text String' ; # defines the variable NAME and
+X                    # looks for it in the user's environment.  If found,
+X                    # the environment value is used, otherwise the
+X                    # value of the Text String
+X@end example
+X
+X
+X@node     From File, From Shell, From Environment, Variables
+X@comment  node-name,  next,  previous,  up
+X
+X@section From File
+X@cindex Variable Assignment From File
+X
+XVariables may be set from a configuration file.  The configuration file
+Xconsists of variable definitions and garbage.  A variable definition
+Xconsists of a Name, an equals sign [=], and the rest of the line.  The
+Xvalue returned is the stuff to the right of the equals sign with leading
+Xand trailing white space stripped.   There is no provision for
+Xdefinitions spanning more than one line.
+X
+XNote: if no definition for the named variable is found in the named
+Xfile, the value assigned to the variable depends on the context the
+X'from-file' is executed in:
+X@itemize @bullet
+X@item
+XDuring initialization with NO default, the variable is assigned the
+Xvalue of the null-value.
+X@item
+XDuring initialization with a default value, the variable is assigned the
+Xspecified default.
+X@item
+XDuring a Reset Global menu Item, the variable retains its previous value.
+X@end itemize
+X
+X@example
+Xfrom-file 'File-Name' "NAME" ;   # defines the variable NAME and looks
+X                    # for it in the file named File-Name.
+X                    # If found, that value is assigned, otherwise
+X                    #  the Null Value
+Xfrom-file 'File-Name' "NAME" = 'a Text String' ; # defines the variable NAME
+X                    # for it in the file named File-Name.
+X                    # If found, that value is assigned, otherwise
+X                    # the value of the Text String
+X@end example
+X
+X
+X@node    From Shell, Special Values, From File, Variables
+X@comment  node-name,  next,  previous,  up
+X
+X@section From Shell
+X@cindex Variable Assignment From Shell Scripts
+X
+XVariables may initialized by running a shell script.  All previously
+Xdefined variables [in order of definition in the Menu Definition File]
+Xare defined and available within the script.  The output of the script
+Xhas all leading and trailing whitespace stripped and is then assigned to
+Xthe named variable.
+X
+X@example
+Xfrom-shell "NAME" = %( shell script %) ; # runs the shell script and
+X                    # assigns the output to the the variable NAME
+X@end example
+X
+X
+X@node Special Values,     , From Shell, Variables
+X@comment  node-name,  next,  previous,  up
+X
+X@section Special Values
+X@cindex Special Values Variables
+X
+XThree special values can be reset.  The details are discussed elsewhere,
+X@xref{Execution Parms}.
+X
+X@example
+Xshell-path = 'full-path-to-shell' ;
+Xasg-fmt = 'new-assignment-format' ;
+Xnull-value = 'string for null values' ;
+X@end example
+X
+X
+X@node Invoking Simple_Menu, How Scripts are Run, Variables, Top
+X@comment  node-name,  next,  previous,  up
+X
+X@chapter Invoking Simple_Menu
+X
+XSimple_Menu is invoked by typing the appropriate command name on a
+Xcommand line.  There are currently three interfaces:
+X@itemize @bullet
+X@item
+Xsimple_menu - the simplest and most robust version.  Displays menus as
+Xnumbered or letter'ed items.  Will work with any ascii terminal -
+Xincluding dumb terminals.
+X@item
+Xcurses_menu - slightly more complex.  This interface requires a working
+Xcurses implementation.  Menu selections are made by using arrow keys
+Xand/or typing the leading text for menu items.
+X@item
+XXaw_menu - a version which uses the mit Xaw widget set.  Requires X.
+X@end itemize
+X
+XThe syntax used to invoke one of these interpreters is:
+X
+X@example
+XFOO_menu OPTIONS [Menu-Definition-File-Name]
+X@end example
+X
+XAll versions take the following command line options:
+X
+X@itemize @bullet
+X@item
+X-M path.  Sets the search path for the Menu Definition File.  This is a
+Xcolon separated list of directories in the format of the PATH variable.
+XBy default, the search path is @code{$HOME:/usr/local/lib/simple_menu}.
+X@item
+X-v.  Sets verbose mode by adding the command `set -xv' to the beginning
+Xof each Menu Execution file, @xref{How Scripts are Run}
+X@item
+X-D.  Turns on and increments debugging.  Up to three D's are significant.
+XDebugging mode is used to correct errors in a Menu Definition File.
+XDebugging output is somewhat cryptic, but inasmuch as the menu language
+Xis quite small, this does not seem to be a significant disadvantage.  It
+Xwould be nice if better diagnostics were available and more than one bug
+Xat at time could be shown, but so far I have not found it particularly
+Xpainful.
+X@item
+X-t 20.  Set the `wait' time to 20 seconds.  This is the amount of time
+XSimple_Menu pauses after a shell script has completed before repainting
+Xthe screen.  This only applies to menus which do not have the
+X@code{wait} option set.
+X@item
+X-V.  Display version/patchlevel and exit.
+X@item
+X-h.  Display a help summary of command line options.
+X@end itemize
+X
+XThe Menu Definition File name is searched for according to the following
+Xrules: 
+X
+X@itemize @bullet
+X@item
+XIf no file is named, the file @code{menu.def} is searched for along the
+Xvalue of the MENU_PATH variable.
+X@item
+XIf the file name is `-', then input is assumed to come from a pipe on
+X@emph{stdin}. 
+X@item
+XIf a file is explicitly named and does @emph{not} begin with a slash [/]
+Xor a dot-slash [./], then a file of that name is searched for along the
+XMENU_PATH. 
+X@item
+XIf a file is explicitly named and begins with a slash [/], then that
+Xabsolute file name is used.
+X@item
+XIf a file is explicitly named and begins with a dot-slash [./], then
+Xthat relative file name is used.
+X@end itemize
+X
+XThe MENU_PATH is similar to the PATH environment variable.  It is
+Xassumed to be a colon [:] separated list of directory names.  It is set
+Xaccording to the following rules:
+X@itemize @bullet
+X@item
+Xif the -M option is used on the command line, MENU_PATH is set to the
+Xargument of the -M option
+X@item
+XOtherwise, if the environment variable MENU_PATH is defined, then
+XMENU_PATH is set to the value of that variable.
+X@item
+XOtherwise, MENU_PATH is set to @code{$HOME:/usr/local/lib/simple_menu},
+Xor whatever installation directory the system administrator chooses at
+Xcompile time.
+X@end itemize
+X
+X@node How Scripts are Run, Syntactic Details, Invoking Simple_Menu, Top
+X@comment  node-name,  next,  previous,  up
+X
+X@chapter How Scripts are Run
+X@cindex How Shell Scripts are Run
+X@cindex How Simple_Menu implements System Actions
+X
+XScripts are run in by brute force: an execution file is written to a
+Xtemporary file in the /tmp directory and then is fed to the shell.  The
+Xexecution file is then deleted.
+X
+XThe execution file is constructed as follows:
+X
+X@enumerate
+X@item
+XAssignment statements are written for @emph{all} global variables.  This
+Xis done by copying the current value of @emph{asg-fmt} to the file,
+Xsubstituting the @emph{Name} of each global variable for @code{$ID$} and
+Xthe @emph{current} value of the variable [or the value of
+X@code{null-value} if it has no value] for each instance of
+X@code{$VALUE$}.
+X@item
+XAssignment statements are written for @emph{all} parameters for the Shell
+XItem.  The procedure is the same as that used for global variables.
+X@item
+XThe shell script for the Shell Item is then copied @emph{verbatim} to the
+Xfile. 
+X@end enumerate
+X
+X@strong{Simple_Menu} does whatever is necessary to the terminal to
+Xreturn it to a normal state, sets itself to ignore signals and then forks
+Xand execs @code{shell-path} with the name of the execution file as the
+Xsingle argument.  @strong{Simple_Menu} simply waits for the child to
+Xdie, then re-establishes signals and terminal i/o, removes the execution
+Xfile, and prompts the user for more input.
+X
+XNote: this simple method does not exclude running background processes.
+X
+XNote: this execution model was designed for terminal operation.  The X
+XWindow System adds additional possibilities because additional virtual
+Xterminals can be spawned to run processes.  There is no direct support
+END_OF_FILE
+if test 19975 -ne `wc -c <'./doc/s_menu.texiab'`; then
+    echo shar: \"'./doc/s_menu.texiab'\" unpacked with wrong size!
+fi
+# end of './doc/s_menu.texiab'
+fi
+echo shar: End of archive 6 \(of 9\).
+cp /dev/null ark6isdone
+MISSING=""
+for I in 1 2 3 4 5 6 7 8 9 ; do
+    if test ! -f ark${I}isdone ; then
+	MISSING="${MISSING} ${I}"
+    fi
+done
+if test "${MISSING}" = "" ; then
+    echo You have unpacked all 9 archives.
+    rm -f ark[1-9]isdone ark[1-9][0-9]isdone
+else
+    echo You still need to unpack the following archives:
+    echo "        " ${MISSING}
+fi
+##  End of shell archive.
+exit 0
+

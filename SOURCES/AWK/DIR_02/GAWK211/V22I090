@@ -1,0 +1,1529 @@
+From: rsalz@uunet.uu.net (Rich Salz)
+Newsgroups: comp.sources.unix
+Subject: v22i090:  GNU AWK, version 2.11, Part04/16
+Message-ID: <2623@litchi.bbn.com>
+Date: 6 Jun 90 16:36:23 GMT
+Approved: rsalz@uunet.UU.NET
+
+Submitted-by: "Arnold D. Robbins" <arnold@unix.cc.emory.edu>
+Posting-number: Volume 22, Issue 90
+Archive-name: gawk2.11/part04
+
+#! /bin/sh
+# This is a shell archive.  Remove anything before this line, then feed it
+# into a shell via "sh file" or similar.  To overwrite existing files,
+# type "sh file -c".
+# The tool that generated this appeared in the comp.sources.unix newsgroup;
+# send mail to comp-sources-unix@uunet.uu.net if you want that tool.
+# Contents:  ./gawk.texinfo.05 ./patchlevel.h ./pc.d/popen.c
+# Wrapped by rsalz@litchi.bbn.com on Wed Jun  6 12:24:48 1990
+PATH=/bin:/usr/bin:/usr/ucb ; export PATH
+echo If this archive is complete, you will see the following message:
+echo '          "shar: End of archive 4 (of 16)."'
+if test -f './gawk.texinfo.05' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'./gawk.texinfo.05'\"
+else
+  echo shar: Extracting \"'./gawk.texinfo.05'\" \(49666 characters\)
+  sed "s/^X//" >'./gawk.texinfo.05' <<'END_OF_FILE'
+XIf a line number is repeated, the last line with a given number overrides
+Xthe others.
+X
+XGaps in the line numbers can be handled with an easy improvement to the
+Xprogram's @code{END} rule:
+X
+X@example
+XEND @{
+X  for (x = 1; x <= max; x++)
+X    if (x in arr)
+X      print arr[x]
+X@}
+X@end example
+X
+X@node Scanning an Array, Delete, Array Example, Arrays
+X@section Scanning All Elements of an Array
+X@cindex @code{for (x in @dots{})}
+X@cindex arrays, special @code{for} statement
+X@cindex scanning an array
+X
+XIn programs that use arrays, often you need a loop that executes
+Xonce for each element of an array.  In other languages, where arrays are
+Xcontiguous and indices are limited to positive integers, this is
+Xeasy: the largest index is one less than the length of the array, and you can
+Xfind all the valid indices by counting from zero up to that value.  This
+Xtechnique won't do the job in @code{awk}, since any number or string
+Xmay be an array index.  So @code{awk} has a special kind of @code{for}
+Xstatement for scanning an array:
+X
+X@example
+Xfor (@var{var} in @var{array})
+X  @var{body}
+X@end example
+X
+X@noindent
+XThis loop executes @var{body} once for each different value that your
+Xprogram has previously used as an index in @var{array}, with the
+Xvariable @var{var} set to that index.@refill
+X
+XHere is a program that uses this form of the @code{for} statement.  The
+Xfirst rule scans the input records and notes which words appear (at
+Xleast once) in the input, by storing a 1 into the array @code{used} with
+Xthe word as index.  The second rule scans the elements of @code{used} to
+Xfind all the distinct words that appear in the input.  It prints each
+Xword that is more than 10 characters long, and also prints the number of
+Xsuch words.  @xref{Built-in}, for more information on the built-in
+Xfunction @code{length}.
+X
+X@example
+X# Record a 1 for each word that is used at least once.
+X@{
+X  for (i = 0; i < NF; i++)
+X    used[$i] = 1
+X@}
+X
+X# Find number of distinct words more than 10 characters long.
+XEND @{
+X  num_long_words = 0
+X  for (x in used)
+X    if (length(x) > 10) @{
+X      ++num_long_words
+X      print x
+X  @}
+X  print num_long_words, "words longer than 10 characters"
+X@}
+X@end example
+X
+X@noindent
+X@xref{Sample Program}, for a more detailed example of this type.
+X
+XThe order in which elements of the array are accessed by this statement
+Xis determined by the internal arrangement of the array elements within
+X@code{awk} and cannot be controlled or changed.  This can lead to
+Xproblems if new elements are added to @var{array} by statements in
+X@var{body}; you cannot predict whether or not the @code{for} loop will
+Xreach them.  Similarly, changing @var{var} inside the loop can produce
+Xstrange results.  It is best to avoid such things.@refill
+X
+X@node Delete, Multi-dimensional, Scanning an Array, Arrays
+X@section The @code{delete} Statement
+X@cindex @code{delete} statement
+X@cindex deleting elements of arrays
+X@cindex removing elements of arrays
+X@cindex arrays, deleting an element
+X
+XYou can remove an individual element of an array using the @code{delete}
+Xstatement:
+X
+X@example
+Xdelete @var{array}[@var{index}]
+X@end example
+X
+XWhen an array element is deleted, it is as if you had never referred to it
+Xand had never given it any value.  Any value the element formerly had
+Xcan no longer be obtained.
+X
+XHere is an example of deleting elements in an array:
+X
+X@example
+Xfor (i in frequencies)
+X  delete frequencies[i]
+X@end example
+X
+X@noindent
+XThis example removes all the elements from the array @code{frequencies}.
+X
+XIf you delete an element, a subsequent @code{for} statement to scan the array
+Xwill not report that element, and the @code{in} operator to check for
+Xthe presence of that element will return 0:
+X
+X@example
+Xdelete foo[4]
+Xif (4 in foo)
+X  print "This will never be printed"
+X@end example
+X
+X@node Multi-dimensional, Multi-scanning, Delete, Arrays
+X@section Multi-dimensional Arrays
+X
+X@cindex subscripts, multi-dimensional in arrays
+X@cindex arrays, multi-dimensional subscripts
+X@cindex multi-dimensional subscripts
+XA multi-dimensional array is an array in which an element is identified
+Xby a sequence of indices, not a single index.  For example, a
+Xtwo-dimensional array requires two indices.  The usual way (in most
+Xlanguages, including @code{awk}) to refer to an element of a
+Xtwo-dimensional array named @code{grid} is with
+X@code{grid[@var{x},@var{y}]}.
+X
+X@vindex SUBSEP
+XMulti-dimensional arrays are supported in @code{awk} through
+Xconcatenation of indices into one string.  What happens is that
+X@code{awk} converts the indices into strings (@pxref{Conversion}) and
+Xconcatenates them together, with a separator between them.  This creates
+Xa single string that describes the values of the separate indices.  The
+Xcombined string is used as a single index into an ordinary,
+Xone-dimensional array.  The separator used is the value of the built-in
+Xvariable @code{SUBSEP}.
+X
+XFor example, suppose we evaluate the expression @code{foo[5,12]="value"}
+Xwhen the value of @code{SUBSEP} is @code{"@@"}.  The numbers 5 and 12 are
+Xconcatenated with a comma between them, yielding @code{"5@@12"}; thus,
+Xthe array element @code{foo["5@@12"]} is set to @code{"value"}.
+X
+XOnce the element's value is stored, @code{awk} has no record of whether
+Xit was stored with a single index or a sequence of indices.  The two
+Xexpressions @code{foo[5,12]} and @w{@code{foo[5 SUBSEP 12]}} always have
+Xthe same value.
+X
+XThe default value of @code{SUBSEP} is actually the string @code{"\034"},
+Xwhich contains a nonprinting character that is unlikely to appear in an
+X@code{awk} program or in the input data.
+X
+XThe usefulness of choosing an unlikely character comes from the fact
+Xthat index values that contain a string matching @code{SUBSEP} lead to
+Xcombined strings that are ambiguous.  Suppose that @code{SUBSEP} were
+X@code{"@@"}; then @w{@code{foo["a@@b", "c"]}} and @w{@code{foo["a",
+X"b@@c"]}} would be indistinguishable because both would actually be
+Xstored as @code{foo["a@@b@@c"]}.  Because @code{SUBSEP} is
+X@code{"\034"}, such confusion can actually happen only when an index
+Xcontains the character with ASCII code 034, which is a rare
+Xevent.@refill
+X
+XYou can test whether a particular index-sequence exists in a
+X``multi-dimensional'' array with the same operator @code{in} used for single
+Xdimensional arrays.  Instead of a single index as the left-hand operand,
+Xwrite the whole sequence of indices, separated by commas, in
+Xparentheses:@refill
+X
+X@example
+X(@var{subscript1}, @var{subscript2}, @dots{}) in @var{array}
+X@end example
+X
+XThe following example treats its input as a two-dimensional array of
+Xfields; it rotates this array 90 degrees clockwise and prints the
+Xresult.  It assumes that all lines have the same number of
+Xelements.
+X
+X@example
+Xawk '@{
+X     if (max_nf < NF)
+X          max_nf = NF
+X     max_nr = NR
+X     for (x = 1; x <= NF; x++)
+X          vector[x, NR] = $x
+X@}
+X
+XEND @{
+X     for (x = 1; x <= max_nf; x++) @{
+X          for (y = max_nr; y >= 1; --y)
+X               printf("%s ", vector[x, y])
+X          printf("\n")
+X     @}
+X@}'
+X@end example
+X
+X@noindent
+XWhen given the input:
+X
+X@example
+X1 2 3 4 5 6
+X2 3 4 5 6 1
+X3 4 5 6 1 2
+X4 5 6 1 2 3
+X@end example
+X
+X@noindent
+Xit produces:
+X
+X@example
+X4 3 2 1
+X5 4 3 2
+X6 5 4 3
+X1 6 5 4
+X2 1 6 5
+X3 2 1 6
+X@end example
+X
+X@node Multi-scanning, , Multi-dimensional, Arrays
+X@section Scanning Multi-dimensional Arrays
+X
+XThere is no special @code{for} statement for scanning a
+X``multi-dimensional'' array; there cannot be one, because in truth there
+Xare no multi-dimensional arrays or elements; there is only a
+Xmulti-dimensional @emph{way of accessing} an array.
+X
+XHowever, if your program has an array that is always accessed as
+Xmulti-dimensional, you can get the effect of scanning it by combining
+Xthe scanning @code{for} statement (@pxref{Scanning an Array}) with the
+X@code{split} built-in function (@pxref{String Functions}).  It works
+Xlike this:
+X
+X@example
+Xfor (combined in @var{array}) @{
+X  split(combined, separate, SUBSEP)
+X  @dots{}
+X@}
+X@end example
+X
+X@noindent
+XThis finds each concatenated, combined index in the array, and splits it
+Xinto the individual indices by breaking it apart where the value of
+X@code{SUBSEP} appears.  The split-out indices become the elements of
+Xthe array @code{separate}.
+X
+XThus, suppose you have previously stored in @code{@var{array}[1,
+X"foo"]}; then an element with index @code{"1\034foo"} exists in
+X@var{array}.  (Recall that the default value of @code{SUBSEP} contains
+Xthe character with code 034.)  Sooner or later the @code{for} statement
+Xwill find that index and do an iteration with @code{combined} set to
+X@code{"1\034foo"}.  Then the @code{split} function is called as
+Xfollows:
+X
+X@example
+Xsplit("1\034foo", separate, "\034")
+X@end example
+X
+X@noindent
+XThe result of this is to set @code{separate[1]} to 1 and @code{separate[2]}
+Xto @code{"foo"}.  Presto, the original sequence of separate indices has
+Xbeen recovered.
+X
+X@node Built-in, User-defined, Arrays, Top
+X@chapter Built-in Functions
+X
+X@cindex built-in functions
+X@dfn{Built-in} functions are functions that are always available for
+Xyour @code{awk} program to call.  This chapter defines all the built-in
+Xfunctions in @code{awk}; some of them are mentioned in other sections,
+Xbut they are summarized here for your convenience.  (You can also define
+Xnew functions yourself.  @xref{User-defined}.)
+X
+X@menu
+X* Calling Built-in::   How to call built-in functions.
+X
+X* Numeric Functions::  Functions that work with numbers,
+X                       including @code{int}, @code{sin} and @code{rand}.
+X
+X* String Functions::   Functions for string manipulation,
+X                       such as @code{split}, @code{match}, and @code{sprintf}.
+X
+X* I/O Functions::      Functions for files and shell commands
+X@end menu
+X
+X@node Calling Built-in, Numeric Functions, Built-in, Built-in
+X@section Calling Built-in Functions
+X
+XTo call a built-in function, write the name of the function followed
+Xby arguments in parentheses.  For example, @code{atan2(y + z, 1)}
+Xis a call to the function @code{atan2}, with two arguments.
+X
+XWhitespace is ignored between the built-in function name and the
+Xopen-parenthesis, but we recommend that you avoid using whitespace
+Xthere.  User-defined functions do not permit whitespace in this way, and
+Xyou will find it easier to avoid mistakes by following a simple
+Xconvention which always works: no whitespace after a function name.
+X
+XEach built-in function accepts a certain number of arguments.  In most
+Xcases, any extra arguments given to built-in functions are ignored.  The
+Xdefaults for omitted arguments vary from function to function and are
+Xdescribed under the individual functions.
+X
+XWhen a function is called, expressions that create the function's actual
+Xparameters are evaluated completely before the function call is performed.
+XFor example, in the code fragment:
+X
+X@example
+Xi = 4
+Xj = sqrt(i++)
+X@end example
+X
+X@noindent
+Xthe variable @code{i} is set to 5 before @code{sqrt} is called
+Xwith a value of 4 for its actual parameter.
+X
+X@node Numeric Functions, String Functions, Calling Built-in, Built-in
+X@section Numeric Built-in Functions
+X
+XHere is a full list of built-in functions that work with numbers:
+X
+X@table @code
+X@item int(@var{x})
+XThis gives you the integer part of @var{x}, truncated toward 0.  This
+Xproduces the nearest integer to @var{x}, located between @var{x} and 0.
+X
+XFor example, @code{int(3)} is 3, @code{int(3.9)} is 3, @code{int(-3.9)}
+Xis @minus{}3, and @code{int(-3)} is @minus{}3 as well.@refill
+X
+X@item sqrt(@var{x})
+XThis gives you the positive square root of @var{x}.  It reports an error
+Xif @var{x} is negative.  Thus, @code{sqrt(4)} is 2.@refill
+X
+X@item exp(@var{x})
+XThis gives you the exponential of @var{x}, or reports an error if
+X@var{x} is out of range.  The range of values @var{x} can have depends
+Xon your machine's floating point representation.@refill
+X
+X@item log(@var{x})
+XThis gives you the natural logarithm of @var{x}, if @var{x} is positive;
+Xotherwise, it reports an error.@refill
+X
+X@item sin(@var{x})
+XThis gives you the sine of @var{x}, with @var{x} in radians.
+X
+X@item cos(@var{x})
+XThis gives you the cosine of @var{x}, with @var{x} in radians.
+X
+X@item atan2(@var{y}, @var{x})
+XThis gives you the arctangent of @code{@var{y} / @var{x}}, with the
+Xquotient understood in radians.
+X
+X@item rand()
+XThis gives you a random number.  The values of @code{rand} are
+Xuniformly-distributed between 0 and 1.  The value is never 0 and never
+X1.
+X
+XOften you want random integers instead.  Here is a user-defined function
+Xyou can use to obtain a random nonnegative integer less than @var{n}:
+X
+X@example
+Xfunction randint(n) @{
+X     return int(n * rand())
+X@}
+X@end example
+X
+X@noindent
+XThe multiplication produces a random real number greater than 0 and less
+Xthan @var{n}.  We then make it an integer (using @code{int}) between 0
+Xand @code{@var{n} @minus{} 1}.
+X
+XHere is an example where a similar function is used to produce
+Xrandom integers between 1 and @var{n}:
+X
+X@example
+Xawk '
+X# Function to roll a simulated die.
+Xfunction roll(n) @{ return 1 + int(rand() * n) @}
+X
+X# Roll 3 six-sided dice and print total number of points.
+X@{
+X      printf("%d points\n", roll(6)+roll(6)+roll(6))
+X@}'
+X@end example
+X
+X@strong{Note:} @code{rand} starts generating numbers from the same
+Xpoint, or @dfn{seed}, each time you run @code{awk}.  This means that
+Xa program will produce the same results each time you run it.
+XThe numbers are random within one @code{awk} run, but predictable
+Xfrom run to run.  This is convenient for debugging, but if you want
+Xa program to do different things each time it is used, you must change
+Xthe seed to a value that will be different in each run.  To do this,
+Xuse @code{srand}.
+X
+X@item srand(@var{x})
+XThe function @code{srand} sets the starting point, or @dfn{seed},
+Xfor generating random numbers to the value @var{x}.
+X
+XEach seed value leads to a particular sequence of ``random'' numbers.
+XThus, if you set the seed to the same value a second time, you will get
+Xthe same sequence of ``random'' numbers again.
+X
+XIf you omit the argument @var{x}, as in @code{srand()}, then the current
+Xdate and time of day are used for a seed.  This is the way to get random
+Xnumbers that are truly unpredictable.
+X
+XThe return value of @code{srand} is the previous seed.  This makes it
+Xeasy to keep track of the seeds for use in consistently reproducing
+Xsequences of random numbers.
+X@end table
+X
+X@node String Functions, I/O Functions, Numeric Functions, Built-in
+X@section Built-in Functions for String Manipulation
+X
+X  The functions in this section look at the text of one or more
+Xstrings.
+X
+X@table @code
+X@item index(@var{in}, @var{find})
+X@findex match
+XThis searches the string @var{in} for the first occurrence of the string
+X@var{find}, and returns the position where that occurrence begins in the
+Xstring @var{in}.  For example:@refill
+X
+X@example
+Xawk 'BEGIN @{ print index("peanut", "an") @}'
+X@end example
+X
+X@noindent
+Xprints @samp{3}.  If @var{find} is not found, @code{index} returns 0.
+X
+X@item length(@var{string})
+X@findex length
+XThis gives you the number of characters in @var{string}.  If
+X@var{string} is a number, the length of the digit string representing
+Xthat number is returned.  For example, @code{length("abcde")} is 5.  By
+Xcontrast, @code{length(15 * 35)} works out to 3.  How?  Well, 15 * 35 =
+X525, and 525 is then converted to the string @samp{"525"}, which has
+Xthree characters.
+X
+XIf no argument is supplied, @code{length} returns the length of @code{$0}.
+X
+X@item match(@var{string}, @var{regexp})
+X@findex match
+XThe @code{match} function searches the string, @var{string}, for the
+Xlongest, leftmost substring matched by the regular expression,
+X@var{regexp}.  It returns the character position, or @dfn{index}, of
+Xwhere that substring begins (1, if it starts at the beginning of
+X@var{string}).  If no match if found, it returns 0.
+X
+X@vindex RSTART
+X@vindex RLENGTH
+XThe @code{match} function sets the built-in variable @code{RSTART} to
+Xthe index.  It also sets the built-in variable @code{RLENGTH} to the
+Xlength of the matched substring.  If no match is found, @code{RSTART}
+Xis set to 0, and @code{RLENGTH} to @minus{}1.
+X
+XFor example:
+X
+X@example
+Xawk '@{
+X       if ($1 == "FIND")
+X         regex = $2
+X       else @{
+X         where = match($0, regex)
+X         if (where)
+X           print "Match of", regex, "found at", where, "in", $0
+X       @}
+X@}'
+X@end example
+X
+X@noindent
+XThis program looks for lines that match the regular expression stored in
+Xthe variable @code{regex}.  This regular expression can be changed.  If the
+Xfirst word on a line is @samp{FIND}, @code{regex} is changed to be the
+Xsecond word on that line.  Therefore, given:
+X
+X@example
+XFIND fo*bar
+XMy program was a foobar
+XBut none of it would doobar
+XFIND Melvin
+XJF+KM
+XThis line is property of The Reality Engineering Co.
+XThis file created by Melvin.
+X@end example
+X
+X@noindent
+X@code{awk} prints:
+X
+X@example
+XMatch of fo*bar found at 18 in My program was a foobar
+XMatch of Melvin found at 26 in This file created by Melvin.
+X@end example
+X
+X@item split(@var{string}, @var{array}, @var{fieldsep})
+X@findex split
+XThis divides @var{string} up into pieces separated by @var{fieldsep},
+Xand stores the pieces in @var{array}.  The first piece is stored in
+X@code{@var{array}[1]}, the second piece in @code{@var{array}[2]}, and so
+Xforth.  The string value of the third argument, @var{fieldsep}, is used
+Xas a regexp to search for to find the places to split @var{string}.  If
+Xthe @var{fieldsep} is omitted, the value of @code{FS} is used.
+X@code{split} returns the number of elements created.@refill
+X
+XThe @code{split} function, then, splits strings into pieces in a
+Xmanner similar to the way input lines are split into fields.  For example:
+X
+X@example
+Xsplit("auto-da-fe", a, "-")
+X@end example
+X
+X@noindent
+Xsplits the string @samp{auto-da-fe} into three fields using @samp{-} as the
+Xseparator.  It sets the contents of the array @code{a} as follows:
+X
+X@example
+Xa[1] = "auto"
+Xa[2] = "da"
+Xa[3] = "fe"
+X@end example
+X
+X@noindent
+XThe value returned by this call to @code{split} is 3.
+X
+X@item sprintf(@var{format}, @var{expression1},@dots{})
+X@findex sprintf
+XThis returns (without printing) the string that @code{printf} would
+Xhave printed out with the same arguments (@pxref{Printf}).  For
+Xexample:
+X
+X@example
+Xsprintf("pi = %.2f (approx.)", 22/7)
+X@end example
+X
+X@noindent
+Xreturns the string @w{@code{"pi = 3.14 (approx.)"}}.
+X
+X@item sub(@var{regexp}, @var{replacement}, @var{target})
+X@findex sub
+XThe @code{sub} function alters the value of @var{target}.
+XIt searches this value, which should be a string, for the
+Xleftmost substring matched by the regular expression, @var{regexp},
+Xextending this match as far as possible.  Then the entire string is
+Xchanged by replacing the matched text with @var{replacement}.
+XThe modified string becomes the new value of @var{target}.
+X
+XThis function is peculiar because @var{target} is not simply
+Xused to compute a value, and not just any expression will do: it
+Xmust be a variable, field or array reference, so that @code{sub} can
+Xstore a modified value there.  If this argument is omitted, then the
+Xdefault is to use and alter @code{$0}.
+X
+XFor example:@refill
+X
+X@example
+Xstr = "water, water, everywhere"
+Xsub(/at/, "ith", str)
+X@end example
+X
+X@noindent
+Xsets @code{str} to @w{@code{"wither, water, everywhere"}}, by replacing the
+Xleftmost, longest occurrence of @samp{at} with @samp{ith}.
+X
+XThe @code{sub} function returns the number of substitutions made (either
+Xone or zero).
+X
+XIf the special character @samp{&} appears in @var{replacement}, it
+Xstands for the precise substring that was matched by @var{regexp}.  (If
+Xthe regexp can match more than one string, then this precise substring
+Xmay vary.)  For example:@refill
+X
+X@example
+Xawk '@{ sub(/candidate/, "& and his wife"); print @}'
+X@end example
+X
+X@noindent
+Xchanges the first occurrence of @samp{candidate} to @samp{candidate
+Xand his wife} on each input line.
+X
+XThe effect of this special character can be turned off by putting a
+Xbackslash before it in the string.  As usual, to insert one backslash in
+Xthe string, you must write two backslashes.  Therefore, write @samp{\\&}
+Xin a string constant to include a literal @samp{&} in the replacement.
+XFor example, here is how to replace the first @samp{|} on each line with
+Xan @samp{&}:@refill
+X
+X@example
+Xawk '@{ sub(/\|/, "\\&"); print @}'
+X@end example
+X
+X@strong{Note:} as mentioned above, the third argument to @code{sub} must
+Xbe an lvalue.  Some versions of @code{awk} allow the third argument to
+Xbe an expression which is not an lvalue.  In such a case, @code{sub}
+Xwould still search for the pattern and return 0 or 1, but the result of
+Xthe substitution (if any) would be thrown away because there is no place
+Xto put it.  Such versions of @code{awk} accept expressions like
+Xthis:@refill
+X
+X@example
+Xsub(/USA/, "United States", "the USA and Canada")
+X@end example
+X
+X@noindent
+XBut that is considered erroneous in @code{gawk}.
+X
+X@item gsub(@var{regexp}, @var{replacement}, @var{target})
+X@findex gsub
+XThis is similar to the @code{sub} function, except @code{gsub} replaces
+X@emph{all} of the longest, leftmost, @emph{nonoverlapping} matching
+Xsubstrings it can find.  The @samp{g} in @code{gsub} stands for
+X``global'', which means replace everywhere.  For example:@refill
+X
+X@example
+Xawk '@{ gsub(/Britain/, "United Kingdom"); print @}'
+X@end example
+X
+X@noindent
+Xreplaces all occurrences of the string @samp{Britain} with @samp{United
+XKingdom} for all input records.@refill
+X
+XThe @code{gsub} function returns the number of substitutions made.  If
+Xthe variable to be searched and altered, @var{target}, is
+Xomitted, then the entire input record, @code{$0}, is used.@refill
+X
+XAs in @code{sub}, the characters @samp{&} and @samp{\} are special, and
+Xthe third argument must be an lvalue.
+X
+X@item substr(@var{string}, @var{start}, @var{length})
+X@findex substr
+XThis returns a @var{length}-character-long substring of @var{string},
+Xstarting at character number @var{start}.  The first character of a
+Xstring is character number one.  For example,
+X@code{substr("washington", 5, 3)} returns @code{"ing"}.@refill
+X
+XIf @var{length} is not present, this function returns the whole suffix of
+X@var{string} that begins at character number @var{start}.  For example,
+X@code{substr("washington", 5)} returns @code{"ington"}.
+X
+X@item tolower(@var{string})
+X@findex tolower
+XThis returns a copy of @var{string}, with each upper-case character
+Xin the string replaced with its corresponding lower-case character.
+XNonalphabetic characters are left unchanged.  For example,
+X@code{tolower("MiXeD cAsE 123")} returns @code{"mixed case 123"}.
+X
+X@item toupper(@var{string})
+X@findex toupper
+XThis returns a copy of @var{string}, with each lower-case character
+Xin the string replaced with its corresponding upper-case character.
+XNonalphabetic characters are left unchanged.  For example,
+X@code{toupper("MiXeD cAsE 123")} returns @code{"MIXED CASE 123"}.
+X@end table
+X
+X@node I/O Functions, , String Functions, Built-in
+X@section Built-in Functions For Input/Output
+X
+X@table @code
+X@item close(@var{filename})
+XClose the file @var{filename}, for input or output.  The argument may
+Xalternatively be a shell command that was used for redirecting to or
+Xfrom a pipe; then the pipe is closed.
+X
+X@xref{Close Input}, regarding closing input files and pipes.
+X@xref{Close Output}, regarding closing output files and pipes.
+X
+X@item system(@var{command})
+X@findex system
+X@cindex interaction of @code{awk} with other programs
+XThe system function allows the user to execute operating system commands
+Xand then return to the @code{awk} program.  The @code{system} function
+Xexecutes the command given by the string @var{command}.  It returns, as
+Xits value, the status returned by the command that was executed.
+X
+XFor example, if the following fragment of code is put in your @code{awk}
+Xprogram:
+X
+X@example
+XEND @{
+X     system("mail -s 'awk run done' operator < /dev/null")
+X@}
+X@end example
+X
+X@noindent
+Xthe system operator will be sent mail when the @code{awk} program
+Xfinishes processing input and begins its end-of-input processing.
+X
+XNote that much the same result can be obtained by redirecting
+X@code{print} or @code{printf} into a pipe.  However, if your @code{awk}
+Xprogram is interactive, @code{system} is useful for cranking up large
+Xself-contained programs, such as a shell or an editor.@refill
+X
+XSome operating systems cannot implement the @code{system} function.
+X@code{system} causes a fatal error if it is not supported.
+X@end table
+X
+X@node User-defined, Built-in Variables, Built-in, Top
+X@chapter User-defined Functions
+X
+X@cindex user-defined functions
+X@cindex functions, user-defined
+XComplicated @code{awk} programs can often be simplified by defining
+Xyour own functions.  User-defined functions can be called just like
+Xbuilt-in ones (@pxref{Function Calls}), but it is up to you to define
+Xthem---to tell @code{awk} what they should do.
+X
+X@menu
+X* Definition Syntax::   How to write definitions and what they mean.
+X* Function Example::    An example function definition and what it does.
+X* Function Caveats::    Things to watch out for.
+X* Return Statement::    Specifying the value a function returns.
+X@end menu
+X
+X@node Definition Syntax, Function Example, User-defined, User-defined
+X@section Syntax of Function Definitions
+X@cindex defining functions
+X@cindex function definition
+X
+XDefinitions of functions can appear anywhere between the rules of the
+X@code{awk} program.  Thus, the general form of an @code{awk} program is
+Xextended to include sequences of rules @emph{and} user-defined function
+Xdefinitions.
+X
+XThe definition of a function named @var{name} looks like this:
+X
+X@example
+Xfunction @var{name} (@var{parameter-list}) @{
+X     @var{body-of-function}
+X@}
+X@end example
+X
+X@noindent
+XThe keyword @code{function} may be abbreviated @code{func}.
+X
+X@var{name} is the name of the function to be defined.  A valid function
+Xname is like a valid variable name: a sequence of letters, digits and
+Xunderscores, not starting with a digit.
+X
+X@var{parameter-list} is a list of the function's arguments and local
+Xvariable names, separated by commas.  When the function is called,
+Xthe argument names are used to hold the argument values given in
+Xthe call.  The local variables are initialized to the null string.
+X
+XThe @var{body-of-function} consists of @code{awk} statements.  It is the
+Xmost important part of the definition, because it says what the function
+Xshould actually @emph{do}.  The argument names exist to give the body a
+Xway to talk about the arguments; local variables, to give the body
+Xplaces to keep temporary values.
+X
+XArgument names are not distinguished syntactically from local variable
+Xnames; instead, the number of arguments supplied when the function is
+Xcalled determines how many argument variables there are.  Thus, if three
+Xargument values are given, the first three names in @var{parameter-list}
+Xare arguments, and the rest are local variables.
+X
+XIt follows that if the number of arguments is not the same in all calls
+Xto the function, some of the names in @var{parameter-list} may be
+Xarguments on some occasions and local variables on others.  Another
+Xway to think of this is that omitted arguments default to the
+Xnull string.
+X
+XUsually when you write a function you know how many names you intend to
+Xuse for arguments and how many you intend to use as locals.  By
+Xconvention, you should write an extra space between the arguments and
+Xthe locals, so that other people can follow how your function is
+Xsupposed to be used.
+X
+XDuring execution of the function body, the arguments and local variable
+Xvalues hide or @dfn{shadow} any variables of the same names used in the
+Xrest of the program.  The shadowed variables are not accessible in the
+Xfunction definition, because there is no way to name them while their
+Xnames have been taken away for the local variables.  All other variables
+Xused in the @code{awk} program can be referenced or set normally in the
+Xfunction definition.
+X
+XThe arguments and local variables last only as long as the function body
+Xis executing.  Once the body finishes, the shadowed variables come back.
+X
+XThe function body can contain expressions which call functions.  They
+Xcan even call this function, either directly or by way of another
+Xfunction.  When this happens, we say the function is @dfn{recursive}.
+X
+XThere is no need in @code{awk} to put the definition of a function
+Xbefore all uses of the function.  This is because @code{awk} reads the
+Xentire program before starting to execute any of it.
+X
+X@node Function Example, Function Caveats, Definition Syntax, User-defined
+X@section Function Definition Example
+X
+XHere is an example of a user-defined function, called @code{myprint}, that
+Xtakes a number and prints it in a specific format.
+X
+X@example
+Xfunction myprint(num)
+X@{
+X     printf "%6.3g\n", num
+X@}
+X@end example
+X
+X@noindent
+XTo illustrate, here is an @code{awk} rule which uses our @code{myprint}
+Xfunction:
+X
+X@example
+X$3 > 0     @{ myprint($3) @}
+X@end example
+X
+X@noindent
+XThis program prints, in our special format, all the third fields that
+Xcontain a positive number in our input.  Therefore, when given:
+X
+X@example
+X 1.2   3.4   5.6   7.8
+X 9.10 11.12 13.14 15.16
+X17.18 19.20 21.22 23.24
+X@end example
+X
+X@noindent
+Xthis program, using our function to format the results, prints:
+X
+X@example
+X   5.6
+X  13.1
+X  21.2
+X@end example
+X
+XHere is a rather contrived example of a recursive function.  It prints a
+Xstring backwards:
+X
+X@example
+Xfunction rev (str, len) @{
+X    if (len == 0) @{
+X        printf "\n"
+X        return
+X    @}
+X    printf "%c", substr(str, len, 1)
+X    rev(str, len - 1)
+X@}
+X@end example
+X
+X@node Function Caveats, Return Statement, Function Example, User-defined
+X@section Calling User-defined Functions
+X
+X@dfn{Calling a function} means causing the function to run and do its job.
+XA function call is an expression, and its value is the value returned by
+Xthe function.
+X
+XA function call consists of the function name followed by the arguments
+Xin parentheses.  What you write in the call for the arguments are
+X@code{awk} expressions; each time the call is executed, these
+Xexpressions are evaluated, and the values are the actual arguments.  For
+Xexample, here is a call to @code{foo} with three arguments:
+X
+X@example
+Xfoo(x y, "lose", 4 * z)
+X@end example
+X
+X@strong{Note:} whitespace characters (spaces and tabs) are not allowed
+Xbetween the function name and the open-parenthesis of the argument list.
+XIf you write whitespace by mistake, @code{awk} might think that you mean
+Xto concatenate a variable with an expression in parentheses.  However, it
+Xnotices that you used a function name and not a variable name, and reports
+Xan error.
+X
+X@cindex call by value
+XWhen a function is called, it is given a @emph{copy} of the values of
+Xits arguments.  This is called @dfn{call by value}.  The caller may use
+Xa variable as the expression for the argument, but the called function
+Xdoes not know this: all it knows is what value the argument had.  For
+Xexample, if you write this code:
+X
+X@example
+Xfoo = "bar"
+Xz = myfunc(foo)
+X@end example
+X
+X@noindent
+Xthen you should not think of the argument to @code{myfunc} as being
+X``the variable @code{foo}''.  Instead, think of the argument as the
+Xstring value, @code{"bar"}.
+X
+XIf the function @code{myfunc} alters the values of its local variables,
+Xthis has no effect on any other variables.  In particular, if @code{myfunc}
+Xdoes this:
+X
+X@example
+Xfunction myfunc (win) @{
+X  print win
+X  win = "zzz"
+X  print win
+X@}
+X@end example
+X
+X@noindent
+Xto change its first argument variable @code{win}, this @emph{does not}
+Xchange the value of @code{foo} in the caller.  The role of @code{foo} in
+Xcalling @code{myfunc} ended when its value, @code{"bar"}, was computed.
+XIf @code{win} also exists outside of @code{myfunc}, the function body
+Xcannot alter this outer value, because it is shadowed during the
+Xexecution of @code{myfunc} and cannot be seen or changed from there.
+X
+X@cindex call by reference
+XHowever, when arrays are the parameters to functions, they are @emph{not}
+Xcopied.  Instead, the array itself is made available for direct manipulation
+Xby the function.  This is usually called @dfn{call by reference}.
+XChanges made to an array parameter inside the body of a function @emph{are}
+Xvisible outside that function.  @emph{This can be very dangerous if you don't
+Xwatch what you are doing.}  For example:@refill
+X
+X@example
+Xfunction changeit (array, ind, nvalue) @{
+X     array[ind] = nvalue
+X@}
+X
+XBEGIN @{
+X           a[1] = 1 ; a[2] = 2 ; a[3] = 3
+X           changeit(a, 2, "two")
+X           printf "a[1] = %s, a[2] = %s, a[3] = %s\n", a[1], a[2], a[3]
+X      @}
+X@end example
+X
+X@noindent
+Xprints @samp{a[1] = 1, a[2] = two, a[3] = 3}, because calling
+X@code{changeit} stores @code{"two"} in the second element of @code{a}.
+X
+X@node Return Statement, , Function Caveats, User-defined
+X@section The @code{return} Statement
+X@cindex @code{return} statement
+X
+XThe body of a user-defined function can contain a @code{return} statement.
+XThis statement returns control to the rest of the @code{awk} program.  It
+Xcan also be used to return a value for use in the rest of the @code{awk}
+Xprogram.  It looks like this:@refill
+X
+X@example
+Xreturn @var{expression}
+X@end example
+X
+XThe @var{expression} part is optional.  If it is omitted, then the returned
+Xvalue is undefined and, therefore, unpredictable.
+X
+XA @code{return} statement with no value expression is assumed at the end of
+Xevery function definition.  So if control reaches the end of the function
+Xdefinition, then the function returns an unpredictable value.
+X
+XHere is an example of a user-defined function that returns a value
+Xfor the largest number among the elements of an array:@refill
+X
+X@example
+Xfunction maxelt (vec,   i, ret) @{
+X     for (i in vec) @{
+X          if (ret == "" || vec[i] > ret)
+X               ret = vec[i]
+X     @}
+X     return ret
+X@}
+X@end example
+X
+X@noindent
+XYou call @code{maxelt} with one argument, an array name.  The local
+Xvariables @code{i} and @code{ret} are not intended to be arguments;
+Xwhile there is nothing to stop you from passing two or three arguments
+Xto @code{maxelt}, the results would be strange.  The extra space before
+X@code{i} in the function parameter list is to indicate that @code{i} and
+X@code{ret} are not supposed to be arguments.  This is a convention which
+Xyou should follow when you define functions.
+X
+XHere is a program that uses our @code{maxelt} function.  It loads an
+Xarray, calls @code{maxelt}, and then reports the maximum number in that
+Xarray:@refill
+X
+X@example
+Xawk '
+Xfunction maxelt (vec,   i, ret) @{
+X     for (i in vec) @{
+X          if (ret == "" || vec[i] > ret)
+X               ret = vec[i]
+X     @}
+X     return ret
+X@}
+X
+X# Load all fields of each record into nums.
+X@{
+X          for(i = 1; i <= NF; i++)
+X               nums[NR, i] = $i
+X@}
+X
+XEND @{
+X     print maxelt(nums)
+X@}'
+X@end example
+X
+XGiven the following input:
+X
+X@example
+X 1 5 23 8 16
+X44 3 5 2 8 26
+X256 291 1396 2962 100
+X-6 467 998 1101
+X99385 11 0 225
+X@end example
+X
+X@noindent
+Xour program tells us (predictably) that:
+X
+X@example
+X99385
+X@end example
+X
+X@noindent
+Xis the largest number in our array.
+X
+X@node Built-in Variables, Command Line, User-defined, Top
+X@chapter Built-in Variables
+X@cindex built-in variables
+X
+XMost @code{awk} variables are available for you to use for your own
+Xpurposes; they never change except when your program assigns them, and
+Xnever affect anything except when your program examines them.
+X
+XA few variables have special built-in meanings.  Some of them @code{awk}
+Xexamines automatically, so that they enable you to tell @code{awk} how
+Xto do certain things.  Others are set automatically by @code{awk}, so
+Xthat they carry information from the internal workings of @code{awk} to
+Xyour program.
+X
+XThis chapter documents all the built-in variables of @code{gawk}.  Most
+Xof them are also documented in the chapters where their areas of
+Xactivity are described.
+X
+X@menu
+X* User-modified::  Built-in variables that you change to control @code{awk}.
+X
+X* Auto-set::       Built-in variables where @code{awk} gives you information.
+X@end menu
+X
+X@node User-modified, Auto-set, Built-in Variables, Built-in Variables
+X@section Built-in Variables That Control @code{awk}
+X@cindex built-in variables, user modifiable
+X
+XThis is a list of the variables which you can change to control how
+X@code{awk} does certain things.
+X
+X@table @code
+X@c it's unadvisable to have multiple index entries for the same name
+X@c since in Info there is no way to distinguish the two.
+X@c @vindex FS
+X@item FS
+X@code{FS} is the input field separator (@pxref{Field Separators}).
+XThe value is a single-character string or a multi-character regular
+Xexpression that matches the separations between fields in an input
+Xrecord.
+X
+XThe default value is @w{@code{" "}}, a string consisting of a single
+Xspace.  As a special exception, this value actually means that any
+Xsequence of spaces and tabs is a single separator.  It also causes
+Xspaces and tabs at the beginning or end of a line to be ignored.
+X
+XYou can set the value of @code{FS} on the command line using the
+X@samp{-F} option:
+X
+X@example
+Xawk -F, '@var{program}' @var{input-files}
+X@end example
+X
+X@item IGNORECASE
+X@c @vindex IGNORECASE
+XIf @code{IGNORECASE} is nonzero, then @emph{all} regular expression
+Xmatching is done in a case-independent fashion.  In particular, regexp
+Xmatching with @samp{~} and @samp{!~}, and the @code{gsub} @code{index},
+X@code{match}, @code{split} and @code{sub} functions all ignore case when
+Xdoing their particular regexp operations.  @strong{Note:} since field
+Xsplitting with the value of the @code{FS} variable is also a regular
+Xexpression operation, that too is done with case ignored.
+X@xref{Case-sensitivity}.
+X
+XIf @code{gawk} is in compatibility mode (@pxref{Command Line}), then
+X@code{IGNORECASE} has no special meaning, and regexp operations are
+Xalways case-sensitive.@refill
+X
+X@item OFMT
+X@c @vindex OFMT
+XThis string is used by @code{awk} to control conversion of numbers to
+Xstrings (@pxref{Conversion}).  It works by being passed, in effect, as
+Xthe first argument to the @code{sprintf} function.  Its default value
+Xis @code{"%.6g"}.@refill
+X
+X@item OFS
+X@c @vindex OFS
+XThis is the output field separator (@pxref{Output Separators}).  It is
+Xoutput between the fields output by a @code{print} statement.  Its
+Xdefault value is @w{@code{" "}}, a string consisting of a single space.
+X
+X@item ORS
+X@c @vindex ORS
+XThis is the output record separator.  It is output at the end of every
+X@code{print} statement.  Its default value is a string containing a
+Xsingle newline character, which could be written as @code{"\n"}.
+X(@xref{Output Separators}).@refill
+X
+X@item RS
+X@c @vindex RS
+XThis is @code{awk}'s record separator.  Its default value is a string
+Xcontaining a single newline character, which means that an input record
+Xconsists of a single line of text.  (@xref{Records}.)@refill
+X
+X@item SUBSEP
+X@c @vindex SUBSEP
+X@code{SUBSEP} is a subscript separator.  It has the default value of
+X@code{"\034"}, and is used to separate the parts of the name of a
+Xmulti-dimensional array.  Thus, if you access @code{foo[12,3]}, it
+Xreally accesses @code{foo["12\0343"]}.  (@xref{Multi-dimensional}).@refill
+X@end table
+X
+X@node Auto-set, , User-modified, Built-in Variables
+X@section Built-in Variables That Convey Information to You
+X
+XThis is a list of the variables that are set automatically by @code{awk}
+Xon certain occasions so as to provide information for your program.
+X
+X@table @code
+X@item ARGC
+X@itemx ARGV
+X@c @vindex ARGC
+X@c @vindex ARGV
+XThe command-line arguments available to @code{awk} are stored in an
+Xarray called @code{ARGV}.  @code{ARGC} is the number of command-line
+Xarguments present.  @code{ARGV} is indexed from zero to @w{@code{ARGC - 1}}.
+X@xref{Command Line}.  For example:
+X
+X@example
+Xawk '@{ print ARGV[$1] @}' inventory-shipped BBS-list
+X@end example
+X
+X@noindent
+XIn this example, @code{ARGV[0]} contains @code{"awk"}, @code{ARGV[1]}
+Xcontains @code{"inventory-shipped"}, and @code{ARGV[2]} contains
+X@code{"BBS-list"}.  The value of @code{ARGC} is 3, one more than the
+Xindex of the last element in @code{ARGV} since the elements are numbered
+Xfrom zero.@refill
+X
+XNotice that the @code{awk} program is not entered in @code{ARGV}.  The
+Xother special command line options, with their arguments, are also not
+Xentered.  But variable assignments on the command line @emph{are}
+Xtreated as arguments, and do show up in the @code{ARGV} array.
+X
+XYour program can alter @code{ARGC} and the elements of @code{ARGV}.
+XEach time @code{awk} reaches the end of an input file, it uses the next
+Xelement of @code{ARGV} as the name of the next input file.  By storing a
+Xdifferent string there, your program can change which files are read.
+XYou can use @code{"-"} to represent the standard input.  By storing
+Xadditional elements and incrementing @code{ARGC} you can cause
+Xadditional files to be read.
+X
+XIf you decrease the value of @code{ARGC}, that eliminates input files
+Xfrom the end of the list.  By recording the old value of @code{ARGC}
+Xelsewhere, your program can treat the eliminated arguments as
+Xsomething other than file names.
+X
+XTo eliminate a file from the middle of the list, store the null string
+X(@code{""}) into @code{ARGV} in place of the file's name.  As a
+Xspecial feature, @code{awk} ignores file names that have been
+Xreplaced with the null string.
+X
+X@item ENVIRON
+X@vindex ENVIRON
+XThis is an array that contains the values of the environment.  The array
+Xindices are the environment variable names; the values are the values of
+Xthe particular environment variables.  For example,
+X@code{ENVIRON["HOME"]} might be @file{/u/close}.  Changing this array
+Xdoes not affect the environment passed on to any programs that
+X@code{awk} may spawn via redirection or the @code{system} function.
+X(In a future version of @code{gawk}, it may do so.)
+X
+XSome operating systems may not have environment variables.
+XOn such systems, the array @code{ENVIRON} is empty.
+X
+X@item FILENAME
+X@c @vindex FILENAME
+XThis is the name of the file that @code{awk} is currently reading.
+XIf @code{awk} is reading from the standard input (in other words,
+Xthere are no files listed on the command line),
+X@code{FILENAME} is set to @code{"-"}.
+X@code{FILENAME} is changed each time a new file is read (@pxref{Reading
+XFiles}).@refill
+X
+X@item FNR
+X@c @vindex FNR
+X@code{FNR} is the current record number in the current file.  @code{FNR} is
+Xincremented each time a new record is read (@pxref{Getline}).
+XIt is reinitialized to 0 each time a new input file is started.
+X
+X@item NF
+X@c @vindex NF
+X@code{NF} is the number of fields in the current input record.
+X@code{NF} is set each time a new record is read, when a new field is
+Xcreated, or when @code{$0} changes (@pxref{Fields}).@refill
+X
+X@item NR
+X@c @vindex NR
+XThis is the number of input records @code{awk} has processed since
+Xthe beginning of the program's execution.  (@pxref{Records}).
+X@code{NR} is set each time a new record is read.@refill
+X
+X@item RLENGTH
+X@c @vindex RLENGTH
+X@code{RLENGTH} is the length of the substring matched by the
+X@code{match} function (@pxref{String Functions}).  @code{RLENGTH} is set
+Xby invoking the @code{match} function.  Its value is the length of the
+Xmatched string, or @minus{}1 if no match was found.@refill
+X
+X@item RSTART
+X@c @vindex RSTART
+X@code{RSTART} is the start-index of the substring matched by the
+X@code{match} function (@pxref{String Functions}).  @code{RSTART} is set
+Xby invoking the @code{match} function.  Its value is the position of the
+Xstring where the matched substring starts, or 0 if no match was
+Xfound.@refill
+X@end table
+X
+X@node Command Line, Language History, Built-in Variables, Top
+X@c node-name, next, previous, up
+X@chapter Invocation of @code{awk}
+X@cindex command line
+X@cindex invocation of @code{gawk}
+X@cindex arguments, command line
+X@cindex options, command line
+X
+XThere are two ways to run @code{awk}: with an explicit program, or with
+Xone or more program files.  Here are templates for both of them; items
+Xenclosed in @samp{@r{[}@dots{}@r{]}} in these templates are optional.
+X
+X@example
+Xawk @r{[@code{-F@var{fs}}] [@code{-v @var{var}=@var{val}}] [@code{-V}] [@code{-C}] [@code{-c}] [@code{-a}] [@code{-e}] [@code{--}]} '@var{program}' @var{file} @dots{}
+Xawk @r{[@code{-F@var{fs}}] @code{-f @var{source-file}} [@code{-f @var{source-file} @dots{}}] [@code{-v @var{var}=@var{val}}] [@code{-V}] [@code{-C}] [@code{-c}] [@code{-a}] [@code{-e}] [@code{--}]} @var{file} @dots{}
+X@end example
+X
+X@menu
+X* Options::             Command line options and their meanings.
+X* Other Arguments::     Input file names and variable assignments.
+X* AWKPATH Variable::    Searching directories for @code{awk} programs.
+X@end menu
+X
+X@node Options, Other Arguments, Command Line, Command Line
+X@section Command Line Options
+X
+XOptions begin with a minus sign, and consist of a single character.
+XThe options and their meanings are as follows:
+X
+X@table @code
+X@item -F@var{fs}
+XSets the @code{FS} variable to @var{fs} (@pxref{Field Separators}).
+X
+X@item -f @var{source-file}
+XIndicates that the @code{awk} program is to be found in @var{source-file}
+Xinstead of in the first non-option argument.
+X
+X@item -v @var{var}=@var{val}
+X@cindex @samp{-v} option
+XSets the variable @var{var} to the value @var{val} @emph{before}
+Xexecution of the program begins.  Such variable values are available
+Xinside the @code{BEGIN} rule (see below for a fuller explanation).
+X
+XThe @samp{-v} option only has room to set one variable, but you can use
+Xit more than once, setting another variable each time, like this:
+X@samp{@w{-v foo=1} @w{-v bar=2}}.
+X
+X@item -a
+XSpecifies use of traditional @code{awk} syntax for regular expressions.
+XThis means that @samp{\} can be used to quote any regular expression
+Xoperators inside of square brackets, just as it can be outside of them.
+XThis mode is currently the default; the @samp{-a} option is useful in
+Xshell scripts so that they will not break if the default is changed.
+X@xref{Regexp Operators}.
+X
+X@item -e
+XSpecifies use of @code{egrep} syntax for regular expressions.  This
+Xmeans that @samp{\} does not serve as a quoting character inside of
+Xsquare brackets; ideosyncratic techniques are needed to include various
+Xspecial characters within them.  This mode may become the default at
+Xsome time in the future.  @xref{Regexp Operators}.
+X
+X@item -c
+X@cindex @samp{-c} option
+XSpecifies @dfn{compatibility mode}, in which the GNU extensions in
+X@code{gawk} are disabled, so that @code{gawk} behaves just like Unix
+X@code{awk}.  These extensions are noted below, where their usage is
+Xexplained.  @xref{Compatibility Mode}.
+X
+X@item -V
+X@cindex @samp{-V} option
+XPrints version information for this particular copy of @code{gawk}.
+XThis is so you can determine if your copy of @code{gawk} is up to date
+Xwith respect to whatever the Free Software Foundation is currently
+Xdistributing.  This option may disappear in a future version of @code{gawk}.
+X
+X@item -C
+X@cindex @samp{-C} option
+XPrints the short version of the General Public License.
+XThis option may disappear in a future version of @code{gawk}.
+X
+X@item --
+XSignals the end of the command line options.  The following arguments
+Xare not treated as options even if they begin with @samp{-}.  This
+Xinterpretation of @samp{--} follows the POSIX argument parsing
+Xconventions.
+X
+XThis is useful if you have file names that start with @samp{-},
+Xor in shell scripts, if you have file names that will be specified
+Xby the user and that might start with @samp{-}.
+X@end table
+X
+XAny other options are flagged as invalid with a warning message, but
+Xare otherwise ignored.
+X
+XIn compatibility mode, as a special case, if the value of @var{fs} supplied
+Xto the @samp{-F} option is @samp{t}, then @code{FS} is set to the tab
+Xcharacter (@code{"\t"}).  Also, the @samp{-C} and @samp{-V} options
+Xare not recognized.@refill
+X
+XIf the @samp{-f} option is @emph{not} used, then the first non-option
+Xcommand line argument is expected to be the program text.
+X
+XThe @samp{-f} option may be used more than once on the command line.
+XThen @code{awk} reads its program source from all of the named files, as
+Xif they had been concatenated together into one big file.  This is
+Xuseful for creating libraries of @code{awk} functions.  Useful functions
+Xcan be written once, and then retrieved from a standard place, instead
+Xof having to be included into each individual program.  You can still
+Xtype in a program at the terminal and use library functions, by specifying
+X@samp{-f /dev/tty}.  @code{awk} will read a file from the terminal
+Xto use as part of the @code{awk} program.  After typing your program,
+Xtype @kbd{Control-d} (the end-of-file character) to terminate it.
+X
+X@node Other Arguments, AWKPATH Variable, Options, Command Line
+X@section Other Command Line Arguments
+X
+XAny additional arguments on the command line are normally treated as
+Xinput files to be processed in the order specified.  However, an
+Xargument that has the form @code{@var{var}=@var{value}}, means to assign
+Xthe value @var{value} to the variable @var{var}---it does not specify a
+Xfile at all.
+X
+X@vindex ARGV
+XAll these arguments are made available to your @code{awk} program in the
+X@code{ARGV} array (@pxref{Built-in Variables}).  Command line options
+Xand the program text (if present) are omitted from the @code{ARGV}
+Xarray.  All other arguments, including variable assignments, are
+Xincluded.
+X
+XThe distinction between file name arguments and variable-assignment
+Xarguments is made when @code{awk} is about to open the next input file.
+XAt that point in execution, it checks the ``file name'' to see whether
+Xit is really a variable assignment; if so, @code{awk} sets the variable
+Xinstead of reading a file.
+X
+XTherefore, the variables actually receive the specified values after all
+Xpreviously specified files have been read.  In particular, the values of
+Xvariables assigned in this fashion are @emph{not} available inside a
+X@code{BEGIN} rule (@pxref{BEGIN/END}), since such rules are run before
+X@code{awk} begins scanning the argument list.@refill
+X
+XIn some earlier implementations of @code{awk}, when a variable assignment
+Xoccurred before any file names, the assignment would happen @emph{before}
+END_OF_FILE
+  if test 49666 -ne `wc -c <'./gawk.texinfo.05'`; then
+    echo shar: \"'./gawk.texinfo.05'\" unpacked with wrong size!
+  fi
+  # end of './gawk.texinfo.05'
+fi
+if test -f './patchlevel.h' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'./patchlevel.h'\"
+else
+  echo shar: Extracting \"'./patchlevel.h'\" \(21 characters\)
+  sed "s/^X//" >'./patchlevel.h' <<'END_OF_FILE'
+X#define PATCHLEVEL	1
+END_OF_FILE
+  if test 21 -ne `wc -c <'./patchlevel.h'`; then
+    echo shar: \"'./patchlevel.h'\" unpacked with wrong size!
+  fi
+  # end of './patchlevel.h'
+fi
+if test -f './pc.d/popen.c' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'./pc.d/popen.c'\"
+else
+  echo shar: Extracting \"'./pc.d/popen.c'\" \(2046 characters\)
+  sed "s/^X//" >'./pc.d/popen.c' <<'END_OF_FILE'
+X#include <stdio.h>
+X#include "popen.h"
+X#include <io.h>
+X#include <string.h>
+X#include <process.h>
+X
+Xstatic char template[] = "piXXXXXX";
+Xtypedef enum { unopened = 0, reading, writing } pipemode;
+Xstatic
+Xstruct {
+X    char *command;
+X    char *name;
+X    pipemode pmode;
+X} pipes[_NFILE];
+X
+XFILE *
+Xpopen( char *command, char *mode ) {
+X    FILE *current;
+X    char *name;
+X    int cur;
+X    pipemode curmode;
+X    /*
+X    ** decide on mode.
+X    */
+X    if(strcmp(mode,"r") == 0)
+X        curmode = reading;
+X    else if(strcmp(mode,"w") == 0)
+X        curmode = writing;
+X    else
+X        return NULL;
+X    /*
+X    ** get a name to use.
+X    */
+X    if((name = tempnam(".","pip"))==NULL)
+X        return NULL;
+X    /*
+X    ** If we're reading, just call system to get a file filled with
+X    ** output.
+X    */
+X    if(curmode == reading) {
+X        char cmd[256];
+X        sprintf(cmd,"%s > %s",command,name);
+X        system(cmd);
+X        if((current = fopen(name,"r")) == NULL)
+X            return NULL;
+X    } else {
+X        if((current = fopen(name,"w")) == NULL)
+X            return NULL;
+X    }
+X    cur = fileno(current);
+X    pipes[cur].name = name;
+X    pipes[cur].pmode = curmode;
+X    pipes[cur].command = strdup(command);
+X    return current;
+X}
+X
+Xint
+Xpclose( FILE * current) {
+X    int cur = fileno(current),rval;
+X    /*
+X    ** check for an open file.
+X    */
+X    if(pipes[cur].pmode == unopened)
+X        return -1;
+X    if(pipes[cur].pmode == reading) {
+X        /*
+X        ** input pipes are just files we're done with.
+X        */
+X        rval = fclose(current);
+X        unlink(pipes[cur].name);
+X    } else {
+X        /*
+X        ** output pipes are temporary files we have
+X        ** to cram down the throats of programs.
+X        */
+X        char command[256];
+X        fclose(current);
+X        sprintf(command,"%s < %s",pipes[cur].command,pipes[cur].name);
+X        rval = system(command);
+X        unlink(pipes[cur].name);
+X    }
+X    /*
+X    ** clean up current pipe.
+X    */
+X    pipes[cur].pmode = unopened;
+X    free(pipes[cur].name);
+X    free(pipes[cur].command);
+X    return rval;
+X}
+X
+END_OF_FILE
+  if test 2046 -ne `wc -c <'./pc.d/popen.c'`; then
+    echo shar: \"'./pc.d/popen.c'\" unpacked with wrong size!
+  fi
+  # end of './pc.d/popen.c'
+fi
+echo shar: End of archive 4 \(of 16\).
+cp /dev/null ark4isdone
+MISSING=""
+for I in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 ; do
+    if test ! -f ark${I}isdone ; then
+	MISSING="${MISSING} ${I}"
+    fi
+done
+if test "${MISSING}" = "" ; then
+    echo You have unpacked all 16 archives.
+    rm -f ark[1-9]isdone ark[1-9][0-9]isdone
+else
+    echo You still must unpack the following archives:
+    echo "        " ${MISSING}
+fi
+exit 0
+exit 0 # Just in case...
+-- 
+Please send comp.sources.unix-related mail to rsalz@uunet.uu.net.
+Use a domain-based address or give alternate paths, or you may lose out.

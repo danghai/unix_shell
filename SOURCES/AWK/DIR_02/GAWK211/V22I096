@@ -1,0 +1,2164 @@
+From: rsalz@uunet.uu.net (Rich Salz)
+Newsgroups: comp.sources.unix
+Subject: v22i096:  GNU AWK, version 2.11, Part10/16
+Message-ID: <2635@papaya.bbn.com>
+Date: 7 Jun 90 20:31:08 GMT
+Approved: rsalz@uunet.UU.NET
+
+Submitted-by: "Arnold D. Robbins" <arnold@unix.cc.emory.edu>
+Posting-number: Volume 22, Issue 96
+Archive-name: gawk2.11/part10
+
+#! /bin/sh
+# This is a shell archive.  Remove anything before this line, then feed it
+# into a shell via "sh file" or similar.  To overwrite existing files,
+# type "sh file -c".
+# The tool that generated this appeared in the comp.sources.unix newsgroup;
+# send mail to comp-sources-unix@uunet.uu.net if you want that tool.
+# Contents:  ./awk.y ./missing.d/memset.c ./missing.d/random.c
+#   ./pc.d/popen.h
+# Wrapped by rsalz@litchi.bbn.com on Wed Jun  6 12:24:55 1990
+PATH=/bin:/usr/bin:/usr/ucb ; export PATH
+echo If this archive is complete, you will see the following message:
+echo '          "shar: End of archive 10 (of 16)."'
+if test -f './awk.y' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'./awk.y'\"
+else
+  echo shar: Extracting \"'./awk.y'\" \(37017 characters\)
+  sed "s/^X//" >'./awk.y' <<'END_OF_FILE'
+X/*
+X * awk.y --- yacc/bison parser
+X */
+X
+X/* 
+X * Copyright (C) 1986, 1988, 1989 the Free Software Foundation, Inc.
+X * 
+X * This file is part of GAWK, the GNU implementation of the
+X * AWK Progamming Language.
+X * 
+X * GAWK is free software; you can redistribute it and/or modify
+X * it under the terms of the GNU General Public License as published by
+X * the Free Software Foundation; either version 1, or (at your option)
+X * any later version.
+X * 
+X * GAWK is distributed in the hope that it will be useful,
+X * but WITHOUT ANY WARRANTY; without even the implied warranty of
+X * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+X * GNU General Public License for more details.
+X * 
+X * You should have received a copy of the GNU General Public License
+X * along with GAWK; see the file COPYING.  If not, write to
+X * the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
+X */
+X
+X%{
+X#ifdef DEBUG
+X#define YYDEBUG 12
+X#endif
+X
+X#include "awk.h"
+X
+X/*
+X * This line is necessary since the Bison parser skeleton uses bcopy.
+X * Systems without memcpy should use -DMEMCPY_MISSING, per the Makefile.
+X * It should not hurt anything if Yacc is being used instead of Bison.
+X */
+X#define bcopy(s,d,n)	memcpy((d),(s),(n))
+X
+Xextern void msg();
+Xextern struct re_pattern_buffer *mk_re_parse();
+X
+XNODE *node();
+XNODE *lookup();
+XNODE *install();
+X
+Xstatic NODE *snode();
+Xstatic NODE *mkrangenode();
+Xstatic FILE *pathopen();
+Xstatic NODE *make_for_loop();
+Xstatic NODE *append_right();
+Xstatic void func_install();
+Xstatic NODE *make_param();
+Xstatic int hashf();
+Xstatic void pop_params();
+Xstatic void pop_var();
+Xstatic int yylex ();
+Xstatic void yyerror();
+X
+Xstatic int want_regexp;		/* lexical scanning kludge */
+Xstatic int want_assign;		/* lexical scanning kludge */
+Xstatic int can_return;		/* lexical scanning kludge */
+Xstatic int io_allowed = 1;	/* lexical scanning kludge */
+Xstatic int lineno = 1;		/* for error msgs */
+Xstatic char *lexptr;		/* pointer to next char during parsing */
+Xstatic char *lexptr_begin;	/* keep track of where we were for error msgs */
+Xstatic int curinfile = -1;	/* index into sourcefiles[] */
+Xstatic int param_counter;
+X
+XNODE *variables[HASHSIZE];
+X
+Xextern int errcount;
+Xextern NODE *begin_block;
+Xextern NODE *end_block;
+X%}
+X
+X%union {
+X	long lval;
+X	AWKNUM fval;
+X	NODE *nodeval;
+X	NODETYPE nodetypeval;
+X	char *sval;
+X	NODE *(*ptrval)();
+X}
+X
+X%type <nodeval> function_prologue function_body
+X%type <nodeval> rexp exp start program rule simp_exp
+X%type <nodeval> pattern 
+X%type <nodeval>	action variable param_list
+X%type <nodeval>	rexpression_list opt_rexpression_list
+X%type <nodeval>	expression_list opt_expression_list
+X%type <nodeval>	statements statement if_statement opt_param_list 
+X%type <nodeval> opt_exp opt_variable regexp 
+X%type <nodeval> input_redir output_redir
+X%type <nodetypeval> r_paren comma nls opt_nls print
+X
+X%type <sval> func_name
+X%token <sval> FUNC_CALL NAME REGEXP
+X%token <lval> ERROR
+X%token <nodeval> NUMBER YSTRING
+X%token <nodetypeval> RELOP APPEND_OP
+X%token <nodetypeval> ASSIGNOP MATCHOP NEWLINE CONCAT_OP
+X%token <nodetypeval> LEX_BEGIN LEX_END LEX_IF LEX_ELSE LEX_RETURN LEX_DELETE
+X%token <nodetypeval> LEX_WHILE LEX_DO LEX_FOR LEX_BREAK LEX_CONTINUE
+X%token <nodetypeval> LEX_PRINT LEX_PRINTF LEX_NEXT LEX_EXIT LEX_FUNCTION
+X%token <nodetypeval> LEX_GETLINE
+X%token <nodetypeval> LEX_IN
+X%token <lval> LEX_AND LEX_OR INCREMENT DECREMENT
+X%token <ptrval> LEX_BUILTIN LEX_LENGTH
+X
+X/* these are just yylval numbers */
+X
+X/* Lowest to highest */
+X%right ASSIGNOP
+X%right '?' ':'
+X%left LEX_OR
+X%left LEX_AND
+X%left LEX_GETLINE
+X%nonassoc LEX_IN
+X%left FUNC_CALL LEX_BUILTIN LEX_LENGTH
+X%nonassoc MATCHOP
+X%nonassoc RELOP '<' '>' '|' APPEND_OP
+X%left CONCAT_OP
+X%left YSTRING NUMBER
+X%left '+' '-'
+X%left '*' '/' '%'
+X%right '!' UNARY
+X%right '^'
+X%left INCREMENT DECREMENT
+X%left '$'
+X%left '(' ')'
+X
+X%%
+X
+Xstart
+X	: opt_nls program opt_nls
+X		{ expression_value = $2; }
+X	;
+X
+Xprogram
+X	: rule
+X		{ 
+X			if ($1 != NULL)
+X				$$ = $1;
+X			else
+X				$$ = NULL;
+X			yyerrok;
+X		}
+X	| program rule
+X		/* add the rule to the tail of list */
+X		{
+X			if ($2 == NULL)
+X				$$ = $1;
+X			else if ($1 == NULL)
+X				$$ = $2;
+X			else {
+X				if ($1->type != Node_rule_list)
+X					$1 = node($1, Node_rule_list,
+X						(NODE*)NULL);
+X				$$ = append_right ($1,
+X				   node($2, Node_rule_list,(NODE *) NULL));
+X			}
+X			yyerrok;
+X		}
+X	| error	{ $$ = NULL; }
+X	| program error { $$ = NULL; }
+X	;
+X
+Xrule
+X	: LEX_BEGIN { io_allowed = 0; }
+X	  action
+X	  {
+X		if (begin_block) {
+X			if (begin_block->type != Node_rule_list)
+X				begin_block = node(begin_block, Node_rule_list,
+X					(NODE *)NULL);
+X			append_right (begin_block, node(
+X			    node((NODE *)NULL, Node_rule_node, $3),
+X			    Node_rule_list, (NODE *)NULL) );
+X		} else
+X			begin_block = node((NODE *)NULL, Node_rule_node, $3);
+X		$$ = NULL;
+X		io_allowed = 1;
+X		yyerrok;
+X	  }
+X	| LEX_END { io_allowed = 0; }
+X	  action
+X	  {
+X		if (end_block) {
+X			if (end_block->type != Node_rule_list)
+X				end_block = node(end_block, Node_rule_list,
+X					(NODE *)NULL);
+X			append_right (end_block, node(
+X			    node((NODE *)NULL, Node_rule_node, $3),
+X			    Node_rule_list, (NODE *)NULL));
+X		} else
+X			end_block = node((NODE *)NULL, Node_rule_node, $3);
+X		$$ = NULL;
+X		io_allowed = 1;
+X		yyerrok;
+X	  }
+X	| LEX_BEGIN statement_term
+X	  {
+X		msg ("error near line %d: BEGIN blocks must have an action part", lineno);
+X		errcount++;
+X		yyerrok;
+X	  }
+X	| LEX_END statement_term
+X	  {
+X		msg ("error near line %d: END blocks must have an action part", lineno);
+X		errcount++;
+X		yyerrok;
+X	  }
+X	| pattern action
+X		{ $$ = node ($1, Node_rule_node, $2); yyerrok; }
+X	| action
+X		{ $$ = node ((NODE *)NULL, Node_rule_node, $1); yyerrok; }
+X	| pattern statement_term
+X		{ if($1) $$ = node ($1, Node_rule_node, (NODE *)NULL); yyerrok; }
+X	| function_prologue function_body
+X		{
+X			func_install($1, $2);
+X			$$ = NULL;
+X			yyerrok;
+X		}
+X	;
+X
+Xfunc_name
+X	: NAME
+X		{ $$ = $1; }
+X	| FUNC_CALL
+X		{ $$ = $1; }
+X	;
+X		
+Xfunction_prologue
+X	: LEX_FUNCTION 
+X		{
+X			param_counter = 0;
+X		}
+X	  func_name '(' opt_param_list r_paren opt_nls
+X		{
+X			$$ = append_right(make_param($3), $5);
+X			can_return = 1;
+X		}
+X	;
+X
+Xfunction_body
+X	: l_brace statements r_brace
+X	  {
+X		$$ = $2;
+X		can_return = 0;
+X	  }
+X	;
+X
+X
+Xpattern
+X	: exp
+X		{ $$ = $1; }
+X	| exp comma exp
+X		{ $$ = mkrangenode ( node($1, Node_cond_pair, $3) ); }
+X	;
+X
+Xregexp
+X	/*
+X	 * In this rule, want_regexp tells yylex that the next thing
+X	 * is a regexp so it should read up to the closing slash.
+X	 */
+X	: '/'
+X		{ ++want_regexp; }
+X	   REGEXP '/'
+X		{
+X		  want_regexp = 0;
+X		  $$ = node((NODE *)NULL,Node_regex,(NODE *)mk_re_parse($3, 0));
+X		  $$ -> re_case = 0;
+X		  emalloc ($$ -> re_text, char *, strlen($3)+1, "regexp");
+X		  strcpy ($$ -> re_text, $3);
+X		}
+X	;
+X
+Xaction
+X	: l_brace r_brace opt_semi
+X		{
+X			/* empty actions are different from missing actions */
+X			$$ = node ((NODE *) NULL, Node_illegal, (NODE *) NULL);
+X		}
+X	| l_brace statements r_brace opt_semi
+X		{ $$ = $2 ; }
+X	;
+X
+Xstatements
+X	: statement
+X		{ $$ = $1; }
+X	| statements statement
+X		{
+X			if ($1 == NULL || $1->type != Node_statement_list)
+X				$1 = node($1, Node_statement_list,(NODE *)NULL);
+X	    		$$ = append_right($1,
+X				node( $2, Node_statement_list, (NODE *)NULL));
+X	    		yyerrok;
+X		}
+X	| error
+X		{ $$ = NULL; }
+X	| statements error
+X		{ $$ = NULL; }
+X	;
+X
+Xstatement_term
+X	: nls
+X		{ $<nodetypeval>$ = Node_illegal; }
+X	| semi opt_nls
+X		{ $<nodetypeval>$ = Node_illegal; }
+X	;
+X
+X	
+Xstatement
+X	: semi opt_nls
+X		{ $$ = NULL; }
+X	| l_brace r_brace
+X		{ $$ = NULL; }
+X	| l_brace statements r_brace
+X		{ $$ = $2; }
+X	| if_statement
+X		{ $$ = $1; }
+X	| LEX_WHILE '(' exp r_paren opt_nls statement
+X		{ $$ = node ($3, Node_K_while, $6); }
+X	| LEX_DO opt_nls statement LEX_WHILE '(' exp r_paren opt_nls
+X		{ $$ = node ($6, Node_K_do, $3); }
+X	| LEX_FOR '(' NAME LEX_IN NAME r_paren opt_nls statement
+X	  {
+X		$$ = node ($8, Node_K_arrayfor, make_for_loop(variable($3),
+X			(NODE *)NULL, variable($5)));
+X	  }
+X	| LEX_FOR '(' opt_exp semi exp semi opt_exp r_paren opt_nls statement
+X	  {
+X		$$ = node($10, Node_K_for, (NODE *)make_for_loop($3, $5, $7));
+X	  }
+X	| LEX_FOR '(' opt_exp semi semi opt_exp r_paren opt_nls statement
+X	  {
+X		$$ = node ($9, Node_K_for,
+X			(NODE *)make_for_loop($3, (NODE *)NULL, $6));
+X	  }
+X	| LEX_BREAK statement_term
+X	   /* for break, maybe we'll have to remember where to break to */
+X		{ $$ = node ((NODE *)NULL, Node_K_break, (NODE *)NULL); }
+X	| LEX_CONTINUE statement_term
+X	   /* similarly */
+X		{ $$ = node ((NODE *)NULL, Node_K_continue, (NODE *)NULL); }
+X	| print '(' expression_list r_paren output_redir statement_term
+X		{ $$ = node ($3, $1, $5); }
+X	| print opt_rexpression_list output_redir statement_term
+X		{ $$ = node ($2, $1, $3); }
+X	| LEX_NEXT
+X		{ if (! io_allowed) yyerror("next used in BEGIN or END action"); }
+X	  statement_term
+X		{ $$ = node ((NODE *)NULL, Node_K_next, (NODE *)NULL); }
+X	| LEX_EXIT opt_exp statement_term
+X		{ $$ = node ($2, Node_K_exit, (NODE *)NULL); }
+X	| LEX_RETURN
+X		{ if (! can_return) yyerror("return used outside function context"); }
+X	  opt_exp statement_term
+X		{ $$ = node ($3, Node_K_return, (NODE *)NULL); }
+X	| LEX_DELETE NAME '[' expression_list ']' statement_term
+X		{ $$ = node (variable($2), Node_K_delete, $4); }
+X	| exp statement_term
+X		{ $$ = $1; }
+X	;
+X
+Xprint
+X	: LEX_PRINT
+X		{ $$ = $1; }
+X	| LEX_PRINTF
+X		{ $$ = $1; }
+X	;
+X
+Xif_statement
+X	: LEX_IF '(' exp r_paren opt_nls statement
+X	  {
+X		$$ = node($3, Node_K_if, 
+X			node($6, Node_if_branches, (NODE *)NULL));
+X	  }
+X	| LEX_IF '(' exp r_paren opt_nls statement
+X	     LEX_ELSE opt_nls statement
+X		{ $$ = node ($3, Node_K_if,
+X				node ($6, Node_if_branches, $9)); }
+X	;
+X
+Xnls
+X	: NEWLINE
+X		{ $<nodetypeval>$ = NULL; }
+X	| nls NEWLINE
+X		{ $<nodetypeval>$ = NULL; }
+X	;
+X
+Xopt_nls
+X	: /* empty */
+X		{ $<nodetypeval>$ = NULL; }
+X	| nls
+X		{ $<nodetypeval>$ = NULL; }
+X	;
+X
+Xinput_redir
+X	: /* empty */
+X		{ $$ = NULL; }
+X	| '<' simp_exp
+X		{ $$ = node ($2, Node_redirect_input, (NODE *)NULL); }
+X	;
+X
+Xoutput_redir
+X	: /* empty */
+X		{ $$ = NULL; }
+X	| '>' exp
+X		{ $$ = node ($2, Node_redirect_output, (NODE *)NULL); }
+X	| APPEND_OP exp
+X		{ $$ = node ($2, Node_redirect_append, (NODE *)NULL); }
+X	| '|' exp
+X		{ $$ = node ($2, Node_redirect_pipe, (NODE *)NULL); }
+X	;
+X
+Xopt_param_list
+X	: /* empty */
+X		{ $$ = NULL; }
+X	| param_list
+X		{ $$ = $1; }
+X	;
+X
+Xparam_list
+X	: NAME
+X		{ $$ = make_param($1); }
+X	| param_list comma NAME
+X		{ $$ = append_right($1, make_param($3)); yyerrok; }
+X	| error
+X		{ $$ = NULL; }
+X	| param_list error
+X		{ $$ = NULL; }
+X	| param_list comma error
+X		{ $$ = NULL; }
+X	;
+X
+X/* optional expression, as in for loop */
+Xopt_exp
+X	: /* empty */
+X		{ $$ = NULL; }
+X	| exp
+X		{ $$ = $1; }
+X	;
+X
+Xopt_rexpression_list
+X	: /* empty */
+X		{ $$ = NULL; }
+X	| rexpression_list
+X		{ $$ = $1; }
+X	;
+X
+Xrexpression_list
+X	: rexp
+X		{ $$ = node ($1, Node_expression_list, (NODE *)NULL); }
+X	| rexpression_list comma rexp
+X	  {
+X		$$ = append_right($1,
+X			node( $3, Node_expression_list, (NODE *)NULL));
+X		yyerrok;
+X	  }
+X	| error
+X		{ $$ = NULL; }
+X	| rexpression_list error
+X		{ $$ = NULL; }
+X	| rexpression_list error rexp
+X		{ $$ = NULL; }
+X	| rexpression_list comma error
+X		{ $$ = NULL; }
+X	;
+X
+Xopt_expression_list
+X	: /* empty */
+X		{ $$ = NULL; }
+X	| expression_list
+X		{ $$ = $1; }
+X	;
+X
+Xexpression_list
+X	: exp
+X		{ $$ = node ($1, Node_expression_list, (NODE *)NULL); }
+X	| expression_list comma exp
+X		{
+X			$$ = append_right($1,
+X				node( $3, Node_expression_list, (NODE *)NULL));
+X			yyerrok;
+X		}
+X	| error
+X		{ $$ = NULL; }
+X	| expression_list error
+X		{ $$ = NULL; }
+X	| expression_list error exp
+X		{ $$ = NULL; }
+X	| expression_list comma error
+X		{ $$ = NULL; }
+X	;
+X
+X/* Expressions, not including the comma operator.  */
+Xexp	: variable ASSIGNOP
+X		{ want_assign = 0; }
+X		exp
+X		{ $$ = node ($1, $2, $4); }
+X	| '(' expression_list r_paren LEX_IN NAME
+X		{ $$ = node (variable($5), Node_in_array, $2); }
+X	| exp '|' LEX_GETLINE opt_variable
+X		{
+X		  $$ = node ($4, Node_K_getline,
+X			 node ($1, Node_redirect_pipein, (NODE *)NULL));
+X		}
+X	| LEX_GETLINE opt_variable input_redir
+X		{
+X		  /* "too painful to do right" */
+X		  /*
+X		  if (! io_allowed && $3 == NULL)
+X			yyerror("non-redirected getline illegal inside BEGIN or END action");
+X		  */
+X		  $$ = node ($2, Node_K_getline, $3);
+X		}
+X	| exp LEX_AND exp
+X		{ $$ = node ($1, Node_and, $3); }
+X	| exp LEX_OR exp
+X		{ $$ = node ($1, Node_or, $3); }
+X	| exp MATCHOP exp
+X		 { $$ = node ($1, $2, $3); }
+X	| regexp
+X		{ $$ = $1; }
+X	| '!' regexp %prec UNARY
+X		{ $$ = node((NODE *) NULL, Node_nomatch, $2); }
+X	| exp LEX_IN NAME
+X		{ $$ = node (variable($3), Node_in_array, $1); }
+X	| exp RELOP exp
+X		{ $$ = node ($1, $2, $3); }
+X	| exp '<' exp
+X		{ $$ = node ($1, Node_less, $3); }
+X	| exp '>' exp
+X		{ $$ = node ($1, Node_greater, $3); }
+X	| exp '?' exp ':' exp
+X		{ $$ = node($1, Node_cond_exp, node($3, Node_if_branches, $5));}
+X	| simp_exp
+X		{ $$ = $1; }
+X	| exp exp %prec CONCAT_OP
+X		{ $$ = node ($1, Node_concat, $2); }
+X	;
+X
+Xrexp	
+X	: variable ASSIGNOP
+X		{ want_assign = 0; }
+X		rexp
+X		{ $$ = node ($1, $2, $4); }
+X	| rexp LEX_AND rexp
+X		{ $$ = node ($1, Node_and, $3); }
+X	| rexp LEX_OR rexp
+X		{ $$ = node ($1, Node_or, $3); }
+X	| LEX_GETLINE opt_variable input_redir
+X		{
+X		  /* "too painful to do right" */
+X		  /*
+X		  if (! io_allowed && $3 == NULL)
+X			yyerror("non-redirected getline illegal inside BEGIN or END action");
+X		  */
+X		  $$ = node ($2, Node_K_getline, $3);
+X		}
+X	| regexp
+X		{ $$ = $1; } 
+X	| '!' regexp %prec UNARY
+X		{ $$ = node((NODE *) NULL, Node_nomatch, $2); }
+X	| rexp MATCHOP rexp
+X		 { $$ = node ($1, $2, $3); }
+X	| rexp LEX_IN NAME
+X		{ $$ = node (variable($3), Node_in_array, $1); }
+X	| rexp RELOP rexp
+X		{ $$ = node ($1, $2, $3); }
+X	| rexp '?' rexp ':' rexp
+X		{ $$ = node($1, Node_cond_exp, node($3, Node_if_branches, $5));}
+X	| simp_exp
+X		{ $$ = $1; }
+X	| rexp rexp %prec CONCAT_OP
+X		{ $$ = node ($1, Node_concat, $2); }
+X	;
+X
+Xsimp_exp
+X	: '!' simp_exp %prec UNARY
+X		{ $$ = node ($2, Node_not,(NODE *) NULL); }
+X	| '(' exp r_paren
+X		{ $$ = $2; }
+X	| LEX_BUILTIN '(' opt_expression_list r_paren
+X		{ $$ = snode ($3, Node_builtin, $1); }
+X	| LEX_LENGTH '(' opt_expression_list r_paren
+X		{ $$ = snode ($3, Node_builtin, $1); }
+X	| LEX_LENGTH
+X		{ $$ = snode ((NODE *)NULL, Node_builtin, $1); }
+X	| FUNC_CALL '(' opt_expression_list r_paren
+X	  {
+X		$$ = node ($3, Node_func_call, make_string($1, strlen($1)));
+X	  }
+X	| INCREMENT variable
+X		{ $$ = node ($2, Node_preincrement, (NODE *)NULL); }
+X	| DECREMENT variable
+X		{ $$ = node ($2, Node_predecrement, (NODE *)NULL); }
+X	| variable INCREMENT
+X		{ $$ = node ($1, Node_postincrement, (NODE *)NULL); }
+X	| variable DECREMENT
+X		{ $$ = node ($1, Node_postdecrement, (NODE *)NULL); }
+X	| variable
+X		{ $$ = $1; }
+X	| NUMBER
+X		{ $$ = $1; }
+X	| YSTRING
+X		{ $$ = $1; }
+X
+X	/* Binary operators in order of decreasing precedence.  */
+X	| simp_exp '^' simp_exp
+X		{ $$ = node ($1, Node_exp, $3); }
+X	| simp_exp '*' simp_exp
+X		{ $$ = node ($1, Node_times, $3); }
+X	| simp_exp '/' simp_exp
+X		{ $$ = node ($1, Node_quotient, $3); }
+X	| simp_exp '%' simp_exp
+X		{ $$ = node ($1, Node_mod, $3); }
+X	| simp_exp '+' simp_exp
+X		{ $$ = node ($1, Node_plus, $3); }
+X	| simp_exp '-' simp_exp
+X		{ $$ = node ($1, Node_minus, $3); }
+X	| '-' simp_exp    %prec UNARY
+X		{ $$ = node ($2, Node_unary_minus, (NODE *)NULL); }
+X	| '+' simp_exp    %prec UNARY
+X		{ $$ = $2; }
+X	;
+X
+Xopt_variable
+X	: /* empty */
+X		{ $$ = NULL; }
+X	| variable
+X		{ $$ = $1; }
+X	;
+X
+Xvariable
+X	: NAME
+X		{ want_assign = 1; $$ = variable ($1); }
+X	| NAME '[' expression_list ']'
+X		{ want_assign = 1; $$ = node (variable($1), Node_subscript, $3); }
+X	| '$' simp_exp
+X		{ want_assign = 1; $$ = node ($2, Node_field_spec, (NODE *)NULL); }
+X	;
+X
+Xl_brace
+X	: '{' opt_nls
+X	;
+X
+Xr_brace
+X	: '}' opt_nls	{ yyerrok; }
+X	;
+X
+Xr_paren
+X	: ')' { $<nodetypeval>$ = Node_illegal; yyerrok; }
+X	;
+X
+Xopt_semi
+X	: /* empty */
+X	| semi
+X	;
+X
+Xsemi
+X	: ';'	{ yyerrok; }
+X	;
+X
+Xcomma	: ',' opt_nls	{ $<nodetypeval>$ = Node_illegal; yyerrok; }
+X	;
+X
+X%%
+X
+Xstruct token {
+X	char *operator;		/* text to match */
+X	NODETYPE value;		/* node type */
+X	int class;		/* lexical class */
+X	short nostrict;		/* ignore if in strict compatibility mode */
+X	NODE *(*ptr) ();	/* function that implements this keyword */
+X};
+X
+Xextern NODE
+X	*do_exp(),	*do_getline(),	*do_index(),	*do_length(),
+X	*do_sqrt(),	*do_log(),	*do_sprintf(),	*do_substr(),
+X	*do_split(),	*do_system(),	*do_int(),	*do_close(),
+X	*do_atan2(),	*do_sin(),	*do_cos(),	*do_rand(),
+X	*do_srand(),	*do_match(),	*do_tolower(),	*do_toupper(),
+X	*do_sub(),	*do_gsub();
+X
+X/* Special functions for debugging */
+X#ifdef DEBUG
+XNODE *do_prvars(), *do_bp();
+X#endif
+X
+X/* Tokentab is sorted ascii ascending order, so it can be binary searched. */
+X
+Xstatic struct token tokentab[] = {
+X	{ "BEGIN",	Node_illegal,		LEX_BEGIN,	0,	0 },
+X	{ "END",	Node_illegal,		LEX_END,	0,	0 },
+X	{ "atan2",	Node_builtin,		LEX_BUILTIN,	0,	do_atan2 },
+X#ifdef DEBUG
+X	{ "bp",		Node_builtin,		LEX_BUILTIN,	0,	do_bp },
+X#endif
+X	{ "break",	Node_K_break,		LEX_BREAK,	0,	0 },
+X	{ "close",	Node_builtin,		LEX_BUILTIN,	0,	do_close },
+X	{ "continue",	Node_K_continue,	LEX_CONTINUE,	0,	0 },
+X	{ "cos",	Node_builtin,		LEX_BUILTIN,	0,	do_cos },
+X	{ "delete",	Node_K_delete,		LEX_DELETE,	0,	0 },
+X	{ "do",		Node_K_do,		LEX_DO,		0,	0 },
+X	{ "else",	Node_illegal,		LEX_ELSE,	0,	0 },
+X	{ "exit",	Node_K_exit,		LEX_EXIT,	0,	0 },
+X	{ "exp",	Node_builtin,		LEX_BUILTIN,	0,	do_exp },
+X	{ "for",	Node_K_for,		LEX_FOR,	0,	0 },
+X	{ "func",	Node_K_function,	LEX_FUNCTION,	0,	0 },
+X	{ "function",	Node_K_function,	LEX_FUNCTION,	0,	0 },
+X	{ "getline",	Node_K_getline,		LEX_GETLINE,	0,	0 },
+X	{ "gsub",	Node_builtin,		LEX_BUILTIN,	0,	do_gsub },
+X	{ "if",		Node_K_if,		LEX_IF,		0,	0 },
+X	{ "in",		Node_illegal,		LEX_IN,		0,	0 },
+X	{ "index",	Node_builtin,		LEX_BUILTIN,	0,	do_index },
+X	{ "int",	Node_builtin,		LEX_BUILTIN,	0,	do_int },
+X	{ "length",	Node_builtin,		LEX_LENGTH,	0,	do_length },
+X	{ "log",	Node_builtin,		LEX_BUILTIN,	0,	do_log },
+X	{ "match",	Node_builtin,		LEX_BUILTIN,	0,	do_match },
+X	{ "next",	Node_K_next,		LEX_NEXT,	0,	0 },
+X	{ "print",	Node_K_print,		LEX_PRINT,	0,	0 },
+X	{ "printf",	Node_K_printf,		LEX_PRINTF,	0,	0 },
+X#ifdef DEBUG
+X	{ "prvars",	Node_builtin,		LEX_BUILTIN,	0,	do_prvars },
+X#endif
+X	{ "rand",	Node_builtin,		LEX_BUILTIN,	0,	do_rand },
+X	{ "return",	Node_K_return,		LEX_RETURN,	0,	0 },
+X	{ "sin",	Node_builtin,		LEX_BUILTIN,	0,	do_sin },
+X	{ "split",	Node_builtin,		LEX_BUILTIN,	0,	do_split },
+X	{ "sprintf",	Node_builtin,		LEX_BUILTIN,	0,	do_sprintf },
+X	{ "sqrt",	Node_builtin,		LEX_BUILTIN,	0,	do_sqrt },
+X	{ "srand",	Node_builtin,		LEX_BUILTIN,	0,	do_srand },
+X	{ "sub",	Node_builtin,		LEX_BUILTIN,	0,	do_sub },
+X	{ "substr",	Node_builtin,		LEX_BUILTIN,	0,	do_substr },
+X	{ "system",	Node_builtin,		LEX_BUILTIN,	0,	do_system },
+X	{ "tolower",	Node_builtin,		LEX_BUILTIN,	0,	do_tolower },
+X	{ "toupper",	Node_builtin,		LEX_BUILTIN,	0,	do_toupper },
+X	{ "while",	Node_K_while,		LEX_WHILE,	0,	0 },
+X};
+X
+Xstatic char *token_start;
+X
+X/* VARARGS0 */
+Xstatic void
+Xyyerror(va_alist)
+Xva_dcl
+X{
+X	va_list args;
+X	char *mesg;
+X	register char *ptr, *beg;
+X	char *scan;
+X
+X	errcount++;
+X	/* Find the current line in the input file */
+X	if (! lexptr) {
+X		beg = "(END OF FILE)";
+X		ptr = beg + 13;
+X	} else {
+X		if (*lexptr == '\n' && lexptr != lexptr_begin)
+X			--lexptr;
+X		for (beg = lexptr; beg != lexptr_begin && *beg != '\n'; --beg)
+X			;
+X		/* NL isn't guaranteed */
+X		for (ptr = lexptr; *ptr && *ptr != '\n'; ptr++)
+X			;
+X		if (beg != lexptr_begin)
+X			beg++;
+X	}
+X	msg("syntax error near line %d:\n%.*s", lineno, ptr - beg, beg);
+X	scan = beg;
+X	while (scan < token_start)
+X		if (*scan++ == '\t')
+X			putc('\t', stderr);
+X		else
+X			putc(' ', stderr);
+X	putc('^', stderr);
+X	putc(' ', stderr);
+X	va_start(args);
+X	mesg = va_arg(args, char *);
+X	vfprintf(stderr, mesg, args);
+X	va_end(args);
+X	putc('\n', stderr);
+X	exit(1);
+X}
+X
+X/*
+X * Parse a C escape sequence.  STRING_PTR points to a variable containing a
+X * pointer to the string to parse.  That pointer is updated past the
+X * characters we use.  The value of the escape sequence is returned. 
+X *
+X * A negative value means the sequence \ newline was seen, which is supposed to
+X * be equivalent to nothing at all. 
+X *
+X * If \ is followed by a null character, we return a negative value and leave
+X * the string pointer pointing at the null character. 
+X *
+X * If \ is followed by 000, we return 0 and leave the string pointer after the
+X * zeros.  A value of 0 does not mean end of string.  
+X */
+X
+Xint
+Xparse_escape(string_ptr)
+Xchar **string_ptr;
+X{
+X	register int c = *(*string_ptr)++;
+X	register int i;
+X	register int count;
+X
+X	switch (c) {
+X	case 'a':
+X		return BELL;
+X	case 'b':
+X		return '\b';
+X	case 'f':
+X		return '\f';
+X	case 'n':
+X		return '\n';
+X	case 'r':
+X		return '\r';
+X	case 't':
+X		return '\t';
+X	case 'v':
+X		return '\v';
+X	case '\n':
+X		return -2;
+X	case 0:
+X		(*string_ptr)--;
+X		return -1;
+X	case '0':
+X	case '1':
+X	case '2':
+X	case '3':
+X	case '4':
+X	case '5':
+X	case '6':
+X	case '7':
+X		i = c - '0';
+X		count = 0;
+X		while (++count < 3) {
+X			if ((c = *(*string_ptr)++) >= '0' && c <= '7') {
+X				i *= 8;
+X				i += c - '0';
+X			} else {
+X				(*string_ptr)--;
+X				break;
+X			}
+X		}
+X		return i;
+X	case 'x':
+X		i = 0;
+X		while (1) {
+X			if (isxdigit((c = *(*string_ptr)++))) {
+X				if (isdigit(c))
+X					i += c - '0';
+X				else if (isupper(c))
+X					i += c - 'A' + 10;
+X				else
+X					i += c - 'a' + 10;
+X			} else {
+X				(*string_ptr)--;
+X				break;
+X			}
+X		}
+X		return i;
+X	default:
+X		return c;
+X	}
+X}
+X
+X/*
+X * Read the input and turn it into tokens. Input is now read from a file
+X * instead of from malloc'ed memory. The main program takes a program
+X * passed as a command line argument and writes it to a temp file. Otherwise
+X * the file name is made available in an external variable.
+X */
+X
+Xstatic int
+Xyylex()
+X{
+X	register int c;
+X	register int namelen;
+X	register char *tokstart;
+X	char *tokkey;
+X	static did_newline = 0;	/* the grammar insists that actions end
+X				 * with newlines.  This was easier than
+X				 * hacking the grammar. */
+X	int seen_e = 0;		/* These are for numbers */
+X	int seen_point = 0;
+X	int esc_seen;
+X	extern char **sourcefile;
+X	extern int tempsource, numfiles;
+X	static int file_opened = 0;
+X	static FILE *fin;
+X	static char cbuf[BUFSIZ];
+X	int low, mid, high;
+X#ifdef DEBUG
+X	extern int debugging;
+X#endif
+X
+X	if (! file_opened) {
+X		file_opened = 1;
+X#ifdef DEBUG
+X		if (debugging) {
+X			int i;
+X
+X			for (i = 0; i <= numfiles; i++)
+X				fprintf (stderr, "sourcefile[%d] = %s\n", i,
+X						sourcefile[i]);
+X		}
+X#endif
+X	nextfile:
+X		if ((fin = pathopen (sourcefile[++curinfile])) == NULL)
+X			fatal("cannot open `%s' for reading (%s)",
+X				sourcefile[curinfile],
+X				strerror(errno));
+X		*(lexptr = cbuf) = '\0';
+X		/*
+X		 * immediately unlink the tempfile so that it will
+X		 * go away cleanly if we bomb.
+X		 */
+X		if (tempsource && curinfile == 0)
+X			(void) unlink (sourcefile[curinfile]);
+X	}
+X
+Xretry:
+X	if (! *lexptr)
+X		if (fgets (cbuf, sizeof cbuf, fin) == NULL) {
+X			if (fin != NULL)
+X				fclose (fin);	/* be neat and clean */
+X			if (curinfile < numfiles)
+X				goto nextfile;
+X			return 0;
+X		} else
+X			lexptr = lexptr_begin = cbuf;
+X
+X	if (want_regexp) {
+X		int in_brack = 0;
+X
+X		want_regexp = 0;
+X		token_start = tokstart = lexptr;
+X		while (c = *lexptr++) {
+X			switch (c) {
+X			case '[':
+X				in_brack = 1;
+X				break;
+X			case ']':
+X				in_brack = 0;
+X				break;
+X			case '\\':
+X				if (*lexptr++ == '\0') {
+X					yyerror("unterminated regexp ends with \\");
+X					return ERROR;
+X				} else if (lexptr[-1] == '\n')
+X					goto retry;
+X				break;
+X			case '/':	/* end of the regexp */
+X				if (in_brack)
+X					break;
+X
+X				lexptr--;
+X				yylval.sval = tokstart;
+X				return REGEXP;
+X			case '\n':
+X				lineno++;
+X			case '\0':
+X				lexptr--;	/* so error messages work */
+X				yyerror("unterminated regexp");
+X				return ERROR;
+X			}
+X		}
+X	}
+X
+X	if (*lexptr == '\n') {
+X		lexptr++;
+X		lineno++;
+X		return NEWLINE;
+X	}
+X
+X	while (*lexptr == ' ' || *lexptr == '\t')
+X		lexptr++;
+X
+X	token_start = tokstart = lexptr;
+X
+X	switch (c = *lexptr++) {
+X	case 0:
+X		return 0;
+X
+X	case '\n':
+X		lineno++;
+X		return NEWLINE;
+X
+X	case '#':		/* it's a comment */
+X		while (*lexptr != '\n' && *lexptr != '\0')
+X			lexptr++;
+X		goto retry;
+X
+X	case '\\':
+X		if (*lexptr == '\n') {
+X			lineno++;
+X			lexptr++;
+X			goto retry;
+X		} else
+X			break;
+X	case ')':
+X	case ']':
+X	case '(':	
+X	case '[':
+X	case '$':
+X	case ';':
+X	case ':':
+X	case '?':
+X
+X		/*
+X		 * set node type to ILLEGAL because the action should set it
+X		 * to the right thing 
+X		 */
+X		yylval.nodetypeval = Node_illegal;
+X		return c;
+X
+X	case '{':
+X	case ',':
+X		yylval.nodetypeval = Node_illegal;
+X		return c;
+X
+X	case '*':
+X		if (*lexptr == '=') {
+X			yylval.nodetypeval = Node_assign_times;
+X			lexptr++;
+X			return ASSIGNOP;
+X		} else if (*lexptr == '*') {	/* make ** and **= aliases
+X						 * for ^ and ^= */
+X			if (lexptr[1] == '=') {
+X				yylval.nodetypeval = Node_assign_exp;
+X				lexptr += 2;
+X				return ASSIGNOP;
+X			} else {
+X				yylval.nodetypeval = Node_illegal;
+X				lexptr++;
+X				return '^';
+X			}
+X		}
+X		yylval.nodetypeval = Node_illegal;
+X		return c;
+X
+X	case '/':
+X		if (want_assign && *lexptr == '=') {
+X			yylval.nodetypeval = Node_assign_quotient;
+X			lexptr++;
+X			return ASSIGNOP;
+X		}
+X		yylval.nodetypeval = Node_illegal;
+X		return c;
+X
+X	case '%':
+X		if (*lexptr == '=') {
+X			yylval.nodetypeval = Node_assign_mod;
+X			lexptr++;
+X			return ASSIGNOP;
+X		}
+X		yylval.nodetypeval = Node_illegal;
+X		return c;
+X
+X	case '^':
+X		if (*lexptr == '=') {
+X			yylval.nodetypeval = Node_assign_exp;
+X			lexptr++;
+X			return ASSIGNOP;
+X		}
+X		yylval.nodetypeval = Node_illegal;
+X		return c;
+X
+X	case '+':
+X		if (*lexptr == '=') {
+X			yylval.nodetypeval = Node_assign_plus;
+X			lexptr++;
+X			return ASSIGNOP;
+X		}
+X		if (*lexptr == '+') {
+X			yylval.nodetypeval = Node_illegal;
+X			lexptr++;
+X			return INCREMENT;
+X		}
+X		yylval.nodetypeval = Node_illegal;
+X		return c;
+X
+X	case '!':
+X		if (*lexptr == '=') {
+X			yylval.nodetypeval = Node_notequal;
+X			lexptr++;
+X			return RELOP;
+X		}
+X		if (*lexptr == '~') {
+X			yylval.nodetypeval = Node_nomatch;
+X			lexptr++;
+X			return MATCHOP;
+X		}
+X		yylval.nodetypeval = Node_illegal;
+X		return c;
+X
+X	case '<':
+X		if (*lexptr == '=') {
+X			yylval.nodetypeval = Node_leq;
+X			lexptr++;
+X			return RELOP;
+X		}
+X		yylval.nodetypeval = Node_less;
+X		return c;
+X
+X	case '=':
+X		if (*lexptr == '=') {
+X			yylval.nodetypeval = Node_equal;
+X			lexptr++;
+X			return RELOP;
+X		}
+X		yylval.nodetypeval = Node_assign;
+X		return ASSIGNOP;
+X
+X	case '>':
+X		if (*lexptr == '=') {
+X			yylval.nodetypeval = Node_geq;
+X			lexptr++;
+X			return RELOP;
+X		} else if (*lexptr == '>') {
+X			yylval.nodetypeval = Node_redirect_append;
+X			lexptr++;
+X			return APPEND_OP;
+X		}
+X		yylval.nodetypeval = Node_greater;
+X		return c;
+X
+X	case '~':
+X		yylval.nodetypeval = Node_match;
+X		return MATCHOP;
+X
+X	case '}':
+X		/*
+X		 * Added did newline stuff.  Easier than
+X		 * hacking the grammar
+X		 */
+X		if (did_newline) {
+X			did_newline = 0;
+X			return c;
+X		}
+X		did_newline++;
+X		--lexptr;
+X		return NEWLINE;
+X
+X	case '"':
+X		esc_seen = 0;
+X		while (*lexptr != '\0') {
+X			switch (*lexptr++) {
+X			case '\\':
+X				esc_seen = 1;
+X				if (*lexptr == '\n')
+X					yyerror("newline in string");
+X				if (*lexptr++ != '\0')
+X					break;
+X				/* fall through */
+X			case '\n':
+X				lexptr--;
+X				yyerror("unterminated string");
+X				return ERROR;
+X			case '"':
+X				yylval.nodeval = make_str_node(tokstart + 1,
+X						lexptr-tokstart-2, esc_seen);
+X				yylval.nodeval->flags |= PERM;
+X				return YSTRING;
+X			}
+X		}
+X		return ERROR;
+X
+X	case '-':
+X		if (*lexptr == '=') {
+X			yylval.nodetypeval = Node_assign_minus;
+X			lexptr++;
+X			return ASSIGNOP;
+X		}
+X		if (*lexptr == '-') {
+X			yylval.nodetypeval = Node_illegal;
+X			lexptr++;
+X			return DECREMENT;
+X		}
+X		yylval.nodetypeval = Node_illegal;
+X		return c;
+X
+X	case '0':
+X	case '1':
+X	case '2':
+X	case '3':
+X	case '4':
+X	case '5':
+X	case '6':
+X	case '7':
+X	case '8':
+X	case '9':
+X	case '.':
+X		/* It's a number */
+X		for (namelen = 0; (c = tokstart[namelen]) != '\0'; namelen++) {
+X			switch (c) {
+X			case '.':
+X				if (seen_point)
+X					goto got_number;
+X				++seen_point;
+X				break;
+X			case 'e':
+X			case 'E':
+X				if (seen_e)
+X					goto got_number;
+X				++seen_e;
+X				if (tokstart[namelen + 1] == '-' ||
+X				    tokstart[namelen + 1] == '+')
+X					namelen++;
+X				break;
+X			case '0':
+X			case '1':
+X			case '2':
+X			case '3':
+X			case '4':
+X			case '5':
+X			case '6':
+X			case '7':
+X			case '8':
+X			case '9':
+X				break;
+X			default:
+X				goto got_number;
+X			}
+X		}
+X
+Xgot_number:
+X		lexptr = tokstart + namelen;
+X		/*
+X		yylval.nodeval = make_string(tokstart, namelen);
+X		(void) force_number(yylval.nodeval);
+X		*/
+X		yylval.nodeval = make_number(atof(tokstart));
+X		yylval.nodeval->flags |= PERM;
+X		return NUMBER;
+X
+X	case '&':
+X		if (*lexptr == '&') {
+X			yylval.nodetypeval = Node_and;
+X			while (c = *++lexptr) {
+X				if (c == '#')
+X					while ((c = *++lexptr) != '\n'
+X					       && c != '\0')
+X						;
+X				if (c == '\n')
+X					lineno++;
+X				else if (! isspace(c))
+X					break;
+X			}
+X			return LEX_AND;
+X		}
+X		return ERROR;
+X
+X	case '|':
+X		if (*lexptr == '|') {
+X			yylval.nodetypeval = Node_or;
+X			while (c = *++lexptr) {
+X				if (c == '#')
+X					while ((c = *++lexptr) != '\n'
+X					       && c != '\0')
+X						;
+X				if (c == '\n')
+X					lineno++;
+X				else if (! isspace(c))
+X					break;
+X			}
+X			return LEX_OR;
+X		}
+X		yylval.nodetypeval = Node_illegal;
+X		return c;
+X	}
+X
+X	if (c != '_' && ! isalpha(c)) {
+X		yyerror("Invalid char '%c' in expression\n", c);
+X		return ERROR;
+X	}
+X
+X	/* it's some type of name-type-thing.  Find its length */
+X	for (namelen = 0; is_identchar(tokstart[namelen]); namelen++)
+X		/* null */ ;
+X	emalloc(tokkey, char *, namelen+1, "yylex");
+X	memcpy(tokkey, tokstart, namelen);
+X	tokkey[namelen] = '\0';
+X
+X	/* See if it is a special token.  */
+X	low = 0;
+X	high = (sizeof (tokentab) / sizeof (tokentab[0])) - 1;
+X	while (low <= high) {
+X		int i, c;
+X
+X		mid = (low + high) / 2;
+X		c = *tokstart - tokentab[mid].operator[0];
+X		i = c ? c : strcmp (tokkey, tokentab[mid].operator);
+X
+X		if (i < 0) {		/* token < mid */
+X			high = mid - 1;
+X		} else if (i > 0) {	/* token > mid */
+X			low = mid + 1;
+X		} else {
+X			lexptr = tokstart + namelen;
+X			if (strict && tokentab[mid].nostrict)
+X				break;
+X			if (tokentab[mid].class == LEX_BUILTIN
+X			    || tokentab[mid].class == LEX_LENGTH)
+X				yylval.ptrval = tokentab[mid].ptr;
+X			else
+X				yylval.nodetypeval = tokentab[mid].value;
+X			return tokentab[mid].class;
+X		}
+X	}
+X
+X	/* It's a name.  See how long it is.  */
+X	yylval.sval = tokkey;
+X	lexptr = tokstart + namelen;
+X	if (*lexptr == '(')
+X		return FUNC_CALL;
+X	else
+X		return NAME;
+X}
+X
+X#ifndef DEFPATH
+X#ifdef MSDOS
+X#define DEFPATH	"."
+X#define ENVSEP	';'
+X#else
+X#define DEFPATH	".:/usr/lib/awk:/usr/local/lib/awk"
+X#define ENVSEP	':'
+X#endif
+X#endif
+X
+Xstatic FILE *
+Xpathopen (file)
+Xchar *file;
+X{
+X	static char *savepath = DEFPATH;
+X	static int first = 1;
+X	char *awkpath, *cp;
+X	char trypath[BUFSIZ];
+X	FILE *fp;
+X#ifdef DEBUG
+X	extern int debugging;
+X#endif
+X	int fd;
+X
+X	if (strcmp (file, "-") == 0)
+X		return (stdin);
+X
+X	if (strict)
+X		return (fopen (file, "r"));
+X
+X	if (first) {
+X		first = 0;
+X		if ((awkpath = getenv ("AWKPATH")) != NULL && *awkpath)
+X			savepath = awkpath;	/* used for restarting */
+X	}
+X	awkpath = savepath;
+X
+X	/* some kind of path name, no search */
+X#ifndef MSDOS
+X	if (strchr (file, '/') != NULL)
+X#else
+X	if (strchr (file, '/') != NULL || strchr (file, '\\') != NULL
+X			|| strchr (file, ':') != NULL)
+X#endif
+X		return ( (fd = devopen (file, "r")) >= 0 ?
+X				fdopen(fd, "r") :
+X				NULL);
+X
+X	do {
+X		trypath[0] = '\0';
+X		/* this should take into account limits on size of trypath */
+X		for (cp = trypath; *awkpath && *awkpath != ENVSEP; )
+X			*cp++ = *awkpath++;
+X
+X		if (cp != trypath) {	/* nun-null element in path */
+X			*cp++ = '/';
+X			strcpy (cp, file);
+X		} else
+X			strcpy (trypath, file);
+X#ifdef DEBUG
+X		if (debugging)
+X			fprintf(stderr, "trying: %s\n", trypath);
+X#endif
+X		if ((fd = devopen (trypath, "r")) >= 0
+X		    && (fp = fdopen(fd, "r")) != NULL)
+X			return (fp);
+X
+X		/* no luck, keep going */
+X		if(*awkpath == ENVSEP && awkpath[1] != '\0')
+X			awkpath++;	/* skip colon */
+X	} while (*awkpath);
+X#ifdef MSDOS
+X	/*
+X	 * Under DOS (and probably elsewhere) you might have one of the awk
+X	 * paths defined, WITHOUT the current working directory in it.
+X	 * Therefore you should try to open the file in the current directory.
+X	 */
+X	return ( (fd = devopen(file, "r")) >= 0 ? fdopen(fd, "r") : NULL);
+X#else
+X	return (NULL);
+X#endif
+X}
+X
+Xstatic NODE *
+Xnode_common(op)
+XNODETYPE op;
+X{
+X	register NODE *r;
+X	extern int numfiles;
+X	extern int tempsource;
+X	extern char **sourcefile;
+X
+X	r = newnode(op);
+X	r->source_line = lineno;
+X	if (numfiles > -1 && ! tempsource)
+X		r->source_file = sourcefile[curinfile];
+X	else
+X		r->source_file = NULL;
+X	return r;
+X}
+X
+X/*
+X * This allocates a node with defined lnode and rnode. 
+X * This should only be used by yyparse+co while reading in the program 
+X */
+XNODE *
+Xnode(left, op, right)
+XNODE *left, *right;
+XNODETYPE op;
+X{
+X	register NODE *r;
+X
+X	r = node_common(op);
+X	r->lnode = left;
+X	r->rnode = right;
+X	return r;
+X}
+X
+X/*
+X * This allocates a node with defined subnode and proc
+X * Otherwise like node()
+X */
+Xstatic NODE *
+Xsnode(subn, op, procp)
+XNODETYPE op;
+XNODE *(*procp) ();
+XNODE *subn;
+X{
+X	register NODE *r;
+X
+X	r = node_common(op);
+X	r->subnode = subn;
+X	r->proc = procp;
+X	return r;
+X}
+X
+X/*
+X * This allocates a Node_line_range node with defined condpair and
+X * zeroes the trigger word to avoid the temptation of assuming that calling
+X * 'node( foo, Node_line_range, 0)' will properly initialize 'triggered'. 
+X */
+X/* Otherwise like node() */
+Xstatic NODE *
+Xmkrangenode(cpair)
+XNODE *cpair;
+X{
+X	register NODE *r;
+X
+X	r = newnode(Node_line_range);
+X	r->condpair = cpair;
+X	r->triggered = 0;
+X	return r;
+X}
+X
+X/* Build a for loop */
+Xstatic NODE *
+Xmake_for_loop(init, cond, incr)
+XNODE *init, *cond, *incr;
+X{
+X	register FOR_LOOP_HEADER *r;
+X	NODE *n;
+X
+X	emalloc(r, FOR_LOOP_HEADER *, sizeof(FOR_LOOP_HEADER), "make_for_loop");
+X	n = newnode(Node_illegal);
+X	r->init = init;
+X	r->cond = cond;
+X	r->incr = incr;
+X	n->sub.nodep.r.hd = r;
+X	return n;
+X}
+X
+X/*
+X * Install a name in the hash table specified, even if it is already there.
+X * Name stops with first non alphanumeric. Caller must check against
+X * redefinition if that is desired. 
+X */
+XNODE *
+Xinstall(table, name, value)
+XNODE **table;
+Xchar *name;
+XNODE *value;
+X{
+X	register NODE *hp;
+X	register int len, bucket;
+X	register char *p;
+X
+X	len = 0;
+X	p = name;
+X	while (is_identchar(*p))
+X		p++;
+X	len = p - name;
+X
+X	hp = newnode(Node_hashnode);
+X	bucket = hashf(name, len, HASHSIZE);
+X	hp->hnext = table[bucket];
+X	table[bucket] = hp;
+X	hp->hlength = len;
+X	hp->hvalue = value;
+X	emalloc(hp->hname, char *, len + 1, "install");
+X	memcpy(hp->hname, name, len);
+X	hp->hname[len] = '\0';
+X	return hp->hvalue;
+X}
+X
+X/*
+X * find the most recent hash node for name name (ending with first
+X * non-identifier char) installed by install 
+X */
+XNODE *
+Xlookup(table, name)
+XNODE **table;
+Xchar *name;
+X{
+X	register char *bp;
+X	register NODE *bucket;
+X	register int len;
+X
+X	for (bp = name; is_identchar(*bp); bp++)
+X		;
+X	len = bp - name;
+X	bucket = table[hashf(name, len, HASHSIZE)];
+X	while (bucket) {
+X		if (bucket->hlength == len && STREQN(bucket->hname, name, len))
+X			return bucket->hvalue;
+X		bucket = bucket->hnext;
+X	}
+X	return NULL;
+X}
+X
+X#define HASHSTEP(old, c) ((old << 1) + c)
+X#define MAKE_POS(v) (v & ~0x80000000)	/* make number positive */
+X
+X/*
+X * return hash function on name.
+X */
+Xstatic int
+Xhashf(name, len, hashsize)
+Xregister char *name;
+Xregister int len;
+Xint hashsize;
+X{
+X	register int r = 0;
+X
+X	while (len--)
+X		r = HASHSTEP(r, *name++);
+X
+X	r = MAKE_POS(r) % hashsize;
+X	return r;
+X}
+X
+X/*
+X * Add new to the rightmost branch of LIST.  This uses n^2 time, so we make
+X * a simple attempt at optimizing it.
+X */
+Xstatic NODE *
+Xappend_right(list, new)
+XNODE *list, *new;
+X
+X{
+X	register NODE *oldlist;
+X	static NODE *savefront = NULL, *savetail = NULL;
+X
+X	oldlist = list;
+X	if (savefront == oldlist) {
+X		savetail = savetail->rnode = new;
+X		return oldlist;
+X	} else
+X		savefront = oldlist;
+X	while (list->rnode != NULL)
+X		list = list->rnode;
+X	savetail = list->rnode = new;
+X	return oldlist;
+X}
+X
+X/*
+X * check if name is already installed;  if so, it had better have Null value,
+X * in which case def is added as the value. Otherwise, install name with def
+X * as value. 
+X */
+Xstatic void
+Xfunc_install(params, def)
+XNODE *params;
+XNODE *def;
+X{
+X	NODE *r;
+X
+X	pop_params(params->rnode);
+X	pop_var(params, 0);
+X	r = lookup(variables, params->param);
+X	if (r != NULL) {
+X		fatal("function name `%s' previously defined", params->param);
+X	} else
+X		(void) install(variables, params->param,
+X			node(params, Node_func, def));
+X}
+X
+Xstatic void
+Xpop_var(np, freeit)
+XNODE *np;
+Xint freeit;
+X{
+X	register char *bp;
+X	register NODE *bucket, **save;
+X	register int len;
+X	char *name;
+X
+X	name = np->param;
+X	for (bp = name; is_identchar(*bp); bp++)
+X		;
+X	len = bp - name;
+X	save = &(variables[hashf(name, len, HASHSIZE)]);
+X	for (bucket = *save; bucket; bucket = bucket->hnext) {
+X		if (len == bucket->hlength && STREQN(bucket->hname, name, len)) {
+X			*save = bucket->hnext;
+X			freenode(bucket);
+X			free(bucket->hname);
+X			if (freeit)
+X				free(np->param);
+X			return;
+X		}
+X		save = &(bucket->hnext);
+X	}
+X}
+X
+Xstatic void
+Xpop_params(params)
+XNODE *params;
+X{
+X	register NODE *np;
+X
+X	for (np = params; np != NULL; np = np->rnode)
+X		pop_var(np, 1);
+X}
+X
+Xstatic NODE *
+Xmake_param(name)
+Xchar *name;
+X{
+X	NODE *r;
+X
+X	r = newnode(Node_param_list);
+X	r->param = name;
+X	r->rnode = NULL;
+X	r->param_cnt = param_counter++;
+X	return (install(variables, name, r));
+X}
+X
+X/* Name points to a variable name.  Make sure its in the symbol table */
+XNODE *
+Xvariable(name)
+Xchar *name;
+X{
+X	register NODE *r;
+X
+X	if ((r = lookup(variables, name)) == NULL)
+X		r = install(variables, name,
+X			node(Nnull_string, Node_var, (NODE *) NULL));
+X	return r;
+X}
+END_OF_FILE
+  if test 37017 -ne `wc -c <'./awk.y'`; then
+    echo shar: \"'./awk.y'\" unpacked with wrong size!
+  fi
+  # end of './awk.y'
+fi
+if test -f './missing.d/memset.c' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'./missing.d/memset.c'\"
+else
+  echo shar: Extracting \"'./missing.d/memset.c'\" \(261 characters\)
+  sed "s/^X//" >'./missing.d/memset.c' <<'END_OF_FILE'
+X/*
+X * memset --- initialize memory
+X *
+X * We supply this routine for those systems that aren't standard yet.
+X */
+X
+Xchar *
+Xmemset (dest, val, l)
+Xregister char *dest, val;
+Xregister int l;
+X{
+X	register char *ret = dest;
+X
+X	while (l--)
+X		*dest++ = val;
+X
+X	return ret;
+X}
+END_OF_FILE
+  if test 261 -ne `wc -c <'./missing.d/memset.c'`; then
+    echo shar: \"'./missing.d/memset.c'\" unpacked with wrong size!
+  fi
+  # end of './missing.d/memset.c'
+fi
+if test -f './missing.d/random.c' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'./missing.d/random.c'\"
+else
+  echo shar: Extracting \"'./missing.d/random.c'\" \(12785 characters\)
+  sed "s/^X//" >'./missing.d/random.c' <<'END_OF_FILE'
+X/*
+X * Copyright (c) 1983 Regents of the University of California.
+X * All rights reserved.
+X *
+X * Redistribution and use in source and binary forms are permitted
+X * provided that the above copyright notice and this paragraph are
+X * duplicated in all such forms and that any documentation,
+X * advertising materials, and other materials related to such
+X * distribution and use acknowledge that the software was developed
+X * by the University of California, Berkeley.  The name of the
+X * University may not be used to endorse or promote products derived
+X * from this software without specific prior written permission.
+X * THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR
+X * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
+X * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+X */
+X
+X#if defined(LIBC_SCCS) && !defined(lint)
+Xstatic char sccsid[] = "@(#)random.c	5.5 (Berkeley) 7/6/88";
+X#endif /* LIBC_SCCS and not lint */
+X
+X#include <stdio.h>
+X
+X/*
+X * random.c:
+X * An improved random number generation package.  In addition to the standard
+X * rand()/srand() like interface, this package also has a special state info
+X * interface.  The initstate() routine is called with a seed, an array of
+X * bytes, and a count of how many bytes are being passed in; this array is then
+X * initialized to contain information for random number generation with that
+X * much state information.  Good sizes for the amount of state information are
+X * 32, 64, 128, and 256 bytes.  The state can be switched by calling the
+X * setstate() routine with the same array as was initiallized with initstate().
+X * By default, the package runs with 128 bytes of state information and
+X * generates far better random numbers than a linear congruential generator.
+X * If the amount of state information is less than 32 bytes, a simple linear
+X * congruential R.N.G. is used.
+X * Internally, the state information is treated as an array of longs; the
+X * zeroeth element of the array is the type of R.N.G. being used (small
+X * integer); the remainder of the array is the state information for the
+X * R.N.G.  Thus, 32 bytes of state information will give 7 longs worth of
+X * state information, which will allow a degree seven polynomial.  (Note: the
+X * zeroeth word of state information also has some other information stored
+X * in it -- see setstate() for details).
+X * The random number generation technique is a linear feedback shift register
+X * approach, employing trinomials (since there are fewer terms to sum up that
+X * way).  In this approach, the least significant bit of all the numbers in
+X * the state table will act as a linear feedback shift register, and will have
+X * period 2^deg - 1 (where deg is the degree of the polynomial being used,
+X * assuming that the polynomial is irreducible and primitive).  The higher
+X * order bits will have longer periods, since their values are also influenced
+X * by pseudo-random carries out of the lower bits.  The total period of the
+X * generator is approximately deg*(2**deg - 1); thus doubling the amount of
+X * state information has a vast influence on the period of the generator.
+X * Note: the deg*(2**deg - 1) is an approximation only good for large deg,
+X * when the period of the shift register is the dominant factor.  With deg
+X * equal to seven, the period is actually much longer than the 7*(2**7 - 1)
+X * predicted by this formula.
+X */
+X
+X
+X
+X/*
+X * For each of the currently supported random number generators, we have a
+X * break value on the amount of state information (you need at least this
+X * many bytes of state info to support this random number generator), a degree
+X * for the polynomial (actually a trinomial) that the R.N.G. is based on, and
+X * the separation between the two lower order coefficients of the trinomial.
+X */
+X
+X#define		TYPE_0		0		/* linear congruential */
+X#define		BREAK_0		8
+X#define		DEG_0		0
+X#define		SEP_0		0
+X
+X#define		TYPE_1		1		/* x**7 + x**3 + 1 */
+X#define		BREAK_1		32
+X#define		DEG_1		7
+X#define		SEP_1		3
+X
+X#define		TYPE_2		2		/* x**15 + x + 1 */
+X#define		BREAK_2		64
+X#define		DEG_2		15
+X#define		SEP_2		1
+X
+X#define		TYPE_3		3		/* x**31 + x**3 + 1 */
+X#define		BREAK_3		128
+X#define		DEG_3		31
+X#define		SEP_3		3
+X
+X#define		TYPE_4		4		/* x**63 + x + 1 */
+X#define		BREAK_4		256
+X#define		DEG_4		63
+X#define		SEP_4		1
+X
+X
+X/*
+X * Array versions of the above information to make code run faster -- relies
+X * on fact that TYPE_i == i.
+X */
+X
+X#define		MAX_TYPES	5		/* max number of types above */
+X
+Xstatic  int		degrees[ MAX_TYPES ]	= { DEG_0, DEG_1, DEG_2,
+X								DEG_3, DEG_4 };
+X
+Xstatic  int		seps[ MAX_TYPES ]	= { SEP_0, SEP_1, SEP_2,
+X								SEP_3, SEP_4 };
+X
+X
+X
+X/*
+X * Initially, everything is set up as if from :
+X *		initstate( 1, &randtbl, 128 );
+X * Note that this initialization takes advantage of the fact that srandom()
+X * advances the front and rear pointers 10*rand_deg times, and hence the
+X * rear pointer which starts at 0 will also end up at zero; thus the zeroeth
+X * element of the state information, which contains info about the current
+X * position of the rear pointer is just
+X *	MAX_TYPES*(rptr - state) + TYPE_3 == TYPE_3.
+X */
+X
+Xstatic  long		randtbl[ DEG_3 + 1 ]	= { TYPE_3,
+X			    0x9a319039, 0x32d9c024, 0x9b663182, 0x5da1f342,
+X			    0xde3b81e0, 0xdf0a6fb5, 0xf103bc02, 0x48f340fb,
+X			    0x7449e56b, 0xbeb1dbb0, 0xab5c5918, 0x946554fd,
+X			    0x8c2e680f, 0xeb3d799f, 0xb11ee0b7, 0x2d436b86,
+X			    0xda672e2a, 0x1588ca88, 0xe369735d, 0x904f35f7,
+X			    0xd7158fd6, 0x6fa6f051, 0x616e6b96, 0xac94efdc,
+X			    0x36413f93, 0xc622c298, 0xf5a42ab8, 0x8a88d77b,
+X					0xf5ad9d0e, 0x8999220b, 0x27fb47b9 };
+X
+X/*
+X * fptr and rptr are two pointers into the state info, a front and a rear
+X * pointer.  These two pointers are always rand_sep places aparts, as they cycle
+X * cyclically through the state information.  (Yes, this does mean we could get
+X * away with just one pointer, but the code for random() is more efficient this
+X * way).  The pointers are left positioned as they would be from the call
+X *			initstate( 1, randtbl, 128 )
+X * (The position of the rear pointer, rptr, is really 0 (as explained above
+X * in the initialization of randtbl) because the state table pointer is set
+X * to point to randtbl[1] (as explained below).
+X */
+X
+Xstatic  long		*fptr			= &randtbl[ SEP_3 + 1 ];
+Xstatic  long		*rptr			= &randtbl[ 1 ];
+X
+X
+X
+X/*
+X * The following things are the pointer to the state information table,
+X * the type of the current generator, the degree of the current polynomial
+X * being used, and the separation between the two pointers.
+X * Note that for efficiency of random(), we remember the first location of
+X * the state information, not the zeroeth.  Hence it is valid to access
+X * state[-1], which is used to store the type of the R.N.G.
+X * Also, we remember the last location, since this is more efficient than
+X * indexing every time to find the address of the last element to see if
+X * the front and rear pointers have wrapped.
+X */
+X
+Xstatic  long		*state			= &randtbl[ 1 ];
+X
+Xstatic  int		rand_type		= TYPE_3;
+Xstatic  int		rand_deg		= DEG_3;
+Xstatic  int		rand_sep		= SEP_3;
+X
+Xstatic  long		*end_ptr		= &randtbl[ DEG_3 + 1 ];
+X
+X
+X
+X/*
+X * srandom:
+X * Initialize the random number generator based on the given seed.  If the
+X * type is the trivial no-state-information type, just remember the seed.
+X * Otherwise, initializes state[] based on the given "seed" via a linear
+X * congruential generator.  Then, the pointers are set to known locations
+X * that are exactly rand_sep places apart.  Lastly, it cycles the state
+X * information a given number of times to get rid of any initial dependencies
+X * introduced by the L.C.R.N.G.
+X * Note that the initialization of randtbl[] for default usage relies on
+X * values produced by this routine.
+X */
+X
+Xsrandom( x )
+X
+X    unsigned		x;
+X{
+X    	register  int		i, j;
+X	long random();
+X
+X	if(  rand_type  ==  TYPE_0  )  {
+X	    state[ 0 ] = x;
+X	}
+X	else  {
+X	    j = 1;
+X	    state[ 0 ] = x;
+X	    for( i = 1; i < rand_deg; i++ )  {
+X		state[i] = 1103515245*state[i - 1] + 12345;
+X	    }
+X	    fptr = &state[ rand_sep ];
+X	    rptr = &state[ 0 ];
+X	    for( i = 0; i < 10*rand_deg; i++ )  random();
+X	}
+X}
+X
+X
+X
+X/*
+X * initstate:
+X * Initialize the state information in the given array of n bytes for
+X * future random number generation.  Based on the number of bytes we
+X * are given, and the break values for the different R.N.G.'s, we choose
+X * the best (largest) one we can and set things up for it.  srandom() is
+X * then called to initialize the state information.
+X * Note that on return from srandom(), we set state[-1] to be the type
+X * multiplexed with the current value of the rear pointer; this is so
+X * successive calls to initstate() won't lose this information and will
+X * be able to restart with setstate().
+X * Note: the first thing we do is save the current state, if any, just like
+X * setstate() so that it doesn't matter when initstate is called.
+X * Returns a pointer to the old state.
+X */
+X
+Xchar  *
+Xinitstate( seed, arg_state, n )
+X
+X    unsigned		seed;			/* seed for R. N. G. */
+X    char		*arg_state;		/* pointer to state array */
+X    int			n;			/* # bytes of state info */
+X{
+X	register  char		*ostate		= (char *)( &state[ -1 ] );
+X
+X	if(  rand_type  ==  TYPE_0  )  state[ -1 ] = rand_type;
+X	else  state[ -1 ] = MAX_TYPES*(rptr - state) + rand_type;
+X	if(  n  <  BREAK_1  )  {
+X	    if(  n  <  BREAK_0  )  {
+X		fprintf( stderr, "initstate: not enough state (%d bytes) with which to do jack; ignored.\n", n );
+X		return 0;
+X	    }
+X	    rand_type = TYPE_0;
+X	    rand_deg = DEG_0;
+X	    rand_sep = SEP_0;
+X	}
+X	else  {
+X	    if(  n  <  BREAK_2  )  {
+X		rand_type = TYPE_1;
+X		rand_deg = DEG_1;
+X		rand_sep = SEP_1;
+X	    }
+X	    else  {
+X		if(  n  <  BREAK_3  )  {
+X		    rand_type = TYPE_2;
+X		    rand_deg = DEG_2;
+X		    rand_sep = SEP_2;
+X		}
+X		else  {
+X		    if(  n  <  BREAK_4  )  {
+X			rand_type = TYPE_3;
+X			rand_deg = DEG_3;
+X			rand_sep = SEP_3;
+X		    }
+X		    else  {
+X			rand_type = TYPE_4;
+X			rand_deg = DEG_4;
+X			rand_sep = SEP_4;
+X		    }
+X		}
+X	    }
+X	}
+X	state = &(  ( (long *)arg_state )[1]  );	/* first location */
+X	end_ptr = &state[ rand_deg ];	/* must set end_ptr before srandom */
+X	srandom( seed );
+X	if(  rand_type  ==  TYPE_0  )  state[ -1 ] = rand_type;
+X	else  state[ -1 ] = MAX_TYPES*(rptr - state) + rand_type;
+X	return( ostate );
+X}
+X
+X
+X
+X/*
+X * setstate:
+X * Restore the state from the given state array.
+X * Note: it is important that we also remember the locations of the pointers
+X * in the current state information, and restore the locations of the pointers
+X * from the old state information.  This is done by multiplexing the pointer
+X * location into the zeroeth word of the state information.
+X * Note that due to the order in which things are done, it is OK to call
+X * setstate() with the same state as the current state.
+X * Returns a pointer to the old state information.
+X */
+X
+Xchar  *
+Xsetstate( arg_state )
+X
+X    char		*arg_state;
+X{
+X	register  long		*new_state	= (long *)arg_state;
+X	register  int		type		= new_state[0]%MAX_TYPES;
+X	register  int		rear		= new_state[0]/MAX_TYPES;
+X	char			*ostate		= (char *)( &state[ -1 ] );
+X
+X	if(  rand_type  ==  TYPE_0  )  state[ -1 ] = rand_type;
+X	else  state[ -1 ] = MAX_TYPES*(rptr - state) + rand_type;
+X	switch(  type  )  {
+X	    case  TYPE_0:
+X	    case  TYPE_1:
+X	    case  TYPE_2:
+X	    case  TYPE_3:
+X	    case  TYPE_4:
+X		rand_type = type;
+X		rand_deg = degrees[ type ];
+X		rand_sep = seps[ type ];
+X		break;
+X
+X	    default:
+X		fprintf( stderr, "setstate: state info has been munged; not changed.\n" );
+X	}
+X	state = &new_state[ 1 ];
+X	if(  rand_type  !=  TYPE_0  )  {
+X	    rptr = &state[ rear ];
+X	    fptr = &state[ (rear + rand_sep)%rand_deg ];
+X	}
+X	end_ptr = &state[ rand_deg ];		/* set end_ptr too */
+X	return( ostate );
+X}
+X
+X
+X
+X/*
+X * random:
+X * If we are using the trivial TYPE_0 R.N.G., just do the old linear
+X * congruential bit.  Otherwise, we do our fancy trinomial stuff, which is the
+X * same in all ther other cases due to all the global variables that have been
+X * set up.  The basic operation is to add the number at the rear pointer into
+X * the one at the front pointer.  Then both pointers are advanced to the next
+X * location cyclically in the table.  The value returned is the sum generated,
+X * reduced to 31 bits by throwing away the "least random" low bit.
+X * Note: the code takes advantage of the fact that both the front and
+X * rear pointers can't wrap on the same call by not testing the rear
+X * pointer if the front one has wrapped.
+X * Returns a 31-bit random number.
+X */
+X
+Xlong
+Xrandom()
+X{
+X	long		i;
+X
+X	if(  rand_type  ==  TYPE_0  )  {
+X	    i = state[0] = ( state[0]*1103515245 + 12345 )&0x7fffffff;
+X	}
+X	else  {
+X	    *fptr += *rptr;
+X	    i = (*fptr >> 1)&0x7fffffff;	/* chucking least random bit */
+X	    if(  ++fptr  >=  end_ptr  )  {
+X		fptr = state;
+X		++rptr;
+X	    }
+X	    else  {
+X		if(  ++rptr  >=  end_ptr  )  rptr = state;
+X	    }
+X	}
+X	return( i );
+X}
+END_OF_FILE
+  if test 12785 -ne `wc -c <'./missing.d/random.c'`; then
+    echo shar: \"'./missing.d/random.c'\" unpacked with wrong size!
+  fi
+  # end of './missing.d/random.c'
+fi
+if test -f './pc.d/popen.h' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'./pc.d/popen.h'\"
+else
+  echo shar: Extracting \"'./pc.d/popen.h'\" \(134 characters\)
+  sed "s/^X//" >'./pc.d/popen.h' <<'END_OF_FILE'
+X/*
+X** popen.h -- prototypes for pipe functions
+X*/
+X#if !defined(FILE)
+X#include <stdio.h>
+X#endif
+Xextern FILE *popen( char *, char * );
+X
+END_OF_FILE
+  if test 134 -ne `wc -c <'./pc.d/popen.h'`; then
+    echo shar: \"'./pc.d/popen.h'\" unpacked with wrong size!
+  fi
+  # end of './pc.d/popen.h'
+fi
+echo shar: End of archive 10 \(of 16\).
+cp /dev/null ark10isdone
+MISSING=""
+for I in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 ; do
+    if test ! -f ark${I}isdone ; then
+	MISSING="${MISSING} ${I}"
+    fi
+done
+if test "${MISSING}" = "" ; then
+    echo You have unpacked all 16 archives.
+    rm -f ark[1-9]isdone ark[1-9][0-9]isdone
+else
+    echo You still must unpack the following archives:
+    echo "        " ${MISSING}
+fi
+exit 0
+exit 0 # Just in case...
+-- 
+Please send comp.sources.unix-related mail to rsalz@uunet.uu.net.
+Use a domain-based address or give alternate paths, or you may lose out.

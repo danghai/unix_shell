@@ -1,0 +1,1464 @@
+From: how%milhow1@uunet.uu.net (Mike Howard)
+Newsgroups: comp.sources.unix
+Subject: v28i131: simple_menu-3.1 - a simple shell-level menu system, V3.1, Part07/09
+Date: 5 Oct 1994 01:21:20 -0700
+Organization: Vixie Enterprises
+Sender: vixie@vix.com
+Approved: vixie@gw.home.vix.com
+Message-ID: <36tnm0$uk@gw.home.vix.com>
+References: <1.781345221.914@gw.home.vix.com>
+
+Submitted-By: how%milhow1@uunet.uu.net (Mike Howard)
+Posting-Number: Volume 28, Issue 131
+Archive-Name: simple_menu-3.1/part07
+
+#! /bin/sh
+# This is a shell archive.  Remove anything before this line, then unpack
+# it by saving it into a file and typing "sh file".  To overwrite existing
+# files, type "sh file -c".  You can also feed this as standard input via
+# unshar, or by typing "sh <file", e.g..  If this archive is complete, you
+# will see the following message at the end:
+#		"End of archive 7 (of 9)."
+# Contents:  ./common_src/grammar.y ./doc/s_menu.texiaa
+# Wrapped by mike@clove2 on Wed Sep 28 06:55:58 1994
+PATH=/bin:/usr/bin:/usr/ucb ; export PATH
+if test -f './common_src/grammar.y' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'./common_src/grammar.y'\"
+else
+echo shar: Extracting \"'./common_src/grammar.y'\" \(20233 characters\)
+sed "s/^X//" >'./common_src/grammar.y' <<'END_OF_FILE'
+X%{
+X/*
+X  $Id: grammar.y,v 3.2 1994/01/29 20:21:49 mike Exp $
+X  $Author: mike $
+X  $Date: 1994/01/29 20:21:49 $
+X  $Log: grammar.y,v $
+X * Revision 3.2  1994/01/29  20:21:49  mike
+X * changed action of restricted to look at read user_id rather than a dumb
+X * environment variable.
+X *
+X * Revision 3.2  1994/01/29  20:21:49  mike
+X * changed action of restricted to look at read user_id rather than a dumb
+X * environment variable.
+X *
+X * Revision 3.1  1994/01/27  20:36:00  mike
+X * added support for if-defined, if equal, if not-equal conditioning.
+X * cleaned up conditioning code a bit.
+X * added reasonable printing for conditioned items
+X *
+X * Revision 3.0  1993/11/10  20:29:46  mike
+X * revision 3.0
+X *
+X*/
+X
+Xstatic char *cpy_str =
+X  "Copyright (c), Mike Howard, 1990,1991, 1992 all rights reserved";
+X
+X/* 
+X  simple_menu - a script based menu program for encapsulating shell
+X  commands in a in simple to use and simple to maintain scripts
+X
+X  Copyright (C) 1990,1991, 1992  Mike Howard
+X
+X  This program is free software; you can redistribute it and/or modify
+X  it under the terms of the GNU General Public License as published by
+X  the Free Software Foundation; either version 2 of the License, or
+X  (at your option) any later version.
+X  
+X  This program is distributed in the hope that it will be useful,
+X  but WITHOUT ANY WARRANTY; without even the implied warranty of
+X  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+X  GNU General Public License for more details.
+X
+X  You should have received a copy of the GNU General Public License
+X  along with this program; if not, write to the Free Software
+X  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+X*/
+X
+X#include <includes.h>
+X
+X/* Menu definition files begin with an optional environment definition
+X   section followed by a manditory menu definition section.
+X
+X   The environment definition section consists of one or more environment
+X   variable declarations of the forms:
+X
+X   shell-path = 'path' ;
+X
+X   asg-fmt = 'format' ; # default is asg-fmt = '"%s=\"%s\"\n"' ;
+X
+X   from-env "NAME" ;
+X
+X   from-env "NAME" = 'default value' ;
+X
+X   global "NAME" = 'value' ;
+X
+X   from-file 'file-path' "NAME" ;
+X
+X   from-file 'file-path' "NAME" = 'default value' ;
+X
+X   from-env variables are initialized from the environment.  from-file
+X   variables are initialized from the first value in the file named
+X   file-path which is of the form:
+X
+X      NAME = string
+X
+X   In either case, default values of the Null string or a specified string
+X   can be defined.
+X
+X   Environment variables are evalutated after the menu file is parsed and
+X   before the top level menu is displayed.
+X
+X   Environment variables are defined in the environment shell items
+X   execute in.  Their definition precedes local parameter definitions,
+X   so local parameters can be used to over-ride their value.
+X
+X
+X   Menu definitions begin with a main menu definition, optionally
+X   followed by submenu definitions.  The main menu is automatically
+X   given the name MAIN, so it may begin with a title directive.
+X   
+X   title 'text for the title'
+X   
+X   This is followed by zero or more of the following parameters, which
+X   do the `obvious' things:
+X   
+X   bold clear always-show once wait alpha scope-variables
+X   
+X   This is followed by one or more menu-item definitions of the form:
+X   
+X   prelude <prompt-string> %( shell command %)
+X   parm "name" <prompt-string>
+X   parm "name" = 'initializer' <prompt-string>
+X   parm "name" = "name" <prompt-string>
+X   ;
+X   
+X   epilogue <prompt-string> %( shell command %)
+X   parm "name" <prompt-string>
+X   parm "name" = 'initializer' <prompt-string>
+X   parm "name" = "name" <prompt-string>
+X   ;
+X   
+X   shell <prompt-string> %( shell command %)
+X   parm "name" <prompt-string>
+X   parm "name" = 'initializer' <prompt-string>
+X   parm "name" = "name" <prompt-string>
+X   ;
+X   
+X   do-menu "menu-name" <prompt-string>
+X   ;
+X
+X   reset-global <prompt-string>
+X   global "name" = 'value'
+X   global "name" = 'value'
+X   global "name" = 'value'
+X   ;
+X   
+X   skip ;
+X
+X   Only one prelude and epilogue are allowed per menu.
+X
+X   The symbol <prompt-string> is a sequence of static text, delimeted by
+X   single quotes (') (preferred) or %(/%) pairs and global variable names
+X   concatinated by plus '+' signs.  For example:
+X    'List the contents of ' +  "CURRENT_DIR"
+X
+X
+X   Parameters default values may be set in one of three ways:
+X    parm "name" <prompt-string> - default is ""
+X    parm "name" = 'string' <prompt-string> - default is "string"
+X    parm "name" = "ev-name" <prompt-string> - default is the value of the
+X               environment variable ev-name
+X
+X   Shell scripts are run by creating a command file and feeding it to
+X   a shell.  The sequence is:
+X    1. user interactively fills in values for local parameters
+X    2. copy all global variables definition strings to temp file
+X    3. copy all local parameter definitions to temp file
+X    4. copy shell script to temp file
+X    5. fork a shell and feed it the temp file - wait for completion
+X    6. delete the temp file.
+X   
+X   text can be written in one of three ways:
+X   1. bound by %( & %), in which case %( and and %) are written
+X     by doubling (trippling, ...) the percent sign.
+X   2. bound by single quote marks ', in which case a single quote
+X     mark is written by doubling - 'foo''s dog' -> foo's dog
+X   3. for backward compatability, bound by curly braces { & }
+X     in which case } and \ are written as by escaping with a backslash
+X     character
+X   
+X   The text in between the double quotes may ONLY contain letters, digits,
+X   and underscores;
+X   
+X   Sub-menus begin with the sequence:
+X   
+X   menu "menu-name"
+X   
+X   followed by definitions as for the main menu.
+X   
+X   comments are delimited on the left by a '#' sign and on the
+X   right by the end of line.  In-line comments are allowed.
+X   
+X   Sub-menus can also be formed by running simple_menu as the shell process,
+X   pointed to an appropriate sub-menu definition file.
+X   
+X   There is no provision for menus which require more than one screen 
+X   to display.
+X   */
+X
+X%}
+X
+X%union {
+X  int ival;
+X  char *txt;
+X  char chr;
+X  double dbl;
+X  struct item *itm;
+X  struct action_list *act;
+X  struct parm *prm;
+X  struct ev_var_val *ev_val;
+X  struct prompt_string *pmt;
+X  struct menu *mnu;
+X}
+X
+X%token <ival> NUMBER
+X%token <dbl> FLOAT
+X%token <txt> TEXT NAME
+X%token MENU
+X%token SHELL_PATH ASG_FMT NULL_VALUE
+X%token FROM_ENV FROM_FILE GLOBAL FROM_SHELL FROM_USER VALIDATE_THROUGH
+X%token PARM SHELL TITLE ERROR SKIP DO_MENU PRELUDE EPILOGUE ACTION
+X%token RESET_GLOBAL RESTRICTED
+X%token IFDEF IFNDEF IF EQ NEQ
+X%token CLEAR BOLD ALWAYS_SHOW ONCE ALPHA WAIT SCOPE_VARIABLES
+X%token PLUS_SPACE PLUS_NL
+X
+X%type <ival> menu_flags menu_flag
+X%type <itm> item action_item conditioned_item
+X%type <act> action_list
+X%type <prm> parm parms
+X%type <ev_val> ev_vals
+X%type <pmt> prompt_string prompt_item
+X%type <mnu> menu title
+X
+X%%
+X
+Xmenu_def_file : ev_list menu_list
+X	| menu_list
+X	;
+X
+Xev_list : ev_var
+X	| ev_list ev_var
+X	;
+X
+Xev_var : SHELL_PATH '=' TEXT ';'
+X	{
+X	  cmd_path = $3;
+X	}
+X	| ASG_FMT '=' TEXT ';'
+X	{
+X	  asg_fmt = $3;
+X	}
+X	| NULL_VALUE '=' TEXT ';'
+X	{
+X	  null_value = $3;
+X	}
+X	| FROM_ENV NAME ';'
+X	{
+X	  struct ev_var* ep;
+X
+X	  ep = make_new_ev_var(EV_FROM_ENV, $2, (char *)0, (char *)0);
+X	  ep->next = environment_list;
+X	  environment_list = ep;
+X	  DEBUG1("env variable %s from environment - no default\n", $2);
+X	}
+X	| FROM_ENV NAME '=' TEXT ';'
+X	{
+X	  struct ev_var* ep;
+X
+X	  ep = make_new_ev_var(EV_FROM_ENV, $2, $4, (char *)0);
+X	  ep->next = environment_list;
+X	  environment_list = ep;
+X	  DEBUG2("env variable %s from environment - defaults to %s\n", $2, $4);
+X	}
+X	| GLOBAL NAME ';'
+X	{
+X	  struct ev_var* ep;
+X
+X	  ep = make_new_ev_var(EV_GLOBAL, $2, (char *)0, (char *)0);
+X	  ep->next = environment_list;
+X	  environment_list = ep;
+X	  DEBUG1("env variable %s from menu only - no default\n", $2);
+X	}
+X	| GLOBAL NAME '=' TEXT ';'
+X	{
+X	  struct ev_var* ep;
+X
+X	  ep = make_new_ev_var(EV_GLOBAL, $2, $4, (char *)0);
+X	  ep->next = environment_list;
+X	  environment_list = ep;
+X	  DEBUG2("env variable %s from menu only - defaults to %s\n", $2, $4);
+X	}
+X	| FROM_FILE TEXT NAME ';'
+X	{
+X	  struct ev_var* ep;
+X
+X	  ep = make_new_ev_var(EV_FROM_FILE, $3, (char *)0, $2);
+X	  ep->next = environment_list;
+X	  environment_list = ep;
+X	  DEBUG2("env variable %s from file %s - no default\n", $3, $2);
+X	}
+X	| FROM_FILE TEXT NAME '=' TEXT ';'
+X	{
+X	  struct ev_var* ep;
+X
+X	  ep = make_new_ev_var(EV_FROM_FILE, $3, $5, $2);
+X	  ep->next = environment_list;
+X	  environment_list = ep;
+X	  DEBUG3("env variable %s from file %s - default: %s\n", $3, $2, $5);
+X	}
+X	| FROM_SHELL NAME '=' TEXT ';'
+X	{
+X	  struct ev_var* ep;
+X
+X	  ep = make_new_ev_var(EV_FROM_SHELL, $2, $4, (char *)0);
+X	  ep->next = environment_list;
+X	  environment_list = ep;
+X	  DEBUG2("env variable %s from shell script:\n%%( %s\n%%)\n", $2, $4);
+X	}
+X	;
+X  
+Xmenu_list : menu
+X	{
+X	  menu_list_head =
+X	    menu_list_tail = $1;
+X	}
+X	| menu_list menu
+X	{
+X	  menu_list_tail->next =  $2;
+X	  menu_list_tail = menu_list_tail->next;
+X	}
+X	;
+X
+Xmenu : title menu_flags item
+X	{
+X	  $1->flags = $2;
+X	  switch ($3->catagory) {
+X	  case CATAGORY_PRELUDE:
+X	    $1->prelude = $3;
+X	    break;
+X	  case CATAGORY_EPILOGUE:
+X	    $1->epilogue = $3;
+X	    break;
+X	  default:
+X	    $1->item_head =
+X	      $1->item_tail = $3;
+X	    break;
+X	  }
+X	}
+X	| title menu_flags RESTRICTED TEXT item
+X	{
+X	  DEBUG1("Restricted Item near line %d\n", line_number);
+X	  $1->flags = $2;
+X	  if (privileged_user($4))
+X	    {
+X	      switch ($5->catagory) {
+X	      case CATAGORY_PRELUDE:
+X		$1->prelude = $5;
+X		break;
+X	      case CATAGORY_EPILOGUE:
+X		$1->epilogue = $5;
+X		break;
+X	      default:
+X		$1->item_head =
+X		  $1->item_tail = $5;
+X		break;
+X	      }
+X	    }
+X	}
+X
+X	| menu item
+X	{
+X	  switch ($2->catagory) {
+X	  case CATAGORY_PRELUDE:
+X	    if ($1->prelude) {
+X	      yacc_errors++;
+X	      fprintf(stderr, "multiple prelude detected -line %d\n",
+X		      line_number);
+X	    }
+X	    else
+X	      $1->prelude = $2;
+X	    break;
+X	  case CATAGORY_EPILOGUE:
+X	    if ($1->epilogue) {
+X	      yacc_errors++;
+X	      fprintf(stderr, "multiple epilogue detected -line %d\n",
+X		      line_number);
+X	    }
+X	    else
+X	      $1->epilogue = $2;
+X	    break;
+X	  default:
+X	    if ($1->item_head) {
+X	      $1->item_tail->next = $2;
+X	      $1->item_tail = $2;
+X	    }
+X	    else
+X	      $1->item_head =
+X		$1->item_tail = $2;
+X	    break;
+X	  }
+X	}
+X	| menu RESTRICTED TEXT item
+X	{
+X	  DEBUG1("Restricted Item near line %d\n", line_number);
+X	  if (privileged_user($3))
+X	    {
+X	      switch ($4->catagory) {
+X	      case CATAGORY_PRELUDE:
+X		if ($1->prelude) {
+X		  yacc_errors++;
+X		  fprintf(stderr, "multiple prelude detected -line %d\n",
+X			  line_number);
+X		}
+X		else
+X		  $1->prelude = $4;
+X		break;
+X	      case CATAGORY_EPILOGUE:
+X		if ($1->epilogue) {
+X		  yacc_errors++;
+X		  fprintf(stderr, "multiple epilogue detected -line %d\n",
+X			  line_number);
+X		}
+X		else
+X		  $1->epilogue = $4;
+X		break;
+X	      default:
+X		if ($1->item_head) {
+X		  $1->item_tail->next = $4;
+X		  $1->item_tail = $4;
+X		}
+X		else
+X		  $1->item_head =
+X		    $1->item_tail = $4;
+X		break;
+X	      }
+X	    }
+X	}
+X	;
+X
+Xtitle : TITLE prompt_string
+X	{
+X	  struct menu *menu_ptr;
+X
+X	  menu_ptr = make_new_menu();
+X	  menu_ptr->menu_title = $2;
+X	  if (menu_list_head) {
+X	    fprintf(stderr, "untitled sub menu detected near line %d\n",
+X		    line_number);
+X	    yacc_errors++;
+X	    menu_ptr->menu_name = "NOT NAMED";
+X	  }
+X	  DEBUG2("\nMenu %s Title '%s'\n", menu_ptr->menu_name, $2);
+X	  $$ = menu_ptr;
+X	}
+X	| MENU NAME TITLE prompt_string
+X	{
+X	  struct menu *menu_ptr;
+X
+X	  menu_ptr = make_new_menu();
+X	  menu_ptr->menu_name = $2;
+X	  menu_ptr->menu_title = $4;
+X	  DEBUG2("\nMenu %s Title '%s'\n", $2, $4);
+X	  $$ = menu_ptr;
+X	}
+X	;
+X
+Xprompt_string : prompt_item
+X	{
+X	  $$ = $1;
+X	}
+X	| prompt_string '|' prompt_item
+X	{
+X	  struct prompt_string *tmp_ptr = $1;
+X
+X	  while (tmp_ptr->next)
+X	    tmp_ptr = tmp_ptr->next;
+X	  tmp_ptr->next = $3;
+X	  $3->concat_char = '\0';
+X	  $$ = $1;
+X	}
+X	| prompt_string '+' prompt_item
+X	{
+X	  struct prompt_string *tmp_ptr = $1;
+X
+X	  while (tmp_ptr->next)
+X	    tmp_ptr = tmp_ptr->next;
+X	  $3->concat_char = ' ';
+X	  tmp_ptr->next = $3;
+X	  $$ = $1;
+X	}
+X	| prompt_string PLUS_NL prompt_item
+X	{
+X	  struct prompt_string *tmp_ptr = $1;
+X
+X	  while (tmp_ptr->next)
+X	    tmp_ptr = tmp_ptr->next;
+X	  $3->concat_char = '\n';
+X	  tmp_ptr->next = $3;
+X	  $$ = $1;
+X	}
+X	;
+X
+Xprompt_item : NAME
+X	{
+X	  $$ = make_new_prompt_string(PROMPT_EV_VAR, $1);
+X	  if (!find_ev_var_by_name($1)) {
+X	    fprintf(stderr, "prompt-string definition parm name error - %s is not a menu-global variable\n",
+X		    $1);
+X	    yacc_errors++;
+X	  }
+X	}
+X	| TEXT
+X	{
+X	  $$ = make_new_prompt_string(PROMPT_TEXT, $1);
+X	}
+X	;
+X
+Xmenu_flags :
+X	{
+X	  $$ = 0;
+X	}
+X	| menu_flags menu_flag
+X	{  
+X	  $$ = $1 | $2;
+X	}
+X	;
+X
+Xmenu_flag : CLEAR
+X	{
+X	  $$ = CLEAR_FLAG;
+X	}
+X	| BOLD
+X	{
+X  	  $$ = BOLD_FLAG;
+X	}
+X	| ALWAYS_SHOW
+X	{
+X  	  $$ = ALWAYS_DISPLAY_FLAG;
+X	}
+X	| ONCE
+X	{
+X	  $$ = ONCE_FLAG;
+X	}
+X	| ALPHA
+X	{
+X	  $$ = ALPHA_FLAG;
+X	}
+X	| WAIT
+X	{
+X	  $$ = WAIT_FLAG;
+X	}
+X	| SCOPE_VARIABLES
+X	{
+X	  $$ = SCOPE_FLAG;
+X	}
+X	;
+X
+Xitem : ACTION prompt_string action_list ';'
+X	{
+X	  $$ = make_new_item($2, (char *)$3, (struct parm *)0,
+X			     ITEM_ACTION);
+X	  $$->catagory = CATAGORY_ITEM;
+X	  DEBUG2("action list item: line %d '%s'\n", line_number, $2);
+X	}
+X	| SHELL prompt_string  TEXT  parms ';'
+X	{
+X	  $$ = make_new_item($2, $3, $4, ITEM_SHELL);
+X	  $$->catagory = CATAGORY_ITEM;
+X	  DEBUG3("shell item: line %d '%s'\n%%(\n%s\n%%)\n",
+X                 line_number, $2, $3);
+X	}
+X	| PRELUDE  prompt_string  TEXT  parms ';'
+X	{
+X	  $$ = make_new_item($2, $3, $4, ITEM_SHELL);
+X	  $$->catagory = CATAGORY_PRELUDE;
+X	  DEBUG3("prelude shell item: line %d '%s'\n%%(\n%s\n%%)\n",
+X                 line_number, $2, $3);
+X	}
+X	| PRELUDE  prompt_string  action_list ';'
+X	{
+X	  $$ = make_new_item($2, (char *)$3, (struct parm *)0, ITEM_ACTION);
+X	  $$->catagory = CATAGORY_PRELUDE;
+X	  DEBUG2("prelude action list: line %d '%s'\n",
+X                 line_number, $2);
+X	}
+X	| EPILOGUE  prompt_string  TEXT  parms ';'
+X	{
+X	  $$ = make_new_item($2, $3, $4, ITEM_SHELL);
+X	  $$->catagory = CATAGORY_EPILOGUE;
+X	  DEBUG3("epilogue shell item: line %d '%s'\n%%(\n%s\n%%)\n",
+X                 line_number, $2, $3);
+X	}
+X	| EPILOGUE  prompt_string  action_list ';'
+X	{
+X	  $$ = make_new_item($2, (char *)$3, (struct parm *)0, ITEM_ACTION);
+X	  $$->catagory = CATAGORY_EPILOGUE;
+X	  DEBUG2("epilogue action list: line %d '%s'\n",
+X                 line_number, $2);
+X	}
+X	| DO_MENU NAME prompt_string ';'
+X	{
+X	  $$ = make_new_item($3, $2, (struct parm *)0, ITEM_MENU);
+X	  $$->catagory = CATAGORY_ITEM;
+X	  DEBUG3("menu item: line %d \"%s\"\n'%s'\n",
+X                 line_number, $2, $3);
+X	}
+X	| RESET_GLOBAL prompt_string ev_vals ';'
+X	{
+X	  struct ev_var_val *evv_ptr;
+X
+X	  $$ = make_new_item($2, (char *)0, (struct parm *)$3,
+X			     ITEM_RESET_GLOBAL);
+X	  $$->catagory = CATAGORY_ITEM;
+X	  for (evv_ptr=$3;evv_ptr;evv_ptr=evv_ptr->next)
+X	    if (!find_ev_var_by_name(evv_ptr->identifier)) {
+X	      fprintf(stderr, "line %d: reset-global parm name error - %s is not a menu-global variable\n",
+X		      line_number ,evv_ptr->identifier);
+X	      yacc_errors++;
+X	    }
+X	}
+X	| SKIP ';'
+X	{
+X	  $$ = make_new_item((struct prompt_string *)0, (char *)0,
+X			     (struct parm *)0, ITEM_SKIP);
+X	  $$->catagory = CATAGORY_ITEM;
+X	  DEBUG1("skip item: line %d\n", line_number);
+X	}
+X	| SKIP prompt_string ';'
+X	{
+X	  $$ = make_new_item($2, (char *)0,
+X			     (struct parm *)0, ITEM_SKIP);
+X	  $$->catagory = CATAGORY_ITEM;
+X	  DEBUG1("skip item: line %d\n", line_number);
+X	}
+X	;
+X
+Xaction_list : conditioned_item
+X	{
+X	  $$ = make_new_action_list($1);
+X	}
+X	| action_list conditioned_item
+X	{
+X	  $$ = add_to_action_list($1, $2);
+X	}
+X	;
+X
+Xconditioned_item : action_item
+X	{
+X	  $$ = $1;
+X	}
+X	| IFDEF NAME action_item
+X	{
+X	  $$ = $3;
+X	  $$->conditioning = CONDITION_IFDEF;
+X	  $$->conditioning_variable = $2;
+X	  if (!find_ev_var_by_name($2))
+X	    {
+X	      fprintf(stderr, "conditioning variable \"%s\" does not exist: line %d\n",
+X		      $2, line_number);
+X	      yacc_errors++;
+X	    }
+X	}
+X	| IFNDEF NAME action_item
+X	{
+X	  $$ = $3;
+X	  $$->conditioning = CONDITION_IFNDEF;
+X	  $$->conditioning_variable = $2;
+X	  if (!find_ev_var_by_name($2))
+X	    {
+X	      fprintf(stderr, "conditioning variable \"%s\" does not exist: line %d\n",
+X		      $2, line_number);
+X	      yacc_errors++;
+X	    }
+X	}
+X	| IF NAME EQ TEXT action_item
+X	{
+X	  $$ = $5;
+X	  $$->conditioning = CONDITION_EQ;
+X	  $$->conditioning_variable = $2;
+X	  $$->conditioning_value = $4;
+X	  if (!find_ev_var_by_name($2))
+X	    {
+X	      fprintf(stderr, "conditioning variable \"%s\" does not exist: line %d\n",
+X		      $2, line_number);
+X	      yacc_errors++;
+X	    }
+X	}
+X	| IF NAME NEQ TEXT action_item
+X	{
+X	  $$ = $5;
+X	  $$->conditioning = CONDITION_NEQ;
+X	  $$->conditioning_variable = $2;
+X	  $$->conditioning_value = $4;
+X	  if (!find_ev_var_by_name($2))
+X	    {
+X	      fprintf(stderr, "conditioning variable \"%s\" does not exist: line %d\n",
+X		      $2, line_number);
+X	      yacc_errors++;
+X	    }
+X	}
+X	;
+X
+Xaction_item : SHELL TEXT parms
+X	{
+X	  $$ = make_new_item((struct prompt_string *)0, $2, $3, ITEM_SHELL);
+X	  $$->catagory = CATAGORY_ITEM;
+X	  DEBUG2("shell action: line %d\n%%(\n%s\n%%)\n",
+X                 line_number, $2);
+X	}
+X	| RESET_GLOBAL ev_vals
+X	{
+X	  struct ev_var_val *evv_ptr;
+X
+X	  $$ = make_new_item((struct prompt_string *)0, (char *)0,
+X	                      (struct parm *)$2, ITEM_RESET_GLOBAL);
+X	  $$->catagory = CATAGORY_ITEM;
+X	  for (evv_ptr=$2;evv_ptr;evv_ptr=evv_ptr->next)
+X	    if (!find_ev_var_by_name(evv_ptr->identifier)) {
+X	      fprintf(stderr, "reset-global parm name error - %s is not a menu-global variable\n",
+X		      evv_ptr->identifier);
+X	      yacc_errors++;
+X	    }
+X	}
+X	| DO_MENU NAME
+X	{
+X	  $$ = make_new_item((struct prompt_string*)0, $2,
+X			     (struct parm *)0, ITEM_MENU);
+X	  $$->catagory = CATAGORY_ITEM;
+X	  DEBUG2("menu action: line %d \"%s\"\n\n",
+X                 line_number, $2);
+X	}
+X	;
+X
+Xev_vals : /* empty */
+X	{
+X	  $$ = (struct ev_var_val *)0;
+X	}
+X	| ev_vals  GLOBAL NAME '=' TEXT
+X	{
+X	  struct ev_var_val *evv_ptr =
+X	    make_new_ev_var_val($3, $5, (char *)0, EV_GLOBAL);
+X
+X	  if (!$1)
+X	    $$ = evv_ptr;
+X	  else {
+X	    struct ev_var_val *tmp_ptr = $$;
+X	    while (tmp_ptr->next)
+X	      tmp_ptr = tmp_ptr->next;
+X	    tmp_ptr->next = evv_ptr;
+X	  }
+X	}
+X	| ev_vals  FROM_SHELL NAME '=' TEXT
+X	{
+X	  struct ev_var_val *evv_ptr =
+X	    make_new_ev_var_val($3, (char *)0, $5, EV_FROM_SHELL);
+X
+X	  if (!$1)
+X	    $$ = evv_ptr;
+X	  else {
+X	    struct ev_var_val *tmp_ptr = $$;
+X	    while (tmp_ptr->next)
+X	      tmp_ptr = tmp_ptr->next;
+X	    tmp_ptr->next = evv_ptr;
+X	  }
+X	}
+X	| ev_vals  FROM_FILE TEXT NAME
+X	{
+X	  struct ev_var_val *evv_ptr =
+X	    make_new_ev_var_val($4, $3, (char *)0, EV_FROM_FILE);
+X
+X	  if (!$1)
+X	    $$ = evv_ptr;
+X	  else {
+X	    struct ev_var_val *tmp_ptr = $$;
+X	    while (tmp_ptr->next)
+X	      tmp_ptr = tmp_ptr->next;
+X	    tmp_ptr->next = evv_ptr;
+X	  }
+X	}
+X	| ev_vals FROM_USER NAME TEXT
+X	{
+X	  struct ev_var_val *evv_ptr =
+X	    make_new_ev_var_val($3, $4, (char *)0, EV_FROM_USER);
+X
+X	  if (!$1)
+X	    $$ = evv_ptr;
+X	  else {
+X	    struct ev_var_val *tmp_ptr = $$;
+X	    while (tmp_ptr->next)
+X	      tmp_ptr = tmp_ptr->next;
+X	    tmp_ptr->next = evv_ptr;
+X	  }
+X	}
+X	| ev_vals FROM_USER NAME TEXT VALIDATE_THROUGH TEXT
+X	{
+X	  struct ev_var_val *evv_ptr =
+X	    make_new_ev_var_val($3, $4, $6, EV_FROM_USER_VALIDATE);
+X
+X	  if (!$1)
+X	    $$ = evv_ptr;
+X	  else {
+X	    struct ev_var_val *tmp_ptr = $$;
+X	    while (tmp_ptr->next)
+X	      tmp_ptr = tmp_ptr->next;
+X	    tmp_ptr->next = evv_ptr;
+X	  }
+X	}
+X	;
+X
+Xparms : /* empty */
+X	{
+X	  $$ = (struct parm *)0;
+X	}
+X	| parms parm
+X	{
+X	  if (!$1)
+X	    $$ = $2;
+X	  else {
+X	    struct parm *tmp_ptr = $$;
+X	    while (tmp_ptr->next)
+X	      tmp_ptr = tmp_ptr->next;
+X	    tmp_ptr->next = $2;
+X	  }
+X	}
+X	;
+X
+Xparm : PARM NAME prompt_string
+X	{
+X	  $$ = make_new_parm(PARM_NO_DEFAULT, $2, $3, (char *)0);
+X	  DEBUG2("parm: %s\n'%s'\n", $2, $3);
+X	}
+X	| PARM NAME '=' TEXT prompt_string
+X	{
+X	  $$ = make_new_parm(PARM_STATIC_DEFAULT, $2, $5, $4);
+X	  DEBUG3("parm: %s = %s\n'%s'\n", $2, $4, $5);
+X	}
+X	| PARM NAME '=' NAME prompt_string
+X	{
+X	  $$ = make_new_parm(PARM_ENV_DEFAULT, $2, $5, $4);
+X	  DEBUG3("parm: %s = \"%s\"\n'%s'\n", $2, $4, $5);
+X	  if (!find_ev_var_by_name($4)) {
+X	    yacc_errors++;
+X	    fprintf(stderr, "parm initialized to non-existant environmental variable - line %s\n",
+X		    line_number);
+X	  }
+X	}
+X	;
+X
+X%%
+END_OF_FILE
+if test 20233 -ne `wc -c <'./common_src/grammar.y'`; then
+    echo shar: \"'./common_src/grammar.y'\" unpacked with wrong size!
+fi
+# end of './common_src/grammar.y'
+fi
+if test -f './doc/s_menu.texiaa' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'./doc/s_menu.texiaa'\"
+else
+echo shar: Extracting \"'./doc/s_menu.texiaa'\" \(19983 characters\)
+sed "s/^X//" >'./doc/s_menu.texiaa' <<'END_OF_FILE'
+X\input texinfo	@c -*- texinfo -*-
+X@c %**start of header
+X@setfilename simple_menu.info
+X@settitle simple_menu
+X@setchapternewpage odd
+X@c %**end of header
+X
+X@ifinfo
+XThis file documents the Simple_Menu family of menu interpreters.
+X
+XCopyright @copyright{} 1992, Michael S. HOward
+X
+X     Permission is granted to make and distribute verbatim
+X     copies of this manual provided the copyright notice and
+X     this permission notice are preserved on all copies.
+X     
+X     Permission is granted to copy and distribute modified
+X     versions of this manual under the conditions for
+X     verbatim copying, provided also that the sections
+X     entitled ``Distribution'' and ``General Public License''
+X     are included exactly as in the original, and provided
+X     that the entire resulting derived work is distributed
+X     under the terms of a permission notice identical to this
+X     one.
+X     
+X     Permission is granted to copy and distribute
+X     translations of this manual into another language, under
+X     the above conditions for modified versions, except that
+X     the sections entitled ``Distribution'' and ``General
+X     Public License'' may be included in a translation
+X     approved by the author instead of in the original
+X     English.
+X@end ifinfo
+X
+X@titlepage
+X@title Simple_Menu
+X@subtitle a user menu interpreter to simplify shell script maintenance
+X@author Mike Howard
+X
+X@page
+X@vskip Opt plus 1filll
+XCopyright @copyright{} 1992, Michael S. Howard
+X
+XPermission is granted to make and distribute verbatim
+Xcopies of this manual provided the copyright notice and
+Xthis permission notice are preserved on all copies.
+X     
+XPermission is granted to copy and distribute modified
+Xversions of this manual under the conditions for
+Xverbatim copying, provided also that the sections
+Xentitled ``Distribution'' and ``General Public License''
+Xare included exactly as in the original, and provided
+Xthat the entire resulting derived work is distributed
+Xunder the terms of a permission notice identical to this
+Xone.
+X     
+XPermission is granted to copy and distribute
+Xtranslations of this manual into another language, under
+Xthe above conditions for modified versions, except that
+Xthe sections entitled ``Distribution'' and ``General
+XPublic License'' may be included in a translation
+Xapproved by the author instead of in the original
+XEnglish.
+X@end titlepage
+X
+X@node Top, Copying, (dir), (dir)
+X@comment  node-name,  next,  previous,  up
+X@ifinfo
+XThis document describes the Simple_Menu family of menu processors
+X
+XRevision 3, patchlevel 0
+X@end ifinfo
+X
+X@menu
+X* Copying::              Your rights & freedoms.
+X* What it is::           The job these programs do
+X* Menu Definition File:: Structure of Menu Definition Files
+X* Menus::                How to write a menu
+X* Variables::            Various Variables
+X* Invoking Simple_Menu:: How to run the interpreter
+X* How Scripts are Run::  Details of how Shell scripts are executed
+X* Syntactic Details::    Various details of syntax
+X* Concept Index::        Index to concepts
+X* Copying Conditions::   Text of GNU Public License
+X@end menu
+X
+X@node Copying, What it is, Top, Top
+X@comment  node-name,  next,  previous,  up
+X
+X@comment This was 'lifted' from the Copying section of GNU make 3.62.
+X
+X@chapter Copying
+X@cindex Copying Conditions
+X
+X@strong{Simple_Menu} is distributed under the terms and conditions of
+Xthe GNU Public License as described in the last section of this document.
+X
+X@node What it is, Menu Definition File, Copying, Top
+X@comment  node-name,  next,  previous,  up
+X
+X@chapter What it is
+X@cindex What Simple_Menu is
+X
+X@strong{Simple_Menu} is an interactive menu interpreter. The primary
+Xpurpose is provide a simple method for UNIX system adminsitrators to
+Xconstruct and maintain menus for users.  Actions are implemented by
+Xrunning shell scripts, so the full power of the system is available.
+X
+XMenus are described in a @emph{menu definition} language.  This language
+Xconsists of a (hopefully) minimal set of constructs which are used to
+Xdefine menus of actions with associated descriptions and parameters.
+XThree types of @emph{actions} are supported:
+X
+X@itemize @bullet
+X@item
+XShell Scripts - these are the only actions which @emph{do} anything.
+X@item
+XSub-Menus - a network of menus is supported with arbitrary nesting depth.
+X@item
+XVariable Instantiation - Simple_Menu supports string valued variables
+Xwhich are defined in the environment of all shell script actions and may
+Xalso be used to modify the text displayed to the user.  Variables may
+Xtake on values from:
+X@itemize @minus
+X@item
+Xstatic text in the Menu Definition File
+X@item
+Xenvironment variables, via the getenv() library call.
+X@item
+Xnamed initialization files containing a variety of variable definitions,
+X@xref{From File}
+X@item
+Xthe output of shell scripts
+X@item
+Xverified or unverified user input
+X@end itemize
+X@end itemize
+X
+X@noindent
+XWhy use Simple_Menu?
+X
+X@itemize @bullet
+X@item
+XSimple_Menu handles user interaction cleanly so you do not have
+Xto re-write the prompt-read.response-do.it loop
+X@item
+XShell scripts are encapsulated into discrete chunks, so a change to any
+Xsingle script does not break the rest of the functionality.
+X
+XCorallary: restructuring the menu tends to be less dangerous and easier
+Xto do.
+X
+XCorallary: maintenance is easier because each shell script is isolated,
+Xand therefore smaller than monolithic monsters.
+X@item
+XMenus can be written in "portable" ways by using variables which are
+Xinitialized from the environment or shell scripts.
+X@item
+XThe user sees informative text, rather than cryptic command syntax.  You
+Xcan, of course, make the informative text as cryptic as you like, but
+Xyou don't @emph{have} to.
+X@item
+XUser input can be carefully controlled with defaults specified.
+X@end itemize
+X
+X@node Menu Definition File, Menus, What it is, Top
+X@comment  node-name,  next,  previous,  up
+X
+X@chapter Menu Definition File
+X@cindex Menu Definition File
+X
+XA menu definition file is a plain ascii text file containing one or more
+Xmenu definitions and, optionally, a collection of global variable
+Xdefinitions.
+X
+XThe order of occurrence is:
+X
+X@itemize @bullet
+X@item
+XGlobal Variable Definitions - this section is optional.  It consists of
+Xthe definitions and optional initialization of variables which are
+Xavailable to all menus, @xref{Variables}.
+X
+XOnly character-string variables are available.  A variety of
+Xinitialization and re-definition options are available.
+X
+XThe definitions for all of these variables are available within shell
+Xscripts.  This is accomplished by the simple expedient of writing
+Xdefinitions for each of these variables at the beginning of shell script
+Xexecution file, @xref{How Scripts are Run}.
+X@item
+XMenu Definitions.  At least one menu definition must exist.  The first
+Xmenu definition is the top level menu and is the one which is initially
+Xdisplayed.  All subsequent menus are @emph{sub menus} and will only be
+Xactivated if they are explicitly named in higher menus and are selected
+Xby the user.  The first menu is implicitly named @code{MAIN}.
+X@item
+XComments.  Text beginning with a @code{#} sign to the end of line is
+Xignored.  It is used to insert comments into the file.  The only
+Xexception to this is within Text Strings, which are copied verbatim,
+X@xref{Text Strings}.
+X@item
+XWhite Space.  White space is ignored.
+X@end itemize
+X
+XThe following is a complete example menu which illustrates @emph{most}
+Xof the features available.
+X@example
+X
+X# Global Variable Section
+Xfrom-env "EDITOR" = 'vi' ;  #initialize EDITOR from environment or to
+X                            # 'vi' if not defined
+Xfrom-env "USER" ; # userid from environment or null if not defined
+X
+Xfrom-shell "MAIL" = %(
+X  for x in /bin/Mail /usr/bin/Mail /bin/mail /usr/bin/mail /usr/bin/mh ; do
+X   if [ -x $x ] ; then
+X     echo "$x"
+X     exit
+X   fi
+X  echo "mail"
+X %)
+X ;
+X
+X# This consists only of the MAIN menu, so the menu statement is not used
+Xtitle 'Friendly Menu'
+X
+Xbold          # show the title in standout mode
+Xalways-show   # always display the menu options
+Xclear         # clear screen before displaying
+X
+X# do this before displaying the menu
+Xprelude 'Checking for Mail . . .'
+Xif-not-defined "USER"
+X reset-global from-user "USER" 'What is your UserId?'
+Xshell
+X%(
+X  $MAIL -u $USER
+X%)
+X;
+X
+X# do this after the user quits
+Xepilogue 'cleaning up . . .'
+X%( find $HOME -name core -exec rm @{@} \; %)
+X;
+X
+X# This is the menu
+Xshell 'Mail something to someone'
+X%(
+X [ -z "$TO" ] && exit
+X if [ -n "$SUBJECT" ] ; then
+X   $MAIL -s $SUBJECT $TO
+X else
+X   $MAIL $TO
+X fi
+X%)
+Xparm "SUBJECT" 'Subject of Mail'    # a parameter initialized to NULL
+Xparm "TO" 'Recipient'    # a parameter initialized to NULL
+X;
+X
+Xshell 'Read Mail'
+X%( $MAIL %)
+X;
+X
+Xshell 'Edit A file'
+X%( $THIS_EDITOR $FILE %)
+Xparm "THIS_EDITOR" = "EDITOR" 'Editor to use' # a parameter initialized
+X                                              # to the value of EDITOR
+Xparm "FILE" 'File to edit'    # a parameter initialized to NULL
+X;
+X
+Xshell 'Print a File'
+X%(
+X [ -n "$FILE" ] && lpr -P$PRT $FILE
+X%)
+Xparm "PRT" = 'lp1' 'Printer to use' # a parameter initialized to static text
+Xparm "FILE" 'File to Print'    # a parameter initialized to NULL
+X;
+X
+Xaction-list 'Sample Action List'
+Xdo-menu "CHOOSE_EDITOR"
+Xshell
+X%(
+X  $EDITOR $FILE
+X%)
+Xparm "FILE" 'File to Edit'
+X;
+X
+X# restricted to PRIVILEGED_USER users
+X
+Xrestricted shell 'Escape to Shell'
+X%(
+X  /bin/csh
+X%)
+X;
+X
+X# Sample Sub Menu
+X
+Xmenu "CHOOSE_EDITOR"
+X
+Xtitle 'Pick An Editor'
+X
+Xbold clear always-show once
+X
+Xreset-global 'Choose the ''vi'' Editor'
+Xglobal "EDITOR" = 'vi'
+X;
+X
+Xreset-global 'Choose the ''ed'' Editor'
+Xglobal "EDITOR" = 'ed'
+X;
+X
+Xreset-global 'Choose the ''ex'' Editor'
+Xglobal "EDITOR" = 'ex'
+X;
+X
+Xreset-global 'Choose the ''emacs'' Editor'
+Xglobal "EDITOR" = 'emacs'
+X;
+X@end example
+X
+X@node Menus, Variables, Menu Definition File, Top
+X@comment  node-name,  next,  previous,  up
+X
+X@chapter Menus
+X@cindex How Menus are Defined
+X
+XA menu consists of formatting information and action definitions.  The
+Xformatting information defines the menu title, screen clearing, etc.
+XActions, as you would expect, actually do things.
+X
+XA @strong{menu} consists of the following sections which appear in the
+Xorder given:
+X
+X@enumerate
+X@item
+XMenu Title.  This is a @code{title} statement for the main menu and a
+X@code{menu} statement followed by a @code{title} statement for submenus.
+X@item
+XMenu Options.  Hints indicating how the menu should be presented.  None
+Xare required.
+X@item
+XMenu Prelude.  This is an optional shell script or list of actions which
+Xis run prior to displaying the menu.  At most one of these may be
+Xdefined for each menu in the Menu Definition File.  It can actually can
+Xoccur anywhere prior to the next menu definition [or end of file], but,
+Xas a matter of style, should be placed next.
+X@item
+XMenu Epilogue.  Like the Prelude, this is an optional shell script or
+Xlist of actions.  Only one may be defined per menu.  It is run after the
+Xuser has chosen to exit the menu.  Again, like the prelude, it can occur
+Xanywhere between the Options and the next menu [or end of file], but, as
+Xa matter of style, should follow the prelude and precede the Menu Items.
+X@item
+XMenu Items.  These are menu actions and format hints.  The actions
+Xconsist of @code{shell}, @code{do-menu} statements, and variable
+Xreset statements @xref{Variables}.  The hints are @code{skip} statements
+Xwhich insert either text or blank lines between blocks of items.
+X@end enumerate
+X
+XMenu actions occur in the @strong{prelude}, @strong{epilogue}, and
+X@strong{items}.  Actions may either occur singly or in sequences
+X@xref{Menu Actions}.
+X
+XNote: be careful to distinguish between Text Strings and Prompt Strings,
+X@xref{Syntactic Details}.  The term Text String refers to static text
+Xwhich is defined in the Menu Definition File and cannot be changed while
+XSimple_Menu is executing.  A Prompt String is composed of the
+Xconcatenation of Text Strings and Global Variables, and is often changed
+Xduring a session.
+X
+X@menu
+X* Menu Title::     The title the user sees - required
+X* Menu Options::   Hints about how the menu is displayed - optional
+X* Menu Actions::   General Syntax of Actions - required
+X* Menu Prelude::   Items performed prior to displaying menu - optional
+X* Menu Epilogue::  Items performed after leaving the menu - optional
+X* Menu Items::     Items performed by operator selection - required
+X@end menu
+X
+X
+X@node Menu Title, Menu Options,      , Menus
+X@comment  node-name,  next,  previous,  up
+X
+X@section Menu Title
+X@cindex the Menu Title Statement
+X
+XEach menu has two identifying strings: a name and a title.  The
+X@code{name} identifies the menu to other menus.  The @code{title}
+Xidentifies the menu to the user.
+X
+XThe top level menu in a Menu Definition File is name @code{MAIN}.  This
+Xname is automatically assigned to the first menu in the Menu Definition
+XFile.  Submenus must be explicitly named using the @emph{menu} command,
+Xas in @code{menu "FOO"}.  @emph{Note:} the first menu probably should not
+Xbe named explicitly since @strong{Simple_Menu} does it automatically.
+X
+XAll menus require a title.  The title is defined using the @code{title}
+Xcommand, as in @code{title prompt-string}, @xref{Prompt Strings}
+X
+XThese examples illustrate the syntax.  Note that the @code{menu}
+Xstatement must precede the @code{title} statement.
+X@example
+X# the main menu
+Xtitle 'title for the Main Menu'
+X
+X# a sub-menu
+Xmenu "FOO"
+Xtitle 'Title of the Foo Menu'
+X@end example
+X
+X@node Menu Options, Menu Actions, Menu Title, Menus
+X@comment  node-name,  next,  previous,  up
+X
+X@section Menu Options
+X@cindex Menu Options
+X
+XMenu options are intended to be rather strong hints as to how to display
+Xthe menu.  They consist of the key words:
+X
+X@itemize @bullet
+X@item
+X@code{bold} - causes the menu Title and @code{skip} text to be displayed
+Xin the terminal's @emph{standout} mode.
+X@item
+X@code{clear} - causes the display to be cleared prior to displaying the
+Xmenu.
+X@item
+X@code{wait} - causes the Simple_Menu to wait for the user to hit the
+Xreturn key before re-displaying the menu after executing a Shell Script.
+XSimple_Menu normally pauses of about 10 seconds and then does the
+Xredisplay.
+X@item
+X@code{alpha} - causes Simple_Menu to use the letters A, B, etc for menu
+Xchoices instead of numbers.
+X@item
+X@code{once} - cause the menu to be exited after the first legal menu
+Xchoice is made and executed.  This does not have a lot of use.  It was
+Xintroduced to minimize key strokes for menus which are used to set up
+Xthe menu configuration by modifying global variables.
+X@item
+X@code{scope-variables} - causes this menu to be an outer scope for all
+Xglobal variables.  This is done by pushing the current definitions so
+Xthat any changes to made will be undone when this menu returns
+X@xref{Variables}.
+X@end itemize
+X
+XMenu options don't always make sense and, if not, are ignored.  For
+Xexample, you cannot clear a dumb terminal, nor can you use standout
+Xmode.  Simple_Menu was written with the idea of having a variety of
+Xdisplay drivers - curses_menu and Xaw_menu, for example.  Some displays
+Xdo not lend themselves to 'numbered' menu choices, so in these cases,
+X@code{alpha} is ignored.
+X
+X@node     Menu Actions, Menu Prelude, Menu Options, Menus
+X@comment  node-name,  next,  previous,  up
+X
+X@section Menu Actions
+X@cindex Menu Actions
+X
+XThe easiest way to understand the structure of menus is make a mental
+Xseparation between actions and menu ``items''.  An action is something
+Xwhich happens.  An item is a clump of things which can happen and has a
+Xdisplayable prompt associated with it.
+X
+XThree actions are supported:
+X
+X@enumerate
+X@item
+Xshell actions.  A shell action is a normal shell script.  It is
+Ximplemented crudely by creating a script file in a specified temporary
+Xfile directory.  The script consists of all menu global variable
+Xdefinitions, followed by any local variable definitions, and finally
+Xfollowed by the shell script contained in the menu definition file.
+XThis script is executed by simply exec'ing a shell with the script as
+Xinput.  During shell script execution, signals are ignored by
+X@strong{simple_menu}, but can be used to interupt the shell, unless
+Xtrapped.
+X@item
+Xsub menus.  Sub menus are menus defined within the menu definition file.
+XThey can be thought of as subroutines.  Arbitrary nesting of menu calls
+Xis supported.
+X@item
+Xreset global variables.  Global variables may have their values changed
+Xin carefully controlled ways.  These include setting values to
+Xconstants, re-acquiring values from a file or as the output of a shell
+Xprocess, and interactively from the user.  User input is acquired by
+Xdirect input and may be processed through a shell script, if desired.
+X@end enumerate
+X
+XClumping of actions can be looked at two ways:
+X
+X@enumerate
+X@item
+XWhen the Clumps are Executed.  Here there are three catagories: the
+Xprelude, the epilogue, and normal menu items.  See the relevant sections.
+X@item
+XWhat does the Clump Consist Of.  Clumps may consist of a single action
+Xor a sequence of actions.  The specific syntax depends upon the section
+Xin which the clump appears.
+X@end enumerate
+X
+XIn all cases, clumps may be restricted to groups of users by preceding
+Xthe clump by the keyword @code{restricted} and a string containing all
+Xacceptable user id's.  Such clumps [prelude, epilogue, and normal item]
+Xonly appear and are only executable for privileged users.  In a nod
+Xtowards security, the user id is checked against the real user-id of the
+Xinvoker of the menu program.  This feature is ment to cut down on
+Xmaintenance by allowing a single menu definition file to contain
+Xdifferent menus for different users as well as common features.  It is
+Xnot intended to defend against malicious attacks on the system.
+X
+XSequences of actions may be defined by listing the actions in order.
+XAgain the syntax depends on the menu section.  Actions @emph{with a
+Xsequence} may be conditioned on the state of any
+Xsingle global variable.  Four conditionings are recognized:
+X@itemize @bullet
+X@item
+X@code{if-defined "VARIABLE"} - includes the action in the menu if the
+Xnamed variable is defined.  [@code{ifdef} is synonymous with
+X@code{if-defined}]
+X@item
+X@code{if-not-defined "VARIABLE"} - includes the action in the menu if the
+Xnamed variable is NOT defined.  [@code{ifndef} is synonymous with
+X@code{if-defined}]
+X@item
+X@code{if "VARIABLE" equals 'string'} - includes the action if the value
+Xof the named variable is equal to the value of the string.  [@code{eq}
+Xand @code{is} are synonymous with @code{equal}]
+X@item
+X@code{if "VARIABLE" not-equal 'string'} - includes the action if the
+Xvalue of the named variable is NOT equal to the value of the string.
+X[@code{not-eq}, @code{neq}, and @code{is-not} are synonymous with
+X@code{not-equal}]
+X@end itemize
+X
+XThis can be used to create session sensitive menus.  For example,
+Xactions which are character based may be run in separate windows if
+XDISPLAY is defined.  Similarly, applications which provide both X based
+Xand character based user interfaces can be invoked in the appropriate
+Xmode.
+X
+XSequencing with conditional execution of a sub-menu is illustrated in
+Xsample menu definition file above.  The MAIN menu prologue consists of a
+Xlist of two actions, this first of which is only executed if the global
+Xvariable @code{USER} was not defined in the environment.  If there is no
+X@code{USER} environment variable, the menu global variable @code{USER}
+Xis set to the value typed by the user in response to the reset-global
+Xaction.  Irrespective of whether this action is performed, the next
+Xaction in the sequence is executed by executing the shell script between
+Xthe delimiters @code{%(} and @code{%)}.
+X
+X@node Menu Prelude, Menu Epilogue,   Menu Actions, Menus
+X@comment  node-name,  next,  previous,  up
+X
+X@section Menu Prelude
+X@cindex the Menu Prelude
+X
+XThe Menu Prelude is a sequence of actions are performed prior to
+Xdisplaying the menu.  All global variables are defined prior to entering
+Xthe menu are defined for all scripts which occur in this sequence.
+X
+X@example
+Xprelude @emph{Prompt String which is Displayed while running} 
+X@emph{sequence of action}
+X;
+X@end example
+X
+XAn older syntax is still supported for backward compatibility.  This
+END_OF_FILE
+if test 19983 -ne `wc -c <'./doc/s_menu.texiaa'`; then
+    echo shar: \"'./doc/s_menu.texiaa'\" unpacked with wrong size!
+fi
+# end of './doc/s_menu.texiaa'
+fi
+echo shar: End of archive 7 \(of 9\).
+cp /dev/null ark7isdone
+MISSING=""
+for I in 1 2 3 4 5 6 7 8 9 ; do
+    if test ! -f ark${I}isdone ; then
+	MISSING="${MISSING} ${I}"
+    fi
+done
+if test "${MISSING}" = "" ; then
+    echo You have unpacked all 9 archives.
+    rm -f ark[1-9]isdone ark[1-9][0-9]isdone
+else
+    echo You still need to unpack the following archives:
+    echo "        " ${MISSING}
+fi
+##  End of shell archive.
+exit 0
+

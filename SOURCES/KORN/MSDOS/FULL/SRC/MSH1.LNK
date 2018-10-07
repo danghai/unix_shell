@@ -1,0 +1,6 @@
+sh1.obj + sh2.obj + sh3.obj + sh4.obj + sh5.obj + sh6.obj + sh7.obj +
+sh8.obj + sh9.obj + sh10.obj + sh11.obj + sh12.obj + sh13.obj
+shos216.exe/noe/noi/stack:0x8000
+nul
+
+sh.def

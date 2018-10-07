@@ -1,0 +1,2997 @@
+.\"!ts -t -msqan
+.\"
+.\" MS-DOS SHELL - Manual Page
+.\"
+.\" MS-DOS SHELL - Copyright (c) 1990,4 Data Logic Limited
+.\"
+.\" This code is subject to the following copyright restrictions:
+.\"
+.\" 1.  Redistribution and use in source and binary forms are permitted
+.\"     provided that the above copyright notice is duplicated in the
+.\"     source form and the copyright notice in file sh6.c is displayed
+.\"     on entry to the program.
+.\"
+.\" 2.  The sources (or parts thereof) or objects generated from the sources
+.\"     (or parts of sources) cannot be sold under any circumstances.
+.\"
+.\"    $Header: /usr/users/istewart/shell/sh2.3/Release/RCS/sh.1,v 2.6 1994/08/25 20:58:47 istewart Exp $
+.\"
+.\"    $Log: sh.1,v $
+.\"	Revision 2.6  1994/08/25  20:58:47  istewart
+.\"	MS Shell 2.3 Release
+.\"
+.\"	Revision 2.5  1994/01/11  17:55:25  istewart
+.\"	Release 2.3 Beta 0 patches
+.\"
+.\"	Revision 2.4  1993/11/09  11:32:45  istewart
+.\"	Beta 226 checking
+.\"
+.\"	Revision 2.3  1993/08/25  16:03:57  istewart
+.\"	Beta 225 - see Notes file
+.\"
+.\"	Revision 2.2  1993/06/02  09:58:12  istewart
+.\"	Shell 223 Beta Release - see Notes file
+.\"
+.\"	Revision 2.1  1992/12/14  10:54:56  istewart
+.\"	BETA 215 Fixes and 2.1 Release
+.\"
+.\"	Revision 2.0  1992/04/13  17:39:51  Ian_Stewartson
+.\"	MS-Shell 2.0 Baseline release
+.\"
+.\"
+.\"
+.\"	This man page requires tbl.
+.ds OK [\|
+.ds CK \|]
+.\".TH SH 1L "Data Logic Limited" "MS-DOS - OS/2 Version 2.3"
+.TH SH 1L "MS-DOS - OS/2 Version 2.3" LOCAL
+.SH NAME
+sh, rsh - shell, the standard/restricted command programming language
+.SH SYNOPSIS
+\fBsh\fR \*(OK \fB-acefhiknmrstuvx0R\fR \*(CK \*(OK args \*(CK
+.br
+\fBrsh\fR \*(OK \fB-acefhiknmrstuvx0R\fR \*(CK \*(OK args \*(CK
+.SH DESCRIPTION
+.ad b
+\fIsh\fR is a command programming language that executes commands read from a
+terminal or a file.  \fIRsh\fR is a restricted version of the standard command
+interpreter \fIsh\fR; it is used to set up login names and execution
+environments whose capabilities are more controlled than those of the standard
+shell.  See \fIInvocation\fR below for the meaning of arguments to the shell.
+.SS Definitions
+A \fIblank\fR is a tab or a space.  A \fIname\fR is a sequence of letters,
+digits, or underscores beginning with a letter or underscore.  A \fIparameter\fR
+is a name, a digit, or any of the characters \fB*\fR, \fB@\fR, \fB#\fR, \fB?\fR,
+\fB-\fR, \fB$\fR, and \fB!\fR.
+.SS Commands
+A \fIsimple-command\fR is a sequence of non-blank \fIwords\fR separated by
+\fIblanks\fR.  The first word specifies the name of the command to be executed.
+Except as specified below, the remaining words are passed as arguments to the
+invoked command.  The command name is passed as argument 0 (see \fIexec\fR(2)).
+The \fIvalue\fR of a simple-command is its exit status if it terminates
+normally, or (octal) 200+\fIstatus\fR if it terminates abnormally (see
+\fIsignal\fR(2) for a list of status values).
+.PP
+A \fIpipeline\fR is a sequence of one or more \fIcommands\fR separated by
+\fB\(bv\fR (or, for historical compatibility, by \fB^\fR).
+The standard output of each command but the last is connected by a \fIpipe\fR(2)
+to the standard input of the next command.  Each command is run as a separate
+process; the shell waits for the last command to terminate.  The exit status
+of a pipeline is the exit status of the last command.
+.PP
+A \fIlist\fR is a sequence of one or more pipelines separated by \fB;\fR,
+\fB&\fR (\fBOS/2\fR only), \fB&&\fR, or \fB\(bv\(bv\fR, and optionally
+terminated by \fB;\fR or \fB&\fR (\fBOS/2\fR only).  Of these four symbols,
+\fB;\fR and \fB&\fR have equal precedence, which is lower precedence than
+that of \fB&&\fR and \fB\(bv\(bv\fR.  The symbols \fB&&\fR and \fB\(bv\(bv\fR
+also have equal precedence.  A semicolon (\fB;\fR) causes sequential execution
+of the preceding pipeline; an ampersand (\fB&\fR) causes asynchronous
+execution of the preceding pipeline (i.e., the shell does not wait for that
+command to finish.  This option is only available under \fBOS/2\fR and is
+restricted to single commands and not pipelines because of the differences in
+the \fBUNIX\fR and \fBOS/2\fR process models).  The symbol \fB&&\fR
+(\fB\(bv\(bv\fR) causes the \fIlist\fR following it to be executed only if
+the preceding pipeline returns a zero (non-zero) exit status.  An arbitrary
+number of new-lines may appear in a \fIlist\fR, instead of semicolons, to
+delimit commands.
+.PP
+A \fIcommand\fR is either a simple-command or one of the following.  Unless
+otherwise stated, the value returned by a command is that of the last
+simple-command executed in the command.
+.PP
+.TP
+\fBfor \fIname\fR \*(OK \fBin \fIword\fR ... \*(CK \fBdo \fIlist \fBdone\fR
+Each time a \fBfor\fR command is executed, \fIname\fR is set to the next
+\fIword\fR taken from the \fBin\fR \fIword\fR list.  If \fBin\fI word\fR ...
+is omitted, then the \fBfor\fR command executes the \fBdo\fR
+\fIlist\fR once for each positional parameter that is set (see \fIParameter
+Substitution\fR below).  Execution ends when there are no more words in the
+list.
+.TP
+\fBselect \fIname\fR \*(OK \fBin \fIword\fR ... \*(CK \fBdo \fIlist \fBdone\fR
+A \fBselect\fR command prints on standard error (file descriptor 2), the set
+of \fIword\fRs, each preceded by a number.  If \fBin\fI word\fR ... is omitted,
+then the positional parameters are used instead (see \fIParameter
+Substitution\fR below).  The \fBPS3\fR prompt is printed and a line is read
+from the standard input.  If this line consists of the number of one of the
+listed \fIword\fRs, then the value of the parameter \fIname\fR is set to the
+\fIword\fR corresponding to this number.  If this line is empty the selection
+list is printed again.  Otherwise the value of the parameter \fIname\fR is set
+to null.  The contents of the line read from standard input is saved in the
+parameter \fBREPLY\fR.  The list is executed for each selection until a break
+or end-of-file is encountered.
+.TP
+\fBcase \fIword \fBin\fR \*(OK \fIpattern\fR \*(OK \(br \
+\fIpattern\fR \*(CK ... \fB) \fIlist \fB;;\fR \*(CK ... \fBesac\fR
+A \fBcase\fR command executes the \fIlist\fR associated with the first
+\fIpattern\fR that matches \fIword\fR.  The form of the patterns is the same
+as that used for file-name generation (see \fIFile Name Generation\fR) except
+that a slash, a leading dot, or a dot immediately following a slash need not
+be matched explicitly, and the match is case sensitive.
+.TP
+\fBif \fIlist \fBthen \fIlist\fR \*(OK \fBelif \fIlist \fBthen \fIlist\fR \*(CK ... \*(OK \fBelse \fIlist\fR \*(CK \fBf\&i\fR
+The \fIlist\fR following \fBif\fR is executed and, if it returns a zero exit
+status, the \fIlist\fR following the first \fBthen\fR is executed.  Otherwise,
+the \fIlist\fR following \fBelif\fR is executed and, if its value is zero, the
+\fIlist\fR following the next \fBthen\fR is executed.  Failing that, the
+\fBelse \fIlist\fR is executed.  If no \fBelse \fIlist\fR or \fBthen \fIlist\fR
+is executed, then the \fBif\fR command returns a zero exit status.
+.TP
+\fBwhile \fIlist \fBdo \fIlist \fBdone\fR
+A \fBwhile\fR command repeatedly executes the \fBwhile \fIlist\fR and, if
+the exit status of the last command in the list is zero, executes the
+\fBdo \fIlist\fR; otherwise the loop terminates.  If no commands in the
+\fBdo \fIlist\fR are executed, then the \fBwhile\fR command returns a zero
+exit status; \fBuntil\fR may be used in place of \fBwhile\fR to negate the
+loop termination test.
+.TP
+\fB(\fIlist\fB)\fR
+.br
+Execute \fIlist\fR in a sub-shell.  The shell creates a new environment in
+which to execute the \fIlist\fR, but does not fork a sub-shell as a Unix
+system would.  The original environment is restored on completion.
+.TP
+\fB{ \fIlist\fB; }\fR
+.br
+\fIlist\fR is simply executed.
+.TP
+\fB\*(OK\*(OK \fIexpression\fB \*(CK\*(CK\fR
+Evaluates expression and returns a zero exit status when expression is true.
+See \fBConditional Expressions\fR below, for a description of expression.
+Note that \fB\*(OK\*(OK\fR and \fB\*(CK\*(CK\fR are keywords and require
+blanks between them and expression.
+.TP
+\fBfunction \fIname \fB { \fIlist\fB; }\fR
+.TP
+\fIname \fB() { \fIlist\fB; }\fR
+Define a function which is referenced by \fIname\fR.  The body of the function
+is the \fIlist\fR of commands between \fB{\fR and \fB}\fR.  Execution of
+functions is described below (see \fIExecution\fR).
+.PP
+The following words are only recognised as the first word of a command and
+when not quoted:
+.if t .RS
+.PP
+.B
+.if n if then else elif fi case esac for while until do done { } \*(OK\*(OK \*(CK\*(CK
+.if t if  then  else  elif  f\&i  case  esac  for  while  until  do  done  {  } \*(OK\*(OK  \*(CK\*(CK
+.if t .RE
+.SS Comments
+A word beginning with \fB#\fR causes that word and all the following
+characters up to a new-line to be ignored.
+.SS Aliasing
+The first word of each command is replaced by the text of an alias if an
+alias for this word has been defined.  The alias name must a valid identifier.
+The replacement string can contain any valid Shell script including the
+meta-characters listed above.  The first word of each command of the
+replaced text will not be tested for additional aliases.  If the last
+character of the alias value is a blank then the word following the alias
+will also be checked for alias substitution.  Aliases can be used to redefine
+special built-in commands but cannot be used to redefine the keywords listed
+above.  Aliases can be created and listed with the \fBalias\fR command and
+can be removed with the \fBunalias\fR command.
+.PP
+Aliasing is performed when scripts are read, not while they are executed.
+Therefore, for an alias to take effect the alias command has to be executed
+before the command which references the alias is read.
+.PP
+Aliases are frequently used as a short hand for full path names.  An
+option to the aliasing facility allows the value of the alias to be
+automatically set to the full pathname of the corresponding command.  These
+aliases are called tracked aliases.  The value of a tracked alias is
+defined the first time the corresponding command is looked up and becomes
+undefined each time the PATH variable is reset.  These aliases remain
+tracked so that the next subsequent reference will redefine the value.
+.SS Conditional Expressions
+A conditional expression is used with the \fB\*(OK\*(OK\fR compound command
+to test attributes of files and to compare strings.  Word splitting and file
+name generation are not performed on the words between \fB\*(OK\*(OK\fR and
+\fB\*(CK\*(CK\fR.  Each expression can be constructed from one or more of the
+following unary or binary expressions:
+.SP
+.RS
+.TP 12
+\fB-a \fIfile\fR
+True if \fIfile\fR exists.
+.TP
+\fB-b \fIfile\fR
+True if \fIfile\fR exists and is a block special file.
+.TP
+\fB-c \fIfile\fR
+True if \fIfile\fR exists and is a character special file.
+.TP
+\fB-d \fIfile\fR
+True if \fIfile\fR exists and is a directory.
+.TP
+\fB-f \fIfile\fR
+True if \fIfile\fR exists and is a regular file.
+.TP
+\fB-g \fIfile\fR
+True if \fIfile\fR exists and has its setgid bit set.
+.TP
+\fB-h \fIfile\fR
+True if \fIfile\fR exists and is a symbolic link.
+.TP
+\fB-k \fIfile\fR
+True if \fIfile\fR exists and has its sticky bit set.  Under \fBMS-DOS\fR and
+\fBOS/2\fR, the sticky bit is equivalent to the ARCHIVED attribute.
+.TP
+\fB-n \fIstring\fR
+True if the length of \fIstring\fR is non-zero.
+.TP
+\fB-o \fIoption\fR
+True if the \fIoption\fR named is on.
+.TP
+\fB-p \fIfile\fR
+True if \fIfile\fR exists and is a FIFO special file or a pipe.
+.TP
+\fB-r \fIfile\fR
+True if \fIfile\fR exists and is readable.
+.TP
+\fB-s \fIfile\fR
+True if \fIfile\fR exists and has a size greater than zero.
+.TP
+\fB-t\fR \*(OK \fIfildes\fR \*(CK
+True if the open file whose file descriptor number is \fIfildes\fR (1 by
+default) is associated with a terminal device.
+.TP
+\fB-u \fIfile\fR
+True if \fIfile\fR exists and has its setuid bit set.
+.TP
+\fB-w \fIfile\fR
+True if \fIfile\fR exists and is writable.
+.TP
+\fB-x \fIfile\fR
+True if \fIfile\fR exists and is executable.  If \fIfile\fR exists and is a
+directory, then the current process has permission to search in the directory.
+.TP
+\fB-z \fIstring\fR
+True if the length of \fIstring\fR is zero.
+.TP
+\fB-L \fIfile\fR
+True if \fIfile\fR exists and is a symbolic link.
+.TP
+\fB-O \fIfile\fR
+True if \fIfile\fR exists and is owned by the effective user id of this process.
+Under \fBMS-DOS\fR and \fBOS/2\fR, the UID bit is equivalent to the HIDDEN
+attribute.
+.TP
+\fB-G \fIfile\fR
+True if \fIfile\fR exists and is owned by the effective user group of this
+process.  Under \fBMS-DOS\fR and \fBOS/2\fR, the GID bit is equivalent to the
+SYSTEM attribute.
+.TP
+\fB-S \fIfile\fR
+True if \fIfile\fR exists and is a socket.
+.TP
+\fIfile1 \fB-nt \fIfile2\fR
+True if file1 is newer than file2.
+True if \fIfile1\fR exists and is newer than \fIfile2\fR.
+.TP
+\fIfile1 \fB-ot \fIfile2\fR
+True if \fIfile1\fR exists and is older than \fIfile2\fR.
+.TP
+\fIfile1 \fB-ef \fIfile2\fR
+True if \fIfile1\fR and \fIfile2\fR and refer to the same file.  Under
+\fBMS-DOS\fR and \fBOS/2\fR, inode information is not available, and the
+shell compares the absolute filenames.
+.TP
+\fIs1 \fB\(eq\fI s2\fR
+True if strings \fIs1\fR and \fIs2\fR are identical.
+.TP
+\fIs1 \fB!\(eq\fI s2\fR
+True if strings \fIs1\fR and \fIs2\fR are \fInot\fR identical.
+.TP
+\fIs1 \fB<\fI s2\fR
+True if string \fIs1\fR comes before \fIs2\fR are based on the ASCII value of
+their characters.
+.TP
+\fIs1 \fB>\fI s2\fR
+True if string \fIs1\fR comes after \fIs2\fR are based on the ASCII value of
+their characters.
+.TP
+\fIn1 \fB-eq \fIn2\fR
+True if \fIn1\fR is equal to \fIn2\fR.
+.TP
+\fIn1 \fB-ne \fIn2\fR
+True if \fIn1\fR is not equal to \fIn2\fR.
+.TP
+\fIn1 \fB-lt \fIn2\fR
+True if \fIn1\fR is less than to \fIn2\fR.
+.TP
+\fIn1 \fB-gt \fIn2\fR
+True if \fIn1\fR is greater than to \fIn2\fR.
+.TP
+\fIn1 \fB-le \fIn2\fR
+True if \fIn1\fR is less than or equal to \fIn2\fR.
+.TP
+\fIn1 \fB-ge \fIn2\fR
+True if \fIn1\fR is greater than or equal to \fIn2\fR.
+.RE
+.PP
+Not all of the above have meaning under \fBMS-DOS\fR or \fBOS/2\fR.  In such
+cases, the appropriate value is set (\fIfalse\fR, except for \fB-O\fR and
+\fB-G\fR).
+.sp
+A compound expression can be constructed from these primitives by using any of
+the following, listed in decreasing order of precedence.
+.RS 12
+.TP
+\fB(\fR \fIexpr\fR \fB)\fR
+True, if \fIexpr\fR is true.  Used to group expressions.
+.TP
+\fB!\fR \fIexpr\fR
+True, if \fIexpr\fR is false.
+.TP
+\fIexpr1\fR \fB&&\fR \fIexpr2\fR
+True, if \fIexpr1\fR and \fIexpr2\fR are both true.
+.TP
+\fIexpr1\fR \fB||\fR \fIexpr2\fR
+True, if \fIexpr1\fR or \fIexpr2\fR is true.
+.RE
+.SS Tilde Substitution
+Each word is checked to see if it begins with an unquoted \fB~\fR.  If it is,
+the \fB~\fR is replaced by the value of the \fBHOME\fR parameter. A \fB~\fR
+followed by a \fB+\fR or \fB-\fR is replaced by the value of the parameter
+\fBPWD\fR and \fBOLDPWD\fR respectively.
+.SS Command Substitution
+The standard output from a command enclosed in parenthesis preceded by a
+dollar sign (\fB$()\fR), or in a pair of grave accents (\fB\(ga\(ga\fR) may
+be used as part or all of a word; trailing new-lines are removed.  The command
+substitution \fB$(cat \fIfile\fB)\fR can be replaced by the equivalent but
+faster \fB$(<\fIfile\fB)\fR.
+.SS Parameter Substitution
+The character \fB$\fR is used to introduce substitutable \fIparameters\fR.
+There are two types of parameters, positional and keyword.  If \fIparameter\fR
+is a digit, it is a positional parameter.  Positional parameters may be
+assigned values by \fBset\fR.  Keyword parameters (also known as variables)
+may be assigned values by writing:
+.RS
+.PP
+\fIname \(eq value\fR \*(OK \fIname \(eq value\fR \*(CK ...
+.RE
+.PP
+Pattern-matching is not performed on \fIvalue\fR.  There cannot be a function
+and a variable with the same \fIname\fR.
+.PP
+Alternatively, named parameters can be assigned values and attributes by using
+the typeset special command.
+.PP
+.TP
+\fB${\fIparameter\fB}\fR
+The value, if any, of the \fIparameter\fR is substituted.  The braces are
+required only when \fIparameter\fR is followed by a letter, digit, or
+underscore that is not to be interpreted as part of its name.  If
+\fIparameter\fR is \fB*\fR or \fB@\fR, all the positional parameters, starting
+with \fB$1\fR, are substituted (separated by spaces).  Parameter \fB$0\fR is
+set from argument zero when the shell is invoked.
+.TP
+\fB${#\fIparameter\fB}\fR
+If \fIparameter\fR is \fB*\fR or \fB@\fR, the number of positional parameters
+is substituted.  Otherwise, the length of the value of the \fIparameter\fR is
+substituted.
+.TP
+\fB${\fIparameter\fB:-\fIword\fB}\fR
+If \fIparameter\fR is set and is non-null, substitute its value; otherwise
+substitute \fIword\fR.
+.TP
+\fB${\fIparameter\fB:\(eq\fIword\fB}\fR
+If \fIparameter\fR is not set or is null set it to \fIword\fR; the value of
+the parameter is substituted.  Positional parameters may not be assigned to
+in this way.
+.TP
+\fB${\fIparameter\fB:?\fIword\fB}\fR
+If \fIparameter\fR is set and is non-null, substitute its value; otherwise,
+print \fIword\fR and exit from the shell.  If \fIword\fR is omitted, the
+message \(ga\(gaparameter null or not set\(aa\(aa is printed.
+.TP
+\fB${\fIparameter\fB:+\fIword\fB}\fR
+If \fIparameter\fR is set and is non-null, substitute \fIword\fR; otherwise
+substitute nothing.
+.TP
+.PD 0
+\fB${\fIparameter\fB#\fIpattern\fB}\fR
+.TP
+\fB${\fIparameter\fB##\fIpattern\fB}\fR
+.PD
+If the Shell \fIpattern\fR matches the beginning of the value of
+\fIparameter\fR, then the value of this substitution is the value of the
+\fIparameter\fR with the matched portion deleted; otherwise the value of
+this \fIparameter\fR is substituted.  In the first form the smallest matching
+\fIpattern\fR is deleted and in the latter form the largest matching
+\fIpattern\fR is deleted.
+.TP
+.PD 0
+\fB${\fIparameter\fB%\fIpattern\fB}\fR
+.TP
+\fB${\fIparameter\fB%%\fIpattern\fB}\fR
+.PD
+If the Shell \fIpattern\fR matches the end of the value of \fIparameter\fR,
+then the value of this substitution is the value of the \fIparameter\fR with
+the matched portion deleted; otherwise the value of this \fIparameter\fR is
+substituted.  In the first form the smallest matching \fIpattern\fR is deleted
+and in the latter form the largest matching \fIpattern\fR is deleted.
+.PP
+In the above, \fIword\fR is not evaluated unless it is to be used as the
+substituted string, so that, in the following example, \fBpwd\fR is executed
+only if \fBd\fR is not set or is null:
+.RS
+.PP
+echo ${d:-\(gapwd\(ga}
+.RE
+.PP
+If the colon (\fB:\fR) is omitted from the above expressions, the shell only
+checks whether \fIparameter\fR is set or not (\fIIt is not clear what this
+means\fR).
+.PP
+The following parameters are automatically set by the shell:
+.PP
+.RS
+.TP
+.B #
+The number of positional parameters in decimal.
+.TP
+.B \-
+Flags supplied to the shell on invocation or by the \fBset\fR command.
+.TP
+.B ?
+The decimal value returned by the last synchronously executed command.
+.TP
+.B $
+The process number of this shell.
+.TP
+.B !
+The process number of the last background command invoked.
+.TP
+.B _
+The last argument of the previous command.
+.TP
+.B ~
+The shell reserves all variables beginning with a \fB~\fR for its own
+internal use and these variables cannot be accessed by the user.
+.RE
+.PP
+The following parameters are used by the shell:
+.PP
+.RS
+.TP
+.SM \fBCDPATH\fR
+The search path for the \fIcd\fR command.  (Note that because a colon is used
+by \fBMS-DOS\fR to indicate a drive, a semi-colon is used to separate the path
+names instead of a colon - this implies that the CDPATH variable must be set
+using single or double quotes to surround the value).
+.TP
+.SM \fBCOLUMNS\fR
+This variable is contains the number of columns on the screen.
+.TP
+.SM \fBCOMSPEC\fR
+When the shell has to process an \fBMS-DOS\fR \fI.bat\fR or
+\fBOS/2\fR \fI.cmd\fR
+file, it expects the file indicated by the value of this environment variable
+to be an executable program capable of processing the \fBMS-DOS\fR \fI.bat\fR
+or \fBOS/2\fR \fI.cmd\fR file.  The program is invoked with the arguments
+\fB/c file_name\fR.  \s-1\fBCOMSPEC\s+1\fR is parsed and split on white space
+to allow addition parameters to be passed to command processor.  Thus the
+default environment size could be set to 1000 by setting to \fIcommand
+/e:1000\fR.
+.TP
+.SM \fBEDITOR\fR
+If the value of this variable ends in emacs or vi, and the \s-1\fBVISUAL\s+1\fR
+variable is not set, then the corresponding option is turned on.
+.TP
+.SM \fBENV\fR
+If this parameter is set, then parameter substitution is performed on the
+value to generate the pathname of the script that will be executed when the
+shell is invoked (See Invocation below).  This file is typically used for
+alias and function definitions.
+.TP
+.SM \fBETCPROFILE\fR
+If this parameter is set, it contains the full pathname of the
+\fB/etc/profile\fR script which is executed at interactive startup when the
+\fI-0\fR option is given to the shell.  If the parameter is not set, the
+file \fB/etc/profile\fR on the \fIroot\fR drive (see \fIInitialisation File\fR
+is used.
+.TP
+.SM \fBEXTENDED_LINE\fR
+This parameter pointers to a file which contains information for the shell
+about how command lines are to be built for particular external programs and
+how to convert from the format entered to the shell (see \fICommand Line
+Building\fR).
+.TP
+.SM \fBFCEDIT\fR
+The default editor name for the fc command.
+.TP
+.SM \fBHISTFILE\fR
+The file where command history is saved across login sessions.  The default
+value is \fB\s-1$HOME\s+1/history.sh\fR.
+.TP
+.SM \fBHISTSIZE\fR
+The number of commands normally stored for history, default 100.
+.TP
+.SM \fBHOME\fR
+The default argument (home directory) for the \fIcd\fR command.
+.TP
+.SM \fBIFS\fR
+Internal field separators, normally \fBspace\fR, \fBtab\fR, and \fBnew-line\fR.
+.TP
+.SM \fBLINENO\fR
+This variable contains the current line number in the script being
+processed.
+.TP
+.SM \fBLINES\fR
+This variable contains the number of lines on the screen.
+.TP
+.SM \fBMAIL\fR
+If this parameter is set to the name of a mail file \fIand\fR the
+\fB\s-1MAILPATH\s+1\fR parameter is not set, the shell informs the user of
+the arrival of mail in the specified file.
+.TP
+.SM \fBMAILCHECK\fR
+This parameter specifies how often (in seconds) the shell will check for the
+arrival of mail in the files specified by the \fB\s-1MAILPATH\s+1\fR or
+\fB\s-1MAIL\s+1\fR parameters.  If set to 0, the shell will check before each
+prompt.
+.TP
+.SM \fBMAILPATH\fR
+A semi-colon (\fB;\fR) separated list of file names.  If this parameter is set,
+the shell informs the user of the arrival of mail in any of the specified
+files. Each file name can be followed by \fB%\fR and a message that will be
+printed when the modification time changes.  The default message is
+\fI"you have mail"\fR.
+.TP
+.SM \fBOLDPWD\fR
+The previous working directory set by the \fBcd\fR command.
+.TP
+.SM \fBOPTARG\fR
+The value of the last option argument processed by the \fBgetopts\fR special
+command.
+.TP
+.SM \fBOPTIND\fR
+The index of the last option argument processed by the \fBgetopts\fR special
+command.
+.TP
+.SM \fBOSMODE\fR
+The operating system under which the shell is running (0 - \fBMS-DOS\fR;
+1 - \fBOS/2\fR; 2 - \fBMS Windows NT\fR).
+.TP
+.SM \fBPATH\fR
+The search path for commands (see \fIExecution\fR below).  The user may not
+change \fB\s-1PATH\s+1\fR if executing under \fIrsh\fR.  (Note that because a
+colon is used by \fBMS-DOS\fR to indicate a drive, a semi-colon is used to
+separate the path names instead of a colon - this implies that the PATH
+variable must be set using single or double quotes to surround the value).
+The Shell automatically converts Unix format \fB\s-1PATH\s+1\fR assignments
+to \fBMS-DOS\fR format when appropriate.  A assignment is converted if there
+are no semi-colons, no \fB\e\fRs and one or more colons.  If there is only
+one colon, it must not be the second character of the new value.
+.TP
+.SM \fBPATHEXTS\fR
+The variable \fBPATHEXTS\fR contains the list of valid extensions for which
+the shell should check when looking for an file to execute.  This variable
+allows the user to specify a function to execute if a file with an extension
+in \fBPATHEXTS\fR is found (see \fIFunctions\fR below).
+.TP
+.SM \fBPWD\fR
+The present working directory set by the \fBcd\fR command.
+.TP
+.SM \fBPS1\fR
+Primary prompt string, by default \(ga\(ga\fB$ \fR\(aa\(aa.
+.TP
+.SM \fBPS2\fR
+Secondary prompt string, by default \(ga\(ga\fB> \fR\(aa\(aa.
+.TP
+.SM \fBPS3\fR
+Selection prompt string used within a select loop, \(ga\(ga\fB#? \fR\(aa\(aa.
+.TP
+.SM \fBPS4\fR
+The value of this parameter is expanded for parameter substitution and precedes
+each line of an execution trace.  If omitted, the execution trace prompt is
+\(ga\(ga+ \(aa\(aa.
+.TP
+.SM \fBRANDOM\fR
+Each time this parameter is referenced, a random integer is generated.  The
+sequence of random numbers can be initialised by assigning a numeric value to
+\fBRANDOM\fR.
+.TP
+.SM \fBREPLY\fR
+This parameter is set by the \fBselect\fR statement and by the \fBread\fR
+special command when no arguments are supplied.
+.TP
+.SM \fBSECONDS\fR
+Each time this parameter is referenced, the number of seconds since shell
+invocation is returned.  If this parameter is assigned a value, then the value
+returned upon reference will be the value that was assigned plus the number of
+seconds since the assignment.
+.TP
+.SM \fBSHELL\fR
+When the shell is invoked, it scans the environment (see \fIEnvironment\fR
+below) for this name.  If it is found and there is an 'r' in the file name
+part of its value, the shell becomes a restricted shell.  The shell also
+uses this variable to decide which program to spawn to interpret shell
+scripts (see \fIExecution\fR below).
+.TP
+.SM \fBSHMODE\fR
+The compilation mode of shell - 16 or 32 bit.
+.TP
+.SM \fBSTARTWINP\fR
+This variable, set by the user, contains the program to run to start a
+MS Windows application when the shell is running under MS Windows.  The
+variable may contain parameters to that program as well.  The shell assumes
+that the parameters are separated by white space.  If this variable is not
+set, the shell will not start MS Windows applications when running under
+MS Windows.
+.TP
+.SM \fBVISUAL\fR
+If the value of this variable ends in emacs or vi, then the corresponding
+option is turned on.
+.TP
+.SM \fBTMP\fR
+The location of temporary files created by the shell.  If this variable is
+not defined, the Shell uses the \fB\s-1HOME\s+1\fR directory for temporary
+files.  Failing that, the root directory of the current drive is used.
+.TP
+.SM \fBWINTITLE\fR
+Under \fBOS/2\fR, the name of the shell's window.
+.RE
+.PP
+The shell gives default values to \fB\s-1PATH\s+1\fR, \fB\s-1PS1\s+1\fR,
+\fB\s-1PS2\s+1\fR, \fB\s-1SHELL\s+1\fR, \fB\s-1HOME\s+1\fR and
+\fB\s-1IFS\s+1\fR.
+.SS Alternation
+The \fBcsh\fR provides a filename expansion method known as alternation.
+This has been added into this version of the ksh.  When performing filename
+substitution, you can get the shell to create a set of strings for you.  For
+example: \fIexampl{a,b,c,d,e}\fR will expand to \fIexampla\fR \fIexamplb\fR
+\fIexamplc\fR \fIexampld\fR \fIexample\fR.  A common separated set of strings
+in curly braces will be expanded into a set of strings that are passed into
+the command.  The strings are not sorted.  The set of strings may contain
+parameter substitutions.
+.SS Arithmetic Expansion
+A string of the form \fB$((\fIexp\fB))\fR is substituted with the value
+of the arithmetic expression \fIexp\fR.  \fIexp\fR is treated as if it were
+within single quotes.  See \fBArithmetic Evaluation\fR below.
+.SS Blank Interpretation
+After parameter and command substitution, the results of substitution are
+scanned for internal field separator characters (those found in
+\fB\s-1IFS\s+1\fR) and split into distinct arguments where such characters
+are found.  Explicit null arguments (\fB""\fR or \fB\(aa\(aa\fR) are retained.
+Implicit null arguments (those resulting from \fIparameters\fR that have no
+values) are removed.
+.SS File Name Generation
+Following substitution, each command \fIword\fR is scanned for the characters
+\fB*\fR, \fB?\fR and \fB\*(OK\fR.  If one of these characters appears the word
+is regarded as a \fIpattern\fR.  The word is replaced with alphabetically
+sorted file names that match the pattern.  If no file name is found that
+matches the pattern, the word is left unchanged.  The character \fB.\fR at the
+start of a file name or immediately following a \fB/\fR, as well as the
+character \fB/\fR itself, must be matched explicitly.  When matching
+patterns for file names, the shell ignores the case of the pattern and the
+file directory entries.  Generated file names are always in lower case (for
+FAT file systems).  Under HPFS on \fBOS/2\fR, case is preserved.
+.PP
+.RS
+.TP
+\fB*\fR
+Matches any string, including the null string.
+.TP
+\fB?\fR
+Matches any single character.
+.TP
+\fB\*(OK ... \*(CK\fR
+Matches any one of the enclosed characters.  A pair of characters separated by
+\fB-\fR matches any character lexically between the pair, inclusive.  If the
+first character following the opening \(ga\(ga\*(OK\(aa\(aa is a
+\fB\(ga\(ga!\(aa\(aa\fR any character not enclosed is matched.
+.RE
+.PP
+If the shell has to open or create the file \fB/dev/tty\fR or \fB/dev/null\fR
+(which are Unix special files), they are converted to the equivalent
+\fBMS-DOS\fR file names (\fB/dev/con\fR and \fB/dev/nul\fR respectively).  Any
+user programs which could expect \fB/dev/tty\fR or \fB/dev/null\fR as
+arguments must do its own mapping to the \fBMS-DOS\fR equivalents.
+.PP
+The shell checks for valid FAT filenames (single dot, not at the beginning).
+Invalid dots are converted to \fB~\fR.  A warning message is displayed if the
+shell detects an invalid file name.
+.SS Quoting
+The following characters have a special meaning to the shell and cause
+termination of a word unless quoted:
+.RS
+.PP
+\fB;  &  (  )  \(br  ^  <  >  new-line  space  tab\fR
+.RE
+.PP
+A character may be \fIquoted\fR (i.e., made to stand for itself) by preceding
+it with a \fB\e\fR.  The pair \fB\enew-line\fR is ignored.  All characters
+enclosed between a pair of single quote marks (\fB\(aa\(aa\fR), except a
+single quote, are quoted.  Inside double quote marks (\fB""\fR), parameter
+and command substitution occurs and \fB\e\fR quotes the characters \fB\e\fR,
+\fB\(ga\fR, \fB"\fR, and \fB$\fR. \fB"$*"\fR is equivalent to \fB"$1 $2 ..."\fR,
+whereas \fB"$@"\fR is equivalent to \fB"$1" "$2" ...\fR.
+.SS Arithmetic Evaluation
+An ability to perform integer arithmetic is provided with the special command
+\fBlet\fR.  Evaluations are performed using \fIlong\fR arithmetic.  Constants
+are of the form \fIbase#n\fR where \fIbase\fR is a decimal number between two
+and thirty-six representing the arithmetic base and \fIn\fR is a number in
+that base.  If \fIbase#\fR is omitted then base 10 is used.
+.PP
+An arithmetic expression uses nearly the same syntax precedence, and
+associatively of expression as C.  The following set of operators, listed in
+order of decreasing precedence, have been implemented:
+.PP
+.TS
+lw(1.5i) lw(4i).
+- + ! ~ ++ --	T{
+unary minus/plus, logical NOT, complement, {pre, post}{in,de}crement
+T}
+&	Logical AND
+^	Logical XOR
+|	Logical OR
+*  /  %	multiplication, division, remainder
++  -	addition, subtraction
+<< >>	Logical shift left and right
+<=  >=  <  >	comparison
+==  !=	equality  inequality
+&&	Logical AND
+|| ^^	Logical OR, XOR
+? :	Ternary operator
+T{
+= += -= *= /= %= &= ^= |= <<= >>= &&= ||= ^^=
+T}	assignment
+.TE
+.PP
+The operators \fB&&\fR, \fB||\fR, \fB&&=\fR and \fB||=\fR are short-circuiting
+and only one of the latter two expressions in a ternary operator is evaluated.
+Note the precedence of the logical AND, XOR and OR operators.
+.PP
+Sub-expressions in parentheses \fI()\fR are evaluated first and can be used to
+override the above precedence rules.
+.PP
+Named parameters can be reference by name within an expression without
+using the parameter substitution syntax.
+.PP
+Since many of the arithmetic operators require quoting, an alternative form of
+the \fBlet\fR command is provided.  For any command which begins with a
+\fB((\fR, all the characters until a matching \fB))\fR are treated as a quoted
+expression.  More precisely, \fB((...))\fR  is equivalent to \fBlet "..."\fR.
+.SS Prompting
+When used interactively, the shell prompts with the value of \fBPS1\fR
+before reading a command.  If at any time a new-line is typed and further
+input is needed to complete a command, the secondary prompt (i.e., the value
+of \fB\s-1PS2\s+1\fR) is issued.
+.PP
+Many people like to have the shell provide them with useful information in
+their prompt.  To accommodate this, the shell recognises special sequences of
+characters in the values of \fBPS1\fR and \fBPS2\fR, and substitutes the
+appropriate information for them.  The special sequences and what they signify
+are:
+.PP
+.RS
+.TP
+.SM \fB%d\fR
+Place the current date, in the form \s-1DAY DD-MM-YY\s+1 into the prompt.
+.TP
+.SM \fB%e\fR
+Place the current event number (as defined by the \fBhistory\fR command) into
+the prompt.  If history evaluation has been turned off (via \fBhistory -d\fR),
+no number will be substituted in (i.e. the \fB%e\fR will be removed).
+.TP
+.SM \fB%n\fR
+Place the current working drive into the prompt.
+.TP
+.SM \fB%p\fR
+Place the current working directory into the prompt.
+.TP
+.SM \fB%t\fR
+Place the current time of day, in the form \s-1HH:MM\s+1 into the prompt.
+The time is on a 24 hour clock, i.e. 1:30 in the afternoon will be 13:30.
+.TP
+.SM \fB%v\fR
+Place the operating system version number, in the form
+\s-1\fIOS name\fR MM:MM\s+1 into the prompt.
+.TP
+.SM \fB%%\fR
+Place the character \fI%\fR into the prompt.
+.TP
+.SM \fB\exxx\fR
+Place the character \fI\exxx\fR into the prompt.  The processing of escape
+sequences is the same as that for \fBecho\fR.
+.RE
+.PP
+Some of these facilities are of more use than others.
+.SS Input/Output
+Before a command is executed, its input and output may be redirected using a
+special notation interpreted by the shell.  The following may appear anywhere
+in a simple-command or may precede or follow a \fIcommand\fR and are \fInot\fR
+passed on to the invoked command; substitution occurs before \fIword\fR or
+\fIdigit\fR is used:
+.PP
+.TP 14
+\fB<word\fR
+Use file \fIword\fR as standard input (file descriptor 0).
+.TP
+\fB>word\fR
+Use file \fIword\fR as standard output (file descriptor 1).  If the file does
+not exist it is created; otherwise, it is truncated to zero length.
+.TP
+\fB>\h@-.3m@>word\fR
+Use file \fIword\fR as standard output.  If the file exists output is appended
+to it (by first seeking to the end-of-file); otherwise, the file is created.
+.TP
+\fB<\h@-.3m@<\fR\*(OK\fB-\fR\*(CK\fBword\fR
+The shell input is read up to a line that is the same as \fIword\fR, or to an
+end-of-file.  The resulting document becomes the standard input.  If any
+character of \fIword\fR is quoted, no interpretation is placed upon the
+characters of the document; otherwise, parameter and command substitution
+occurs, (un-escaped) \fB\enew-line\fR is ignored, and \fB\e\fR must be used to
+quote the characters \fB\e\fR, \fB$\fR, \fB\(ga\fR, and the first character of
+\fIword\fR.  If \fB-\fR is appended to \fB<\h@-.3m@<\fR, all leading tabs are
+stripped from \fIword\fR and from the document.
+.TP
+\fB<\h@-.1m@&digit\fR
+Use the file associated with file descriptor \fIdigit\fR as standard input.
+Similarly for the standard output using \fB>\h@-.1m@&digit\fR.
+.TP
+\fB<\h@-.1m@&\h@-.1m@\-\fR
+The standard input is closed.  Similarly for the standard output using
+\fB>\h@-.1m@&\h@-.1m@\-\fR.
+.TP
+\fBn<\h@-.3m@>word\fR
+causes the file \fIword\fR to be opened on file descriptor \fIn\fR for both
+reading and writing.  The file must already exist.
+.PP
+If any of the above is preceded by a digit, the file descriptor which will be
+associated with the file is that specified by the digit (instead of the
+default 0 or 1).  For example:
+.RS
+.PP
+\&... 2>&1
+.RE
+.PP
+associates file descriptor 2 with the file currently associated with file
+descriptor 1.
+.PP
+The order in which redirections are specified is significant.  The shell
+evaluates redirections left-to-right.  For example:
+.RS
+.PP
+\&... 1>\fIxxx\fR 2>&1
+.RE
+.PP
+first associates file descriptor 1 with file \fIxxx\fR.  It associates file
+descriptor 2 with the file associated with file descriptor 1 (i.e. \fIxxx\fR).
+If the order of redirections were reversed, file descriptor 2 would be
+associated with the terminal (assuming file descriptor 1 had been) and file
+descriptor 1 would be associated with file \fIxxx\fR .
+.PP
+The environment for the execution of a command contains the file descriptors
+of the invoking shell as modified by input/output specifications.
+.PP
+Redirection of output is not allowed in the restricted shell.
+.SS Environment
+The \fIenvironment\fR (see \fIenviron\fR(5)) is a list of name-value pairs
+that is passed to an executed program in the same way as a normal argument
+list.  The shell interacts with the environment in several ways.  On invocation,
+the shell scans the environment and creates a parameter for each name found,
+giving it the corresponding value.  If the user modifies the value of any of
+these parameters or creates new parameters, none of these affects the
+environment unless the \fBexport\fR command is used to bind the shell's
+parameter to the environment (see also \fBset -a\fR).  A parameter may be
+removed from the environment with the \fBunset\fR command.  The environment
+seen by any executed command is thus composed of any unmodified name-value
+pairs originally inherited by the shell, minus any pairs removed by \fBunset\fR,
+plus any modifications or additions, all of which must be noted in \fBexport\fR
+commands.
+.PP
+The environment for any \fIsimple-command\fR may be augmented by prefixing it
+with one or more assignments to parameters.  Thus:
+.RS
+.PP
+\s-1TERM\s+1\(eq450 cmd args
+.RE
+.PP
+and
+.RS
+.PP
+(export \s-1TERM\s+1; \s-1TERM\s+1\(eq450; cmd args)
+.RE
+.PP
+are equivalent (as far as the execution of \fIcmd\fR is concerned).
+.PP
+If the \fB-k\fR flag is set, \fIall\fR keyword arguments are placed in the
+environment, even if they occur after the command name.  The following first
+prints \fBa\(eqb c\fR and \fBc\fR:
+.PP
+.RS
+.nf
+echo a\(eqb c
+set -k
+echo a\(eqb c
+.fi
+.RE
+.SS Signals
+The \s-1INTERRUPT\s+1 and \s-1QUIT\s+1 signals for an invoked command are
+ignored if the command is followed by \fB&\fR; otherwise signals have the
+values inherited by the shell from its parent, with the exception of signal 11
+(but see also the \fBtrap\fR command below).
+.SS Command Re-entry
+The text of the last \fB\s-1HISTSIZE\s+1\fR (default: 100) commands entered
+from a terminal device is saved in a \fIhistory\fR file.  The file
+\fB\s-1$HOME\s+1/history.sh\fR is used if the \fB\s-1HISTFILE\s+1\fR variable
+is not set.  The special command \fBfc\fR
+is used to list or edit a portion of this file.  The portion of the file to be
+edited or listed can be selected by number or by giving the first character or
+characters of the command.  A single command or range of commands can be
+specified.  If you do not specify an editor program as an argument to
+\fBfc\fR, the value of the parameter \fB\s-1FCEDIT\s+1\fR is used.  The edited
+command is printed and re-executed upon leaving the editor.  The editor name
+\fB\-\fR is used to skip the editing phase and to re-execute the command.  In
+this case a substitution parameter of the form \fIold\fB=\fInew\fR can be used
+to modify the command before execution.  For example, if \fBr\fR is aliased to
+\fB`fc \-e \-'\fR, typing `\fBr bad=good c\fR' re-executes the most recent
+command that starts with the letter \fBc\fR and replaces the first occurrence
+of the string \fBbad\fR with the string \fBgood\fR.
+.SS History
+When reading input from an interactive terminal and \fBvi\fR, \fBemacs\fR or
+\fBgmacs\fR input editing mode has not been selected (see \fBIn-line Editing
+Options\fR), a \(ga\(ga!\(aa\(aa at the
+start of a line signals to the shell that it should attempt to perform a history
+substitution.  A history substitution is a short-hand method which allows the
+user to recall a previous command for execution or editing.  The recalled
+command is placed in the command line for editing or passing to the rest of
+the shell for normal processing.  A history substitution takes the form:
+.RS
+.PP
+\fB!\fR \*(OK ! \(br \fIstr\fR \(br \fInum\fR \*(CK \fIterminator\fR
+.RE
+.PP
+\fB!!\fR will place the previous command in the command line.
+\fB!\fInum\fR will place the history command with the specified number
+in the command line.  \fB!\fIstr\fR will find the most recent command
+line that started with the characters in \fIstr\fR.
+.PP
+The \fIterminator\fR determines what action is performed after the history
+line has been found.  If the original history command is entered using the
+\fB<return>\fR key, the new command line is passed directly to the shell.
+If the \fB<end>\fR key is pressed, the new command line can be edited in the
+manner described below.
+.SS Command Line Editing
+When reading input from an interactive terminal, certain keystrokes allow
+the current input line to be edited.  The following keystrokes
+corresponding to the following functions are defined in the initialisation
+file \fBsh.ini\fR.  The keywords in the initialisation file which provide
+the functions are listed below:
+.TP
+.SM \fBRight\fR
+Move the cursor right one character
+.TP
+.SM \fBWordRight\fR
+Move the cursor right one word
+.TP
+.SM \fBLeft\fR
+Move the cursor left one character
+.TP
+.SM \fBWordLeft\fR
+Move the cursor left one word
+.TP
+.SM \fBPrevious\fR
+Get the previous command from the history file
+.TP
+.SM \fBNext\fR
+Get the next command from the history file
+.TP
+.SM \fBInsert\fR
+Toggle insert/overwrite mode (note the shape of the cursor changes to
+indicate the current mode)
+.TP
+.SM \fBDeleteRight\fR
+Delete the current character unless the cursor is at the end of line when
+no action is taken
+.TP
+.SM \fBStart\fR
+Move the cursor to the start of the command
+.TP
+.SM \fBComplete\fR
+Attempt to complete the filename.  The shell attempts to complete the file
+name at the current cursor position.  The file name is delimited by white
+space characters.  If the shell is unable to complete the file name (ie no
+match can be found in the appropriate directory), the bell is rung.  If a
+single match is found, the new file name is displayed.  If multiple matches
+are found, the file name is replaced by the longest non-unique part of the
+file name and the bell is rung.
+.TP
+.SM \fBEnd\fR
+Move the cursor to the end of the command, unless the first character of
+the command is a \fB!\fR, in which case the appropriate history search is
+done.  The cursor is placed at the end of the command line.
+.TP
+.SM \fBFlush\fR
+Delete to the end of the line
+.TP
+.SM \fBScanBackward\fR
+Search backwards from the current history command for the next match against
+the last history request or the string currently in the command line if
+there has been no previous history request.
+.TP
+.SM \fBScanForeward\fR
+Search forewards from the current history command for the next match against
+the last history request or the string currently in the command line if
+there has been no previous history request.
+.TP
+.SM \fBClear\fR
+Erase the complete line.
+.TP
+.SM \fBClearScreen\fR
+Clears the complete screen.  This function is only available under \fBOS/2\fR.
+.TP
+.SM \fBDirectory\fR
+Display the file name list matching the partially entered file name under
+the cursor.  If no matches are found the bell is rung.  To display the
+whole directory, enter the directory name followed by a slash \fB/\fR.
+After the directory listing has been displayed, the entered command line is
+redisplayed.
+.TP
+.SM \fBDeleteLeft\fR
+Delete the character to the left of the cursor.
+.TP
+.SM \fBReturn\fR
+Execute the command line, unless the first character of the command is a
+\fB!\fR, in which case the appropriate history processing is done.  \fIThis
+is the actual key pressed and cannot be modified by the initialisation file.\fR
+.TP
+.SM \fBJobs\fR
+Print a list of the child processes of the shell. This function is only
+available under \fBOS/2\fR.
+.TP
+.SM \fBTranspose\fR
+Transpose the two characters under the cursor.
+.TP
+.SM \fBQuote\fR
+Disable any special processing for the next keystroke.
+.RE
+.SS In-line Editing Options
+Normally, each command line entered from a terminal device is simply typed
+followed by a new-line (`RETURN' or `LINE FEED'), see previous section.  If
+the \fBvi\fR option is active, the user can edit the command line.  To be in
+this edit mode \fBset\fR
+the \fBvi\fR option.  An editing option is automatically selected each time
+the \fB\s-1VISUAL\s+1\fR or \fB\s-1EDITOR\s+1\fR variable is assigned a value
+ending in either of these option names.
+.PP
+The editing mode implements a concept where the user is looking through a
+window at the current line.  The window width is the value of
+\fB\s-1COLUMNS\s+1\fR if it is defined, otherwise \fI80\fR.  If the line is
+longer than the window width
+minus two, a mark is displayed at the end of the window to notify the user.
+As the cursor moves and reaches the window boundaries the window will be
+centred about the cursor.  The mark is a \fB>\fR (\fB<\fR, \fB*\fR) if the
+line extends on the right (left, both) side(s) of the window.
+.PP
+The search commands in each edit mode provide access to the history file.
+Only strings are matched, not patterns, although a leading \fB^\fR in the
+string restricts the match to begin at the first character in the line.
+.SS Vi Editing Mode
+There are two typing modes.  Initially, when you enter a command you are in
+the input mode.  To edit, the user enters control mode by typing ESC
+(\fB\e033\fR) and moves the cursor to the point needing correction and then
+inserts or deletes characters or words as needed.  Most control commands
+accept an optional repeat count prior to the command.
+.PP
+In edit mode, the key mappings defined in the initialisation file are mapped
+onto the appropriate \fBvi\fR edit command.
+.PP
+\fBInput Edit Commands\fR
+.PP
+By default the editor is in input mode.
+.RS
+.TP
+.SM \fIbackspace\fR
+Deletes previous character.
+.TP
+.SM \fBCtrl-W\fR
+Deletes the previous blank separated word.
+.TP
+.SM \fBCtrl-D\fR
+Terminates the shell.
+.TP
+.SM \fBCtrl-V\fR
+Escapes the next character.  Editing characters can be entered in a command
+line or in a search string if preceded by a \fBCtrl-V\fR.  The \fBCtrl-V\fR
+removes the next character's editing features (if any).
+.TP
+.SM \fB\e\fR
+Escapes the next \fIediting\fR character.
+.RE
+.PP
+\fBMotion Edit Commands\fR
+.PP
+These commands move the cursor:
+.RS
+.TP
+.SM [\fICount\fR]\fBl\fR
+Moves the cursor forward (right) one character.
+.TP
+.SM [\fICount\fR]\fBw\fR
+Moves the cursor forward one alphanumeric word.
+.TP
+.SM [\fICount\fR]\fBW\fR
+Moves the cursor to the beginning of the next word that follows a blank.
+.TP
+.SM [\fICount\fR]\fBe\fR
+Moves the cursor to end of the current word.
+.TP
+.SM [\fICount\fR]\fBE\fR
+Moves the cursor to end of the current blank-separated word.
+.TP
+.SM [\fICount\fR]\fBh\fR
+Moves the cursor backward (left) one character.
+.TP
+.SM [\fICount\fR]\fBb\fR
+Moves the cursor backward one word.
+.TP
+.SM [\fICount\fR]\fBB\fR
+Moves the cursor to the previous blank-separated word.
+.TP
+.SM [\fICount\fR]\fB|\fR
+Moves the cursor to the column specified by the \fIcount\fR parameter.
+.TP
+.SM [\fICount\fR]\fBfc\fR
+Finds the next character \fIc\fR in the current line.
+.TP
+.SM [\fICount\fR]\fBFc\fR
+Finds the previous character \fIc\fR in the current line.
+.TP
+.SM [\fICount\fR]\fBtc\fR
+Equivalent to \fBf\fR followed by \fBh\fR.
+.TP
+.SM [\fICount\fR]\fBTc\fR
+Equivalent to \fBF\fR followed by \fBl\fR.
+.TP
+.SM [\fICount\fR]\fB;\fR
+Repeats for the number of times specified by the \fIcount\fR parameter the
+last single-character find command: \fBf\fR, \fBF\fR, \fBt\fR, or \fBT\fR.
+.TP
+.SM [\fICount\fR]\fB,\fR
+Reverses the last single-character find command the number of times specified
+by the \fIcount\fR parameter.
+.TP
+.SM \fB0\fR
+Moves the cursor to start of line.
+.TP
+.SM \fB^\fR
+Moves the cursor to first non-blank character in line.
+.TP
+.SM \fB$\fR
+Moves the cursor to end of line.
+.RE
+.PP
+\fBSearch Edit Commands\fR
+.PP
+These commands access your command history:
+.RS
+.TP
+.SM [\fICount\fR]\fBk\fR
+Fetches the previous command.  Each time \fBk\fR is entered, the previous
+command is accessed.
+.TP
+.SM [\fICount\fR]\fB-\fR
+Equivalent to \fBk\fR.
+.TP
+.SM [\fICount\fR]\fBj\fR
+Fetches the next command.  Each time \fBj\fR is entered, the next command
+is accessed.
+.TP
+.SM [\fICount\fR]\fB+\fR
+Equivalent to \fBj\fR.
+.TP
+.SM [\fICount\fR]\fBG\fR
+Fetches the command whose number is specified by the \fIcount\fR parameter.
+The default is the least recent history command.
+.TP
+.SM \fB/\fIString\fR
+Searches backward through history for a previous command containing the
+specified \fIstring\fR.  The \fIstring\fR is terminated by a RETURN or
+new-line character.  If the specified string is preceded by a \fB^\fR (caret),
+the matched line must begin with \fIstring\fR.  If the value of the \fIstring\fR
+parameter is null, the previous string is used.
+.TP
+.SM \fB?\fIString\fR
+Same as \fB/\fIString\fR except that the search is in the forward direction.
+.TP
+.SM \fBn\fR
+Searches for the next match of the last pattern to \fB/\fR or \fB?\fR commands.
+.TP
+.SM \fBN\fR
+Searches for the next match of the last pattern to \fB/\fR or \fB?\fR commands,
+but in the opposite direction.  Searches history for the \fIstring\fR entered
+by the previous \fB/\fR command.
+.RE
+.PP
+\fBText Modification Edit Commands\fR
+.PP
+These commands modify the line:
+.RS
+.TP
+.SM \fBa\fR
+Enters the input mode and enters text after the current character.
+.TP
+.SM \fBA\fR
+Appends text to the end of the line.  Equivalent to \fB$a\fR.
+.TP
+.PD 0
+\s-1[\fICount\fR]\fBc\fIMotion\fR\s+1
+.TP
+\s-1\fBc\fR[\fICount\fR]\fIMotion\fR\s+1
+.PD
+Deletes the current character through the character to which the \fImotion\fR
+parameter specifies to move the cursor, and enters input mode.  If the value
+of the \fImotion\fR parameter is \fBc\fR, the entire line is deleted and the
+input mode is entered.
+.TP
+.SM \fBC\fR
+Deletes the current character through the end of the line and enters input
+mode.  Equivalent to \fBc$\fR.
+.TP
+.SM \fBS\fR
+Equivalent to \fBcc\fR.
+.TP
+.SM \fBD\fR
+Deletes the current character through the end of line.  Equivalent to \fBd$\fR.
+.TP
+.PD 0
+\s-1[\fICount\fR]\fBd\fIMotion\fR\s+1
+.TP
+\s-1\fBd\fR[\fICount\fR]\fIMotion\fR\s+1
+.PD
+Deletes the current character up to and including the character specified by
+the \fImotion\fR parameter.  If \fImotion\fR is \fBd\fR, the entire line is
+deleted.
+.TP
+.SM \fBi\fR
+Enters the input mode and inserts text before the current character.
+.TP
+.SM \fBI\fR
+Inserts text before the beginning of the line.  Equivalent to \fB0i\fR.
+.TP
+.SM [\fICount\fR]\fBP\fR
+Places the previous text modification before the cursor.
+.TP
+.SM [\fICount\fR]\fBp\fR
+Places the previous text modification after the cursor.
+.TP
+.SM \fBR\fR
+Enters the input mode and types over the characters on the screen.
+.TP
+.SM [\fICount\fR]\fBr\fIc\fR
+Replaces the number of characters specified by the \fIcount\fR parameter,
+starting at the current cursor position, with the characters specified by
+the \fIc\fR variable.  Advances the cursor after the characters are replaced.
+.TP
+.SM [\fICount\fR]\fBx\fR
+Deletes the current character.
+.TP
+.SM [\fICount\fR]\fBX\fR
+Deletes the preceding character.
+.TP
+.SM [\fICount\fR]\fB.\fR
+Repeats the previous text modification command.
+.TP
+.SM [\fICount\fR]\fB~\fR
+Inverts the case of the number of characters specified by the \fIcount\fR
+parameter, starting at the current cursor position, and advances the cursor.
+.TP
+.SM [\fICount\fR]\fB_\fR
+Causes the word specified by the \fIcount\fR parameter word of the previous
+command to be appended, and enters input mode.  The last word is used if the
+\fIcount\fR parameter is omitted.
+.TP
+.SM \fB*\fR
+Appends an \fB*\fR (asterisk) to the current word and attempts filename
+substitution.  If no match is found, it rings the bell.  Otherwise, the word
+is replaced by the matching pattern and input mode is entered.
+.TP
+.SM \fB\e\fR
+File-name completion.  Replaces the current word with the longest common
+prefix of all file names matching the current word with an asterisk appended.
+If the match is unique, a \fB/\fR (slash) is appended if the file is a
+directory and a space is appended if the file is not a directory.
+.RE
+.PP
+\fBOther Edit Commands\fR
+.PP
+Other miscellaneous edit commands include:
+.RS
+.TP
+.PD 0
+\s-1[\fICount\fR]\fBy\fIMotion\fR\s+1
+.TP
+\s-1\fBy\fR[\fICount\fR]\fIMotion\fR\s+1
+.PD
+Yanks the current character through the character to which the \fImotion\fR
+parameter specifies to move the cursor and puts these characters into the
+delete buffer.  The text and cursor are unchanged.
+.TP
+.SM \fBY\fR
+Yanks from the current position to the end of the line.  Equivalent to \fBy$\fR.
+.TP
+.SM \fBu\fR
+Undoes the last text-modifying command.
+.TP
+.SM \fBU\fR
+Undoes all the text-modifying commands performed on the line.
+.TP
+.SM [\fICount\fR]\fBv\fR
+Returns the command \fBfc -e ${VISUAL:-${EDITOR:-vi}}\fR \fIcount\fR in the
+input buffer.  If the \fIcount\fR parameter is omitted, then the current line
+is used.
+.TP
+.SM \fBCtrl-L\fR
+Line-feeds and prints the current line.  Has effect only in control mode.
+.TP
+.SM \fBCtrl-J\fR
+(New line) Executes the current line, regardless of the mode.
+.TP
+.SM \fBCtrl-M\fR
+(Return) Executes the current line, regardless of the mode.
+.TP
+.SM \fB#\fR
+Sends the line after inserting a \fB#\fR (hash sign) in front of the line.
+Useful for causing the current line to be inserted in the history without
+being executed.
+.TP
+.SM \fB=\fR
+Lists the file names that match the current word as if an asterisk were
+appended to it.
+.TP
+.SM \fB@Letter\fR
+Searches the alias list for an alias named _Letter.  If an alias of this name
+is defined, its value is placed into the input queue for processing.
+.RE
+.SS EMACS Editing Mode
+When the \fBemacs\fR option is set, interactive input line editing is enabled.
+This mode is slightly different from the emacs mode in AT&T's KornShell.
+In this mode various \fIediting commands\fR (typically bound to one or more
+control characters) cause immediate actions without waiting for a new-line.
+Several \fIediting commands\fR are bound to particular control characters when
+the shell is invoked; these bindings can be changed using the \fBbind\fR
+command.
+.PP
+The following \fIediting commands\fR are available, where a caret indicates
+the control character, and \s-1^[\s0 is the ASCII \s-2ESC\s0 character.  Note
+that \fIediting command\fR names are used only with the \fBbind\fR command.
+The default bindings were chosen to resemble corresponding EMACS key bindings.
+.PP
+.TS
+lw(1.5i) lw(1i) lw(2.5i).
+_
+Editing command	Default	Function
+_
+\fBprefix-3\fR	0xE0	T{
+Introduces a 2-character command sequence.  This prefix allows the user to
+map PC function keys onto commands.  The second character is the IBM scan
+code value of the function key to be assigned.  For example: \fIF1\fR has a
+scan code of \fB;\fR; \fICtrl-F1\fR has a scan code of \fB^\fR; \fIShift-F1\fR
+has a scan code of \fBT\fR; \fIAlt-F1\fR has a scan code of \fBh\fR.
+T}
+\fBbeginning-of-line\fR	Ctrl-A	Moves the cursor to start of line.
+\fBbackward-char\fR	Ctrl-B	Moves the cursor backward (left) one character.
+\fBeot-or-delete\fR	Ctrl-D	T{
+Acts as \fIend-of-file\fR if alone on a line; otherwise deletes current
+character.
+T}
+\fBend-of-line\fR	Ctrl-E	Moves the cursor to end of line.
+\fBforward-char\fR	Ctrl-F	Moves the cursor forward one position.
+\fBabort\fR	Ctrl-G	T{
+Useful as a response to a request for a \fBsearch-history\fR pattern in order
+to abort the search.
+T}
+\fBdelete-char-backward\fR	Ctrl-H	T{
+Deletes the previous character.
+T}
+\fBnewline\fR	T{
+.nf
+Ctrl-M
+Ctrl-J
+.fi
+T}	T{
+Executes the current line.
+T}
+\fBkill-to-eol\fR	Ctrl-K	T{
+Deletes from the cursor to the end of the line.  If preceded by a numerical
+parameter whose value is less than the current cursor position, this editing
+command deletes from the given position up to the cursor.  If preceded by a
+numerical parameter whose value is greater than the current cursor position,
+this editing command deletes from the cursor up to given cursor position.
+T}
+\fBredraw\fR	Ctrl-L	Line-feeds and print the current line.
+\fBdown-history\fR	Ctrl-N	T{
+Fetches the next command line.  Each time Ctrl-N is entered, the next command
+line forward in time is accessed.
+T}
+\fBoperate\fR	Ctrl-O	T{
+Executes the current line and fetches the next line relative to the
+current line from the history file.
+T}
+\fBup-history\fR	Ctrl-P	T{
+Fetches the previous command.  Each time \fBCtrl-P\fR is entered, the previous
+command back in time is accessed.  Moves back one line when not on the first
+line of a multiple line command.
+T}
+\fBsearch-history\fR	Ctrl-R \fIString\fR	T{
+Reverses search history for a previous command line containing the string
+specified by the \fBString\fR parameter.  If a value of zero is given, the
+search is forward.  The specified \fBstring\fR is terminated by an \fIEnter\fR
+or \fInew-line\fR character.  If the \fBstring\fR is preceded by a \fB^\fR
+(caret character), the matched line must begin with \fBString\fR.  If the
+\fBString\fR parameter is omitted, then the next command line containing the
+most recent \fBString\fR is accessed.  In this case, a value of zero reverses
+the direction of the search.
+T}
+\fBtranspose-chars\fR	Ctrl-T	T{
+Transposes the current character with the next character in \fBemacs\fR mode.
+Transposes the two previous characters in \fBgmacs\fR mode.
+T}
+\fBkill-line\fR	Ctrl-U	Deletes the entire input line.
+\fBkill-region\fR	Ctrl-W	Kills from the cursor to the mark.
+\fBprefix-2\fR	Ctrl-X	T{
+Introduces a 2-character command sequence.
+T}
+\fBpop-text\fR	Ctrl-Y	T{
+Restores the last item removed from line.  (Yanks the item back to the line.)
+T}
+\fBsearch-char-forward\fR	Ctrl-] \fIc\fR	T{
+Moves the cursor forward on the current line to the indicated character.
+T}
+\fBsearch-char-backward\fR	T{
+\fIPrefix-1\fR Ctrl-] \fIc\fR
+T}	T{
+Search backwards in the current line for the next keyboard character.
+Moves the cursor backwards on the current line to the indicated character.
+T}
+\fBquote\fR	T{
+.nf
+Ctrl-^
+\e
+.fi
+T}	T{
+Escapes the next character.  Editing characters can be entered in a command
+line or in a search string if preceded by a \fIquote\fR command.  The escape
+removes the next character's editing features, if any.
+T}
+\fBeot\fR	Ctrl-_	Acts as an end-of-file.
+\fBcomment-execute\fR	\fIPrefix-1\fR #	T{
+Inserts a \fB#\fR (pound sign) at the beginning of the line and then execute
+the line.  This causes a comment to be inserted in the history file.
+T}
+\fBcomplete-list\fR	\fIPrefix-1\fR *	T{
+Attempts file name substitution on the current word.  An asterisk is appended
+if the word doesn't match any file or contain any special pattern characters.
+T}
+T{
+.nf
+\fBprev-hist-word\fR
+\fBcopy-last-arg\fR
+.fi
+T}	T{
+.nf
+\fIPrefix-1\fR .
+\fIPrefix-1\fR _
+.fi
+T}	T{
+Inserts on the line the last word of the previous command.  If preceded by a
+numeric parameter, the value of this parameter determines which word to insert
+rather than the last word.  Note I/O redirections do not count as words of the
+command.
+T}
+\fBbeginning-of-history\fR	\fIPrefix-1\fR <	T{
+Fetches the least recent (oldest) history line.
+T}
+\fBlist\fR	\fIPrefix-1\fR =	T{
+Prints a sorted, columnated list of file names (if any) that can complete the
+partial word containing the cursor.  Directory names have \fB/\fR post-pended
+to them, and executable file names are followed by \fB*\fR.
+T}
+\fBend-of-history\fR	\fIPrefix-1\fR >	T{
+Fetches the most recent (youngest) history line.
+T}
+\fBbackward-word\fR	\fIPrefix-1\fR B	T{
+Moves the cursor backward one word.
+T}
+\fBcapitalise-word\fR	\fIPrefix-1\fR C	T{
+Capitalises the current word.
+T}
+\fBdelete-word-backward\fR 	T{
+.nf
+\fIPrefix-1\fR Ctrl-H
+\fIPrefix-1\fR H
+.fi
+T}	T{
+Deletes the previous word.
+T}
+\fBdelete-word-forward\fR	\fIPrefix-1\fR D	T{
+Deletes the current word.
+T}
+\fBprefix-1\fR	ESC	T{
+Introduces a 2-character command sequence.  Three introducers are
+available.
+T}
+\fBcomplete\fR	\fIPrefix-1\fR ESC	T{
+File-name completion.  Replaces the current word with the longest common
+prefix of all file names that match the current word with an asterisk appended.
+If the match is unique, a \fB/\fR (slash) is appended if the file is a directory
+and a space is appended if the file is not a directory.
+T}
+\fBforward-word\fR	\fIPrefix-1\fR F	T{
+Moves the cursor forward one word (a string of characters consisting of only
+letters, digits, and underscores).
+T}
+\fBdowncase-word\fR	\fIPrefix-1\fR L	T{
+Changes the current word to lowercase.
+T}
+\fBmultiply\fR	\fIPrefix-1\fR M	T{
+Multiplies the parameter of the next command by 4.
+T}
+\fBupcase-word\fR	\fIPrefix-1\fR U	T{
+Change the current word to upper-case.
+T}
+	\fIPrefix-1\fR \fBDigits\fR	T{
+Defines the numeric parameter.  The \fBdigits\fR are taken as a parameter to
+the next command.  The commands that accept a parameter are \fIforward-char\fR,
+\fIbackward-char\fR, \fIbackward-word\fR, \fIforward-word\fR,
+\fIdelete-word-forward\fR, \fIdelete-char-forward\fR,
+\fIdelete-word-backward\fR, \fIdelete-char-backward\fR,
+\fIprev-hist-word\fR, \fIcopy-last-arg\fR, \fIup-history\fR, \fIdown-history\fR,
+\fIsearch-history\fR, \fIupcase-word\fR, \fIdowncase-word\fR,
+\fIcapitalise-word\fR, \fIupcase-char\fR, \fIdowncase-char\fR,
+\fIcapitalise-char\fR, \fIkill-to-eol\fR, \fIsearch-char-forward\fR and
+\fIsearch-char-backward\fR.
+T}
+\fBcapitalise-char\fR	\fIPrefix-1\fR c	T{
+Capitalises the current character.
+T}
+\fBdowncase-char\fR	\fIPrefix-1\fR l	T{
+Change the character under the cursor to lower case.
+T}
+\fBpush-text\fR	\fIPrefix-1\fR p	T{
+Pushes the region from the cursor to the mark on the stack.
+T}
+\fBset-mark\fR	\fIPrefix-1\fR space	Sets a mark.
+\fBupcase-char\fR	\fIPrefix-1\fR u	T{
+Change the character under the cursor to upper case.
+T}
+\fByank-pop\fR	\fIPrefix-1\fR y	T{
+Immediately after a \fByank\fR, replaces the inserted text string with the
+next previous killed text string.
+T}
+\fBexchange-point-and-mark\fR	T{
+\fIPrefix-2\fR Ctrl-X
+T}	T{
+Interchanges the cursor and the mark.
+T}
+\fBjobs\fR	\fIPrefix-2\fR j	T{
+Print a list of the current jobs (OS/2 only).
+T}
+\fBauto-insert\fR		T{
+Simply causes the character to appear as literal input.  (Most ordinary
+characters are bound to this.)
+T}
+\fBdelete-char-forward\fR		T{
+Deletes the character after the cursor.
+T}
+\fBno-op\fR		T{
+Does nothing.
+T}
+\fBclear-screen\fR		Clear the screen and print the current line.
+\fBreset\fR		Reset input, clearing the current line and yank buffers.
+	\fIPrefix-1\fR Ctrl-] \fBLetter\fR	T{
+Search the alias list for an alias named \fI_Letter\fR.  If an alias of this
+name is defined, its value is placed into the input queue.
+T}
+	\fIPrefix-1\fR \fBLetter\fR	T{
+Search the alias list for an alias named \fI_Letter\fR.  If an alias of this
+name is defined, its value is placed into the input queue.  The \fBLetter\fR
+parameter must not specify one of the escape functions.
+T}
+.TE
+.SS Initialisation File
+When the shell is run in interactive mode, the Command Line Editing keys
+and other user configuration parameters are read from the initialisation
+file \fIsh.ini\fR.  This shell looks for this file in the same directory as
+the \fBsh\fR executable which is running.  It does not use the \fBSHELL\fR
+environment variable or search the directories in the \fBPATH\fR
+environment variable.  At present, there are two types of entry in this
+file: keyboard configuration; and others.  The entry is contained in a
+single line and consists of a keyword (in upper or lower case), white space,
+an equals symbols, white space and one or two numeric values (see
+\fIstrtol(3)\fR for valid formats where \fIbase\fR parameter is zero),
+followed by an end of line character.
+.PP
+For the keyboard entries, the numeric values give the \fBMS-DOS\fR Function
+8 (Console Input without Echo) return values for that entry.  Note that
+extended codes (function keys) require two calls to this function.  The
+first call returns zero and the second the extended code.  In the
+configuration file, a first numeric value of zero indicates a extended code
+and must be followed by a second value.  The shell also supports the use of
+the \fBALT\fI key in combination with another key.  In this case, the first
+value contains \fB0xff\fR, that selects \fBALT\fR key, and the second key
+contains the appropriate scan code for the key required.  The program
+\fBshowkey\fR can be used to determine the scan codes required.
+.PP
+A non-zero first numeric value must not be followed by anything else on the
+line.
+.PP
+Other entries must only have one numeric value.  A zero value disables the
+function and a non-zero value enables the function.  At present, there are
+two other functions:
+.TP
+.SM \fBBell\fR
+Enable/disable warning bells
+.TP
+.SM \fBHalfHeight\fR
+Use full or halfheight block cursor to indicate Insert mode
+.TP
+.SM \fBInsertMode\fR
+Set the default insert mode on or off
+.TP
+.SM \fBInsertCursor\fR
+Enable/disable the insert mode cursor.
+.TP
+.SM \fBRootDrive\fR
+Determines the root drive from which to read \fI/etc/profile\fR.
+.TP
+.SM \fBEOFKey\fR
+Determines the End-of-File key.
+.RE
+.PP
+Invalid lines or lines beginning with a \fB#\fR are ignored.
+.PP
+The following table gives the list of valid keywords and their default
+values:
+.PP
+.TS
+box;
+l l l l.
+Keyword	First numeric	Second numeric	Actual Key
+_
+KEYBOARD ENTRIES
+ScanBackward	0	0x49	PAGE UP
+ScanForeward	0	0x51	PAGE DOWN
+Previous	0	0x48	UP ARROW
+Next	0	0x50	DOWN ARROW
+Left	0	0x4b	LEFT ARROW
+Right	0	0x4d	RIGHT ARROW
+WordRight	0	0x74	Control RIGHT ARROW
+WordLeft	0	0x73	Control LEFT ARROW
+Start	0	0x47	HOME
+Clear	0	0x76	Control PAGE DOWN
+Flush	0	0x75	Control END
+End	0	0x4f	END
+Insert	0	0x52	INSERT
+DeleteRight	0	0x53	DELETE
+DeleteLeft	0x08		BACKSPACE
+Complete	0	0x77	Control HOME
+Directory	0	0x0f	Shift TAB
+ClearScreen	0	0x84	Control PAGE UP
+Jobs	0	0x68	ALT F1
+Transpose	0x14		Control T
+Quote	0x11		Control Q
+_
+OTHER FUNCTIONS
+Bell	0
+HalfHeight	0
+InsertMode	0
+InsertCursor	1
+RootDrive	3
+EOFKey	0x1a
+.TE
+.SS Execution
+Each time a command is executed, the above substitutions are carried out.  If
+the command name matches one of the \fISpecial Commands\fR listed below, it
+is executed in the shell process.  If the command name does not match a
+\fISpecial Command\fR, but matches the name of a defined function, the
+function is executed in the shell process (note how this differs from the
+execution of shell procedures).  The positional parameters \fB$1\fR,
+\fB$2\fR, ....  are set to the arguments of the function.  If the command
+name matches neither a \fISpecial Command\fR nor the name of a defined function,
+a new process is created and an attempt is made to execute the command via
+\fIexec\fR(2).
+.PP
+The shell parameter \fBPATH\fR defines the search path for the directory
+containing the command.  Alternative directory names are separated by a
+semi-colon (\fB;\fR).  The default path is \fB.;c:/bin;c:/usr/bin\fR (specifying
+the current directory, \fBc:/bin\fR, and \fBc:/usr/bin\fR, in that order).
+Note that the current directory is specified by a null path name, which can
+appear immediately after the equal sign or between the semi-colon delimiters
+anywhere else in the path list.  If the command name contains a \fB/\fR or
+starts with \fBx:\fR (where x is a drive letter) the search path is not used;
+such commands will not be executed by the restricted shell.  Otherwise, each
+directory in the path is searched for an executable file.  Executable files
+are indicated by a .exe or .com extension.  This extension is automatically
+supplied by the shell and not have to be entered by the user.
+.PP
+If the file with a .com or .exe extension cannot be found in the
+directory, the file is opened and first 512 characters are read.  If there are
+no characters in the block with a value in the range 0 to 7, the file is
+assumed to be a script file containing shell commands.  Note that the shell
+will check the file and if that file does not exist or is not a script, it
+will try the file with an extension of \fB.sh\fR or \fB.ksh\fR.  If a
+\fB.sh\fR or \fB.ksh\fR file is found, that will be processed.  A sub-shell
+(given by the environment variable \fBSHELL\fR) is spawned to read
+it.
+.PP
+If the script file starts with the a line of the form \fI#! interpreter\fR
+\*(OK\fIarguments\fR\*(CK, the interpreter is invoked instead of the shell
+to process the script.  Optional arguments can be supplied in the script
+file which are passed before the name of the script file.  Thus, if the
+file \fIdemo\fR contained the following string as the first line
+.RS
+.PP
+#! perl -sP
+.RE
+.PP
+Entering \fIdemo name\fR would be equivalent to entering the \fIperl -sP name\fR
+at the command prompt.  Note that no other processing of the first line
+other that the separation (by white space) into arguments is done.  Note
+that if the \fBinterpreter\fR is either \fI/bin/sh\fR or \fI/bin/ksh\fR,
+the value of the \fBSHELL\fR environment variable is used to execute the
+script.
+.PP
+If none of the above conditions for a executable file are detected and a file
+with a .bat extension exists in the directory, the command processor given by
+the \fBCOMSPEC\fR environment variable is spawned to process the file.  This
+is normally the standard \fBMS-DOS\fR \fIcommand.com\fR or \fBOS/2\fR
+\fIcmd.exe\fR processor.
+.PP
+A parenthesised command is also executed in a sub-shell.
+.PP
+Under MS-DOS or OS/2, the shell looks at the type of the program which is
+about to be executed.  If it is an MS Windows program, the shell will
+automatically start MS Windows, unless it is already running.  If
+MS Windows is already running, the shell will not start the program.
+.SS Command Line Building
+The file pointed to by the \fBEXTENDED_LINE\fR parameter contains information
+which instructs the shell on how to create the command line for a particular
+program from the information entered to the shell.  If the program name is
+not found in this file, the standard \fBMS-DOS\fR or \fBOS/2\fR mechanisms are
+used with no special processing.
+.PP
+The file is scanned prior to the execution of an external command.  An entry
+in this file is contained in a single line and consists of a program name
+(in upper or lower case), white space, an equals symbol, white space and
+the program type followed by up to four optional values, followed by an end of
+line character.  The \fBvalue\fR tells the shell how to build the command line
+and the optional values provide additional information.  The valid
+\fBprogram types\fR are (note that invalid entries cause a line to be ignored)
+given below.  These \fBprogram types\fR must appear as the first value
+following the \fIequals\fR.  Otherwise, they are ignored.  An empty \fBprogram
+types\fR may be empty to only select one or more of the optional values.
+.PP
+Under \fBOS/2\fR, by default the shell generates the command line using the
+format specified by Eberhard Mattes's EMX interface.  This is makes no
+difference to programs which do not support the interface.
+.PP
+.RS
+.TP
+.SM \fBunix\fR
+This program can process the command line using the indirect command file
+character \fB@\fR.  When a program, which can process this format, finds a
+command line parameter starting with a \fB@\fR in the command line, it treats
+the rest of the parameter as a file and reads the command line parameters
+from that file (one per line, the end of line characters can be escaped by
+preceding with a \fB\e\fR).  Examples of this functionality include the
+Standard \fBLinker\fR and \fBLibrarian\fR.
+.sp
+The file name is set up in \fBUNIX\fR format (using \fB/\fR as the directory
+separators).
+.sp
+This functionality allows the user to get round the 127 byte command line
+length limit of \fBMS-DOS\fR.  A sample version of the code to process wild
+cards and indirect command files is included with the source of the shell in
+the file \fIstdargv.c\fR.
+.TP
+.SM \fBdos\fR
+This program can process the command line using the indirect command file
+character \fB@\fR.  The file name is set up in DOS format (using
+\fB\e\fRs as the directory separators).
+.TP
+.SM \fBenviron\fR
+The command line is passed to the external program in the environment
+variable specified by the first optional value.  The optional second
+value which is numeric, gives the parameter separator character to be used
+(see \fIstrtol(3)\fR for valid formats where \fIbase\fR parameter is zero).
+If this second value is missing or evaluates to zero, space is used.
+.RE
+.PP
+The following optional values described below may be used after either
+\fBunix\fR or \fBdos\fR or by themselves:
+.RS
+.TP
+.SM \fBswitch\fR
+The optional value \fBswitch\fR causes the program parameters to
+be converted from \fBUNIX\fR format to \fBMS-DOS\fR format.  This means that
+parameters beginning with an \fB-\fR have it converted to a \fB/\fR.
+For all other parameters, \fB/\fRs are converted to \fB\e\fRs.  This option
+is not applied to quoted parameters or escaped characters.
+.sp
+This functionality allows ease of entry of \fBMS-DOS\fR commands which expect
+\fBMS-DOS\fR directory separators which the shell interprets as the escape
+character (not that the underlying \fBMS-DOS\fR really cares).
+.TP
+.SM \fBexport\fR
+The optional value \fBexport\fR causes the marked environment variables to
+be converted from \fBUNIX\fR format to \fBMS-DOS\fR format.  This is
+equivalent to setting the \fI-M\fR flag for this program only.
+.TP
+.SM \fBnoexpand\fR
+The optional value \fBnoexpand\fR disables file name generation when building
+the command line (also see \fBset\fR command).
+.TP
+.SM \fBnoswap\fR
+The optional value \fBnoswap\fR disables swapping for the command.  This
+may speed up the execution of small commands.
+.TP
+.SM \fBnoquote\fR
+The optional value \fBnoquote\fR stops the shell from escaping double quotes
+in the command line before they are passed to the command.  Double quotes
+processed by some programs.
+.TP
+.SM \fBignoretype\fR
+The optional value \fBignoretype\fR stops the MS-DOS version of the shell
+deciding not to execute \fIforeign\fR (non MS-DOS) executables.  The headers
+of some \fI.EXE\fR files record incorrectly the operating system and type of
+program.  This option only applies to the MS-DOS version of the shell.
+.TP
+.SM \fBpipetty\fR
+The optional value \fBpipetty\fR causes the shell to set up the environment
+such that child shells created by this program will treat Pipes as TTYs.
+This feature is mainly to support EMACS under OS/2, but may prove useful to
+other programs in a somewhat bizarre set of circumstances.  This feature is
+not support under the MS-DOS version of the shell.
+.TP
+.SM \fBquotewild\fR
+The optional value \fBquotewild\fR causes the shell to quote wild cards in
+the command line to the program.  The default is not to quote wild cards.
+.RE
+.SS Functions
+The \fBfunction\fR keyword, described in the \fBCommands\fR section above, is
+used to define shell functions.  Shell functions are read in and stored
+internally.  Alias names are resolved when the function is read.  Functions
+are executed like commands with the arguments passed as positional parameters.
+(See \fBExecution\fR above).
+.PP
+Functions execute in the same process as the caller and share all files and
+present working directory with the caller.  Traps caught by the caller are
+reset to their default action inside the function.  A trap condition that is
+not caught or ignored by the function causes the function to terminate and the
+condition to be passed on to the caller.  A trap set on EXIT inside a function
+is executed after the function completes.
+.PP
+Ordinarily, variables are shared between the calling program and the function.
+However, the \fBtypeset\fR special command used within a function defines local
+variables whose scope includes the current function and all functions it calls.
+.PP
+The special command \fBreturn\fR is used to return from function calls.  Errors
+within functions return control to the caller.
+.PP
+Function identifiers can be listed with the \fBfunction\fR special command.
+The text of functions will also be listed.  Function can be undefined with
+the \fBunfunction\fR special command.
+.PP
+Ordinarily, functions are unset when the shell executes a shell script.
+Functions that need to be defined across separate invocations of the shell
+should be placed in the \fBENV\fR file.
+.PP
+The shell has an enhancement that allows it to process scripts, etc. by
+recognising their file \fBextension\fR (the character string following the
+last period).  If the shell recognises the \fBextension\fR, it will invoke
+the function named after the \fBextension\fR, if it exists (for example:
+the command \fIdemo.c\fR will invoke the function \fI.c\fR).  The
+variable \fBPATHEXTS\fR contains the list of valid extensions (and must
+include the default extensions (\fI.exe\fR, \fI.com\fR, \fI.bat\fR
+or \fI.cmd\fR, \fI.sh\fR, .\fIksh\fR and \fIno extension\fR).  \fBNote\fR that
+functions cannot be set up for \fI.exe\fR or \fI.com\fR.
+.PP
+The order in which the extensions appear in \fBPATHEXTS\fR determines the
+order in which the shell will search for a file with the appropriate extension.
+If the shell finds a file with a matched extension and a function exists,
+the function is invoked with parameter 0 set to the full pathname of the
+file.  The rest of the parameters to the function are set up as for normal
+functions.  Beware of invoking recursive functions.
+.SS Jobs
+Under \fBOS/2\fR, an interactive shell associates a \fIjob\fR with each
+pipeline.  It keeps a table of current jobs, printed by the \fBjobs\fR
+command, and assigns them small integer numbers.  When a job is started
+asynchronously with \fB&\fR, the shell prints a line that looks like:
+.RS
+.PP
+.nf
+[1] 1234
+.fi
+.PP
+.RE
+indicating job number 1 was started asynchronously and had one (top-level)
+process whose process ID was 1234.
+.PP
+There are several ways to refer to jobs in the shell.  A job can be referred
+to by the process id of any process in the job or by one of the following:
+.PP
+.RS
+.TP
+.SM \fI%number\fR
+The job with the given number.
+.TP
+.SM \fI%string\fR
+Any job whose command line begins with string.
+.TP
+.SM \fI%?string\fR
+Any job whose command line contains string.
+.TP
+.SM \fI%%\fR
+Current job.
+.TP
+.SM \fI%+\fR
+Equivalent to %%.
+.TP
+.SM \fI%-\fR
+Previous job.
+.RE
+.PP
+The shell learns when a process changes state.  It informs the user when
+a job terminates, but only just before it prints a prompt.
+.PP
+If you try to leave the shell while jobs are running or stopped, you are
+warned, \fIYou have running jobs\fR.  You may use the \fBjobs\fR command to
+identify them.  If you immediately try to exit again, the shell will not
+warn you a second time.
+.SS Special Commands
+Input/output redirection is permitted for these commands.  File descriptor 1
+is the default output location.
+.PP
+.TP
+\fB:\fR
+No effect; the command does nothing.  A zero exit code is returned.
+.TP
+\fIletter\fB:\fR
+Select the drive specified by \fIletter\fR.
+.TP
+\fB\&. \fIfile\fR
+Read and execute commands from \fIfile\fR and return.  The search path
+specified by \fBPATH\fR is used to find the directory containing \fIfile\fR.
+.TP
+\fBalias\fR \*(OK \fB-t\fR \*(CK \*(OK \fIname\fR\*(OK=\fIvalue\fR \*(CK ... \*(CK
+\fBAlias\fR with no arguments prints the list of aliases in the form
+\fIname\fR=\fBvalue\fR on standard output.  An alias is defined for each
+\fIname\fR whose \fIvalue\fR is given.  A trailing space in \fIvalue\fR
+causes the next word to be checked for alias substitution.  The \fB-t\fR
+flag is used to set and list tracked aliases.  The \fIvalue\fR of a tracked
+alias is the full pathname corresponding to the given name.  The \fIvalue\fR
+becomes undefined when the \fIvalue\fR of PATH is reset but the aliases
+remained tracked.  Without the \fB-t\fR flag, for each \fIname\fR in the
+argument list for which no \fIvalue\fR is given, the \fIname\fR and
+\fIvalue\fR of the alias is printed.  Alias returns zero unless a \fIname\fR
+is given for which no alias has been defined.
+.TP
+\fBbind\fR -m \*(OK \fIstring\fR \*(CK = \*(OK \fIediting-command\fR \*(CK
+\fBBind\fR with no arguments prints the list of EMACS key bindings in the form
+\fIname\fR=\fBvalue\fR on standard output.
+The specified \fIediting command\fR is bound to the given \fIstring\fR, which
+should consist of a control character (which may be written using ``caret
+notation'' \fB^\fR\fIx\fR), optionally preceded by one of the two prefix
+characters.  Future input of the \fIstring\fR will cause the \fIediting
+command\fR to be immediately invoked.  Three prefix characters (normal ESC
+and ^X) are supported.
+If the \fI-m\fR flag is supplied, the specified input \fIstring\fR will
+afterwards be immediately replaced by the given \fIediting-command\fR string,
+which may contain \fIediting commands\fR.
+.TP
+\fBbreak\fR \*(OK \fIn\fR \*(CK
+Exit from the enclosing \fBfor\fR or \fBwhile\fR loop, if any.  If \fIn\fR is
+specified, break \fIn\fR levels.
+.TP
+\fBbuiltin\fR \*(OK \fIargs\fR ... \*(CK
+Force the selection of the \fBbuiltin\fR version of a command.  The builtin
+shell command selected by the first \fIargs\fR value is executed with the
+parameters defined by the remaining \fIargs\fRs.  If no arguments are given,
+a list of all \fIbuiltin\fR commands is printed.
+.sp
+If the first argument is one of the following, the processing of the
+builtin command in the following arguments are changed as indicated:
+.RS
+.TP
+\fB-a\fR
+Set the following builtin commands to use builtin version in preference to
+any function or external versions.
+.TP
+\fB-d\fR
+Set the following builtin commands to use the function or external version
+in preference to the builtin version.
+.TP
+\fB-s\fR
+Display the current status of the following builtin commands.
+.RE
+.TP
+\fBcontinue\fR \*(OK \fIn\fR \*(CK
+Resume the next iteration of the enclosing \fBfor\fR or \fBwhile\fR loop.  If
+\fIn\fR is specified, resume at the \fIn\fR-th enclosing loop.
+.TP
+.PD 0
+\fBcd\fR \*(OK \fB-LP\fR \*(CK \*(OK \fIarg\fR \*(CK
+.TP
+\fBcd\fR \fIsearch\fR \fIreplace\fR
+.PD
+This command can be in either of two forms.  In the first form it changes
+the current directory to \fIarg\fR.  The shell parameter \fBHOME\fR is
+the default \fIarg\fR.  The shell parameter \fBCDPATH\fR defines the search
+path for the directory containing \fIarg\fR.  Alternative directory names are
+separated by a semi-colon (\fB;\fR).  The default path is \fB<null>\fR
+(specifying the current directory).  Note that the current directory is
+specified by a null path name, which can appear immediately after the equal
+sign or between the semi-colon delimiters anywhere else in the path list.
+If \fIarg\fR begins with a \fB/\fR or \fBx:\fR (where x is a drive letter),
+the search path is not used.  Otherwise, each directory in the path is searched
+for \fIarg\fR.  The \fIcd\fR command may not be executed by \fIrsh\fR.
+.sp
+The \fI-L\fR option (default) preserves logical naming when treating
+substituted drives (see \fBSUBST(1)\fR).  \fBcd -L ..\fR moves the current
+directory one path component closer to the root directory.  The \fB-P\fR
+option preserves the physical path when treating substituted drives.
+\fBcd -P ..\fR changes the working directory to the parent directory of the
+current directory.  These options are only available under the MS-DOS 16 bit
+version.
+.sp
+In the second form, \fBcd\fR substitutes the string \fIreplace\fR for the
+string \fIsearch\fR in the current directory name, \fBPWD\fR and tries to
+change to this new directory.
+.sp
+Note that the name \fBchdir\fR is an builtin alternative name for \fBcd\fR,
+allowing the user to set up aliases for \fBcd\fR and still have access to the
+change directory functionality.
+.TP
+\fBdetach\fR \fIprogram\fR \*(OK \fIargs\fR \*(CK
+This command (which is only available under \fBOS/2\fR) starts and
+simultaneously detaches an \fBOS/2\fR \fIprogram\fR from the shell.  Any
+\fIprogram\fR that is started with \fBdetach\fR command must be able to
+process independently outside the control of the shell.  Builtin shell
+commands and functions cannot be detached.
+.TP
+\fBecho\fR \*(OK \fIarg\fR ... \*(CK
+Echo arguments. \fBEcho\fR writes its arguments separated by blanks and
+terminated by a new-line on the standard output.  It also understands C-like
+escape conventions; beware of conflicts with the shell's use of \fB\e\fR:
+.sp
+.RS
+.PD 0
+.TP
+\fB\eb\fR
+backspace
+.TP
+\fB\ec\fR
+print line without new-line
+.TP
+\fB\ef\fR
+form-feed
+.TP
+\fB\en\fR
+new-line
+.TP
+\fB\er\fR
+carriage return
+.TP
+\fB\et\fR
+tab
+.TP
+\fB\ev\fR
+vertical tab
+.TP
+\fB\e\e\fR
+backslash
+.TP
+\fB\e\fIn\fR
+the 8-bit character whose \s-1ASCII\s0 code is the 1-, 2- or 3-digit octal
+number \fIn\fR, which must start with a zero.
+.PD
+.sp
+\fIEcho\fR is useful for producing diagnostics in command files and for
+sending known data into a pipe.
+.RE
+.TP
+\fBeval\fR \*(OK \fIarg\fR ... \*(CK
+The arguments are read as input to the shell and the resulting command(s)
+executed.
+.TP
+\fBexec\fR \*(OK \fIarg\fR ... \*(CK
+The command specified by the arguments is executed in place of this shell
+without creating a new process.  Input/output arguments may appear and, if no
+other arguments are given, cause the shell input/output to be modified.
+.TP
+\fBexit\fR \*(OK \fIn\fR \*(CK
+Causes a shell to exit with the exit status specified by \fIn\fR.
+If \fIn\fR is omitted the exit status is that of the last command executed
+(an end-of-file will also cause the shell to exit.)
+.TP
+\fBexport\fR \*(OK \fIname\*(OK=value\*(CK\fR ... \*(CK
+The given \fIname\fRs are marked for automatic export to the \fIenvironment\fR
+of subsequently-executed commands.  If no arguments are given, a list of all
+names that are exported in this shell is printed.  Function names may \fInot\fR
+be exported.
+.TP
+\fBfalse\fR
+No effect; the command does nothing.  A non-zero exit code is returned.
+.TP
+.PD 0
+\fBfc\fR \*(OK \fB-e\fR \fIEditorName\fR \*(CK \*(OK \fB-nlr\fR \*(CK \*(OK \fIFirst\fR \*(OK \fILast\fR \*(CK \*(CK
+.TP
+\fBfc\fR \fB-e -\fR \*(OK \fIOld=New\fR \*(CK \*(OK \fICommand\fR \*(CK
+.PD
+In the first form, a range of commands from \fIFirst\fR to \fILast\fR is
+selected from the last 100 commands that were typed at the terminal.  The
+\fIFirst\fR and \fILast\fR parameters can be specified as a number or as a
+string.  A string locates the most recent command starting with the given
+string.  A negative number is used as an offset to the current command number.
+If \fILast\fR is not specified, then it is set to \fIFirst\fR.  If \fIFirst\fR
+is not specified, the default is the previous command for editing and
+-16 for listing.
+.RS
+.TP
+\fB-l\fR
+Lists the commands to standard output.
+.TP
+\fB-r\fR
+Reverses the order of the commands in the list.
+.TP
+\fB-n\fR
+Suppresses command numbers when listing.
+.RE
+.IP ""
+If the \fB-l\fR flag is not specified, the editor program specified by
+\fIEditorName\fR is invoked on a file containing these key-board commands.
+If \fIEditorName\fR is not supplied, then the value of the \fBFCEDIT\fR
+parameter is used as the editor.  When editing is complete, the edited
+command(s) is executed.
+.sp
+In the second form, the specified \fIcommand\fR is carried out again after the
+\fIOld=New\fR substitution is performed.
+.TP
+\fBfunctions\fR \*(OK \fIname\fR ... \*(CK
+The functions given by \fIname\fRs are printed.  If no arguments are given, a
+all the functions are displayed.
+.TP
+\fBgetopts\fR \fIoptstring name\fR \*(OK \fIarg\fR ... \*(CK
+Checks \fIarg\fR for legal options.  If \fIarg\fR is omitted, the
+positional parameters are used.  An option argument begins with a \fB+\fR or
+a \fB-\fR.  An option not beginning with \fB+\fR or \fB-\fR or the argument
+\fB--\fR ends the options.  \fIoptstring\fR contains the letters that
+\fBgetopts\fR recognises.  If a letter is followed by a \fB:\fR, that option
+is expected to have an argument.  The options can be separated from the
+argument by blanks.
+.sp
+\fBgetopts\fR places the next option letter it finds inside variable
+\fIname\fB each time it is invoked, with a \fB+\fR prepended when \fIarg\fR
+begins with a \fB+\fR.  The index of the next arg is stored in
+\fB\s-1OPTIND\s+1\fR.  The option argument, if any, gets stored in
+\fB\s-1OPTARG\s+1\fR,
+.sp
+A leading \fB:\fR in \fIoptstring\fR causes \fBgetopts\fR to store the letter
+of an invalid option in \fB\s-1OPTARG\s+1\fR, and to set \fIname\fR to
+\fB?\fR for an unknown option and to \fB:\fR when a required option is
+missing.  Otherwise, \fBgetopts\fR prints an error message.  The exit status
+is non-zero when there are no more options.
+.TP
+\fBhistory\fR \*(OK \fB-deils\fR \*(CK
+The \fBhistory\fR command, with no arguments, will print all the commands that
+are currently saved in the shell's history buffers.  As new commands are
+executed, and space in the buffers runs out, old commands will be deleted.  The
+\fBhistory\fR commands prints out the stored commands with sequence numbers.
+Negative numbered commands, through command number zero, are commands that were
+retrieved from the saved history file.  Commands starting at one were entered
+during the current login session.  If a saved command contains embedded
+newlines, these will be printed out as the sequence \fB\en\fR, so that
+individual command stay on one line.
+.sp
+The arguments changes the way the shell processes history information as
+follows:
+.RS
+.TP
+\fB-d\fR
+Disable the saving of commands in the history file.
+.TP
+\fB-e\fR
+Enable the saving of commands in the history file.
+.TP
+\fB-i\fR
+Initialise the history file.
+.TP
+\fB-l\fR
+Load the history from the file given by the \fBHISTFILE\fR environment variable.
+.TP
+\fB-s\fR
+Save the history to the file given by the \fBHISTFILE\fR environment variable.
+.RE
+.TP
+\fBjobs\fR \*(OK \fB-lp\fR | \*(OK \fB-P\fR \fIjob\fR \*(CK \*(CK
+This command (which is only available under \fBOS/2\fR) lists the active jobs;
+or all active jobs if job is omitted.  The \fB-l\fR options lists process id's
+in addition to the normal information.  The \fB-p\fR flag lists all the child
+processes of the current shell, displaying their process ID and thread count.
+The \fB-P id\fR option lists all the child processes of the specified process
+or job.  See \fBJobs\fR for a description of the format of job.
+.TP
+\fBkill\fR \*(OK \fB-sig\fR \*(CK \*(OK \fIprocess\fR | \fB%\fR\fIjobid\fR \*(CK ...
+This command (which is only available under \fBOS/2\fR) sends either the
+\fBTERM\fR (terminate) signal or the specified signal to the specified
+\fIprocesses\fR.  Signals are given by name, which are listed by
+\fB\'kill -l\'\fR.  If the \fIprocess\fR number begins with a \fB%\fR, the
+signal is sent to the job referenced.  See \fBJobs\fR for a description of
+the format of a \fIjob\fR.
+.TP
+\fBlet\fR \*(OK \fIarg\fR ... \*(CK
+Each \fIarg\fR is an arithmetic expression to be evaluated.  All calculations
+are done as long integers and no check for overflow is performed. See
+\fBArithmetic Evaluation\fR above for a description of arithmetic expressions..
+.sp
+The return code is 0 if the value of the last expression is non-zero, and 1
+otherwise.
+.TP
+\fBmsdos\fR \*(OK \fIname\*(OK=value\*(CK\fR ... \*(CK
+The given \fIname\fRs are marked \fImsdos\fR format and if the \fB-M\fR flag
+is set, the values of the these \fIname\fRs are exported to child processes
+with any slashes in the value replaced by \fB\e\fRs.  If no arguments are
+given, a list of all \fImsdos\fR names is printed.
+.TP
+\fBprint\fR \*(OK \fB-Rnprs\fR \*(CK \*(OK \fB-u unit\fR \*(CK \*(OK \fIargs ...\fR \*(CK
+The shell output mechanism.  With no flags or with flag - or -- the \fIargs\fR
+are printed on standard output as described by the \fBecho\fR command.
+.RS
+.TP
+\fB-R\fR
+Prints in the raw mode, in which the escape conventions of the \fBecho\fR
+command are ignored.  The \fI-R\fR option prints all subsequent \fIargs\fR
+and options other than \fI-n\fR.
+.TP
+\fB-n\fR
+Prevents a new-line from being added to the output.
+.TP
+\fB-p\fR
+\fB-p\fR flag has not effect and is defined for compatibility.
+.TP
+\fB-r\fR
+Prints in the raw mode, in which the escape conventions of the \fBecho\fR
+command are ignored.
+.TP
+\fB-s\fR
+Writes the \fIargs\fR to the history file instead of to standard output.
+.TP
+\fB-u\fR \fBunit\fR
+Specifies a one digit file descriptor \fBunit\fR number on which the output is
+placed.  The default is 1.
+.RE
+.TP
+\fBpwd\fR \*(OK \fB-LP\fR \*(CK \*(OK \fIdrive\fR ... \*(CK
+Print the current working directory.  If \fIdrive\fR is present, the
+current working directory on each of the drives is printed.  \fIdrive\fR
+contains a string of drive letters, no colons are required.
+.sp
+The \fI-L\fR option (default) preserves the logical meaning of the current
+directory and \fI-P\fR preserves the physical meaning of the current directory
+if it is on a substituted drive (see \fBcd\fR and \fBSUBST(1)\fR).  This
+option is only available under the MS-DOS 16bit version.
+.TP
+\fBread\fR \*(OK \fB-prs\fR \*(CK \*(OK \fB-u unit\fR \*(CK \*(OK \fIname?prompt\fR \*(CK \*(OK \fIname ...\fR \*(CK
+The shell input mechanism.  One line is read and is broken up into words using
+the characters in \fBIFS\fR as separators.  In raw mode, \fB-r\fR, a \fB\e\fR
+at the end of a line does not signify line continuation.  The first word is
+assigned to the first \fIname\fR, the second word to the second \fIname\fR,
+etc., with leftover words assigned to the last \fIname\fR.  If the \fB-s\fR flag
+is present, the input will be saved as a command in the history file.  The
+\fB-p\fR flag has not effect and is defined for compatibility.  The flag
+\fB-u\fR can be used to specify a one digit file descriptor \fBunit\fR to read
+from.  The file descriptor can be opened with the \fBexec\fR special command.
+The default value of \fBunit\fR is 0.  If \fIname\fR is omitted then
+\fBREPLY\fR is used as the default name.  If the first argument contains a
+\fB?\fR, the remainder of this word is used as a prompt when the shell is
+interactive.  If the given file descriptor is open for writing and is a
+terminal device then the prompt is placed on this unit.  Otherwise the prompt
+is issued on file descriptor 2.  The return code is 0 unless an end-of-file
+is encountered.
+.TP
+\fBreadonly\fR \*(OK \fIname\*(OK=value\*(CK\fR ... \*(CK
+The given \fIname\fRs are marked \fIreadonly\fR and the values of the these
+\fIname\fRs may not be changed by subsequent assignment.  If no arguments are
+given, a list of all \fIreadonly\fR names is printed.
+.TP
+\fBreturn\fR \*(OK \fIn\fR \*(CK
+Causes a function to exit with the return value specified by \fIn\fR.  If
+\fIn\fR is omitted, the return status is that of the last command executed.
+.TP
+\fBset\fR \*(OK \*(OK\fB-|+\fR\*(CK\fBaefkmntuvx\fR \*(CK \*(OK \fB-o option\fR \*(CK \*(OK \fIarg\fR ... \*(CK
+.RS
+.TP
+\fB-a\fR
+Mark variables which are modified or created for export.
+.TP
+\fB-e\fR
+Exit immediately if a command exits with a non-zero exit status.
+.TP
+\fB-f\fR
+Disable file name generation
+.TP
+\fB-h\fR
+Each command becomes a tracked alias when first encountered.
+.TP
+\fB-k\fR
+All keyword arguments are placed in the environment for a command, not just
+those that precede the command name.
+.TP
+\fB-m\fR
+Background jobs will run in a separate process group and a line will print
+upon completion.  The exit status of background jobs is reported in a
+completion message. This only applies to \fBOS/2\fR.  The programs are detached
+from the current process group.
+.TP
+\fB-n\fR
+Read commands but do not execute them.
+.TP
+\fB-o option\fR
+The argument that follows this option can be one of the following option names:
+.RS
+.TP
+\fBallexport\fR
+Same as \fB-a.\fR
+.TP
+\fBbell\fR
+Enable alarm bell on errors
+.TP
+\fBbreak\fR
+Enable the extended SIGINT checking (see \fBBREAK\fR \*(OK \fBON | OFF\fR \*(CK
+under \fICOMMAND.COM\fR).  This option is only available under \fBMS-DOS\fR.
+.TP
+\fBemacs\fR
+Select emacs-like command line editing mode.
+.TP
+\fBerrexit\fR
+Same as \fB-e.\fR
+.TP
+\fBgmacs\fR
+Select gmacs-like command line editing mode.
+.TP
+\fBhalfheight\fR
+Set cursor to halfheight when in insert mode.  If off, a full height cursor
+is used.
+.TP
+\fBignorecase\fR
+Under \fBOS/2\fR, on non-FAT (ie case retentive) file systems, the shell
+will match file names ignoring case.  Normally, the matches are case
+sensitive even though the file system is only case retentive.
+.TP
+\fBignoreeof\fR
+The shell will not exit on end-of-file.  The command exit must be used.
+.TP
+\fBinsertmode\fR
+Set the default edit mode to insert rather than overwrite.
+.TP
+\fBkeyword\fR
+Same as \fB-k.\fR
+.TP
+\fBmarkdirs\fR
+Appends a / (slash) to all directory names that are a result of file name
+substitution.
+\fBmsdos\fR
+Same as \fB-M.\fR
+.TP
+\fBnoclobber\fR
+Prevents redirection \fB>\fR from truncating existing files.  A vertical bar
+must follow the redirection symbol \fB(>|)\fR to truncate a file when this
+option is turned on.
+.TP
+\fBnoexec\fR
+Same as \fB-n.\fR
+.TP
+\fBnoglob\fR
+Same as \fB-f.\fR
+.TP
+\fBnounset\fR
+Same as \fB-u.\fR
+.TP
+\fBos2\fR
+Tells the shell that the underlying operating system is OS/2.
+.TP
+\fBprivileged\fR
+Same as \fB-p.\fR
+.TP
+\fBrealpipes\fR
+Under \fBOS/2\fR, the shell will use \fBOS/2\fR pipes and not temporary
+files to handle pipelines.  See \fBLIMITATIONS\fR.
+.TP
+\fBtrackall\fR
+Same as \fB-h.\fR
+.TP
+\fBverbose\fR
+Same as \fB-v.\fR
+.TP
+\fBverify\fR
+Same as \fB-V.\fR
+.TP
+\fBvi\fR
+Select vi-like command line editing mode.
+.TP
+\fBwinnt\fR
+Tells the shell that the underlying operating system is MS Windows NT.
+.TP
+\fBxtrace\fR
+Same as \fB-x.\fR
+.RE
+.TP
+\fB-p\fR
+Not supported.
+.TP
+\fB-t\fR
+Exit after reading and executing one command.
+.TP
+\fB-u\fR
+Treat unset variables as an error when substituting.
+.TP
+\fB-v\fR
+Print shell input lines as they are read.
+.TP
+\fB-w\fR
+Disable shell warning messages.
+.TP
+\fB-x\fR
+Print commands and their arguments as they are executed.
+.TP
+\fB-M\fR
+For those variables marked as \fBmsdos\fR variables, the values are
+exported to child processes with the slashes replaced by \fB\e\fRs.  Most
+\fBMS-DOS\fR utilities do not care if a file name contains a slash or \fB\e\fR
+as a directory separator.  However, some like the \fIlinker\fR require
+\fB\e\fRs in the value of the \fBLIB\fR variable.
+.TP
+\fB-V\fR
+Enable the File write verification option in the operation system (see
+\fBVERIFY\fR \*(OK \fBON | OFF\fR \*(CK under \fICOMMAND.COM\fR or
+\fICMD.EXE\fR).
+.TP
+\fB--\fR
+Do not change any of the flags; useful in setting \fB$1\fR to \fB\-\fR.
+.sp
+Using \fB+\fR rather than \fB-\fR causes these flags to be turned off.  These
+flags can also be used upon invocation of the shell.  The current set of flags
+may be found in \fB$-\fR.  The remaining arguments are positional parameters
+and are assigned, in order, to \fB$1\fR, \fB$2\fR, ....  If no arguments
+are given the values of all names are printed.
+.RE
+.TP
+\fBshift\fR \*(OK \fIn\fR \*(CK
+.br
+The positional parameters from \fB$n+1\fR ...  are renamed \fB$1\fR ....  If
+\fIn\fR is not given, it is assumed to be 1.
+.TP
+.PD 0
+\fBstart\fR \*(OK \fB-dfWPFibCISxhH\fR \*(CK \*(OK \fB-c\fR \*(OK vilsna \*(CK\*(CK \*(OK \fB-t\fR \fItitle\fR \*(CK \*(OK \fB-e\fR \fIstring\fR \*(CK \*(OK \fB-X\fR \fIdirectory\fR \*(CK \*(OK \fIargs..\fR \*(CK
+.TP
+\fBstart\fR \fB-O\fR \*(OK dos | pm \*(CK \*(OK \fB-hHfWPFxibID\fR \*(CK \*(OK \fB-c\fR \*(OK \fIvilsna\fR \*(CK\*(CK \*(OK \fB-t\fR \fItitle\fR \*(CK \*(OK \fB-e\fR \fIstring\fR \*(CK
+.TP
+\fBstart\fR \fB-A\fR \fIsessionId\fR
+.PD 0
+This command (which is only available under \fBOS/2\fR) has three forms.
+The first form starts an \fBOS/2\fR (or \fBMS-DOS\fR under \fBOS/2\fR 2.x)
+\fIprogram\fR in a new session.  If no \fIprogram\fR and \fIarguments\fR
+parameters are entered, the shell is started unless the -C option has been
+used to select the \fBOS/2\fR command processor.  Also see
+\fBDosStartSession(2)\fR.
+.sp
+The second form allows you to display and/or modify the default
+parameters used to \fBDosStartSession(2)\fR when the shell automatically
+starts a new session (ie when you attempt to run an \fBOS/2 PM\fR or
+\fBMS-DOS\fR program).  A different set of parameters are used depending on
+the program type and you can modify either the \fBOS/2 PM\fR via \fB-O pm\fR,
+or \fBMS-DOS\fR via \fB-O dos\fR parameters.  To use this form, the \fB-O\fR
+switch \fBmust\fR be the first option on the command line.
+.sp
+The third form allows you to select the session \fIsessionID\fR.
+.sp
+The arguments changes the way the shell starts the session as follows:
+.RS
+.TP
+\fB-d\fR
+Normally, command are started by invoking the shell in the new session.  This
+option invokes the command directly.
+.TP
+\fB-S\fR
+Invoke the shell to started the command in the new session.
+.TP
+\fB-f\fR
+The program becomes the foreground session. If this parameter is not specified,
+the program becomes a background session.
+.TP
+\fB-b\fR
+The program becomes the background session.
+.TP
+\fB-i\fR
+The new session will inherit the original environment of the shell instead of
+the current environment.
+.TP
+\fB-I\fR
+The new session will independent of the current process.  Normally, the
+session is a child session of the current process.  Independent sessions are
+not terminated when the shell terminates.  Starting a child session prevents
+any child session or process from also starting new sessions.
+.TP
+\fB-x\fR
+The new session will a child session of the current process.
+.TP
+\fB-t title\fR
+Sets the \fItitle\fR of the new session.
+.TP
+\fB-F\fR
+This application is a full-screen application that must run in a separate
+session independent of Presentation Manager.
+.TP
+\fB-W\fR
+This is an \fBOS/2\fR application that runs within a Presentation Manager
+window.
+.TP
+\fB-P\fR
+This application is started as a Presentation Manager application.
+.TP
+\fB-C\fR
+Use the \fBOS/2\fR command processor instead of the shell.
+.TP
+\fB-e string\fR
+This option can be used multiple times on the command line and allows the
+user to explicitly specify the environment to be passed to the new process.
+When this option is used, only those environment variables set up by the
+\fB-e\fR options are set in the new session's environment.  Only one
+environment variable can be assigned per \fB-e\fR switch.  The
+\fBstring\fRs are in standard environment format (\fIname=value\fR).
+This may of particular use under \fBOS/2\fR 2.x when starting \fBMS-DOS\fR
+programs.
+.TP
+\fB-c\fR \*(OK \fIvilsna\fR \*(CK
+This option allows the user to configure the size of the window created for
+the new session: \fIv\fR - visible; \fIi\fR - invisible; \fIl\fR - maximise;
+\fIs\fR - minimise; \fIn\fR - no autoclose; or \fIa\fR - autoclose.
+Multiple selections can be made on one option.  Any selection removes any
+inappropriate previous selections (ie. \fImaximise\fR removes any previous
+selected \fIminimise\fR).  Multiple \fB-c\fR options are not cumulative
+and only take the values selected by the last \fB-c\fR option.  The default
+is window configuration is \fIno autoclose\fR.
+.TP
+\fB-A sessionId\fR
+This option cannot be used with any other option and allows the user to
+switch to another session, given by \fIsessionID\fR, which must be a child
+session of the current session.
+.TP
+\fB-X\fR \fIdirectory\fR
+This option allows the user to select the startup \fIdirectory\fR if the command
+is to started in a new session via the shell.
+.TP
+\fB-h\fR
+The new session will inherit the current environment of the shell process (file
+descriptors, directory, etc).
+.TP
+\fB-H\fR
+The new session will inherit the current session had when it started.
+.TP
+\fB-D\fR
+Display the start up parameters for \fBPM\fR or \fBMS-DOS\fR sessions.
+.TP
+\fB-O\fR \*(OK dos | pm \*(CK
+Select the session parameters to display or modify.
+.TP
+\fB-D\fR
+Display the start up parameters for \fBPM\fR or \fBMS-DOS\fR sessions.
+.RE
+.PP
+.TP
+\fBswap\fR \*(OK \fIoptions\fR \*(CK
+This command (which is only available on the 16-bit MS-DOS version) defines
+how the shell will handle swapping itself to reduce its memory requirements
+whilst other programs execute.  The options are
+.RS
+.TP
+\fBoff\fR
+Disable swapping.  The shell remains in memory whilst the child is running
+and reduces the available memory by about 200K (depending on the size of
+the environment and history).
+.TP
+\fBon\fR
+Enable all devices.  The shell will swap out to either expanded or extended
+memory or to disk, execute the command and then swap back in.  Whilst
+swapped, the shell reduces the available memory by about 3K.
+.TP
+\fBexpand\fR
+Enable swapping to Expanded Memory.  The EMS driver must exist on your
+system for this to work.
+.TP
+\fBextend\fR \*(OK \fIstart address\fR \*(CK
+Enable swapping to Extended Memory.  If you have an XMS driver on your
+system, the shell will use the XMS driver.  Otherwise, the BIOS Interrupt
+15 interface is used.  The optional start address defines the based address
+in the Extended Memory at which point the shell writes its swap area when
+the BIOS interface is used.  The default location is \fI0x100000\fR.
+.TP
+\fBdisk\fR
+Enable swapping to disk.  The shell creates a temporary file and saves
+itself in it.  On completion, the file is deleted.  This is the slowest method
+of swapping.
+.sp
+With no options, the current swapping options are displayed.
+.RE
+.PD 0
+\fBtest \fIexpr\fR
+.TP
+\fB\*(OK \fIexpr\fB \*(CK\fR
+.PD
+Evaluate conditional expressions.  \fBTest\fR evaluates the expression
+\fIexpr\fR and, if its value is true, returns a zero (true) exit status;
+otherwise, a non-zero (false) exit status is returned; \fBtest\fR also returns
+a non-zero exit status if there are no arguments.  The primitives are the
+same as for the \fB\*(OK\*(OK \fIexpression\fB \*(CK\*(CK\fR command, except
+that \fI-a\fR and \fI-o\fR are not primitives, but are used to combine
+operators (see \fBtest (1)\fR).  \fI-a\fR is the binary \fBand\fR operator and
+\fI-o\fR is the binary \fBor\fR operator.
+.sp
+Notice that all the operators and flags are separate arguments to \fBtest\fR.
+Notice also that parentheses are meaningful to the shell and, therefore,
+must be escaped.
+.TP
+\fBtrap\fR \*(OK \fI-l\fR \*(CK \fIarg\fR \*(CK \*(OK \fISignalNumber\fR \*(CK ...
+The command \fIarg\fR is to be read and executed when the shell receives
+signal(s) \fISignalNumber\fR.  (Note that \fIarg\fR is scanned once when the
+trap is set and once when the trap is taken.)  Trap commands are executed in
+order of signal number.  Any attempt to set a trap on a signal that was ignored
+on entry to the current shell is ineffective.
+.sp
+If \fIarg\fR is absent all trap(s) \fISignalNumber\fR are reset to their
+original values.  If \fIarg\fR is the null string this signal is ignored by
+the shell and by the commands it invokes.
+.sp
+A potential point of confusion is that \fBUNIX\fR signal numbers are different
+from \fBMS-DOS\fR and \fBOS/2\fR signal numbers.  \fBMS-DOS\fR and \fBOS/2\fR
+signal numbers sometimes appear to differ between compilers.  If a numeric
+value is used, it is assumed to be a \fBUNIX\fR signal number and this is
+mapped to the appropriate \fBMS-DOS\fR/\fBOS/2\fR signal number.  If there is
+no mapping, a warning message is displayed.
+.ps
+If the signal number is a signal name, it is translated into the
+appropriate \fBMS-DOS\fR/\fBOS/2\fR signal number.  The list of valid signal
+names is displayed using the \fI-l\fR flag.
+.sp
+If \fISignalNumber\fR is \fBDEBUG\fR then \fIarg\fR will be executed
+after each command.  If \fISignalNumber\fR is \fBERR\fR, \fIarg\fR will be
+executed whenever a command has a non-zero exit code.
+.sp
+If \fISignalNumber\fR is 0 or \fBEXIT\fR and the trap statement is executed
+inside the body of a function, the command \fIarg\fR is executed after the
+function completes.  If \fISignalNumber\fR is 0 or \fBEXIT\fR for a trap set
+outside any function, the command \fIarg\fR is executed on exit from the shell.
+.sp
+The \fBtrap\fR command with no arguments prints a list of commands associated
+with each signal number.
+.TP
+\fBtrue\fR
+No effect; the command does nothing.  A zero exit code is returned.
+.TP
+\fBtypeset\fR \*(OK \fB-HLRZfilprtux\fR\*(OK\fBn\fR\*(CK \*(OK \fBname\fR\*(OK \fB=value\fR \*(CK \*(CK ... \*(CK
+When invoked inside a function, a new instance of the parameter name is created.
+The parameter value and type are restored when the function completes.  The
+following list of attributes may be specified:
+.RS
+.TP
+\fB-H\fR
+This flag provides \fBUNIX\fR to host-name file mapping on non-\fBUNIX\fR
+machines (see \fBmsdos\fR command).
+.TP
+\fB-L\fR
+Left justify and remove leading blanks from value.  If \fBn\fR is non-zero
+it defines the width of the field, otherwise it is determined by the width of
+the value of first assignment.  When the parameter is assigned to, it is
+filled on the right with blanks or truncated, if necessary, to fit into the
+field.  Leading zeros are removed if the \fB-Z\fR flag is also set.  The
+\fB-R\fR flag is turned off.
+.TP
+\fB-R\fR
+Right justify and fill with leading blanks.  If \fBn\fR is non-zero, it defines
+the width of the field, otherwise it is determined by the width of the value of
+first assignment.  The field is left filled with blanks or truncated from the
+end if the parameter is reassigned.  The \fB-L\fR flag is turned off.
+.TP
+\fB-Z\fR
+Right justify and fill with leading zeros if the first non-blank character is
+a digit and the \fB-L\fR flag has not been set.  If \fBn\fR is non-zero, it
+defines the width of the field, otherwise it is determined by the width of
+the value of first assignment.
+.TP
+\fB-f\fR
+The names refer to function names rather than parameter names.  No assignments
+can be made and the only other valid flags are \fB-t\fR, which turns on
+execution tracing for this function and \fB-x\fR, to allow the function to
+remain in effect across shell procedures executed in the same process
+environment.
+.TP
+\fB-i\fR
+Parameter is an integer.  This makes arithmetic faster.  If \fBn\fR is non-zero
+it defines the output arithmetic base, otherwise the first assignment
+determines the output base.
+.TP
+\fB-l\fR
+All upper-case characters converted to lower-case.  The upper-case flag,
+\fB-u\fR is turned off.
+.TP
+\fB-p\fR
+The output of this command, if any, is written onto the two-way pipe.  \fBThis
+option has no effect in the Shell\fR.
+.TP
+\fB-r\fR
+The given names are marked readonly and these names cannot be changed by
+subsequent assignment.
+.TP
+\fB-t\fR
+Tags the named parameters. Tags are user definable and have no special meaning
+to the shell.
+.TP
+\fB-u\fR
+All lower-case characters are converted to upper-case characters.  The
+lower-case flag, \fB-l\fR is turned off.
+.TP
+\fB-x\fR
+The given names are marked for automatic export to the environment of
+subsequently-executed commands.
+.RE
+.IP ""
+Using + rather than - causes these flags to be turned off.  If no name arguments
+are given but flags are specified, a list of names (and optionally the values)
+of the parameters which have these flags set is printed.  (Using + rather than -
+keeps the values to be printed.)  If no names and flags are given, the names
+and attributes of all parameters are printed.
+.TP
+\fBumask\fR \*(OK \fInnn\fR \*(CK
+The user file-creation mask is set to \fInnn\fR (see \fIumask\fR(2)).  If
+\fInnn\fR is omitted, the current value of the mask is printed.
+.TP
+\fBunalias\fR \fIname ...\fR
+The aliases given by the list of \fIname\fRs are removed from the alias list.
+.TP
+\fBunfunction\fR \fIname\fR ...
+For each \fIname\fR, remove the corresponding function.
+.TP
+\fBunset\fR \*(OK \fB-f\fR \*(CK \fIname\fR ...
+The parameters given by the list of \fIname\fRs are unassigned (their values
+and attributes are erased).  The following variables, as well as those with
+a read-only attribute cannot be unset: \fB\s-1PATH\s+1\fR, \fB\s-1PS1\s+1\fR,
+\fB\s-1PS2\s+1\fR, and \fB\s-1IFS\s+1\fR.  If the -f flag is set, then the
+names refer to function names and the functions are removed.
+.sp
+Unsetting \fB\s-1LINENO\s+1\fR, \fB\s-1MAILCHECK\s+1\fR, \fB\s-1OPTARG\s+1\fR,
+\fB\s-1OPTIND\s+1\fR, \fB\s-1RANDOM\s+1\fR, \fB\s-1SECONDS\s+1\fR, and
+\fB\s-1_\s+1\fR removes their special meaning even if they are subsequently
+assigned to.
+.TP
+\fBver\fR
+Display the current version of the shell.
+.TP
+\fBwait\fR \*(OK \fBjob\fR \*(CK
+This command (which is only available under \fBOS/2\fR) waits for the specified
+\fIjob\fR to terminate and report its status.  This status becomes the return
+code for the \fBwait\fR command.  If \fIjob\fR is not given, \fBwait\fR waits
+for all currently active child processes to terminate.  The termination status
+returned is that of the last process.  See \fBJobs\fR for a description of
+the format of a \fIjob\fR.
+.TP
+.PD 0
+\fBwhence\fR \*(OK \fB-ptv\fR \*(CK \*(OK \fIname\fR ... \*(CK
+.TP
+\fBtype\fR \*(OK \fB-pt\fR \*(CK \*(OK \fIname\fR ... \*(CK
+.PD
+For each \fIname\fR specified, indicate how it would be interpreted if used as
+a command name.  Note that \fBtype\fR is a shorthand for \fBwhence -v\fR.
+If the \fI-t\fR option is used, the shell will report the executable type
+of \fIname\fR (MS Windows, Character-based, MS-DOS, OS/2, MS Windows NT, etc).
+.RS
+.TP
+\fB-p\fR
+Does a path search for \fIname\fR even if the name is an alias, a function,
+or a reserved word.
+.TP
+\fB-v\fR
+Produces a more verbose report.
+.RE
+.SS Invocation
+If the shell is invoked through \fIexec\fR(2) and the first character of
+argument zero is \fB-\fR or the \fB-0\fR(zero) switch is in the invocation line,
+commands are initially read from \fB/etc/profile\fR (the extensions \fB.sh\fR
+or \fB.ksh\fR may be used) and from \fB\s-1$HOME\s+1/profile\fR (the extensions
+\fB.sh\fR or \fB.ksh\fR may be used) if such files exist.  Next, commands are
+read from the file named by performing parameter substitution on the value of
+the environment parameter \fB\s-1ENV\s+1\fR if the file exists.  Thereafter,
+commands are read as described below, which is also the case when the shell
+is invoked as \fB/bin/sh\fR.  The flags below are interpreted by the shell on
+invocation only; Note that unless the \fB-c\fR or \fB-s\fR flag is specified,
+the first argument is assumed to be the name of a file containing commands,
+and the remaining arguments are passed as positional parameters to that
+command file:
+.PP
+.TP 10
+\fB-c\fR string
+If the \fB-c\fR flag is present commands are read from \fIstring\fR.
+.TP
+\fB-s\fR
+If the \fB-s\fR flag is present or if no arguments remain commands are read
+from the standard input.  Any remaining arguments specify the positional
+parameters.  Shell output (except for \fISpecial Commands\fR) is written to
+file descriptor 2.
+.TP
+\fB-i\fR
+If the \fB-i\fR flag is present or if the shell input and output are attached
+to a terminal, this shell is \fIinteractive\fR.  In this case, the
+\s-1TERMINATE\s+1 signal is ignored and the \s-1INTERRUPT\s+1 signal is caught
+and ignored.  In all cases, the \s-1QUIT\s+1 signal is ignored by the shell.
+.TP
+\fB-r\fR
+If the \fB-r\fR flag is present, the shell is a restricted shell.
+.TP
+\fB-0\fR(zero)
+If the \fB-0\fR(zero) flag is present, this has the same effect as starting the
+shell with the first character of argument zero as a \fB-\fR (see above).
+.TP
+\fB-D\fR variable=value
+This option allows the setting of environment variables at the start of the
+shell's execution.  These variables are set up after the shell has read the
+current environment.  The option allows the user to change the value of
+variable in the environment without changing the parent's environment.
+Under UNIX, this functionality is unnecessary.  However, MS-DOS, OS/2 and
+MS Windows NT do not provide the necessary functionality to allow the setting
+of variables just for one particular program.
+.TP
+\fB-P\fR
+This option enables real pipes under \fBOS/2\fR.  See \fBLIMITATIONS\fR.
+.TP
+\fB-R\fR
+If the \fB-R\fR flag is present, the shell is the \fIroot\fR shell and cannot
+be terminated using exit.  Under \fBMS-DOS\fR, the system must be re-booted.
+Under \fBOS/2\fR, the shell must be killed by an external program.  In addition,
+the initialisation file is not read until just before the first keyboard input.
+This allows the location of the file to be changed by changing the value of
+the SHELL environment variable.
+.TP
+\fB-X\fR directory
+If the \fB-X\fR flag is present, the following \fIdirectory\fR defines the
+startup directory for the shell.  The shell immediately changes to this
+directory.
+.PP
+The remaining flags and arguments are described under the \fBset\fR command
+above.
+.SS Rsh Only
+\fIRsh\fR is used to set up login names and execution environments whose
+capabilities are more controlled than those of the standard shell.  The
+actions of \fIrsh\fR are identical to those of \fIsh\fR, except that the
+following are disallowed:
+.sp
+.RS
+.PD 0
+.PP
+Changing directory (see \fIcd\fR(1)),
+.br
+Setting the value of \fBSHELL\fR, \fBENV\fR, or \fB$PATH\fR,
+.br
+Specifying path or command names containing \fB/\fR,
+.br
+Redirecting output (\fB>\fR and \fB>>\fR).
+.PD
+.RE
+.PP
+The restrictions above are enforced after \fBprofile\fR and the
+\fBENV\fR files are interpreted.
+.PP
+When a command to be executed is found to be a shell procedure, \fIrsh\fR
+invokes \fIsh\fR to execute it.  Thus, it is possible to provide to the
+end-user shell procedures that have access to the full power of the standard
+shell, while imposing a limited menu of commands; this scheme assumes that the
+end-user does not have write and execute permissions in the same directory.
+.PP
+The net effect of these rules is that the writer of the \fBprofile\fR has
+complete control over user actions, by performing guaranteed setup actions
+and leaving the user in an appropriate directory (probably \fInot\fR the login
+directory).
+.PP
+The system administrator often sets up a directory of commands (i.e.,
+\fB/usr/rbin\fR) that can be safely invoked by \fIrsh\fR.  Some systems also
+provide a restricted editor \fIred\fR.
+.SH EXIT STATUS
+Errors detected by the shell, such as syntax errors, cause the shell to return
+a non-zero exit status.  If the shell is being used non-interactively execution
+of the shell file is abandoned.  Otherwise, the shell returns the exit status of
+the last command executed (see also the \fBexit\fR command above).
+.SH FILES
+/etc/profile
+.br
+\s-1$HOME\s+1/profile
+.br
+\s-1$HOME\s+1/history.sh.
+.br
+\s-1$TMP\s+1/sh\(**.tmp
+.br
+??/sh.ini
+.SH CRITICAL ERRORS
+The Shell provide a Critical Error Handler (Interrupt 24) similar to the
+standard \fBMS-DOS\fR handler.  In addition to the standard message, the handler
+also displays the Extended Error Code information in hexadecimal.
+.SH LIMITATIONS
+Under MS-DOS, any TSR (Terminate Stay Resident) programs must be loaded before
+loading \fISh\fR as the shell will overwrite the TSR when it reloads itself
+after swapping out.
+.PP
+The shell checks for valid DOS filenames (single dot, not at the beginning).
+Invalid dots are converted to \fB~\fR.  A warning message is displayed if the
+shell detects an invalid file name.
+.PP
+Under \fBOS/2\fR, asynchronous commands are supported to a degree.  However,
+this is very limited because of the nature of the forking commands under
+\fBOS/2\fR which does not match the \fBUNIX\fR model.  This difference has
+also meant that pipes (as in MS-DOS) are implemented as files and not
+\fBOS/2\fR pipes.  For more details, see the source code.
+.PP
+However, real \fBOS/2\fR pipes can be used with care for simple pipelines which
+do not create sub-shells or assume that a real child shell is created
+because the shell does not create child, it simulates their creating in the
+same process.  This is because there is no fork under \fBOS/2\fR.  See the
+\fBset\fR command on how to enable/disable real pipes.
+.SH SEE ALSO
+cd(1),
+test(1),
+umask(1),
+.br
+exec(2),
+pipe(2),
+signal(2),
+umask(2),
+strtol(3),
+profile(4),
+environ(5) in the
+\fI\s-1UNIX\s+1 System Programmer Reference Manual\fR.
+.br
+COMMAND(1) and SUBST(1) in the \fI\s-1MS-DOS\s+1 Reference Guide\fR.
+.br
+CMD(1) in the \fI\s-1OS/2\s+1\fR Reference Guide\fR.
+.br
+CMD(1) in the \fI\s-1MS Windows NT\s+1\fR Reference Guide\fR.
+.br
+DosStartSession(2) in the \fI\s-1OS/2\s+1 Control Program Reference
+Manual\fR.
+.SH ACKNOWLEDGEMENTS
+This program is based on ideas, code or parts of code developed by:
+.PP
+David Korn and Steve Bourne (the original ideas)
+.br
+Charles Forsyth (the original source for the MINIX Shell program)
+.br
+Erik Baalbergen (the code for the test function)
+.br
+Paul Falstad (the code for the maths functions)
+.br
+Simon J. Gerraty (the code for the new lexical analyser and the VI/EMACS
+edit functions).
+.PP
+In addition, a very large number of people (too many to mention) who have been
+involved in testing and debugging the program.

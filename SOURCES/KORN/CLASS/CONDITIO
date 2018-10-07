@@ -1,0 +1,98 @@
+<HTML>
+<HEAD>
+<TITLE>Conditional Expressions</TITLE>
+<CENTER><H1>Conditional Expressions</H1></CENTER>
+</HEAD>
+<BODY>
+<PRE>
+  Conditional Expressions
+     A conditional expression is used with the [[  compound  com-
+     mand  to  test  attributes  of files and to compare strings.
+     Word splitting and file name generation are not performed on
+     the  words  between  [[ and ]].  Each expression can be con-
+     structed from one or more of the following unary  or  binary
+     expressions:
+
+     -a file         True, if file exists.
+     -b file         True, if file exists and is a block  special
+                    file.
+     -c file         True, if file exists and is a character spe-
+                    cial file.
+     -d file         True, if file exists and is a directory.
+     -f file         True, if file  exists  and  is  an  ordinary
+                    file.
+     -g file         True, if file exists and is has  its  setgid
+                    bit set.
+     -k file         True, if file exists and is has  its  sticky
+                    bit set.
+     -n string       True, if length of string is non-zero.
+     -o option       True, if option named option is on.
+     -p file         True, if file exists and is a  fifo  special
+                    file or a pipe.
+     -r file         True, if file  exists  and  is  readable  by
+                    current process.
+     -s file         True, if file exists and  has  size  greater
+                    than zero.
+     -t fildes       True, if file descriptor  number  fildes  is
+                    open and associated with a terminal device.
+     -u file         True, if file exists and has its setuid  bit
+                    set.
+     -w file         True, if file  exists  and  is  writable  by
+                    current process.
+     -x file         True, if file exists and  is  executable  by
+                    current  process.   If  file  exists and is a
+                    directory, then the current process has  per-
+                    mission to search in the directory.
+     -z string       True, if length of string is zero.
+     -L file         True, if file exists and is a symbolic link.
+     -O file         True, if file exists and  is  owned  by  the
+                    effective user id of this process.
+     -G file         True, if file exists and its  group  matches
+                    the effective group id of this process.
+     -S file         True, if file exists and is a socket.
+     file1 -nt file2
+                    True, if  file1  exists  and  is  newer  than
+                    file2.
+     file1 -ot file2
+                    True, if  file1  exists  and  is  older  than
+                    file2.
+     file1 -ef file2
+                    True, if file1 and file2 exist and  refer  to
+                    the same file.
+     string = pattern
+                    True, if string matches pattern.
+     string != pattern
+                    True, if string does not match pattern.
+     string1 < string2
+                    True, if string1 comes before  string2  based
+                    on ASCII value of their characters.
+     string1 > string2
+                    True, if string1 comes after string2 based on
+                    ASCII value of their characters.
+     exp1 -eq exp2   True, if exp1 is equal to exp2.
+     exp1 -ne exp2   True, if exp1 is not equal to exp2.
+     exp1 -lt exp2   True, if exp1 is less than exp2.
+     exp1 -gt exp2   True, if exp1 is greater than exp2.
+     exp1 -le exp2   True, if exp1 is less than or equal to exp2.
+     exp1 -ge exp2   True, if exp1 is greater than  or  equal  to
+                    exp2.
+
+     In each of the above expressions, if file  is  of  the  form
+     /dev/fd/n,  where  n is an integer, then the test is applied
+     to the open file whose descriptor number is n.
+
+     A compound expression can be constructed from  these  primi-
+     tives  by  using  any of the following, listed in decreasing
+     order of precedence.
+
+     (expression)   True, if expression is true.  Used  to  group
+                    expressions.
+     ! expression   True if expression is false.
+     expression1 && expression2
+                    True, if expression1 and expression2 are both
+                    true.
+     expression1 || expression2
+                    True, if either expression1 or expression2 is
+                    true.
+
+</PRE></BODY></HTML>

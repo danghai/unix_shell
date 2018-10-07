@@ -1,0 +1,1698 @@
+From: rsalz@uunet.uu.net (Rich Salz)
+Newsgroups: comp.sources.unix
+Subject: v22i095:  GNU AWK, version 2.11, Part09/16
+Message-ID: <2634@papaya.bbn.com>
+Date: 7 Jun 90 20:31:03 GMT
+Approved: rsalz@uunet.UU.NET
+
+Submitted-by: "Arnold D. Robbins" <arnold@unix.cc.emory.edu>
+Posting-number: Volume 22, Issue 95
+Archive-name: gawk2.11/part09
+
+#! /bin/sh
+# This is a shell archive.  Remove anything before this line, then feed it
+# into a shell via "sh file" or similar.  To overwrite existing files,
+# type "sh file -c".
+# The tool that generated this appeared in the comp.sources.unix newsgroup;
+# send mail to comp-sources-unix@uunet.uu.net if you want that tool.
+# Contents:  ./FUTURES ./PROBLEMS ./missing.d/dup2.c
+#   ./missing.d/memcmp.c ./support/texinfo.tex.01
+# Wrapped by rsalz@litchi.bbn.com on Wed Jun  6 12:24:54 1990
+PATH=/bin:/usr/bin:/usr/ucb ; export PATH
+echo If this archive is complete, you will see the following message:
+echo '          "shar: End of archive 9 (of 16)."'
+if test -f './FUTURES' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'./FUTURES'\"
+else
+  echo shar: Extracting \"'./FUTURES'\" \(555 characters\)
+  sed "s/^X//" >'./FUTURES' <<'END_OF_FILE'
+XThis file lists future projects and enhancments for gawk.
+X
+XSynchronize alloca.[cs] and regex.[ch] with the latest versions at GNU.
+X(this will likely be done as a patch to 2.11.)
+X
+XConvert yylex() to allow arbitrary-length program lines.
+X
+XAllow OFMT to be other than a floating point format.
+X
+XMake printf fully compatible with the ANSI C spec.
+X
+XMake it faster and smaller.
+X
+XAllow RS to be a regexp.
+X
+XRead in environment only if necessary. (Is this all that big a deal?)
+X
+XUse faster regex algorithms.
+X
+XCreate a gawk-to-C translator?
+X
+XCreate a gawk compiler?
+END_OF_FILE
+  if test 555 -ne `wc -c <'./FUTURES'`; then
+    echo shar: \"'./FUTURES'\" unpacked with wrong size!
+  fi
+  # end of './FUTURES'
+fi
+if test -f './PROBLEMS' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'./PROBLEMS'\"
+else
+  echo shar: Extracting \"'./PROBLEMS'\" \(380 characters\)
+  sed "s/^X//" >'./PROBLEMS' <<'END_OF_FILE'
+XThis is a list of known problems in gawk 2.11.
+XHopefully they will all be fixed in the next major release of gawk.
+X
+XPlease keep in mind that this is still beta software and the code
+Xis still undergoing significant evolution.
+X
+X1. The debugging code does not print redirection info.
+X
+X2. The scanner needs work.
+X
+X3. Gawk's printf doesn't yet match the latest nawk's.
+X
+XArnold Robbins
+END_OF_FILE
+  if test 380 -ne `wc -c <'./PROBLEMS'`; then
+    echo shar: \"'./PROBLEMS'\" unpacked with wrong size!
+  fi
+  # end of './PROBLEMS'
+fi
+if test -f './missing.d/dup2.c' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'./missing.d/dup2.c'\"
+else
+  echo shar: Extracting \"'./missing.d/dup2.c'\" \(136 characters\)
+  sed "s/^X//" >'./missing.d/dup2.c' <<'END_OF_FILE'
+X#ifndef F_DUPFD
+X#include <fcntl.h>
+X#endif
+X
+Xint
+Xdup2 (old, new)
+Xint old, new;
+X{
+X	(void) close(new);
+X
+X	return fcntl(old, F_DUPFD, new);
+X}
+END_OF_FILE
+  if test 136 -ne `wc -c <'./missing.d/dup2.c'`; then
+    echo shar: \"'./missing.d/dup2.c'\" unpacked with wrong size!
+  fi
+  # end of './missing.d/dup2.c'
+fi
+if test -f './missing.d/memcmp.c' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'./missing.d/memcmp.c'\"
+else
+  echo shar: Extracting \"'./missing.d/memcmp.c'\" \(345 characters\)
+  sed "s/^X//" >'./missing.d/memcmp.c' <<'END_OF_FILE'
+X/*
+X * memcmp --- compare strings.
+X *
+X * We use our own routine since it has to act like strcmp() for return
+X * value, and the BSD manual says bcmp() only returns zero/non-zero.
+X */
+X
+Xint
+Xmemcmp (s1, s2, l)
+Xregister char *s1, *s2;
+Xregister int l;
+X{
+X	for (; l--; s1++, s2++) {
+X		if (*s1 != *s2)
+X			return (*s1 - *s2);
+X	}
+X	return (*--s1 - *--s2);
+X}
+END_OF_FILE
+  if test 345 -ne `wc -c <'./missing.d/memcmp.c'`; then
+    echo shar: \"'./missing.d/memcmp.c'\" unpacked with wrong size!
+  fi
+  # end of './missing.d/memcmp.c'
+fi
+if test -f './support/texinfo.tex.01' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'./support/texinfo.tex.01'\"
+else
+  echo shar: Extracting \"'./support/texinfo.tex.01'\" \(49357 characters\)
+  sed "s/^X//" >'./support/texinfo.tex.01' <<'END_OF_FILE'
+X%% TeX macros to handle texinfo files
+X
+X%   Copyright (C) 1985, 1986, 1988 Free Software Foundation, Inc.
+X
+X%GNU CC is free software; you can redistribute it and/or modify
+X%it under the terms of the GNU General Public License as published by
+X%the Free Software Foundation; either version 1, or (at your option)
+X%any later version.
+X
+X%GNU CC is distributed in the hope that it will be useful,
+X%but WITHOUT ANY WARRANTY; without even the implied warranty of
+X%MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+X%GNU General Public License for more details.
+X
+X%You should have received a copy of the GNU General Public License
+X%along with GNU CC; see the file COPYING.  If not, write to
+X%the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
+X
+X
+X%In other words, you are welcome to use, share and improve this program.
+X%You are forbidden to forbid anyone else to use, share and improve
+X%what you give them.   Help stamp out software-hoarding!
+X
+X\def\texinfoversion{2.1}
+X\message{Loading texinfo package [Version \texinfoversion]:}
+X\message{}
+X
+X% Save some parts of plain tex whose names we will redefine.
+X
+X\let\ptexlbrace=\{
+X\let\ptexrbrace=\}
+X\let\ptexdot=\.
+X\let\ptexstar=\*
+X\let\ptexend=\end
+X\let\ptexbullet=\bullet
+X\let\ptexb=\b
+X\let\ptexc=\c
+X\let\ptexi=\i
+X\let\ptext=\t
+X\let\ptexl=\l
+X\let\ptexL=\L
+X
+X\def\tie{\penalty 10000\ }     % Save plain tex definition of ~.
+X
+X\message{Basics,}
+X\chardef\other=12
+X
+X\hyphenation{ap-pen-dix}
+X\hyphenation{mini-buf-fer mini-buf-fers}
+X\hyphenation{eshell}
+X
+X% Margin to add to right of even pages, to left of odd pages.
+X\newdimen \bindingoffset  \bindingoffset=0pt
+X\newdimen \normaloffset   \normaloffset=\hoffset
+X\newdimen\pagewidth \newdimen\pageheight
+X\pagewidth=\hsize \pageheight=\vsize
+X
+X%---------------------Begin change-----------------------
+X%
+X% Dimensions to add cropmarks at corners Added by P. A. MacKay, 12 Nov. 1986
+X%
+X\newdimen\cornerlong \newdimen\cornerthick
+X\newdimen \topandbottommargin
+X\newdimen \outerhsize \newdimen \outervsize
+X\cornerlong=1pc\cornerthick=.3pt	% These set size of cropmarks
+X\outerhsize=7in
+X\outervsize=9.5in
+X\topandbottommargin=.75in
+X%
+X%---------------------End change-----------------------
+X
+X% \onepageout takes a vbox as an argument.  Note that \pagecontents
+X% does insertions itself, but you have to call it yourself.
+X\chardef\PAGE=255  \output={\onepageout{\pagecontents\PAGE}}
+X\def\onepageout#1{\hoffset=\normaloffset
+X\ifodd\pageno  \advance\hoffset by \bindingoffset
+X\else \advance\hoffset by -\bindingoffset\fi
+X\shipout\vbox{{\let\hsize=\pagewidth \makeheadline} \pagebody{#1}%
+X {\let\hsize=\pagewidth \makefootline}}
+X\advancepageno \ifnum\outputpenalty>-20000 \else\dosupereject\fi}
+X
+X
+X% Here is a modification of the main output routine for Near East Publications
+X% This provides right-angle cropmarks at all four corners.
+X% The contents of the page are centerlined into the cropmarks,
+X% and any desired binding offset is added as an \hskip on either
+X% site of the centerlined box.  (P. A. MacKay, 12 November, 1986)
+X%
+X\def\croppageout#1{\hoffset=0pt % make sure this doesn't mess things up
+X		 \shipout
+X		 \vbox to \outervsize{\hsize=\outerhsize
+X                 \vbox{\line{\ewtop\hfill\ewtop}}
+X                 \nointerlineskip
+X                 \line{\vbox{\moveleft\cornerthick\nstop}
+X                       \hfill
+X                       \vbox{\moveright\cornerthick\nstop}}
+X                 \vskip \topandbottommargin
+X                 \centerline{\ifodd\pageno\hskip\bindingoffset\fi
+X			\vbox{
+X			{\let\hsize=\pagewidth \makeheadline}
+X			\pagebody{#1}
+X			{\let\hsize=\pagewidth \makefootline}}
+X			\ifodd\pageno\else\hskip\bindingoffset\fi}
+X		 \vskip \topandbottommargin plus1fill minus1fill
+X                 \boxmaxdepth\cornerthick
+X                 \line{\vbox{\moveleft\cornerthick\nsbot}
+X                       \hfill
+X                       \vbox{\moveright\cornerthick\nsbot}}
+X                 \nointerlineskip
+X                 \vbox{\line{\ewbot\hfill\ewbot}}
+X	}
+X  \advancepageno 
+X  \ifnum\outputpenalty>-20000 \else\dosupereject\fi}
+X%
+X% Do @cropmarks to get crop marks
+X\def\cropmarks{\let\onepageout=\croppageout }
+X
+X\def\pagebody#1{\vbox to\pageheight{\boxmaxdepth=\maxdepth #1}}
+X{\catcode`\@ =11
+X\gdef\pagecontents#1{\ifvoid\topins\else\unvbox\topins\fi
+X\dimen@=\dp#1 \unvbox#1
+X\ifvoid\footins\else\vskip\skip\footins\footnoterule \unvbox\footins\fi
+X\ifr@ggedbottom \kern-\dimen@ \vfil \fi}
+X}
+X
+X%
+X% Here are the rules for the cropmarks.  Note that they are
+X% offset so that the space between them is truly \outerhsize or \outervsize
+X% (P. A. MacKay, 12 November, 1986)
+X%
+X\def\ewtop{\vrule height\cornerthick depth0pt width\cornerlong}
+X\def\nstop{\vbox
+X  {\hrule height\cornerthick depth\cornerlong width\cornerthick}}
+X\def\ewbot{\vrule height0pt depth\cornerthick width\cornerlong}
+X\def\nsbot{\vbox
+X  {\hrule height\cornerlong depth\cornerthick width\cornerthick}}
+X
+X% Parse an argument, then pass it to #1.
+X% The argument can be delimited with [...] or with "..." or braces
+X% or it can be a whole line.
+X% #1 should be a macro which expects
+X% an ordinary undelimited TeX argument.
+X
+X\def\parsearg #1{\let\next=#1\begingroup\obeylines\futurelet\temp\parseargx}
+X
+X\def\parseargx{%
+X\ifx \obeyedspace\temp \aftergroup\parseargdiscardspace \else%
+X\aftergroup \parseargline %
+X\fi \endgroup}
+X
+X{\obeyspaces %
+X\gdef\parseargdiscardspace {\begingroup\obeylines\futurelet\temp\parseargx}}
+X
+X\gdef\obeyedspace{\ }
+X
+X\def\parseargline{\begingroup \obeylines \parsearglinex}
+X{\obeylines %
+X\gdef\parsearglinex #1^^M{\endgroup \next {#1}}}
+X
+X\def\flushcr{\ifx\par\lisppar \def\next##1{}\else \let\next=\relax \fi \next}
+X
+X%% These are used to keep @begin/@end levels from running away
+X%% Call \inENV within environments (after a \begingroup)
+X\newif\ifENV \ENVfalse \def\inENV{\ifENV\relax\else\ENVtrue\fi}
+X\def\ENVcheck{%
+X\ifENV\errmessage{Still within an environment.  Type Return to continue.}
+X\endgroup\fi} % This is not perfect, but it should reduce lossage
+X
+X% @begin foo  is the same as @foo, for now.
+X\newhelp\EMsimple{Type <Return> to continue}
+X
+X\outer\def\begin{\parsearg\beginxxx}
+X
+X\def\beginxxx #1{%
+X\expandafter\ifx\csname #1\endcsname\relax
+X{\errhelp=\EMsimple \errmessage{Undefined command @begin #1}}\else
+X\csname #1\endcsname\fi}
+X
+X%% @end foo executes the definition of \Efoo.
+X%% foo can be delimited by doublequotes or brackets.
+X
+X\def\end{\parsearg\endxxx}
+X
+X\def\endxxx #1{%
+X\expandafter\ifx\csname E#1\endcsname\relax
+X\expandafter\ifx\csname #1\endcsname\relax
+X\errmessage{Undefined command @end #1}\else
+X\errorE{#1}\fi\fi
+X\csname E#1\endcsname}
+X\def\errorE#1{
+X{\errhelp=\EMsimple \errmessage{@end #1 not within #1 environment}}}
+X
+X% Single-spacing is done by various environments.
+X
+X\newskip\singlespaceskip \singlespaceskip = \baselineskip
+X\def\singlespace{%
+X{\advance \baselineskip by -\singlespaceskip
+X\kern \baselineskip}%
+X\baselineskip=\singlespaceskip
+X}
+X
+X%% Simple single-character @ commands
+X
+X% @@ prints an @
+X% Kludge this until the fonts are right (grr).
+X\def\@{{\sf \char '100}}
+X
+X% Define @` and @' to be the same as ` and '
+X% but suppressing ligatures.
+X\def\`{{`}}
+X\def\'{{'}}
+X
+X% Used to generate quoted braces.
+X
+X\def\mylbrace {{\tt \char '173}}
+X\def\myrbrace {{\tt \char '175}}
+X\let\{=\mylbrace
+X\let\}=\myrbrace
+X
+X% @: forces normal size whitespace following.
+X\def\:{\spacefactor=1000 }
+X
+X% @* forces a line break.
+X\def\*{\hfil\break}
+X
+X% @. is an end-of-sentence period.
+X\def\.{.\spacefactor=3000 }
+X
+X% @w prevents a word break
+X\def\w #1{\hbox{#1}}
+X
+X% @group ... @end group  forces ... to be all on one page.
+X
+X\def\group{\begingroup% \inENV ???
+X\def \Egroup{\egroup\endgroup}
+X\vbox\bgroup}
+X
+X% @br   forces paragraph break
+X
+X\let\br = \par
+X
+X% @dots{}  output some dots
+X
+X\def\dots{$\ldots$}
+X
+X% @page    forces the start of a new page
+X
+X\def\page{\par\vfill\supereject}
+X
+X% @exdent text....
+X% outputs text on separate line in roman font, starting at standard page margin
+X
+X\def\exdent{\errmessage{@exdent in filled text}}
+X  % @lisp, etc, define \exdent locally from \internalexdent
+X
+X{\obeyspaces
+X\gdef\internalexdent{\parsearg\exdentzzz}}
+X
+X\def\exdentzzz #1{{\advance \leftskip by -\lispnarrowing
+X\advance \hsize by -\leftskip
+X\advance \hsize by -\rightskip
+X\leftline{{\rm#1}}}}
+X
+X% @include file    insert text of that file as input.
+X
+X\def\include{\parsearg\includezzz}
+X\def\includezzz #1{{\def\thisfile{#1}\input #1
+X}}
+X
+X\def\thisfile{}
+X
+X% @center line   outputs that line, centered
+X
+X\def\center{\parsearg\centerzzz}
+X\def\centerzzz #1{{\advance\hsize by -\leftskip
+X\advance\hsize by -\rightskip
+X\centerline{#1}}}
+X
+X% @sp n   outputs n lines of vertical space
+X
+X\def\sp{\parsearg\spxxx}
+X\def\spxxx #1{\par \vskip #1\baselineskip}
+X
+X% @comment ...line which is ignored...
+X% @c is the same as @comment
+X% @ignore ... @end ignore  is another way to write a comment
+X
+X\def\comment{\parsearg \commentxxx}
+X
+X\def\commentxxx #1{}
+X
+X\let\c=\comment
+X
+X% Prevent errors for section commands.
+X% Used in @ignore and in failing conditionals.
+X\def\ignoresections{%
+X\let\chapter=\relax
+X\let\unnumbered=\relax
+X\let\unnumberedsec=\relax
+X\let\unnumberedsection=\relax
+X\let\unnumberedsubsec=\relax
+X\let\unnumberedsubsection=\relax
+X\let\unnumberedsubsubsec=\relax
+X\let\unnumberedsubsubsection=\relax
+X\let\section=\relax
+X\let\subsec=\relax
+X\let\subsubsec=\relax
+X\let\subsection=\relax
+X\let\subsubsection=\relax
+X\let\appendix=\relax
+X\let\appendixsec=\relax
+X\let\appendixsection=\relax
+X\let\appendixsubsec=\relax
+X\let\appendixsubsection=\relax
+X\let\appendixsubsubsec=\relax
+X\let\appendixsubsubsection=\relax
+X}
+X
+X\def\ignore{\begingroup\ignoresections\ignorexxx}
+X\long\def\ignorexxx #1\end ignore{\endgroup}
+X
+X% Conditionals to test whether a flag is set.
+X
+X\outer\def\ifset{\begingroup\ignoresections\parsearg\ifsetxxx}
+X
+X\def\ifsetxxx #1{\endgroup
+X\expandafter\ifx\csname IF#1\endcsname\relax \let\temp=\ifsetfail
+X\else \let\temp=\relax \fi
+X\temp}
+X\def\Eifset{}
+X\def\ifsetfail{\begingroup\ignoresections\ifsetfailxxx}
+X\long\def\ifsetfailxxx #1\end ifset{\endgroup}
+X
+X\outer\def\ifclear{\begingroup\ignoresections\parsearg\ifclearxxx}
+X
+X\def\ifclearxxx #1{\endgroup
+X\expandafter\ifx\csname IF#1\endcsname\relax \let\temp=\relax
+X\else \let\temp=\ifclearfail \fi
+X\temp}
+X\def\Eifclear{}
+X\def\ifclearfail{\begingroup\ignoresections\ifclearfailxxx}
+X\long\def\ifclearfailxxx #1\end ifclear{\endgroup}
+X
+X% Some texinfo constructs that are trivial in tex
+X
+X\def\iftex{}
+X\def\Eiftex{}
+X\def\ifinfo{\begingroup\ignoresections\ifinfoxxx}
+X\long\def\ifinfoxxx #1\end ifinfo{\endgroup}
+X
+X\long\def\menu #1\end menu{}
+X\def\asis#1{#1}
+X
+X\def\node{\ENVcheck\parsearg\nodezzz}
+X\def\nodezzz#1{\nodexxx [#1,]}
+X\def\nodexxx[#1,#2]{\gdef\lastnode{#1}}
+X\let\lastnode=\relax
+X
+X\def\donoderef{\ifx\lastnode\relax\else
+X\expandafter\expandafter\expandafter\setref{\lastnode}\fi
+X\let\lastnode=\relax}
+X
+X\def\unnumbnoderef{\ifx\lastnode\relax\else
+X\expandafter\expandafter\expandafter\unnumbsetref{\lastnode}\fi
+X\let\lastnode=\relax}
+X
+X\def\appendixnoderef{\ifx\lastnode\relax\else
+X\expandafter\expandafter\expandafter\appendixsetref{\lastnode}\fi
+X\let\lastnode=\relax}
+X
+X\let\refill=\relax
+X  
+X% @setfilename is done at the beginning of every texinfo file.
+X% So open here the files we need to have open while reading the input.
+X% This makes it possible to make a .fmt file for texinfo.
+X\def\setfilename{%
+X   \readauxfile
+X   \opencontents
+X   \openindices
+X   \fixbackslash  % Turn off hack to swallow `\input texinfo'.
+X   \comment % Ignore the actual filename.
+X}
+X
+X\outer\def\bye{\pagealignmacro\tracingstats=1\ptexend}
+X
+X\def\inforef #1{\inforefzzz #1,,,,**}
+X\def\inforefzzz #1,#2,#3,#4**{See Info file \file{\losespace#3{}}, node `\losespace#1{}'}
+X\def\losespace #1{#1}
+X
+X\message{fonts,}
+X
+X% Font-change commands.
+X
+X%% Try out Computer Modern fonts at \magstephalf
+X\font\tenrm=cmr10 scaled \magstephalf
+X\font\tentt=cmtt10 scaled \magstephalf
+X% Instead of cmb10, you many want to use cmbx10.
+X% cmbx10 is a prettier font on its own, but cmb10
+X% looks better when embedded in a line with cmr10.
+X\font\tenbf=cmb10 scaled \magstephalf 
+X\font\tenit=cmti10 scaled \magstephalf
+X\font\tensl=cmsl10 scaled \magstephalf
+X\font\tensf=cmss10 scaled \magstephalf
+X\def\li{\sf}
+X\font\tensc=cmcsc10 scaled \magstephalf
+X
+X% Fonts for @defun, etc.
+X\font\defbf=cmbx10 scaled \magstep1 %was 1314
+X\let\deftt=\tentt
+X\def\df{\let\tt=\deftt \defbf}
+X
+X% Font for title
+X\font\titlerm = cmbx10 scaled \magstep5
+X
+X% Fonts for indices
+X\font\indit=cmti9 \font\indrm=cmr9
+X\font\indtt=cmtt9
+X\def\indbf{\indrm} \def\indsl{\indit}
+X\def\indexfonts{\let\it=\indit \let\sl=\indsl \let\bf=\indbf \let\rm=\indrm
+X\let\tt=\indtt}
+X
+X% Fonts for headings
+X\font\chaprm=cmbx10 scaled \magstep3
+X\font\chapit=cmti10 scaled \magstep3
+X\font\chapsl=cmsl10 scaled \magstep3
+X\font\chaptt=cmtt10 scaled \magstep3
+X\font\chapsf=cmss10 scaled \magstep3
+X\let\chapbf=\chaprm
+X
+X\font\secrm=cmbx10 scaled \magstep2
+X\font\secit=cmti10 scaled \magstep2
+X\font\secsl=cmsl10 scaled \magstep2
+X\font\sectt=cmtt10 scaled \magstep2
+X\font\secsf=cmss10 scaled \magstep2
+X\let\secbf=\secrm
+X
+X% \font\ssecrm=cmbx10 scaled \magstep1    % This size an fontlooked bad.
+X% \font\ssecit=cmti10 scaled \magstep1    % The letters were too crowded.
+X% \font\ssecsl=cmsl10 scaled \magstep1
+X% \font\ssectt=cmtt10 scaled \magstep1
+X% \font\ssecsf=cmss10 scaled \magstep1
+X
+X\font\ssecrm=cmb10 at 13pt	% Note the use of cmb rather than cmbx.
+X\font\ssecit=cmti10 at 13pt	% Also, the size is a little larger than
+X\font\ssecsl=cmsl10 at 13pt	% being scaled magstep1.
+X\font\ssectt=cmtt10 at 13pt
+X\font\ssecsf=cmss10 at 13pt
+X
+X\let\ssecbf=\ssecrm
+X
+X\def\textfonts{\let\rm=\tenrm\let\it=\tenit\let\sl=\tensl\let\bf=\tenbf%
+X\let\smallcaps=\tensc\let\sf=\tensf}
+X\def\chapfonts{\let\rm=\chaprm\let\it=\chapit\let\sl=\chapsl\let\bf=\chapbf\let\tt=\chaptt\let\sf=\chapsf}
+X\def\secfonts{\let\rm=\secrm\let\it=\secit\let\sl=\secsl\let\bf=\secbf\let\tt=\sectt\let\sf=\secsf}
+X\def\subsecfonts{\let\rm=\ssecrm\let\it=\ssecit\let\sl=\ssecsl\let\bf=\ssecbf\let\tt=\ssectt\let\sf=\ssecsf}
+X% Count depth in font-changes, for error checks
+X\newcount\fontdepth \fontdepth=0
+X
+X% Font for table of contents.
+X\font\truesecrm=cmr12
+X
+X%% Add scribe-like font environments, plus @l for inline lisp (usually sans
+X%% serif) and @ii for TeX italic
+X
+X% \smartitalic{ARG} outputs arg in italics, followed by an italic correction
+X% unless the following character is such as not to need one.
+X\def\smartitalicx{\ifx\next,\else\ifx\next-\else\ifx\next.\else\/\fi\fi\fi}
+X\def\smartitalic#1{{\sl #1}\futurelet\next\smartitalicx}
+X
+X\let\i=\smartitalic
+X\let\var=\smartitalic
+X\let\dfn=\smartitalic
+X\let\emph=\smartitalic
+X\let\cite=\smartitalic
+X
+X\def\b#1{{\bf #1}}
+X\let\strong=\b
+X
+X\def\t#1{{\tt \rawbackslash \frenchspacing #1}\null}
+X\let\ttfont = \t
+X%\def\samp #1{`{\tt \rawbackslash \frenchspacing #1}'\null}
+X\def\samp #1{`\tclose{#1}'\null}
+X\def\key #1{{\tt \uppercase{#1}}\null}
+X\def\ctrl #1{{\tt \rawbackslash \hat}#1}
+X
+X\let\file=\samp
+X
+X% @code is a modification of @t,
+X% which makes spaces the same size as normal in the surrounding text.
+X\newdimen\tclosesave
+X\newdimen\tcloserm
+X\def\tclose#1{{\rm \tcloserm=\fontdimen2\font \tt \tclosesave=\fontdimen2\font
+X\fontdimen2\font=\tcloserm
+X\def\ {{\fontdimen2\font=\tclosesave{} }}%
+X \rawbackslash \frenchspacing #1\fontdimen2\font=\tclosesave}\null}
+X\let\code=\tclose
+X%\let\exp=\tclose  %Was temporary
+X
+X% @kbd is like @code, except that if the argument is just one @key command, 
+X% then @kbd has no effect.
+X
+X\def\xkey{\key}
+X\def\kbdfoo#1#2#3*{\def\one{#1}\def\three{#3}\def\threex{??}%
+X\ifx\one\xkey\ifx\threex\three \key{#2}
+X\else\tclose{\look}\fi
+X\else\tclose{\look}\fi}
+X
+X\def\kbd#1{\def\look{#1}\expandafter\kbdfoo\look??*}
+X
+X\def\l#1{{\li #1}\null}		% 
+X
+X\def\r#1{{\rm #1}}		% roman font
+X\def\sc#1{{\smallcaps #1}}	% smallcaps font
+X\def\ii#1{{\it #1}}		% italic font
+X
+X\message{page headings,}
+X
+X\newskip\titlepagetopglue \titlepagetopglue = 1.5in
+X\newskip\titlepagebottomglue \titlepagebottomglue = 2pc
+X
+X% First the title page.  Must do @settitle before @titlepage.
+X\font\titlerm = cmbx12 scaled \magstep2
+X\def\titlefont#1{{\titlerm #1}}
+X
+X\newtoks\realeverypar
+X\newif\ifseenauthor
+X
+X\def\titlepage{\begingroup \parindent=0pt \textfonts
+X   \font\subtitlerm = cmr10 scaled \magstephalf
+X   \def\subtitlefont{\subtitlerm \normalbaselineskip = 12pt \normalbaselines}%
+X   %
+X   \font\authorrm = cmbx12 scaled \magstep1
+X   \def\authorfont{\authorrm \normalbaselineskip = 16pt \normalbaselines}%
+X   %
+X   % The first subtitle should have some space before it, but not the
+X   % others.  They all should be ragged left.
+X% This code caused a bug, since two groups were started, but only
+X% one was ended.  Also, I can't see the point of this code.
+X%   \begingroup \realeverypar = {\leftskip = 2in plus 3em minus 1em
+X%                    \parfillskip = 0pt}%
+X%   \everypar = {\vglue \baselineskip \the\realeverypar
+X%                \everypar={\the\realeverypar}}%
+X   %
+X   % Now you can print the title using @title.
+X   \def\title{\parsearg\titlezzz}%
+X   \def\titlezzz##1{\leftline{\titlefont{##1}
+X		    \vskip4pt \hrule height 4pt \vskip4pt}}%
+X   \vglue\titlepagetopglue
+X   %
+X   % Now you can put text using @subtitle.
+X   \def\subtitle{\parsearg\subtitlezzz}%
+X   \def\subtitlezzz##1{{\subtitlefont \rightline{##1}}}%
+X   %
+X   % @author should come last, but may come many times.
+X   \def\author{\parsearg\authorzzz}%
+X   \def\authorzzz##1{\ifseenauthor\else\vskip 0pt plus 1filll\seenauthortrue\fi
+X      {\authorfont \leftline{##1}}}%
+X   %  
+X   % Most title ``pages'' are actually two pages long, with space
+X   % at the top of the second.  We don't want the ragged left on the second.
+X   \let\oldpage = \page
+X%   \def\page{\vskip4pt \hrule height 2pt \vskip\titlepagebottomglue
+X%      \oldpage \endgroup\hrule height0pt\relax}%
+X   \def\page{\oldpage \hbox{}}
+X}
+X
+X\def\Etitlepage{\endgroup\page\HEADINGSon}
+X
+X%%% Set up page headings and footings.
+X
+X\let\thispage=\folio
+X
+X\newtoks \evenheadline    % Token sequence for heading line of even pages
+X\newtoks \oddheadline     % Token sequence for heading line of odd pages
+X\newtoks \evenfootline    % Token sequence for footing line of even pages
+X\newtoks \oddfootline     % Token sequence for footing line of odd pages
+X
+X% Now make Tex use those variables
+X\headline={{\textfonts\rm \ifodd\pageno \the\oddheadline \else \the\evenheadline \fi}}
+X\footline={{\textfonts\rm \ifodd\pageno \the\oddfootline \else \the\evenfootline \fi}}
+X
+X% Commands to set those variables.
+X% For example, this is what  @headings on  does
+X% @evenheading @thistitle|@thispage|@thischapter
+X% @oddheading @thischapter|@thispage|@thistitle
+X% @evenfooting @thisfile||
+X% @oddfooting ||@thisfile
+X
+X\def\evenheading{\parsearg\evenheadingxxx}
+X\def\oddheading{\parsearg\oddheadingxxx}
+X\def\everyheading{\parsearg\everyheadingxxx}
+X
+X\def\evenfooting{\parsearg\evenfootingxxx}
+X\def\oddfooting{\parsearg\oddfootingxxx}
+X\def\everyfooting{\parsearg\everyfootingxxx}
+X
+X{\catcode`\@=0 %
+X
+X\gdef\evenheadingxxx #1{\evenheadingyyy #1@|@|@|@|\finish}
+X\gdef\evenheadingyyy #1@|#2@|#3@|#4\finish{%
+X\global\evenheadline={\rlap{\centerline{#2}}\line{#1\hfil#3}}}
+X
+X\gdef\oddheadingxxx #1{\oddheadingyyy #1@|@|@|@|\finish}
+X\gdef\oddheadingyyy #1@|#2@|#3@|#4\finish{%
+X\global\oddheadline={\rlap{\centerline{#2}}\line{#1\hfil#3}}}
+X
+X\gdef\everyheadingxxx #1{\everyheadingyyy #1@|@|@|@|\finish}
+X\gdef\everyheadingyyy #1@|#2@|#3@|#4\finish{%
+X\global\evenheadline={\rlap{\centerline{#2}}\line{#1\hfil#3}}
+X\global\oddheadline={\rlap{\centerline{#2}}\line{#1\hfil#3}}}
+X
+X\gdef\evenfootingxxx #1{\evenfootingyyy #1@|@|@|@|\finish}
+X\gdef\evenfootingyyy #1@|#2@|#3@|#4\finish{%
+X\global\evenfootline={\rlap{\centerline{#2}}\line{#1\hfil#3}}}
+X
+X\gdef\oddfootingxxx #1{\oddfootingyyy #1@|@|@|@|\finish}
+X\gdef\oddfootingyyy #1@|#2@|#3@|#4\finish{%
+X\global\oddfootline={\rlap{\centerline{#2}}\line{#1\hfil#3}}}
+X
+X\gdef\everyfootingxxx #1{\everyfootingyyy #1@|@|@|@|\finish}
+X\gdef\everyfootingyyy #1@|#2@|#3@|#4\finish{%
+X\global\evenfootline={\rlap{\centerline{#2}}\line{#1\hfil#3}}
+X\global\oddfootline={\rlap{\centerline{#2}}\line{#1\hfil#3}}}
+X%
+X}% unbind the catcode of @.
+X
+X% @headings double	turns headings on for double-sided printing.
+X% @headings single	turns headings on for single-sided printing.
+X% @headings off		turns them off.
+X% @headings on		same as @headings double, retained for compatibility.
+X% By default, they are off.
+X
+X\def\headings #1 {\csname HEADINGS#1\endcsname}
+X
+X\def\HEADINGSoff{
+X\global\evenheadline={\hfil} \global\evenfootline={\hfil}
+X\global\oddheadline={\hfil} \global\oddfootline={\hfil}}
+X\HEADINGSoff
+X% When we turn headings on, set the page number to 1.
+X% For double-sided printing, put current file name in lower left corner,
+X% chapter name on inside top of right hand pages, document
+X% title on inside top of left hand pages, and page numbers on outside top
+X% edge of all pages.
+X\def\HEADINGSdouble{
+X%\pagealignmacro
+X\global\pageno=1
+X\global\evenfootline={\hfil}
+X\global\oddfootline={\hfil}
+X\global\evenheadline={\line{\folio\hfil\thistitle}}
+X\global\oddheadline={\line{\thischapter\hfil\folio}}
+X}
+X% For single-sided printing, chapter title goes across top left of page,
+X% page number on top right.
+X\def\HEADINGSsingle{
+X%\pagealignmacro
+X\global\pageno=1
+X\global\evenfootline={\hfil}
+X\global\oddfootline={\hfil}
+X\global\evenheadline={\line{\thischapter\hfil\folio}}
+X\global\oddheadline={\line{\thischapter\hfil\folio}}
+X}
+X\def\HEADINGSon{\HEADINGSdouble}
+X
+X% Subroutines used in generating headings
+X% Produces Day Month Year style of output.
+X\def\today{\number\day\space
+X\ifcase\month\or
+XJanuary\or February\or March\or April\or May\or June\or
+XJuly\or August\or September\or October\or November\or December\fi
+X\space\number\year}
+X
+X% Use this if you want the Month Day, Year style of output.
+X%\def\today{\ifcase\month\or
+X%January\or February\or March\or April\or May\or June\or
+X%July\or August\or September\or October\or November\or December\fi
+X%\space\number\day, \number\year}
+X
+X% @settitle line...  specifies the title of the document, for headings
+X% It generates no output of its own
+X
+X\def\thistitle{No Title}
+X\def\settitle{\parsearg\settitlezzz}
+X\def\settitlezzz #1{\gdef\thistitle{#1}}
+X
+X\message{tables,}
+X
+X% Tables -- @table, @ftable, @item(x), @kitem(x), @xitem(x).
+X
+X% default indentation of table text
+X\newdimen\tableindent \tableindent=.8in
+X% default indentation of @itemize and @enumerate text
+X\newdimen\itemindent  \itemindent=.3in
+X% margin between end of table item and start of table text.
+X\newdimen\itemmargin  \itemmargin=.1in
+X
+X% used internally for \itemindent minus \itemmargin
+X\newdimen\itemmax
+X
+X% Note @table and @ftable define @item, @itemx, etc., with these defs.
+X% They also define \itemindex
+X% to index the item name in whatever manner is desired (perhaps none).
+X
+X\def\internalBitem{\smallbreak \parsearg\itemzzz}
+X\def\internalBitemx{\par \parsearg\itemzzz}
+X
+X\def\internalBxitem "#1"{\def\xitemsubtopix{#1} \smallbreak \parsearg\xitemzzz}
+X\def\internalBxitemx "#1"{\def\xitemsubtopix{#1} \par \parsearg\xitemzzz}
+X
+X\def\internalBkitem{\smallbreak \parsearg\kitemzzz}
+X\def\internalBkitemx{\par \parsearg\kitemzzz}
+X
+X\def\kitemzzz #1{\dosubind {kw}{\code{#1}}{for {\bf \lastfunction}}\itemzzz {#1}}
+X
+X\def\xitemzzz #1{\dosubind {kw}{\code{#1}}{for {\bf \xitemsubtopic}}\itemzzz {#1}}
+X
+X\def\itemzzz #1{\begingroup %
+X\advance \hsize by -\rightskip %
+X\advance \hsize by -\leftskip %
+X\setbox0=\hbox{\itemfont{#1}}%
+X\itemindex{#1}%
+X\parskip=0in %
+X\noindent %
+X\ifdim \wd0>\itemmax %
+X\vadjust{\penalty 10000}%
+X\hbox to \hsize{\hskip -\tableindent\box0\hss}\ %
+X\else %
+X\hbox to 0pt{\hskip -\tableindent\box0\hss}%
+X\fi %
+X\endgroup %
+X}
+X
+X\def\item{\errmessage{@item while not in a table}}
+X\def\itemx{\errmessage{@itemx while not in a table}}
+X\def\kitem{\errmessage{@kitem while not in a table}}
+X\def\kitemx{\errmessage{@kitemx while not in a table}}
+X\def\xitem{\errmessage{@xitem while not in a table}}
+X\def\xitemx{\errmessage{@xitemx while not in a table}}
+X
+X%% Contains a kludge to get @end[description] to work
+X\def\description{\tablez{\dontindex}{1}{}{}{}{}}
+X
+X\def\table{\begingroup\inENV\obeylines\obeyspaces\tablex}
+X{\obeylines\obeyspaces%
+X\gdef\tablex #1^^M{%
+X\tabley\dontindex#1        \endtabley}}
+X
+X\def\ftable{\begingroup\inENV\obeylines\obeyspaces\ftablex}
+X{\obeylines\obeyspaces%
+X\gdef\ftablex #1^^M{%
+X\tabley\fnitemindex#1        \endtabley}}
+X
+X\def\dontindex #1{}
+X\def\fnitemindex #1{\doind {fn}{\code{#1}}}%
+X
+X{\obeyspaces %
+X\gdef\tabley#1#2 #3 #4 #5 #6 #7\endtabley{\endgroup%
+X\tablez{#1}{#2}{#3}{#4}{#5}{#6}}}
+X
+X\def\tablez #1#2#3#4#5#6{%
+X\aboveenvbreak %
+X\begingroup %
+X\def\Edescription{\Etable}% Neccessary kludge.
+X\let\itemindex=#1%
+X\ifnum 0#3>0 \advance \leftskip by #3\mil \fi %
+X\ifnum 0#4>0 \tableindent=#4\mil \fi %
+X\ifnum 0#5>0 \advance \rightskip by #5\mil \fi %
+X\def\itemfont{#2}%
+X\itemmax=\tableindent %
+X\advance \itemmax by -\itemmargin %
+X\advance \leftskip by \tableindent %
+X\parindent = 0pt
+X\parskip = \smallskipamount
+X\ifdim \parskip=0pt \parskip=2pt \fi%
+X\def\Etable{\endgraf\endgroup\afterenvbreak}%
+X\let\item = \internalBitem %
+X\let\itemx = \internalBitemx %
+X\let\kitem = \internalBkitem %
+X\let\kitemx = \internalBkitemx %
+X\let\xitem = \internalBxitem %
+X\let\xitemx = \internalBxitemx %
+X}
+X
+X% This is the counter used by @enumerate, which is really @itemize
+X
+X\newcount \itemno
+X
+X\def\itemize{\parsearg\itemizezzz}
+X
+X\def\itemizezzz #1{\itemizey {#1}{\Eitemize}}
+X
+X\def\itemizey #1#2{%
+X\aboveenvbreak %
+X\begingroup %
+X\itemno = 0 %
+X\itemmax=\itemindent %
+X\advance \itemmax by -\itemmargin %
+X\advance \leftskip by \itemindent %
+X\parindent = 0pt
+X\parskip = \smallskipamount
+X\ifdim \parskip=0pt \parskip=2pt \fi%
+X\def#2{\endgraf\endgroup\afterenvbreak}%
+X\def\itemcontents{#1}%
+X\let\item=\itemizeitem}
+X
+X\def\bullet{$\ptexbullet$}
+X\def\minus{$-$}
+X
+X% Set sfcode to normal for the chars that usually have another value.
+X% These are `.?!:;,'
+X\def\frenchspacing{\sfcode46=1000 \sfcode63=1000 \sfcode33=1000
+X  \sfcode58=1000 \sfcode59=1000 \sfcode44=1000 }
+X
+X\def\enumerate{\itemizey{\the\itemno.}\Eenumerate\flushcr}
+X
+X% Definition of @item while inside @itemize.
+X
+X\def\itemizeitem{%
+X\advance\itemno by 1
+X{\let\par=\endgraf \smallbreak}%
+X\ifhmode \errmessage{\in hmode at itemizeitem}\fi
+X{\parskip=0in \hskip 0pt
+X\hbox to 0pt{\hss \itemcontents\hskip \itemmargin}%
+X\vadjust{\penalty 300}}%
+X\flushcr}
+X
+X\message{indexing,}
+X% Index generation facilities
+X
+X% Define \newwrite to be identical to plain tex's \newwrite
+X% except not \outer, so it can be used within \newindex.
+X{\catcode`\@=11
+X\gdef\newwrite{\alloc@7\write\chardef\sixt@@n}}
+X
+X% \newindex {foo} defines an index named foo.
+X% It automatically defines \fooindex such that
+X% \fooindex ...rest of line... puts an entry in the index foo.
+X% It also defines \fooindfile to be the number of the output channel for
+X% the file that	accumulates this index.  The file's extension is foo.
+X% The name of an index should be no more than 2 characters long
+X% for the sake of vms.
+X
+X\def\newindex #1{
+X\expandafter\newwrite \csname#1indfile\endcsname% Define number for output file
+X\openout \csname#1indfile\endcsname \jobname.#1	% Open the file
+X\expandafter\xdef\csname#1index\endcsname{%	% Define \xxxindex
+X\noexpand\doindex {#1}}
+X}
+X
+X% @defindex foo  ==  \newindex{foo}
+X
+X\def\defindex{\parsearg\newindex}
+X
+X% Define @defcodeindex, like @defindex except put all entries in @code.
+X
+X\def\newcodeindex #1{
+X\expandafter\newwrite \csname#1indfile\endcsname% Define number for output file
+X\openout \csname#1indfile\endcsname \jobname.#1	% Open the file
+X\expandafter\xdef\csname#1index\endcsname{%	% Define \xxxindex
+X\noexpand\docodeindex {#1}}
+X}
+X
+X\def\defcodeindex{\parsearg\newcodeindex}
+X
+X% @synindex foo bar    makes index foo feed into index bar.
+X% Do this instead of @defindex foo if you don't want it as a separate index.
+X\def\synindex #1 #2 {%
+X\expandafter\xdef\csname#1index\endcsname{%	% Define \xxxindex
+X\noexpand\doindex {#2}}%
+X}
+X
+X% @syncodeindex foo bar   similar, but put all entries made for index foo
+X% inside @code.
+X\def\syncodeindex #1 #2 {%
+X\expandafter\xdef\csname#1index\endcsname{%	% Define \xxxindex
+X\noexpand\docodeindex {#2}}%
+X}
+X
+X% Define \doindex, the driver for all \fooindex macros.
+X% Argument #1 is generated by the calling \fooindex macro,
+X%  and it is "foo", the name of the index.
+X
+X% \doindex just uses \parsearg; it calls \doind for the actual work.
+X% This is because \doind is more useful to call from other macros.
+X
+X% There is also \dosubind {index}{topic}{subtopic}
+X% which makes an entry in a two-level index such as the operation index.
+X
+X\def\doindex#1{\edef\indexname{#1}\parsearg\singleindexer}
+X\def\singleindexer #1{\doind{\indexname}{#1}}
+X
+X% like the previous two, but they put @code around the argument.
+X\def\docodeindex#1{\edef\indexname{#1}\parsearg\singlecodeindexer}
+X\def\singlecodeindexer #1{\doind{\indexname}{\code{#1}}}
+X
+X\def\indexdummies{%
+X\def\bf{\realbackslash bf }%
+X\def\rm{\realbackslash rm }%
+X\def\sl{\realbackslash sl }%
+X\def\dots{\realbackslash dots }%
+X\def\copyright{\realbackslash copyright }%
+X\def\tclose##1{\realbackslash tclose {##1}}%
+X\def\code##1{\realbackslash code {##1}}%
+X\def\samp##1{\realbackslash samp {##1}}%
+X\def\r##1{\realbackslash r {##1}}%
+X\def\i##1{\realbackslash i {##1}}%
+X\def\b##1{\realbackslash b {##1}}%
+X\def\cite##1{\realbackslash cite {##1}}%
+X\def\key##1{\realbackslash key {##1}}%
+X\def\file##1{\realbackslash file {##1}}%
+X\def\var##1{\realbackslash var {##1}}%
+X\def\kbd##1{\realbackslash kbd {##1}}%
+X}
+X
+X% \indexnofonts no-ops all font-change commands.
+X% This is used when outputting the strings to sort the index by.
+X\def\indexdummyfont#1{#1}
+X\def\indexnofonts{%
+X\let\r=\indexdummyfont
+X\let\i=\indexdummyfont
+X\let\b=\indexdummyfont
+X\let\emph=\indexdummyfont
+X\let\strong=\indexdummyfont
+X\let\cite=\indexdummyfont
+X\let\sc=\indexdummyfont
+X%Don't no-op \tt, since it isn't a user-level command
+X% and is used in the definitions of the actuve chars like <, >, |...
+X%\let\tt=\indexdummyfont
+X\let\tclose=\indexdummyfont
+X\let\code=\indexdummyfont
+X\let\file=\indexdummyfont
+X\let\samp=\indexdummyfont
+X\let\kbd=\indexdummyfont
+X\let\key=\indexdummyfont
+X\let\var=\indexdummyfont
+X}
+X
+X% To define \realbackslash, we must make \ not be an escape.
+X% We must first make another character (@) an escape
+X% so we do not become unable to do a definition.
+X
+X{\catcode`\@=0 \catcode`\\=\other
+X@gdef@realbackslash{\}}
+X
+X\let\indexbackslash=0  %overridden during \printindex.
+X
+X\def\doind #1#2{%
+X{\indexdummies % Must do this here, since \bf, etc expand at this stage
+X\count10=\lastpenalty %
+X\escapechar=`\\%
+X{\let\folio=0% Expand all macros now EXCEPT \folio
+X\def\rawbackslashxx{\indexbackslash}% \indexbackslash isn't defined now
+X% so it will be output as is; and it will print as backslash in the indx.
+X%
+X% Now process the index-string once, with all font commands turned off,
+X% to get the string to sort the index by.
+X{\indexnofonts
+X\xdef\temp1{#2}%
+X}%
+X% Now produce the complete index entry.  We process the index-string again,
+X% this time with font commands expanded, to get what to print in the index.
+X\edef\temp{%
+X\write \csname#1indfile\endcsname{%
+X\realbackslash entry {\temp1}{\folio}{#2}}}%
+X\temp }%
+X\penalty\count10}}
+X
+X\def\dosubind #1#2#3{%
+X{\indexdummies % Must do this here, since \bf, etc expand at this stage
+X\count10=\lastpenalty %
+X\escapechar=`\\%
+X{\let\folio=0%
+X\def\rawbackslashxx{\indexbackslash}%
+X%
+X% Now process the index-string once, with all font commands turned off,
+X% to get the string to sort the index by.
+X{\indexnofonts
+X\xdef\temp1{#2 #3}%
+X}%
+X% Now produce the complete index entry.  We process the index-string again,
+X% this time with font commands expanded, to get what to print in the index.
+X\edef\temp{%
+X\write \csname#1indfile\endcsname{%
+X\realbackslash entry {\temp1}{\folio}{#2}{#3}}}%
+X\temp }%
+X\penalty\count10}}
+X
+X% The index entry written in the file actually looks like
+X%  \entry {sortstring}{page}{topic}
+X% or
+X%  \entry {sortstring}{page}{topic}{subtopic}
+X% The texindex program reads in these files and writes files
+X% containing these kinds of lines:
+X%  \initial {c}
+X%     before the first topic whose initial is c
+X%  \entry {topic}{pagelist}
+X%     for a topic that is used without subtopics
+X%  \primary {topic}
+X%     for the beginning of a topic that is used with subtopics
+X%  \secondary {subtopic}{pagelist}
+X%     for each subtopic.
+X
+X% Define the user-accessible indexing commands 
+X% @findex, @vindex, @kindex, @cindex.
+X
+X\def\findex {\fnindex}
+X\def\kindex {\kyindex}
+X\def\cindex {\cpindex}
+X\def\vindex {\vrindex}
+X\def\tindex {\tpindex}
+X\def\pindex {\pgindex}
+X
+X\def\cindexsub {\begingroup\obeylines\cindexsub}
+X{\obeylines %
+X\gdef\cindexsub "#1" #2^^M{\endgroup %
+X\dosubind{cp}{#2}{#1}}}
+X
+X% Define the macros used in formatting output of the sorted index material.
+X
+X% This is what you call to cause a particular index to get printed.
+X% Write
+X% @unnumbered Function Index
+X% @printindex fn
+X
+X\def\printindex{\parsearg\doprintindex}
+X
+X\def\doprintindex#1{\tex %
+X\catcode`\%=\other\catcode`\&=\other\catcode`\#=\other
+X\catcode`\$=\other\catcode`\_=\other
+X\catcode`\~=\other
+X% The following don't help, since the chars were translated
+X% when the raw index was written, and their fonts were discarded
+X% due to \indexnofonts.
+X%\catcode`\"=\active
+X%\catcode`\^=\active
+X%\catcode`\_=\active
+X%\catcode`\|=\active
+X%\catcode`\<=\active
+X%\catcode`\>=\active
+X\def\indexbackslash{\rawbackslashxx}
+X\indexfonts\rm \tolerance=9500 \advance\baselineskip -1pt
+X\begindoublecolumns
+X\openin 1 \jobname.#1s
+X\ifeof 1 \else \closein 1 \input \jobname.#1s
+X\fi
+X\enddoublecolumns
+X\Etex}
+X
+X% These macros are used by the sorted index file itself.
+X% Change them to control the appearance of the index.
+X
+X% Same as \bigskipamount except no shrink.
+X% \balancecolumns gets confused if there is any shrink.
+X\newskip\initialskipamount \initialskipamount 12pt plus4pt
+X
+X\outer\def\initial #1{%
+X{\let\tentt=\sectt \let\sf=\sectt
+X\ifdim\lastskip<\initialskipamount
+X\removelastskip \penalty-200 \vskip \initialskipamount\fi
+X\line{\secbf#1\hfill}\kern 2pt\penalty10000}}
+X
+X\outer\def\entry #1#2{
+X{\parfillskip=0in \parskip=0in \parindent=0in
+X\hangindent=1in \hangafter=1%
+X\noindent\hbox{#1}\dotfill #2\par
+X}}
+X
+X\def\primary #1{\line{#1\hfil}}
+X
+X\newskip\secondaryindent \secondaryindent=0.5cm
+X
+X\def\secondary #1#2{
+X{\parfillskip=0in \parskip=0in
+X\hangindent =1in \hangafter=1
+X\noindent\hskip\secondaryindent\hbox{#1}\dotfill #2\par
+X}}
+X
+X%% Define two-column mode, which is used in indexes.
+X%% Adapted from the TeXBook, page 416
+X\catcode `\@=11
+X
+X\newbox\partialpage
+X
+X\newdimen\doublecolumnhsize  \doublecolumnhsize = 3.11in
+X\newdimen\doublecolumnvsize  \doublecolumnvsize = 19.1in
+X\newdimen\availdimen@
+X
+X\def\begindoublecolumns{\begingroup
+X  \output={\global\setbox\partialpage=\vbox{\unvbox255\kern -\topskip \kern \baselineskip}}\eject
+X  \output={\doublecolumnout} \hsize=\doublecolumnhsize \vsize=\doublecolumnvsize}
+X\def\enddoublecolumns{\output={\balancecolumns}\eject
+X  \endgroup \pagegoal=\vsize}
+X
+X\def\doublecolumnout{\splittopskip=\topskip \splitmaxdepth=\maxdepth
+X  \dimen@=\pageheight \advance\dimen@ by-\ht\partialpage
+X  \setbox0=\vsplit255 to\dimen@ \setbox2=\vsplit255 to\dimen@
+X  \onepageout\pagesofar \unvbox255 \penalty\outputpenalty}
+X\def\pagesofar{\unvbox\partialpage %
+X  \hsize=\doublecolumnhsize % have to restore this since output routine
+X%	      changes it to set cropmarks (P. A. MacKay, 12 Nov. 1986)
+X  \wd0=\hsize \wd2=\hsize \hbox to\pagewidth{\box0\hfil\box2}}
+X\def\balancecolumns{%
+X% Unset the glue.
+X  \setbox255=\vbox{\unvbox255}
+X  \dimen@=\ht255
+X  \advance\dimen@ by\topskip \advance\dimen@ by-\baselineskip
+X  \divide\dimen@ by2
+X  \availdimen@=\pageheight \advance\availdimen@ by-\ht\partialpage
+X% If the remaining data is too big for one page,
+X% output one page normally, then work with what remains.
+X  \ifdim \dimen@>\availdimen@
+X   {
+X     \splittopskip=\topskip \splitmaxdepth=\maxdepth
+X     \dimen@=\pageheight \advance\dimen@ by-\ht\partialpage
+X     \setbox0=\vsplit255 to\dimen@ \setbox2=\vsplit255 to\dimen@
+X     \onepageout\pagesofar
+X   }
+X% Recompute size of what remains, in case we just output some of it.
+X  \dimen@=\ht255
+X  \advance\dimen@ by\topskip \advance\dimen@ by-\baselineskip
+X  \divide\dimen@ by2
+X  \fi
+X  \setbox0=\vbox{\unvbox255}
+X  \splittopskip=\topskip
+X  {\vbadness=10000 \loop \global\setbox3=\copy0
+X    \global\setbox1=\vsplit3 to\dimen@
+X    \ifdim\ht3>\dimen@ \global\advance\dimen@ by1pt \repeat}
+X  \setbox0=\vbox to\dimen@{\unvbox1}  \setbox2=\vbox to\dimen@{\unvbox3}
+X  \pagesofar}
+X
+X\catcode `\@=\other
+X\message{sectioning,}
+X% Define chapters, sections, etc.
+X
+X\newcount \chapno
+X\newcount \secno
+X\newcount \subsecno
+X\newcount \subsubsecno
+X
+X% This counter is funny since it counts through charcodes of letters A, B, ...
+X\newcount \appendixno  \appendixno = `\@
+X\def\appendixletter{\char\the\appendixno}
+X
+X\newwrite \contentsfile
+X% This is called from \setfilename.
+X\def\opencontents{\openout \contentsfile = \jobname.toc}
+X
+X% Each @chapter defines this as the name of the chapter.
+X% page headings and footings can use it.  @section does likewise
+X
+X\def\thischapter{} \def\thissection{}
+X\def\seccheck#1{\if \pageno<0 %
+X\errmessage{@#1 not allowed after generating table of contents}\fi
+X%
+X}
+X
+X\def\chapternofonts{%
+X\let\rawbackslash=\relax%
+X\let\frenchspacing=\relax%
+X\def\char{\realbackslash char}
+X\def\tclose##1{\realbackslash tclose {##1}}
+X\def\code##1{\realbackslash code {##1}}
+X\def\samp##1{\realbackslash samp {##1}}
+X\def\r##1{\realbackslash r {##1}}
+X\def\i##1{\realbackslash i {##1}}
+X\def\b##1{\realbackslash b {##1}}
+X\def\cite##1{\realbackslash cite {##1}}
+X\def\key##1{\realbackslash key {##1}}
+X\def\file##1{\realbackslash file {##1}}
+X\def\var##1{\realbackslash var {##1}}
+X\def\kbd##1{\realbackslash kbd {##1}}
+X}
+X
+X\outer\def\chapter{\parsearg\chapterzzz}
+X\def\chapterzzz #1{\seccheck{chapter}%
+X\secno=0 \subsecno=0 \subsubsecno=0 \global\advance \chapno by 1 \message{Chapter \the\chapno}%
+X\chapmacro {#1}{\the\chapno}%
+X\gdef\thissection{#1}\gdef\thischapter{#1}%
+X{\chapternofonts%
+X\edef\temp{{\realbackslash chapentry {#1}{\the\chapno}{\noexpand\folio}}}%
+X\escapechar=`\\%
+X\write \contentsfile \temp  %
+X\donoderef %
+X}}
+X
+X\outer\def\appendix{\parsearg\appendixzzz}
+X\def\appendixzzz #1{\seccheck{appendix}%
+X\secno=0 \subsecno=0 \subsubsecno=0 \global\advance \appendixno by 1 \message{Appendix \appendixletter}%
+X\chapmacro {#1}{Appendix \appendixletter}%
+X\gdef\thischapter{#1}\gdef\thissection{#1}%
+X{\chapternofonts%
+X\edef\temp{{\realbackslash chapentry {#1}{Appendix \appendixletter}{\noexpand\folio}}}%
+X\escapechar=`\\%
+X\write \contentsfile \temp  %
+X\appendixnoderef %
+X}}
+X
+X\outer\def\unnumbered{\parsearg\unnumberedzzz}
+X\def\unnumberedzzz #1{\seccheck{unnumbered}%
+X\secno=0 \subsecno=0 \subsubsecno=0 \message{(#1)}
+X\unnumbchapmacro {#1}%
+X\gdef\thischapter{#1}\gdef\thissection{#1}%
+X{\chapternofonts%
+X\edef\temp{{\realbackslash unnumbchapentry {#1}{\noexpand\folio}}}%
+X\escapechar=`\\%
+X\write \contentsfile \temp  %
+X\unnumbnoderef %
+X}}
+X
+X\outer\def\section{\parsearg\sectionzzz}
+X\def\sectionzzz #1{\seccheck{section}%
+X\subsecno=0 \subsubsecno=0 \global\advance \secno by 1 %
+X\gdef\thissection{#1}\secheading {#1}{\the\chapno}{\the\secno}%
+X{\chapternofonts%
+X\edef\temp{{\realbackslash secentry %
+X{#1}{\the\chapno}{\the\secno}{\noexpand\folio}}}%
+X\escapechar=`\\%
+X\write \contentsfile \temp %
+X\donoderef %
+X\penalty 10000 %
+X}}
+X
+X\outer\def\appendixsection{\parsearg\appendixsectionzzz}
+X\outer\def\appendixsec{\parsearg\appendixsectionzzz}
+X\def\appendixsectionzzz #1{\seccheck{appendixsection}%
+X\subsecno=0 \subsubsecno=0 \global\advance \secno by 1 %
+X\gdef\thissection{#1}\secheading {#1}{\appendixletter}{\the\secno}%
+X{\chapternofonts%
+X\edef\temp{{\realbackslash secentry %
+X{#1}{\appendixletter}{\the\secno}{\noexpand\folio}}}%
+X\escapechar=`\\%
+X\write \contentsfile \temp %
+X\appendixnoderef %
+X\penalty 10000 %
+X}}
+X
+X\outer\def\unnumberedsec{\parsearg\unnumberedseczzz}
+X\def\unnumberedseczzz #1{\seccheck{unnumberedsec}%
+X\plainsecheading {#1}\gdef\thissection{#1}%
+X{\chapternofonts%
+X\edef\temp{{\realbackslash unnumbsecentry{#1}{\noexpand\folio}}}%
+X\escapechar=`\\%
+X\write \contentsfile \temp %
+X\unnumbnoderef %
+X\penalty 10000 %
+X}}
+X
+X\outer\def\subsection{\parsearg\subsectionzzz}
+X\def\subsectionzzz #1{\seccheck{subsection}%
+X\gdef\thissection{#1}\subsubsecno=0 \global\advance \subsecno by 1 %
+X\subsecheading {#1}{\the\chapno}{\the\secno}{\the\subsecno}%
+X{\chapternofonts%
+X\edef\temp{{\realbackslash subsecentry %
+X{#1}{\the\chapno}{\the\secno}{\the\subsecno}{\noexpand\folio}}}%
+X\escapechar=`\\%
+X\write \contentsfile \temp %
+X\donoderef %
+X\penalty 10000 %
+X}}
+X
+X\outer\def\appendixsubsec{\parsearg\appendixsubseczzz}
+X\def\appendixsubseczzz #1{\seccheck{appendixsubsec}%
+X\gdef\thissection{#1}\subsubsecno=0 \global\advance \subsecno by 1 %
+X\subsecheading {#1}{\appendixletter}{\the\secno}{\the\subsecno}%
+X{\chapternofonts%
+X\edef\temp{{\realbackslash subsecentry %
+X{#1}{\appendixletter}{\the\secno}{\the\subsecno}{\noexpand\folio}}}%
+X\escapechar=`\\%
+X\write \contentsfile \temp %
+X\appendixnoderef %
+X\penalty 10000 %
+X}}
+X
+X\outer\def\unnumberedsubsec{\parsearg\unnumberedsubseczzz}
+X\def\unnumberedsubseczzz #1{\seccheck{unnumberedsubsec}%
+X\plainsecheading {#1}\gdef\thissection{#1}%
+X{\chapternofonts%
+X\edef\temp{{\realbackslash unnumbsubsecentry{#1}{\noexpand\folio}}}%
+X\escapechar=`\\%
+X\write \contentsfile \temp %
+X\unnumbnoderef %
+X\penalty 10000 %
+X}}
+X
+X\outer\def\subsubsection{\parsearg\subsubsectionzzz}
+X\def\subsubsectionzzz #1{\seccheck{subsubsection}%
+X\gdef\thissection{#1}\global\advance \subsubsecno by 1 %
+X\subsubsecheading {#1}{\the\chapno}{\the\secno}{\the\subsecno}{\the\subsubsecno}%
+X{\chapternofonts%
+X\edef\temp{{\realbackslash subsubsecentry %
+X{#1}{\the\chapno}{\the\secno}{\the\subsecno}{\the\subsubsecno}{\noexpand\folio}}}%\
+X\escapechar=`\\%
+X\write \contentsfile \temp %
+X\donoderef %
+X\penalty 10000 %
+X}}
+X
+X\outer\def\appendixsubsubsec{\parsearg\appendixsubsubseczzz}
+X\def\appendixsubsubseczzz #1{\seccheck{appendixsubsubsec}%
+X\gdef\thissection{#1}\global\advance \subsubsecno by 1 %
+X\subsubsecheading {#1}{\appendixletter}{\the\secno}{\the\subsecno}{\the\subsubsecno}%
+X{\chapternofonts%
+X\edef\temp{{\realbackslash subsubsecentry{#1}%
+X{\appendixletter}{\the\secno}{\the\subsecno}{\the\subsubsecno}{\noexpand\folio}}}%\
+X\escapechar=`\\%
+X\write \contentsfile \temp %
+X\appendixnoderef %
+X\penalty 10000 %
+X}}
+X
+X\outer\def\unnumberedsubsubsec{\parsearg\unnumberedsubsubseczzz}
+X\def\unnumberedsubsubseczzz #1{\seccheck{unnumberedsubsubsec}%
+X\plainsecheading {#1}\gdef\thissection{#1}%
+X{\chapternofonts%
+X\edef\temp{{\realbackslash unnumbsubsubsecentry{#1}{\noexpand\folio}}}%
+X\escapechar=`\\%
+X\write \contentsfile \temp %
+X\unnumbnoderef %
+X\penalty 10000 %
+X}}
+X
+X% These are variants which are not "outer", so they can appear in @ifinfo.
+X\def\infounnumbered{\parsearg\unnumberedzzz}
+X\def\infounnumberedsec{\parsearg\unnumberedseczzz}
+X\def\infounnumberedsubsec{\parsearg\unnumberedsubseczzz}
+X\def\infounnumberedsubsubsec{\parsearg\unnumberedsubsubseczzz}
+X
+X\def\infoappendix{\parsearg\appendixzzz}
+X\def\infoappendixsec{\parsearg\appendixseczzz}
+X\def\infoappendixsubsec{\parsearg\appendixsubseczzz}
+X\def\infoappendixsubsubsec{\parsearg\appendixsubsubseczzz}
+X
+X\def\infochapter{\parsearg\chapterzzz}
+X\def\infosection{\parsearg\sectionzzz}
+X\def\infosubsection{\parsearg\subsectionzzz}
+X\def\infosubsubsection{\parsearg\subsubsectionzzz}
+X
+X% Define @majorheading, @heading and @subheading
+X
+X\def\majorheading #1{%
+X{\advance\chapheadingskip by 10pt \chapbreak }%
+X{\chapfonts \line{\rm #1\hfill}}\bigskip \par\penalty 200}
+X
+X\def\chapheading #1{\chapbreak %
+X{\chapfonts \line{\rm #1\hfill}}\bigskip \par\penalty 200}
+X
+X\def\heading{\parsearg\secheadingi}
+X
+X% These macros generate a chapter, section, etc. heading only
+X% (including whitespace, linebreaking, etc. around it),
+X% given all the information in convenient, parsed form.
+X
+X%%% Args are the skip and penalty (usually negative)
+X\def\dobreak#1#2{\par\ifdim\lastskip<#1\removelastskip\penalty#2\vskip#1\fi}
+X
+X\def\setchapterstyle #1 {\csname CHAPF#1\endcsname}
+X
+X%%% Define plain chapter starts, and page on/off switching for it
+X% Parameter controlling skip before chapter headings (if needed)
+X
+X\newskip \chapheadingskip \chapheadingskip = 30pt plus 8pt minus 4pt
+X
+X\def\chapbreak{\dobreak \chapheadingskip {-4000}}
+X\def\chappager{\par\vfill\supereject}
+X\def\chapoddpage{\chappager \ifodd\pageno \else \hbox to 0pt{} \chappager\fi}
+X
+X\def\setchapternewpage #1 {\csname CHAPPAG#1\endcsname}
+X
+X\def\CHAPPAGoff{
+X\global\let\pchapsepmacro=\chapbreak
+X\global\let\pagealignmacro=\chappager}
+X
+X\def\CHAPPAGon{
+X\global\let\pchapsepmacro=\chappager
+X\global\let\pagealignmacro=\chappager
+X\global\def\HEADINGSon{\HEADINGSsingle}}
+X
+X\def\CHAPPAGodd{
+X\global\let\pchapsepmacro=\chapoddpage
+X\global\let\pagealignmacro=\chapoddpage
+X\global\def\HEADINGSon{\HEADINGSdouble}}
+X
+X\CHAPPAGon
+X
+X\def\CHAPFplain{
+X\global\let\chapmacro=\chfplain
+X\global\let\unnumbchapmacro=\unnchfplain}
+X
+X\def\chfplain #1#2{%
+X\pchapsepmacro %
+X{\chapfonts \line{\rm #2.\enspace #1\hfill}}\bigskip \par\penalty 5000 %
+X}
+X
+X\def\unnchfplain #1{%
+X\pchapsepmacro %
+X{\chapfonts \line{\rm #1\hfill}}\bigskip \par\penalty 10000 %
+X}
+X\CHAPFplain % The default
+X
+X\def\unnchfopen #1{%
+X\chapoddpage {\chapfonts \line{\rm #1\hfill}}\bigskip \par\penalty 10000 %
+X}
+X
+X\def\chfopen #1#2{\chapoddpage {\chapfonts
+X\vbox to 3in{\vfil \hbox to\hsize{\hfil #2} \hbox to\hsize{\hfil #1} \vfil}}%
+X\par\penalty 5000 %
+X}
+X
+X\def\CHAPFopen{
+X\global\let\chapmacro=\chfopen
+X\global\let\unnumbchapmacro=\unnchfopen}
+X
+X% Parameter controlling skip before section headings.
+X
+X\newskip \subsecheadingskip  \subsecheadingskip = 17pt plus 8pt minus 4pt
+X\def\subsecheadingbreak{\dobreak \subsecheadingskip {-500}}
+X
+X\newskip \secheadingskip  \secheadingskip = 21pt plus 8pt minus 4pt
+X\def\secheadingbreak{\dobreak \secheadingskip {-1000}}
+X
+X
+X% Section fonts are the base font at magstep2, which produces
+X% a size a bit more than 14 points in the default situation.	
+X
+X\def\secheading #1#2#3{\secheadingi {#2.#3\enspace #1}}
+X\def\plainsecheading #1{\secheadingi {#1}}
+X\def\secheadingi #1{{\advance \secheadingskip by \parskip %
+X\secheadingbreak}%
+X{\secfonts \line{\rm #1\hfill}}%
+X\ifdim \parskip<10pt \kern 10pt\kern -\parskip\fi \penalty 10000 }
+X
+X
+X% Subsection fonts are the base font at magstep1, 
+X% which produces a size of 12 points.
+X
+X\def\subsecheading #1#2#3#4{{\advance \subsecheadingskip by \parskip %
+X\subsecheadingbreak}%
+X{\subsecfonts \line{\rm#2.#3.#4\enspace #1\hfill}}%
+X\ifdim \parskip<10pt \kern 10pt\kern -\parskip\fi \penalty 10000 }
+X
+X\def\subsubsecfonts{\subsecfonts} % Maybe this should change:
+X				  % Perhaps make sssec fonts scaled
+X				  % magstep half
+X\def\subsubsecheading #1#2#3#4#5{{\advance \subsecheadingskip by \parskip %
+X\subsecheadingbreak}%
+X{\subsubsecfonts \line{\rm#2.#3.#4.#5\enspace #1\hfill}}%
+X\ifdim \parskip<10pt \kern 10pt\kern -\parskip\fi \penalty 10000}
+X
+X
+X\message{toc printing,}
+X
+X% Finish up the main text and prepare to read what we've written
+X% to \contentsfile.
+X
+X\def\startcontents#1{%
+X   \ifnum \pageno>0
+X      \pagealignmacro
+X      \immediate\closeout \contentsfile
+X      \pageno = -1		% Request roman numbered pages.
+X   \fi
+X   \unnumbchapmacro{#1}\def\thischapter{#1}%
+X   \begingroup   		% Set up to handle contents files properly.
+X      \catcode`\\=0  \catcode`\{=1  \catcode`\}=2  \catcode`\@=11
+X      \raggedbottom             % Worry more about breakpoints than the bottom.
+X      \advance\hsize by -1in    % Don't use the full line length.
+X}
+X
+X  
+X% Normal (long) toc.
+X\outer\def\contents{%
+X   \startcontents{Table of Contents}%
+X      \input \jobname.toc
+X   \endgroup
+X   \vfill \eject
+X}
+X
+X% And just the chapters.
+X\outer\def\summarycontents{%
+X   \startcontents{Short Contents}%
+X      %
+X      \let\chapentry = \shortchapentry
+X      \let\unnumbchapentry = \shortunnumberedentry
+X      % We want a true roman here for the page numbers.
+X      \secfonts \let\rm = \truesecrm \rm
+X      \advance\baselineskip by 1pt % Open it up a little.
+X      \def\secentry ##1##2##3##4{}
+X      \def\unnumbsecentry ##1##2{}
+X      \def\subsecentry ##1##2##3##4##5{}
+X      \def\unnumbsubsecentry ##1##2{}
+X      \def\subsubsecentry ##1##2##3##4##5##6{}
+X      \def\unnumbsubsubsecentry ##1##2{}
+X      \input \jobname.toc
+X   \endgroup
+X   \vfill \eject
+X}
+X\let\shortcontents = \summarycontents
+X
+X% These macros generate individual entries in the table of contents.
+X% The first argument is the chapter or section name.
+X% The last argument is the page number.
+X% The arguments in between are the chapter number, section number, ...
+X
+X% Chapter-level things, for both the long and short contents.
+X\def\chapentry#1#2#3{\dochapentry{#2\labelspace#1}{#3}}
+X\def\shortchapentry#1#2#3{%
+X   \line{{#2\labelspace #1}\dotfill\doshortpageno{#3}}%
+X}
+X
+X\def\unnumbchapentry#1#2{\dochapentry{#1}{#2}}
+X\def\shortunnumberedentry#1#2{%
+X   \line{#1\dotfill\doshortpageno{#2}}%
+X}
+X
+X% Sections.
+X\def\secentry#1#2#3#4{\dosecentry{#2.#3\labelspace#1}{#4}}
+X\def\unnumbsecentry#1#2{\dosecentry{#1}{#2}}
+X
+X% Subsections.
+X\def\subsecentry#1#2#3#4#5{\dosubsecentry{#2.#3.#4\labelspace#1}{#5}}
+X\def\unnumbsubsecentry#1#2{\dosubsecentry{#1}{#2}}
+X
+X% And subsubsections.
+X\def\subsubsecentry#1#2#3#4#5#6{\dosubsubsecentry{#2.#3.#4.#5\labelspace#1}{#6}}
+X\def\unnumbsubsecentry#1#2{\dosubsubsecentry{#1}{#2}}
+X
+X
+X% This parameter controls the indentation of the various levels.
+X\newdimen\tocindent \tocindent = 3pc
+X
+X% Now for the actual typesetting. In all these, #1 is the text and #2 is the 
+X% page number.
+X%
+X% If the toc has to be broken over pages, we would want to be at chapters 
+X% if at all possible; hence the \penalty.
+X\def\dochapentry#1#2{%
+X   \penalty-300 \vskip\baselineskip
+END_OF_FILE
+  if test 49357 -ne `wc -c <'./support/texinfo.tex.01'`; then
+    echo shar: \"'./support/texinfo.tex.01'\" unpacked with wrong size!
+  fi
+  # end of './support/texinfo.tex.01'
+fi
+echo shar: End of archive 9 \(of 16\).
+cp /dev/null ark9isdone
+MISSING=""
+for I in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 ; do
+    if test ! -f ark${I}isdone ; then
+	MISSING="${MISSING} ${I}"
+    fi
+done
+if test "${MISSING}" = "" ; then
+    echo You have unpacked all 16 archives.
+    rm -f ark[1-9]isdone ark[1-9][0-9]isdone
+else
+    echo You still must unpack the following archives:
+    echo "        " ${MISSING}
+fi
+exit 0
+exit 0 # Just in case...
+-- 
+Please send comp.sources.unix-related mail to rsalz@uunet.uu.net.
+Use a domain-based address or give alternate paths, or you may lose out.

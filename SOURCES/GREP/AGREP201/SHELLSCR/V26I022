@@ -1,0 +1,1434 @@
+Newsgroups: comp.sources.unix
+From: sw@cs.arizona.edu (Sun Wu)
+Subject: v26i022: agrep - very fast grep with approximate pattern matching, Part02/03
+Message-ID: <1992May10.050756.13592@PA.dec.com>
+Date: Sun, 10 May 92 05:07:56 GMT
+Approved: vixie@pa.dec.com
+
+Submitted-By: sw@cs.arizona.edu (Sun Wu)
+Posting-Number: Volume 26, Issue 22
+Archive-Name: agrep-2.01/part02
+
+#! /bin/sh
+# This is a shell archive.  Remove anything before this line, then unpack
+# it by saving it into a file and typing "sh file".  To overwrite existing
+# files, type "sh file -c".  You can also feed this as standard input via
+# unshar, or by typing "sh <file", e.g..  If this archive is complete, you
+# will see the following message at the end:
+#		"End of archive 2 (of 3)."
+# Contents:  agrep.1 asearch.c mgrep.c parse.c
+# Wrapped by sw@optima on Sun Feb 23 13:44:16 1992
+PATH=/bin:/usr/bin:/usr/ucb ; export PATH
+if test -f 'agrep.1' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'agrep.1'\"
+else
+echo shar: Extracting \"'agrep.1'\" \(12740 characters\)
+sed "s/^X//" >'agrep.1' <<'END_OF_FILE'
+X.TH AGREP l "Jan 17, 1992"
+X.SH NAME
+agrep \- search a file for a string or regular expression, with approximate matching capabilities
+X.SH SYNOPSIS
+X.B agrep
+X[
+X.B \-#cdehiklnpstvwxBDGIS
+X]
+X.I pattern 
+X[ -f
+X.I patternfile 
+X]
+X[
+X.IR filename ".\|.\|. ]" 
+X.SH DESCRIPTION
+X.B agrep
+searches the input
+X.IR filenames
+X(standard input is the default, but see a warning under LIMITATIONS) 
+for records containing strings which either 
+X\fIexactly\fP or \fIapproximately\fP match a pattern.  
+A record is by default a line, but it can be defined differently using
+the -d option (see below).
+Normally, each record found is copied to the standard output.
+Approximate matching allows finding records that contain the pattern 
+with several errors including substitutions, insertions, and
+deletions.
+XFor example, Massechusets matches Massachusetts with two errors
+X(one substitution and one insertion).  Running 
+X.B agrep
+X-2 Massechusets foo outputs all lines in foo containing any string with
+at most 2 errors from Massechusets.
+X.LP
+X.B agrep 
+supports many kinds of queries including 
+arbitrary wild cards, sets of patterns, and in general,
+regular expressions.
+See PATTERNS below.
+It supports most of the options supported by the 
+X.B grep
+family plus several more (but it is not 100% compatible with grep).
+XFor more information on the algorithms used by agrep see
+Wu and Manber, 
+X"Fast Text Searching With Errors,"
+Technical report #91-11, Department of Computer Science, University
+of Arizona, June 1991 (available by anonymous ftp from cs.arizona.edu
+in agrep/agrep.ps.1), and
+Wu and Manber,
+X"Agrep -- A Fast Approximate Pattern Searching Tool",
+To appear in USENIX Conference 1992 January (available by anonymous ftp
+from cs.arizona.edu in agrep/agrep.ps.2).
+X.LP
+As with the rest of the \fBgrep\fP family, the characters
+X.RB ` $ ',
+X.RB `^ ',
+X.RB ` \(** ',
+X.RB ` [ ' ,
+X.RB ` ] ' ,
+X.RB ` \s+2^\s0 ',
+X.RB ` | ',
+X.RB ` ( ',
+X.RB ` ) ',
+X.RB ` ! ',
+and
+X.RB ` \e '
+can cause unexpected results when included in the
+X.IR pattern ,
+as these characters are also meaningful
+to the shell.  To avoid these problems, one should always enclose the entire
+pattern argument in single quotes, i.e., 'pattern'.
+Do not use double quotes (").
+X.LP
+When
+X.B agrep
+is applied to more than one input
+file, the name of the file is displayed
+preceding each line which matches
+the pattern.  The filename is not displayed
+when processing a single
+file, so if you actually want the filename
+to appear, use
+X.B /dev/null
+as a second file in the list.
+X.SH OPTIONS
+X.TP
+X.B \-\fI#\fP
+X\fI#\fP is a non-negative integer (at most 8)
+specifying the maximum number of errors
+permitted in finding the approximate matches (defaults to zero).
+Generally, each insertion, deletion, or substitution counts as one error.
+It is possible to adjust the relative cost of insertions,
+deletions and substitutions (see -I -D and -S options).
+X.TP
+X.B \-c
+Display only the count of matching records.
+X.TP
+X.B \-d "'\fIdelim\fP'"
+Define \fIdelim\fP to be the separator between two records.
+The default value is '$', namely a record is by default
+a line.
+X\fIdelim\fP can be a string of size at most 8
+X(with possible use of ^ and $), but not
+a regular expression.
+Text between two \fIdelim\fP's, before the first \fIdelim\fP,
+and after the last \fIdelim\fP is considered as one record.
+XFor example, -d '$$' defines paragraphs as records and -d '^From\ '
+defines mail messages as records.
+X.B agrep
+matches each record separately.
+This option does not currently work with regular expressions.
+X.TP
+X.BI \-e " pattern"
+Same as a simple
+X.I pattern
+argument, but useful when the
+X.I pattern
+begins with a
+X.RB ` \- '.
+X.TP
+X.BI \-f " patternfile"
+X.I patternfile 
+contains a set of (simple) patterns.
+The output is all lines that match at least one of the patterns in 
+X.I patternfile.
+Currently, the \-f option works only for exact match and for simple
+patterns (any meta symbol is interpreted as a regular character);
+it is compatible only with \-c, \-h, \-i, \-l, \-s, \-v, \-w, and \-x options.
+see LIMITATIONS for size bounds.
+X.TP
+X.B \-h
+Do not display filenames.
+X.TP
+X.B \-i
+Case-insensitive search \(em e.g., "A" and "a" are considered equivalent.
+X.TP
+X.B \-k
+No symbol in the pattern is treated as a meta character. 
+XFor example, agrep -k 'a(b|c)*d' foo will find  
+the occurrences of a(b|c)*d in foo whereas agrep 'a(b|c)*d' foo
+will find substrings in foo that match the regular expression 'a(b|c)*d'.
+X.TP
+X.B \-l
+List only the files that contain a match.
+This option is useful for looking for files containing a certain pattern.
+XFor example, " agrep -l 'wonderful'  * " will list the names of those
+files in current directory that contain the word 'wonderful'.
+X.TP
+X.B \-n
+XEach line that is printed is prefixed by its record number in the file.
+X.TP
+X.B \-p
+XFind records in the text that contain a supersequence of the pattern.
+XFor example,
+X\fB agrep \-p DCS foo
+will match "Department of Computer Science."
+X.TP
+X.B \-s   
+Work silently, that is, display nothing except error messages.
+This is useful for checking the error status.
+X.TP
+X.B \-t   
+Output the record starting from the end of 
+X.I delim
+to (and including) the next
+X.I delim.
+This is useful for cases where 
+X.I delim
+should come at the end of the record.
+X.TP
+X.B \-v
+Inverse mode \(em display only those records that
+X.I do not
+contain the pattern.
+X.TP
+X.B \-w
+Search for the pattern as a word \(em i.e., surrounded by non-alphanumeric
+characters.  The non-alphanumeric 
+X.B must
+surround the match;  they cannot be counted as errors.
+XFor example, 
+X.B agrep
+X-w -1 car will match cars, but not characters.
+X.TP
+X.B \-x
+The pattern must match the whole line.
+X.TP
+X.B \-B
+Best match mode.
+When \-B is specified and no exact matches are found, agrep
+will continue to search until the closest matches (i.e., the ones
+with minimum number of errors)
+are found, at which point the following message will be shown:
+X"the best match contains x errors, there are y matches, output them? (y/n)"
+The best match mode is not supported for standard input, e.g.,
+pipeline input.
+When the \-#, \-c, or \-l options are specified, the \-B option is ignored.
+In general, \-B may be slower than \-#, but not by very much.
+X.TP
+X.B \-D\fIk\fP
+Set the cost of a deletion to \fIk\fP (\fIk\fP is a positive integer).
+This option does not currently work with regular expressions.
+X.TP
+X.B \-G
+Output the files that contain a match.
+X.TP
+X.B \-I\fIk\fP
+Set the cost of an insertion to \fIk\fP (\fIk\fP is a positive integer).
+This option does not currently work with regular expressions.
+X.TP
+X.B \-S\fIk\fP
+Set the cost of a substitution to \fIk\fP (\fIk\fP is a positive integer).
+This option does not currently work with regular expressions.
+X.ne 4
+X.SH PATTERNS
+X.LP
+X\fIagrep\fP 
+supports a large variety of patterns, including simple
+strings, strings with classes of characters, sets of strings, 
+wild cards, and regular expressions.
+X.TP
+X\fBStrings\fP
+any sequence of characters, including the special symbols
+X`^' for beginning of line and `$' for end of line.
+The special characters listed above (
+X.RB ` $ ',
+X.RB `^ ',
+X.RB ` \(** ',
+X.RB ` [ ' ,
+X.RB ` \s+2^\s0 ',
+X.RB ` | ',
+X.RB ` ( ',
+X.RB ` ) ',
+X.RB ` ! ',
+and
+X.RB ` \e '
+X) should be preceded by `\\' if they are to be matched as regular
+characters.  For example, \\^abc\\\\ corresponds to the string ^abc\\,
+whereas ^abc corresponds to the string abc at the beginning of a
+line.
+X.TP
+X\fBClasses of characters\fP
+a list of characters inside [] (in order) corresponds to any character
+from the list.  For example, [a-ho-z] is any character between a and h
+or between o and z.  The symbol `^' inside [] complements the list.
+XFor example, [^i-n] denote any character in the character set except
+character 'i' to 'n'.
+The symbol `^' thus has two meanings, but this is consistent with
+egrep.
+The symbol `.' (don't care) stands for any symbol (except for the
+newline symbol).
+X.TP
+X\fBBoolean operations\fP
+X.B agrep 
+supports an `and' operation `;' 
+and an `or' operation `,',
+but not a combination of both.  For example, 'fast;network' searches
+for all records containing both words.
+X.TP
+X\fBWild cards\fP
+The symbol '#' is used to denote a wild card.  # matches zero or any
+number of arbitrary characters.  For example, 
+ex#e matches example.  The symbol # is equivalent to .* in egrep.
+In fact, .* will work too, because it is a valid regular expression
+X(see below), but unless this is part of an actual regular expression,
+X# will work faster. 
+X.TP
+X\fBCombination of exact and approximate matching\fP
+any pattern inside angle brackets <> must match the text exactly even
+if the match is with errors.  For example, <mathemat>ics matches
+mathematical with one error (replacing the last s with an a), but
+mathe<matics> does not match mathematical no matter how many errors we
+allow.
+X.TP
+X\fBRegular expressions\fP
+The syntax of regular expressions in \fBagrep\fP is in general the same as
+that for \fBegrep\fP.  The union operation `|', Kleene closure `*',
+and parentheses () are all supported.
+Currently '+' is not supported.
+Regular expressions are currently limited to approximately 30
+characters (generally excluding meta characters).  Some options
+X(\-d, \-w, \-f, \-t, \-x, \-D, \-I, \-S) do not 
+currently work with regular expressions.
+The maximal number of errors for regular expressions that use '*'
+or '|' is 4.
+X.SH EXAMPLES
+X.LP
+X.TP
+agrep -2 -c ABCDEFG foo 
+gives the number of lines in file foo that contain ABCDEFG
+within two errors.
+X.TP
+agrep -1 -D2 -S2 'ABCD#YZ' foo
+outputs the lines containing ABCD followed, within arbitrary
+distance, by YZ, with up to one additional insertion
+X(-D2 and -S2 make deletions and substitutions too "expensive").
+X.TP
+agrep -5 -p abcdefghij /usr/dict/words
+outputs the list of all words containing at least 5 of the first 10
+letters of the alphabet \fIin order\fR.  (Try it:  any list starting
+with academia and ending with sacrilegious must mean something!)
+X.TP 
+agrep -1 'abc[0-9](de|fg)*[x-z]' foo
+outputs the lines containing, within up to one error, the string
+that starts with abc followed by one digit, followed by zero or more
+repetitions of either de or fg, followed by either x, y, or z.
+X.TP
+agrep -d '^From\ ' 'breakdown;internet' mbox
+outputs all mail messages (the pattern '^From\ ' separates mail messages
+in a mail file) that contain keywords 'breakdown' and 'internet'.
+X.TP
+agrep -d '$$' -1 '<word1> <word2>' foo
+finds all paragraphs that contain word1 followed by word2 with one
+error in place of the blank.  
+In particular, if word1 is the last word in a line and word2
+is the first word in the next line, then the space will be
+substituted by a newline symbol and it will match.
+Thus, this is a way to overcome separation by a newline.
+Note that -d '$$' (or another delim which spans more than one line)
+is necessary, because otherwise agrep searches
+only one line at a time.
+X.TP
+agrep '^agrep' <this manual>
+outputs all the examples of the use of agrep in this man pages.
+X.PD
+X.SH "SEE ALSO"
+X.BR ed (1),
+X.BR ex (1),
+X.BR grep (1V),
+X.BR sh (1),
+X.BR csh (1).
+X.SH BUGS/LIMITATIONS
+Any bug reports or comments will be appreciated! 
+Please mail them to sw@cs.arizona.edu or udi@cs.arizona.edu
+X.LP
+Regular expressions do not support the '+' operator (match 1 or more
+instances of the preceding token).  These can be searched for by using
+this syntax in the pattern:
+X.sp
+X.in 1.0i
+X\&'\fIpattern\fB(\fIpattern\fB)*\fR'
+X.in
+X.sp
+X(search for strings containing one instance of the pattern, followed by 0 or
+more instances of the pattern).
+X.LP
+The following can cause an infinite loop:
+X.B agrep
+pattern * > output_file.
+If the number of matches is high, they may be deposited in
+output_file before it is completely read leading to more matches of
+the pattern within output_file (the matches are against the whole
+directory).  It's not clear whether this is a "bug" (grep will do the
+same), but be warned.
+X.LP
+The maximum size of the 
+X.I patternfile
+is limited to be 250Kb, and the maximum number of patterns
+is limited to be 30,000.
+X.LP
+Standard input is the default if no input file is given.
+However, if standard input is keyed in directly (as opposed to through
+a pipe, for example) agrep may not work for some non-simple patterns.
+X.LP
+There is no size limit for simple patterns.
+More complicated patterns are currently limited to approximately 30 characters.
+Lines are limited to 1024 characters.
+Records are limited to 48K, and may be truncated if they are larger
+than that.
+The limit of record length can be 
+changed by modifying the parameter Max_record in agrep.h.
+X.SH DIAGNOSTICS
+XExit status is 0 if any matches are found,
+X1 if none, 2 for syntax errors or inaccessible files.
+X.SH AUTHORS
+Sun Wu and Udi Manber, Department of Computer Science, University of
+Arizona, Tucson, AZ 85721.  {sw|udi}@cs.arizona.edu.
+X
+X
+END_OF_FILE
+if test 12740 -ne `wc -c <'agrep.1'`; then
+    echo shar: \"'agrep.1'\" unpacked with wrong size!
+fi
+# end of 'agrep.1'
+fi
+if test -f 'asearch.c' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'asearch.c'\"
+else
+echo shar: Extracting \"'asearch.c'\" \(11214 characters\)
+sed "s/^X//" >'asearch.c' <<'END_OF_FILE'
+X/* Copyright (c) 1991 Sun Wu and Udi Manber.  All Rights Reserved. */
+X#include "agrep.h"
+X
+extern unsigned Init1, Init[], Mask[], endposition, D_endpos, AND, NO_ERR_MASK;
+extern int DELIMITER, FILENAMEONLY, INVERSE;
+extern CHAR CurrentFileName[];
+extern int I, num_of_matched, TRUNCATE;
+X
+asearch(old_D_pat, text, D)
+CHAR old_D_pat[]; int text; register unsigned D;
+X{
+X  register unsigned i, c, r1, r2, CMask, r_NO_ERR, r_Init1; 
+X  register unsigned A0, B0, A1, B1, endpos;
+X  unsigned A2, B2, A3, B3, A4, B4;
+X  unsigned A[MaxError+1], B[MaxError+1];
+X  unsigned D_Mask;
+X  unsigned end;
+X  int D_length, FIRSTROUND, ResidueSize, lasti, l, k, buffer_end, j=0;
+X  int printout_end;
+X  CHAR buffer[2*Max_record+1];
+X     
+X  if (I == 0) Init1 = 037777777777;
+X  if(D > 4) {
+X         asearch0(old_D_pat, text, D); 
+X         return;  }
+X  D_length = strlen(old_D_pat);
+X  buffer[Max_record-1] = '\n';
+X  D_Mask = D_endpos;
+X  for ( i=1; i<D_length; i++) D_Mask = (D_Mask<<1) | D_Mask;
+X  D_Mask = ~D_Mask;
+X
+X  r_Init1 = Init1; /* put Init1 in register */
+X  r_NO_ERR = NO_ERR_MASK; /* put NO_ERR_MASK in register */
+X  endpos = D_endpos;    
+X  FIRSTROUND = ON;
+X  A0 = B0 = A1 = B1 = A2 = B2 = A3 = B3 = A4 = B4 = Init[0];
+X  for(k=0; k<=D; k++) A[k] = B[k] = Init[0];
+X  lasti = Max_record;
+X
+X  while ((l = fill_buf(text, buffer + Max_record, Max_record)) > 0)
+X  { i = Max_record; end = Max_record + l ;
+X    if (FIRSTROUND) { 
+X        i = Max_record - 1;
+X	if(DELIMITER) {
+X		for(k=0; k<D_length; k++) {
+X					if(old_D_pat[k] != buffer[Max_record+k]) 						break;
+X		}
+X		if(k>=D_length) j--;
+X	}
+X        FIRSTROUND = OFF; }
+X    if (l < BlockSize) {
+X        strncpy(buffer+end, old_D_pat, D_length);
+X        buffer[end+D_length] = '\0';
+X        end = end + D_length; }
+X    while (i < end )
+X    {
+X        c = buffer[i];
+X        CMask = Mask[c];
+X              r1 = r_Init1 & B0;
+X              A0 = ((B0 >>1 ) & CMask) | r1;
+X              r1 = r_Init1 & B1;
+X              r2 =  B0 | (((A0 | B0) >> 1) & r_NO_ERR); 
+X              A1 = ((B1 >>1 ) & CMask) | r2 | r1 ;  
+X                     if(D == 1) goto Nextchar;
+X              r1 = r_Init1 & B2;
+X              r2 =  B1 | (((A1 | B1) >> 1) & r_NO_ERR); 
+X              A2 = ((B2 >>1 ) & CMask) | r2 | r1 ;  
+X                     if(D == 2) goto Nextchar;
+X              r1 = r_Init1 & B3;
+X              r2 =  B2 | (((A2 | B2) >> 1) & r_NO_ERR); 
+X              A3 = ((B3 >>1 ) & CMask) | r2 | r1 ;  
+X                     if(D == 3) goto Nextchar;
+X              r1 = r_Init1 & B4;
+X              r2 =  B3 | (((A3 | B3) >> 1) & r_NO_ERR); 
+X              A4 = ((B4 >>1 ) & CMask) | r2 | r1 ;  
+X                     if(D == 4) goto Nextchar;
+Nextchar: i=i+1;
+X        if(A0 & endpos) {
+X           j++;  r1 = A0;
+X           if ( D == 1) r1 = A1;
+X           if ( D == 2) r1 = A2;
+X           if ( D == 3) r1 = A3;
+X           if ( D == 4) r1 = A4;
+X           if(((AND == 1) && ((r1 & endposition) == endposition)) ||                           ((AND == 0) && (r1 & endposition)) ^ INVERSE )
+X                 {    
+X                      if(FILENAMEONLY) {
+X                         num_of_matched++;
+X                         printf("%s\n", CurrentFileName);
+X                         return;  }
+X                      printout_end = i - D_length - 1;           
+X                      if(!(lasti >= Max_record + l - 1))
+X                         output(buffer, lasti, printout_end, j);
+X                 }
+X           lasti = i - D_length; /* point to starting position of D_pat */
+X           TRUNCATE = OFF;
+X           for(k=0; k<= D; k++) {
+X              B[k] = Init[0];
+X           }
+X           r1 = B[0] & Init1;
+X           A[0] = (((B[0]>>1) & CMask) | r1) & D_Mask;
+X           for(k=1; k<= D; k++) {
+X              r1 = Init1 & B[k];
+X              r2 = B[k-1] | (((A[k-1] | B[k-1])>>1)&r_NO_ERR);
+X              A[k] = (((B[k]>>1)&CMask) | r1 | r2) ;
+X           }
+X           A0 = A[0]; B0 = B[0]; A1 = A[1]; B1 = B[1]; A2 = A[2]; B2 = B[2];
+X           A3 = A[3]; B3 = B[3]; A4 = A[4]; B4 = B[4];
+X        }
+X        c = buffer[i];
+X        CMask = Mask[c];
+X              r1 = r_Init1 & A0;
+X              B0 = ((A0 >> 1 ) & CMask) | r1;
+X#ifdef DEBUG
+X	printf("Mask = %o, B0 = %o\n", CMask, B0);
+X#endif
+X              r1 = r_Init1 & A1;
+X              r2 =  A0 | (((A0 | B0) >> 1) & r_NO_ERR); 
+X              B1 = ((A1 >>1 ) & CMask) | r2 | r1 ;  
+X                     if(D == 1) goto Nextchar1;
+X              r1 = r_Init1 & A2;
+X              r2 =  A1 | (((A1 | B1) >> 1) & r_NO_ERR); 
+X              B2 = ((A2 >>1 ) & CMask) | r2 | r1 ;  
+X                     if(D == 2) goto Nextchar1;
+X              r1 = r_Init1 & A3;
+X              r2 =  A2 | (((A2 | B2) >> 1) & r_NO_ERR); 
+X              B3 = ((A3 >>1 ) & CMask) | r2 | r1 ;  
+X                     if(D == 3) goto Nextchar1;
+X              r1 = r_Init1 & A4;
+X              r2 =  A3 | (((A3 | B3) >> 1) & r_NO_ERR); 
+X              B4 = ((A4 >>1 ) & CMask) | r2 | r1 ;  
+X                     if(D == 4) goto Nextchar1;
+Nextchar1: i=i+1;
+X        if(B0 & endpos) {
+X           j++;  r1 = B0;
+X           if ( D == 1) r1 = B1;
+X           if ( D == 2) r1 = B2;
+X           if ( D == 3) r1 = B3;
+X           if ( D == 4) r1 = B4;
+X           if(((AND == 1) && ((r1 & endposition) == endposition)) ||                           ((AND == 0) && (r1 & endposition)) ^ INVERSE )
+X                 { 
+X                    if(FILENAMEONLY) {
+X                       num_of_matched++;
+X                       printf("%s\n", CurrentFileName);
+X                       return; }
+X                    printout_end = i - D_length -1 ; 
+X                    if(!(lasti >= Max_record + l - 1))
+X                       output(buffer, lasti, printout_end, j);
+X                 }
+X           lasti = i - D_length ;
+X           TRUNCATE = OFF;
+X           for(k=0; k<= D; k++) {
+X              A[k] = Init[0];
+X           }
+X           r1 = A[0] & Init1; 
+X           B[0] = (((A[0]>>1)&CMask) | r1) & D_Mask;
+X           for(k=1; k<= D; k++) {
+X              r1 = Init1 & A[k];
+X              r2 = A[k-1] | (((A[k-1] | B[k-1])>>1)&r_NO_ERR);
+X              B[k] = (((A[k]>>1)&CMask) | r1 | r2) ;
+X           }
+X           A0 = A[0]; B0 = B[0]; A1 = A[1]; B1 = B[1]; A2 = A[2]; B2 = B[2];
+X           A3 = A[3]; B3 = B[3]; A4 = A[4]; B4 = B[4];
+X        }
+X    }
+X    if(l < BlockSize) {
+X           lasti = Max_record ;
+X    }
+X    else {
+X       ResidueSize = Max_record + l - lasti;
+X       if(ResidueSize > Max_record) {
+X          ResidueSize = Max_record;
+X          TRUNCATE = ON;         }
+X       strncpy(buffer+Max_record-ResidueSize, buffer+lasti, ResidueSize);
+X       lasti = Max_record - ResidueSize;
+X       if(lasti == 0)     lasti = 1; 
+X    }
+X  }
+X  return;
+X}
+X
+asearch0(old_D_pat, text, D)
+CHAR old_D_pat[]; int text; register unsigned D;
+X{
+X  register unsigned i, c, r1, r2, r3, CMask, r_NO_ERR, r_Init1,  end, endpos; 
+X  unsigned A[MaxError+2], B[MaxError+2];
+X  unsigned D_Mask;
+X  int D_length, FIRSTROUND, ResidueSize, lasti, l, k, buffer_end, j=0;
+X  int printout_end;
+X  CHAR buffer[BlockSize+Max_record+1];
+X  
+X  D_length = strlen(old_D_pat);
+X  buffer[Max_record-1] = '\n';
+X  D_Mask = D_endpos;
+X  for ( i=1; i<D_length; i++) D_Mask = (D_Mask<<1) | D_Mask;
+X  D_Mask = ~D_Mask;
+X
+X  r_Init1 = Init1; /* put Init1 in register */
+X  r_NO_ERR = NO_ERR_MASK; /* put NO_ERR_MASK in register */
+X  endpos = D_endpos;    
+X  FIRSTROUND = ON;
+X  for(k=0; k<=D; k++) A[k] = B[k] = Init[0];
+X  lasti = Max_record;
+X
+X  while ((l = fill_buf(text, buffer + Max_record, Max_record)) > 0)
+X  { i = Max_record; end = Max_record + l ;
+X    if (FIRSTROUND) { 
+X        i = Max_record - 1;
+X        FIRSTROUND = OFF; }
+X    if (l < BlockSize) {
+X        strncpy(buffer+end, old_D_pat, D_length);
+X        buffer[end+D_length] = '\0';
+X        end = end + D_length; }
+X    while (i < end )
+X    {
+X        c = buffer[i++];
+X        CMask = Mask[c];
+X              r1 = B[0] & r_Init1;
+X              A[0] = (((B[0] >> 1)) & CMask | r1 ) ;
+X              for(k=1; k<=D; k++) {
+X                     r1 = r_Init1 & B[k];
+X                     r2 = B[k-1] | (((A[k-1]|B[k-1])>>1) & r_NO_ERR);
+X                     A[k] = ((B[k] >> 1) & CMask) | r2 | r1;
+X              }
+X        if(A[0] & endpos) {
+X           j++;  
+X           r1 = A[D];
+X           if(((AND == 1) && ((r1 & endposition) == endposition)) ||                           ((AND == 0) && (r1 & endposition)) ^ INVERSE )
+X                 {    
+X                      if(FILENAMEONLY) {
+X                         num_of_matched++;
+X                         printf("%s\n", CurrentFileName);
+X                         return;  }
+X                      printout_end = i - D_length - 1;           
+X                      if(!(lasti >= Max_record + l - 1))
+X                         output(buffer, lasti, printout_end, j);
+X                 }
+X           lasti = i - D_length; /* point to starting position of D_pat */
+X           for(k=0; k<= D; k++) {
+X              B[k] = Init[0];
+X           }
+X           r1 = B[0] & r_Init1;
+X           A[0] = (((B[0]>>1) & CMask) | r1) & D_Mask;
+X           for(k=1; k<= D; k++) {
+X              r1 = Init1 & B[k];
+X              r2 = B[k-1] | (((A[k-1] | B[k-1])>>1)&r_NO_ERR);
+X              A[k] = (((B[k]>>1)&CMask) | r1 | r2) ;
+X           }
+X        }
+X        c = buffer[i++];
+X        CMask = Mask[c];
+X              r1   = r_Init1 & A[0];
+X              B[0] = ((A[0] >> 1 ) & CMask) | r1;
+X              for(k=1; k<=D; k++) {
+X                     r1 = r_Init1 & A[k];
+X                     r2 = A[k-1] | (((A[k-1]|B[k-1])>>1) & r_NO_ERR);
+X                     B[k] = ((A[k] >> 1) & CMask) | r2 | r1;
+X              }
+X        if(B[0] & endpos) {
+X           j++;  
+X           r1 = B[D];
+X           if(((AND == 1) && ((r1 & endposition) == endposition)) ||                           ((AND == 0) && (r1 & endposition)) ^ INVERSE )
+X                 { 
+X                    if(FILENAMEONLY) {
+X                       num_of_matched++;
+X                       printf("%s\n", CurrentFileName);
+X                       return; }
+X                    printout_end = i - D_length -1 ; 
+X                    if(!(lasti >= Max_record + l - 1))
+X                       output(buffer, lasti, printout_end, j);
+X                 }
+X           lasti = i - D_length ;
+X           for(k=0; k<= D; k++) {
+X              A[k] = Init[0];
+X           }
+X           r1 = A[0] & r_Init1; 
+X           B[0] = (((A[0]>>1)&CMask) | r1) & D_Mask;
+X           for(k=1; k<= D; k++) {
+X              r1 = r_Init1 & A[k];
+X              r2 = A[k-1] | (((A[k-1] | B[k-1])>>1)&r_NO_ERR);
+X              B[k] = (((A[k]>>1)&CMask) | r1 | r2) ;
+X           }
+X        }
+X    }
+X    if(l < BlockSize) {
+X           lasti = Max_record;
+X    }
+X    else {
+X       ResidueSize = Max_record + l - lasti;
+X       if(ResidueSize > Max_record) {
+X          ResidueSize = Max_record;
+X          TRUNCATE = ON;         }
+X       strncpy(buffer+Max_record-ResidueSize, buffer+lasti, ResidueSize);
+X       lasti = Max_record - ResidueSize;
+X       if(lasti == 0)     lasti = 1; 
+X    }
+X  }
+X  return;
+X}
+X
+X
+X/*
+fill_buf(fd, buf, record_size)
+int fd, record_size; unsigned char *buf;
+X{
+int num_read=1;
+int total_read=0;
+X	while(total_read < record_size && num_read > 0) {
+X		num_read = read(fd, buf+total_read, 4096);
+X		total_read = total_read + num_read;
+X	}
+X	return(total_read);
+X}
+X*/
+END_OF_FILE
+if test 11214 -ne `wc -c <'asearch.c'`; then
+    echo shar: \"'asearch.c'\" unpacked with wrong size!
+fi
+# end of 'asearch.c'
+fi
+if test -f 'mgrep.c' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'mgrep.c'\"
+else
+echo shar: Extracting \"'mgrep.c'\" \(8386 characters\)
+sed "s/^X//" >'mgrep.c' <<'END_OF_FILE'
+X/* Copyright (c) 1991 Sun Wu and Udi Manber.  All Rights Reserved. */
+X/* multipattern matcher */
+X#include <stdio.h>
+X#define MAXPAT  256
+X#define MAXLINE 1024
+X#define MAXSYM  256
+X#define MAXMEMBER1 4096
+X#define MAXPATFILE 260000
+X#define BLOCKSIZE  8192
+X#define MAXHASH    8192
+X#define mm 	   8191
+X#define max_num    30000  
+X#define W_DELIM	   252
+X#define L_DELIM    10 
+X
+extern COUNT, FNAME, SILENT, FILENAMEONLY, num_of_matched;
+extern INVERSE;
+extern WORDBOUND, WHOLELINE, NOUPPER;
+extern unsigned char  CurrentFileName[], Progname[]; 
+extern total_line;
+X
+int LONG  = 0;
+int SHORT = 0;
+int p_size=0;
+unsigned char SHIFT1[MAXMEMBER1];
+unsigned char tr[MAXSYM];
+unsigned char tr1[MAXSYM];
+struct pat_list {
+X	int  index;
+X	struct pat_list *next;
+X} *HASH[MAXHASH];
+struct pat_list  *pt, *qt;
+unsigned char buf[MAXPATFILE+BLOCKSIZE];
+unsigned char pat_spool[MAXPATFILE+2*max_num+MAXPAT];
+unsigned char *patt[max_num];
+unsigned char pat_len[max_num];
+X
+X
+prepf(fp)
+int fp;
+X{
+X    int length=0, i, p=1, pdx=0, num_pat;
+X    unsigned char *pat_ptr=pat_spool, temp[10];
+X    unsigned Mask = 15;
+X    int num_read;
+X
+X    while((num_read = read(fp, buf+length, BLOCKSIZE)) > 0) {
+X	length = length + num_read;
+X	if(length > MAXPATFILE) {
+X		fprintf(stderr, "%s: maximum pattern file size is %d\n", Progname, MAXPATFILE);
+X		exit(2);
+X	}
+X    }
+X    buf[length] = '\n';
+X    i = 0; p=1;
+X    while(i<length) {
+X	patt[p] = pat_ptr;
+X	if(WORDBOUND) *pat_ptr++ = W_DELIM;
+X	if(WHOLELINE) *pat_ptr++ = L_DELIM;
+X	while((*pat_ptr = buf[i++]) != '\n') pat_ptr++;
+X	if(WORDBOUND) *pat_ptr++ = W_DELIM;
+X	if(WHOLELINE) *pat_ptr++ = L_DELIM;           /* Can't be both on */
+X	*pat_ptr++ = 0;
+X	p++;  
+X    }
+X    if(p>max_num) {
+X	fprintf(stderr, "%s: maximum number of patterns is %d\n", Progname, max_num); 
+X	exit(2);
+X    }
+X    for(i=1; i<20; i++) *pat_ptr = i;  /* boundary safety zone */
+X    for(i=0; i< MAXSYM; i++) tr[i] = i;
+X    if(NOUPPER) {
+X	for(i='A'; i<= 'Z'; i++) tr[i] = i + 'a' - 'A';
+X    }
+X    if(WORDBOUND) {
+X	tr['\n'] = tr['\t'] = tr[' '] = tr[','] = tr[';'] = tr[':'] = W_DELIM;
+X        tr['!'] = tr['"'] = tr['?'] = tr['<'] = tr['>'] = W_DELIM;
+X	tr['='] = tr['['] = tr[']'] = W_DELIM; 
+X        tr['('] = tr[')'] = tr['$'] = tr['/'] = tr['\\'] = W_DELIM;
+X    }
+X    for(i=0; i< MAXSYM; i++) tr1[i] = tr[i]&Mask;
+X#ifdef DEBUG
+X  for(i=1; i<p; i++) printf("%s\n", patt[i]); fflush(stdout);
+X  printf("\n\n");
+X#endif
+X    num_pat = p-1;
+X    p_size = MAXPAT;
+X    for(i=1 ; i <= num_pat; i++) {
+X	p = strlen(patt[i]);
+X	pat_len[i] = p;
+X	if(p!=0 && p < p_size) p_size = p;
+X    }
+X    if(p_size == 0) {
+X	fprintf(stderr, "%s: the pattern file is empty\n");
+X	exit(2);
+X    }
+X    if(length > 400 && p_size > 2) LONG = 1;
+X    if(p_size == 1) SHORT = 1;
+X    for(i=0; i<MAXMEMBER1; i++) SHIFT1[i] = p_size - 2;
+X    for(i=0; i<MAXHASH; i++) {
+X	HASH[i] = 0;
+X    }
+X    for(i=1; i<= num_pat; i++) f_prep(i, patt[i]);
+X}
+X
+X
+mgrep(fd)
+int fd;
+X{ 
+X    register char r_newline = '\n';
+X    unsigned char text[2*BLOCKSIZE+MAXLINE]; 
+X    register int buf_end, num_read, i=0, j, start, end, residue = 0;
+X
+X    text[MAXLINE-1] = '\n';  /* initial case */
+X    start = MAXLINE-1;
+X
+X    while( (num_read = read(fd, text+MAXLINE, BLOCKSIZE)) > 0) 
+X    {
+X       if(INVERSE && COUNT) countline(text+MAXLINE, num_read);
+X       buf_end = end = MAXLINE + num_read -1 ;
+X       while(text[end]  != r_newline && end > MAXLINE) end--;
+X       residue = buf_end - end  + 1 ;
+X       text[start-1] = r_newline;
+X       if(SHORT) m_short(text, start, end);
+X       else      monkey1(text, start, end);
+X       if(FILENAMEONLY && num_of_matched) {
+X		printf("%s\n", CurrentFileName);
+X		return;
+X       }
+X       start = MAXLINE - residue;
+X       if(start < 0) {
+X            start = 1; 
+X       }
+X       strncpy(text+start, text+end, residue);
+X    } /* end of while(num_read = ... */
+X    text[MAXLINE] = '\n';
+X    text[start-1] = '\n';
+X    if(residue > 1) {
+X        if(SHORT) m_short(text, start, end);
+X        else      monkey1(text, start, end);
+X    }
+X    return;
+X} /* end mgrep */
+X
+countline(text, len)
+unsigned char *text; int len;
+X{
+int i;
+X	for (i=0; i<len; i++) if(text[i] == '\n') total_line++;
+X}
+X
+X
+monkey1( text, start, end  ) 
+int start, end; register unsigned char *text;
+X{
+register unsigned char *textend;
+register unsigned hash, i;
+register unsigned char shift; 
+register int  m1, j, Long=LONG; 
+int pat_index, m=p_size; 
+int MATCHED=0;
+register unsigned char *qx;
+register struct pat_list *p;
+unsigned char *lastout;
+int OUT=0;
+X
+textend = text + end;
+m1 = m - 1;
+lastout = text+start+1;
+text = text + start + m1 ;
+while (text <= textend) {
+X	hash=tr1[*text];
+X	hash=(hash<<4)+(tr1[*(text-1)]);
+X	if(Long) hash=(hash<<4)+(tr1[*(text-2)]);
+X	shift = SHIFT1[hash];
+X	if(shift == 0) {
+X		hash=0;
+X		for(i=0;i<=m1;i++)  {
+X		    hash=(hash<<4)+(tr1[*(text-i)]);
+X		}
+X		hash=hash&mm;
+X		p = HASH[hash];
+X		while(p != 0) {
+X			pat_index = p->index;
+X			p = p->next;
+X			qx = text-m1;
+X			j = 0;
+X			while(tr[patt[pat_index][j]] == tr[*(qx++)]) j++;
+X	        	if (j > m1 ) { 
+X			   if(pat_len[pat_index] <= j) {
+X				if(text > textend) return;
+X                		num_of_matched++;
+X                		if(FILENAMEONLY || SILENT)  return;
+X				MATCHED=1;
+X	        		if(COUNT) {
+X			  		while (*text != '\n') text++;
+X				}
+X				else {
+X				    if(!INVERSE) {
+X			  		if(FNAME) printf("%s: ",CurrentFileName);
+X                          		while(*(--text) != '\n');
+X                          		while(*(++text) != '\n') putchar(*text);
+X			  		printf("\n");
+X				    }
+X				    else {
+X			  		if(FNAME) printf("%s: ",CurrentFileName);
+X                          		while(*(--text) != '\n');
+X					if(lastout < text) OUT=1;
+X					while(lastout < text) putchar(*lastout++);
+X					if(OUT) {
+X						putchar('\n');
+X						OUT=0;
+X					}
+X                          		while(*(++text) != '\n');
+X					lastout=text+1;
+X				    }
+X				}
+X/*
+X				else {
+X			  		if(FNAME) printf("%s: ",CurrentFileName);
+X                          		while(*(--text) != '\n');
+X                          		while(*(++text) != '\n') putchar(*text);
+X			  		printf("\n");
+X				}
+X*/
+X			   }
+X                	}
+X			if(MATCHED) break;
+X		}
+X		if(!MATCHED) shift = 1;
+X		else {
+X			MATCHED = 0;
+X			shift = m1;
+X		}
+X        }
+X	text = text + shift;
+X  }
+X  if(INVERSE && !COUNT) while(lastout <= textend) putchar(*lastout++);
+X}
+X
+m_short( text, start, end  ) 
+int start, end; register unsigned char *text;
+X{
+register unsigned char *textend;
+register unsigned i; 
+register int  j; 
+register struct pat_list *p, *q;
+register int pat_index; 
+int MATCHED=0;
+int OUT=0;
+unsigned char *lastout;
+unsigned char *qx;
+X
+textend = text + end;
+lastout = text + start + 1;
+text = text + start - 1 ;
+while (++text <= textend) {
+X		p = HASH[*text];
+X		while(p != 0) {
+X			pat_index = p->index;
+X			p = p->next;
+X			qx = text;
+X			j = 0;
+X			while(tr[patt[pat_index][j]] == tr[*(qx++)]) j++;
+X			if(pat_len[pat_index] <= j) {
+X				if(text >= textend) return;
+X                		num_of_matched++;
+X                		if(FILENAMEONLY || SILENT)  return;
+X	        		if(COUNT) {
+X			  		while (*text != '\n') text++;
+X				}
+X				else {
+X			  	    if(FNAME) printf("%s: ",CurrentFileName);
+X				    if(!INVERSE) {
+X                          		while(*(--text) != '\n');
+X                          		while(*(++text) != '\n') putchar(*text);
+X			  		printf("\n");
+X					MATCHED = 1;
+X				    }
+X				    else {
+X                          		while(*(--text) != '\n');
+X					if(lastout < text) OUT=1;
+X					while(lastout < text) putchar(*lastout++);
+X					if(OUT) {
+X						putchar('\n');
+X						OUT=0;
+X					}
+X                          		while(*(++text) != '\n');
+X					lastout=text+1;
+X					MATCHED = 1;
+X				    }
+X				}
+X                	}
+X			if(MATCHED) break;
+X		}
+X		MATCHED = 0;
+X  } /* while */
+X  if(INVERSE && !COUNT) while(lastout <= textend) putchar(*lastout++);
+X}
+X
+f_prep(pat_index, Pattern)
+unsigned char *Pattern ; int pat_index;
+X{
+int i, j, m;
+register unsigned hash, Mask=15;
+X	m = p_size;
+X	for (i = m-1; i>=(1+LONG); i--) {
+X		hash = (Pattern[i] & Mask);
+X		hash = (hash << 4) + (Pattern[i-1]& Mask);
+X		if(LONG) hash = (hash << 4) + (Pattern[i-2] & Mask);
+X		if(SHIFT1[hash] >= m-1-i) SHIFT1[hash] = m-1-i;
+X	}
+X	if(SHORT) Mask = 255;  /* 011111111 */
+X	hash = 0;
+X	for(i = m-1; i>=0; i--)  {
+X	    hash = (hash << 4) + (tr[Pattern[i]]&Mask);
+X	}
+X/*
+X	if(INVERSE) hash = Pattern[1];
+X*/
+X	hash=hash&mm;
+X	qt = (struct pat_list *) malloc(sizeof(struct pat_list));
+X	qt->index = pat_index;
+X	pt = HASH[hash];
+X	qt->next = pt;
+X	HASH[hash] = qt;
+X}
+X
+X
+END_OF_FILE
+if test 8386 -ne `wc -c <'mgrep.c'`; then
+    echo shar: \"'mgrep.c'\" unpacked with wrong size!
+fi
+# end of 'mgrep.c'
+fi
+if test -f 'parse.c' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'parse.c'\"
+else
+echo shar: Extracting \"'parse.c'\" \(9497 characters\)
+sed "s/^X//" >'parse.c' <<'END_OF_FILE'
+X/* the functions in this file parse a string that represents
+X   a regular expression, and return a pointer to a syntax
+X   tree for that regular expression.				*/
+X
+X#include <stdio.h>
+X#include "re.h"
+X
+X#define FALSE	0
+X#define TRUE	1
+X
+X#define NextChar(s)	 *(*s)++
+X#define Unexpected(s, c) (**s == NUL || **s == c)
+X#define Invalid_range(x, y)    (x == NUL || x == '-' || x == ']' || x < y)
+X
+extern Stack Push();
+extern Re_node Pop();
+extern Re_node Top();
+extern int Size();
+extern Pset pset_union();
+extern Pset create_pos();
+X
+int final_pos, pos_cnt = 0;
+X
+X/* retract_token() moves the string pointer back, effectively "unseeing"
+X   the last character seen.  It is used only to retract a right paren --
+X   the idea is that the incarnation of parse_re() that saw the corresponding
+X   left paren is supposed to take care of matching the right paren.  This
+X   is necessary to prevent recursive calls from mistakenly eating up someone
+X   else's right parens.						    */
+X
+X#define retract_token(s)    --(*s)
+X
+X/* mk_leaf() creates a leaf node that is (usually) a literal node.	*/
+X
+Re_node mk_leaf(opval, type, ch, cset)
+short opval, type;
+char ch;
+Ch_Set cset;
+X{
+X    Re_node node; Re_Lit l;
+X
+X    l = (Re_Lit) new_node(l);
+X    node = (Re_node) new_node(node);
+X    if (l == NULL || node == NULL) return NULL;
+X    lit_type(l) = type;
+X    lit_pos(l)  = pos_cnt++;
+X    if (type == C_SET) lit_cset(l) = cset;
+X    else lit_char(l) = ch;			/* type == C_LIT */
+X    Op(node) = opval;
+X    Lit(node) = l;
+X    Nullable(node) = FALSE;
+X    Firstpos(node) = create_pos(lit_pos(l));
+X    Lastpos(node) = Firstpos(node);
+X    return node;
+X}
+X
+X/* parse_cset() takes a pointer to a pointer to a string and parses
+X   a prefix of it denoting a character set literal.  It returns a pointer
+X   to a Re_node node, NULL if there is an error.			*/
+X
+Re_node parse_cset(s)
+char **s;
+X{
+X    Ch_Set cs_ptr, curr_ptr, prev_ptr;
+X    char ch;
+X    Ch_Range range;
+X
+X    if (Unexpected(s, ']')) return NULL;
+X    curr_ptr = (Ch_Set) new_node(curr_ptr); cs_ptr = curr_ptr;
+X    while (!Unexpected(s, ']')) {
+X        range = (Ch_Range)new_node(range);
+X	curr_ptr->elt = range;
+X	ch = NextChar(s);
+X	if (ch == '-') return NULL;	/* invalid range */
+X	range->low_bd = ch;
+X	if (**s == NUL) return NULL;
+X	else if (**s == '-') {		/* character range */
+X	    (*s)++;
+X	    if (Invalid_range(**s, ch)) return NULL;
+X	    else range->hi_bd = NextChar(s);
+X	}
+X	else range->hi_bd = ch;
+X	prev_ptr = curr_ptr;
+X	curr_ptr = (Ch_Set) new_node(curr_ptr);
+X	prev_ptr->rest = curr_ptr;
+X    };
+X    if (**s == ']') {
+X	prev_ptr->rest = NULL;
+X	return mk_leaf(LITERAL, C_SET, NUL, cs_ptr);
+X    }
+X    else return NULL;
+X} /* parse_cset */
+X
+X
+X/* parse_wildcard() "parses" a wildcard -- a wildcard is treated as a
+X   character range whose values span all ASCII values.  parse_wildcard()
+X   creates a node representing such a range.				*/
+X
+Re_node parse_wildcard()
+X{
+X    Ch_Set s; Ch_Range r;
+X
+X    r = (Ch_Range) new_node(r);
+X    r->low_bd = ASCII_MIN;	/* smallest ASCII value */
+X    r->hi_bd  = ASCII_MAX;	/* greatest ASCII value */
+X    s = (Ch_Set) new_node(s);
+X    s->elt = r;
+X    s->rest = NULL;
+X    return mk_leaf(LITERAL, C_SET, NUL, s);
+X}
+X
+X/* parse_chlit() parses a character literal.  It is assumed that the
+X   character in question does not have any special meaning.  It returns
+X   a pointer to a node for that literal.				*/
+X
+Re_node parse_chlit(ch)
+char ch;
+X{
+X    if (ch == NUL) return NULL;
+X    else return mk_leaf(LITERAL, C_LIT, ch, NULL);
+X}
+X
+X
+X/* get_token() returns the next token -- this may be a character
+X   literal, a character set, an escaped character, a punctuation (i.e.
+X   parenthesis), or an operator.  It traverses the character string
+X   representing the RE, given by a pointer s; leaves s positioned
+X   immediately after the unit it parsed, and returns a pointer to
+X   a token node for that unit.  */
+X
+Tok_node get_token(s)
+char **s;
+X{
+X    Tok_node rn = NULL;
+X
+X    if (s == NULL || *s == NULL) return NULL;	/* error */
+X    rn = (Tok_node) new_node(rn);
+X    if (**s == NUL) tok_type(rn) = EOS; /* end of string */
+X    else {
+X	switch (**s) {
+X	    case '.':			/* wildcard */
+X		tok_type(rn) = LITERAL;
+X		tok_val(rn) =  parse_wildcard();
+X		if (tok_val(rn) == NULL) return NULL;
+X		break;
+X	    case '[':			/* character set literal */
+X		(*s)++;
+X		tok_type(rn) = LITERAL;
+X		tok_val(rn) = parse_cset(s);
+X		if (tok_val(rn) == NULL) return NULL;
+X		break;
+X	    case '(':
+X	        tok_type(rn) = LPAREN;
+X		break;
+X	    case ')' : 
+X	        tok_type(rn) = RPAREN;
+X		break;
+X	    case '*' :
+X	        tok_type(rn) = OPSTAR;
+X		break;
+X	    case '|' :
+X	        tok_type(rn) = OPALT;
+X		break;
+X	    case '?' : 
+X	        tok_type(rn) = OPOPT;
+X		break;
+X	    case '\\':			/* escaped character */
+X		(*s)++;
+X	    default :			/* must be ordinary character */
+X		tok_type(rn) = LITERAL;
+X		tok_val(rn) = parse_chlit(**s);
+X		if (tok_val(rn) == NULL) return NULL;
+X		break;
+X	} /* switch (**s) */
+X	(*s)++;
+X    } /* else */
+X    return rn;
+X}
+X
+X/* cat2() takes a stack of RE-nodes and, if the stack contains
+X   more than one node, returns the stack obtained by condensing
+X   the top two nodes of the stack into a single CAT-node.  If there
+X   is only one node on the stack,  nothing is done.		    */
+X
+Stack cat2(stk)
+Stack *stk;
+X{
+X    Re_node r;
+X
+X    if (stk == NULL) return NULL;
+X    if (*stk == NULL || (*stk)->next == NULL) return *stk;
+X    r = (Re_node) new_node(r);
+X    if (r == NULL) return NULL;	    /* can't allocate memory */
+X    Op(r) = OPCAT;
+X    Rchild(r) = Pop(stk);
+X    Lchild(r) = Pop(stk);
+X    if (Push(stk, r) == NULL) return NULL;
+X    Nullable(r) = Nullable(Lchild(r)) && Nullable(Rchild(r));
+X    if (Nullable(Lchild(r)))
+X	Firstpos(r) = pset_union(Firstpos(Lchild(r)), Firstpos(Rchild(r)));
+X    else Firstpos(r) = Firstpos(Lchild(r));
+X    if (Nullable(Rchild(r)))
+X	Lastpos(r) = pset_union(Lastpos(Lchild(r)), Lastpos(Rchild(r)));
+X    else Lastpos(r) = Lastpos(Rchild(r));
+X    return *stk;
+X}
+X
+X/* wrap() takes a stack and an operator, takes the top element of the
+X   stack and "wraps" that operator around it, then puts this back on the
+X   stack and returns the resulting stack.				*/
+X
+Stack wrap(s, opv)
+Stack *s;
+short opv;
+X{
+X    Re_node r;
+X
+X    if (s == NULL || *s == NULL) return NULL;
+X    r = (Re_node) new_node(r);
+X    if (r == NULL) return NULL;
+X    Op(r) = opv;
+X    Child(r) = Pop(s);
+X    if (Push(s, r) == NULL) return NULL;
+X    Nullable(r) = TRUE;
+X    Firstpos(r) = Firstpos(Child(r));
+X    Lastpos(r)  = Lastpos(Child(r));
+X    return *s;
+X}
+X
+X/* mk_alt() takes a stack and a regular expression, creates an ALT-node
+X   from the top of the stack and the given RE, and replaces the top-of-stack
+X   by the resulting ALT-node.						*/   
+X
+Stack mk_alt(s, r)
+Stack *s;
+Re_node r;
+X{
+X    Re_node node;
+X
+X    if (s == NULL || *s == NULL || r == NULL) return NULL;
+X    node = (Re_node) new_node(node);
+X    if (node == NULL) return NULL;
+X    Op(node) = OPALT;
+X    Lchild(node) = Pop(s);
+X    Rchild(node) = r;
+X    if (Push(s, node) == NULL) return NULL;
+X    Nullable(node) = Nullable(Lchild(node)) || Nullable(Rchild(node));
+X    Firstpos(node) = pset_union(Firstpos(Lchild(node)), Firstpos(Rchild(node)));
+X    Lastpos(node) = pset_union(Lastpos(Lchild(node)), Lastpos(Rchild(node)));
+X    return *s;
+X}
+X
+X/* parse_re() takes a pointer to a string and traverses that string,
+X   returning a pointer to a syntax tree for the regular expression
+X   represented by that string, NULL if there is an error.		*/
+X
+Re_node parse_re(s, end)
+char **s;
+short end;
+X{
+X    Stack stk = NULL, temp;
+X    Tok_node next_token;
+X    Re_node re = NULL;
+X
+X    if (s == NULL || *s == NULL) return NULL;
+X    while (TRUE) {
+X	next_token = get_token(s);
+X	if (next_token == NULL) return NULL;
+X	switch (tok_type(next_token)) {
+X	    case RPAREN:
+X		retract_token(s);
+X	    case EOS:
+X		if (end == tok_type(next_token)) return Top(cat2(&stk));
+X		else return NULL;
+X	    case LPAREN:
+X		re = parse_re(s, RPAREN);
+X		if (Push(&stk, re) == NULL) return NULL;
+X		if (tok_type(get_token(s)) != RPAREN || re == NULL) return NULL;
+X		if (Size(stk) > 2) {
+X		    temp = stk->next;
+X		    stk->next = cat2(&temp);	/* condense CAT nodes */
+X		    if (stk->next == NULL) return NULL;
+X		    else stk->size = stk->next->size + 1;
+X		}
+X		break;
+X	    case OPSTAR:
+X		if (wrap(&stk, OPSTAR) == NULL) return NULL;
+X		break;
+X	    case OPOPT:
+X		if (wrap(&stk, OPOPT) == NULL) return NULL;
+X	        break;
+X	    case OPALT:
+X		if (cat2(&stk) == NULL) return NULL;
+X		re = parse_re(s, end);
+X	        if (re == NULL) return NULL;
+X		if (mk_alt(&stk, re) == NULL) return NULL;
+X		break;
+X	    case LITERAL:
+X		if (Push(&stk, tok_val(next_token)) == NULL) return NULL;
+X		if (Size(stk) > 2) {
+X		    temp = stk->next;
+X		    stk->next = cat2(&temp);    /* condense CAT nodes */
+X		    if (stk->next == NULL) return NULL;
+X		    else stk->size = stk->next->size + 1;
+X		}
+X		break;
+X	    default:
+X		printf("parse_re: unknown token type %d\n", tok_type(next_token));
+X		break;
+X	}
+X    }
+X}
+X
+X/* parse() essentially just calls parse_re().  Its purpose is to stick an
+X   end-of-string token at the end of the syntax tree returned by parse_re().
+X   It should really be done in parse_re, but the recursion there makes it
+X   more desirable to have it here.					*/
+X
+Re_node parse(s)
+char *s;
+X{
+X    Re_node tree, temp;
+X    Stack stk = NULL;
+X
+X    tree = parse_re(&s, NUL);
+X    if (tree == NULL || Push(&stk, tree) == NULL) return NULL;
+X    temp = mk_leaf(EOS, C_LIT, NUL, NULL);
+X    if (temp == NULL || Push(&stk, temp) == NULL) return NULL;
+X    final_pos = --pos_cnt;
+X    return Top(cat2(&stk));
+X}
+X
+END_OF_FILE
+if test 9497 -ne `wc -c <'parse.c'`; then
+    echo shar: \"'parse.c'\" unpacked with wrong size!
+fi
+# end of 'parse.c'
+fi
+echo shar: End of archive 2 \(of 3\).
+cp /dev/null ark2isdone
+MISSING=""
+for I in 1 2 3 ; do
+    if test ! -f ark${I}isdone ; then
+	MISSING="${MISSING} ${I}"
+    fi
+done
+if test "${MISSING}" = "" ; then
+    echo You have unpacked all 3 archives.
+    rm -f ark[1-9]isdone
+else
+    echo You still need to unpack the following archives:
+    echo "        " ${MISSING}
+fi
+##  End of shell archive.
+exit 0

@@ -1,0 +1,1546 @@
+From: rsalz@uunet.uu.net (Rich Salz)
+Newsgroups: comp.sources.unix
+Subject: v22i093:  GNU AWK, version 2.11, Part07/16
+Message-ID: <2626@litchi.bbn.com>
+Date: 6 Jun 90 16:36:36 GMT
+Approved: rsalz@uunet.UU.NET
+
+Submitted-by: "Arnold D. Robbins" <arnold@unix.cc.emory.edu>
+Posting-number: Volume 22, Issue 93
+Archive-name: gawk2.11/part07
+
+#! /bin/sh
+# This is a shell archive.  Remove anything before this line, then feed it
+# into a shell via "sh file" or similar.  To overwrite existing files,
+# type "sh file -c".
+# The tool that generated this appeared in the comp.sources.unix newsgroup;
+# send mail to comp-sources-unix@uunet.uu.net if you want that tool.
+# Contents:  ./gawk.texinfo.06 ./missing.d/strerror.c
+#   ./missing.d/tmpnam.c
+# Wrapped by rsalz@litchi.bbn.com on Wed Jun  6 12:24:51 1990
+PATH=/bin:/usr/bin:/usr/ucb ; export PATH
+echo If this archive is complete, you will see the following message:
+echo '          "shar: End of archive 7 (of 16)."'
+if test -f './gawk.texinfo.06' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'./gawk.texinfo.06'\"
+else
+  echo shar: Extracting \"'./gawk.texinfo.06'\" \(49614 characters\)
+  sed "s/^X//" >'./gawk.texinfo.06' <<'END_OF_FILE'
+Xthe @code{BEGIN} rule was executed.  Some applications came to depend
+Xupon this ``feature''.  When @code{awk} was changed to be more consistent,
+Xthe @samp{-v} option was added to accomodate applications that depended
+Xupon this old behaviour.
+X
+XThe variable assignment feature is most useful for assigning to variables
+Xsuch as @code{RS}, @code{OFS}, and @code{ORS}, which control input and
+Xoutput formats, before scanning the data files.  It is also useful for
+Xcontrolling state if multiple passes are needed over a data file.  For
+Xexample:@refill
+X
+X@cindex multiple passes over data
+X@cindex passes, multiple
+X@example
+Xawk 'pass == 1  @{ @var{pass 1 stuff} @}
+X     pass == 2  @{ @var{pass 2 stuff} @}' pass=1 datafile pass=2 datafile
+X@end example
+X
+X@node AWKPATH Variable,, Other Arguments, Command Line
+X@section The @code{AWKPATH} Environment Variable
+X@cindex @code{AWKPATH} environment variable
+X@cindex search path
+X@cindex directory search
+X@cindex path, search
+X@c @cindex differences between @code{gawk} and @code{awk}
+X
+XThe previous section described how @code{awk} program files can be named
+Xon the command line with the @samp{-f} option.  In some @code{awk}
+Ximplementations, you must supply a precise path name for each program
+Xfile, unless the file is in the current directory.
+X
+XBut in @code{gawk}, if the file name supplied in the @samp{-f} option
+Xdoes not contain a @samp{/}, then @code{gawk} searches a list of
+Xdirectories (called the @dfn{search path}), one by one, looking for a
+Xfile with the specified name.
+X
+XThe search path is actually a string containing directory names
+Xseparated by colons.  @code{gawk} gets its search path from the
+X@code{AWKPATH} environment variable.  If that variable does not exist,
+X@code{gawk} uses the default path, which is
+X@samp{.:/usr/lib/awk:/usr/local/lib/awk}.@refill
+X
+XThe search path feature is particularly useful for building up libraries
+Xof useful @code{awk} functions.  The library files can be placed in a
+Xstandard directory that is in the default path, and then specified on
+Xthe command line with a short file name.  Otherwise, the full file name
+Xwould have to be typed for each file.
+X
+XPath searching is not done if @code{gawk} is in compatibility mode.
+X@xref{Command Line}.
+X
+X@strong{Note:} if you want files in the current directory to be found,
+Xyou must include the current directory in the path, either by writing
+X@file{.} as an entry in the path, or by writing a null entry in the
+Xpath.  (A null entry is indicated by starting or ending the path with a
+Xcolon, or by placing two colons next to each other (@samp{::}).)  If the
+Xcurrent directory is not included in the path, then files cannot be
+Xfound in the current directory.  This path search mechanism is identical
+Xto the shell's.
+X@c someday, @cite{The Bourne Again Shell}....
+X
+X@node Language History, Gawk Summary, Command Line, Top
+X@chapter The Evolution of the @code{awk} Language
+X
+XThis manual describes the GNU implementation of @code{awk}, which is patterned
+Xafter the System V Release 4 version.  Many @code{awk} users are only familiar
+Xwith the original @code{awk} implementation in Version 7 Unix, which is also
+Xthe basis for the version in Berkeley Unix.  This chapter briefly describes
+Xthe evolution of the @code{awk} language.
+X
+X@menu
+X* V7/S5R3.1::   The major changes between V7 and System V Release 3.1.
+X
+X* S5R4::        The minor changes between System V Releases 3.1 and 4.
+X
+X* S5R4/GNU::    The extensions in @code{gawk} not in System V Release 4.
+X@end menu
+X
+X@node V7/S5R3.1, S5R4, Language History, Language History
+X@section Major Changes Between V7 and S5R3.1
+X
+XThe @code{awk} language evolved considerably between the release of
+XVersion 7 Unix (1978) and the new version first made widely available in
+XSystem V Release 3.1 (1987).  This section summarizes the changes, with
+Xcross-references to further details.
+X
+X@itemize @bullet
+X@item
+XThe requirement for @samp{;} to separate rules on a line
+X(@pxref{Statements/Lines}).
+X
+X@item
+XUser-defined functions, and the @code{return} statement
+X(@pxref{User-defined}).
+X
+X@item
+XThe @code{delete} statement (@pxref{Delete}).
+X
+X@item
+XThe @code{do}-@code{while} statement (@pxref{Do Statement}).
+X
+X@item
+XThe built-in functions @code{atan2}, @code{cos}, @code{sin}, @code{rand} and
+X@code{srand} (@pxref{Numeric Functions}).
+X
+X@item
+XThe built-in functions @code{gsub}, @code{sub}, and @code{match}
+X(@pxref{String Functions}).
+X
+X@item
+XThe built-in functions @code{close} and @code{system} (@pxref{I/O
+XFunctions}).
+X
+X@item
+XThe @code{ARGC}, @code{ARGV}, @code{FNR}, @code{RLENGTH}, @code{RSTART},
+Xand @code{SUBSEP} built-in variables (@pxref{Built-in Variables}).
+X
+X@item
+XThe conditional expression using the operators @samp{?} and @samp{:}
+X(@pxref{Conditional Exp}).
+X
+X@item
+XThe exponentiation operator @samp{^} (@pxref{Arithmetic Ops}) and its
+Xassignment operator form @samp{^=} (@pxref{Assignment Ops}).@refill
+X
+X@item
+XC-compatible operator precedence, which breaks some old @code{awk}
+Xprograms (@pxref{Precedence}).
+X
+X@item
+XRegexps as the value of @code{FS} (@pxref{Field Separators}), or as the
+Xthird argument to the @code{split} function (@pxref{String
+XFunctions}).@refill
+X
+X@item
+XDynamic regexps as operands of the @samp{~} and @samp{!~} operators
+X(@pxref{Regexp Usage}).
+X
+X@item
+XEscape sequences (@pxref{Constants}) in regexps.@refill
+X
+X@item
+XThe escape sequences @samp{\b}, @samp{\f}, and @samp{\r}
+X(@pxref{Constants}).
+X
+X@item
+XRedirection of input for the @code{getline} function (@pxref{Getline}).
+X
+X@item
+XMultiple @code{BEGIN} and @code{END} rules (@pxref{BEGIN/END}).
+X
+X@item
+XSimulation of multidimensional arrays (@pxref{Multi-dimensional}).
+X@end itemize
+X
+X@node S5R4, S5R4/GNU, V7/S5R3.1, Language History
+X@section Minor Changes between S5R3.1 and S5R4
+X
+XThe System V Release 4 version of Unix @code{awk} added these features:
+X
+X@itemize @bullet
+X@item
+XThe @code{ENVIRON} variable (@pxref{Built-in Variables}).
+X
+X@item
+XMultiple @samp{-f} options on the command line (@pxref{Command Line}).
+X
+X@item
+XThe @samp{-v} option for assigning variables before program execution begins
+X(@pxref{Command Line}).
+X
+X@item
+XThe @samp{--} option for terminating command line options.
+X
+X@item
+XThe @samp{\a}, @samp{\v}, and @samp{\x} escape sequences (@pxref{Constants}).
+X
+X@item
+XA defined return value for the @code{srand} built-in function
+X(@pxref{Numeric Functions}).
+X
+X@item
+XThe @code{toupper} and @code{tolower} built-in string functions
+Xfor case translation (@pxref{String Functions}).
+X
+X@item
+XA cleaner specification for the @samp{%c} format-control letter in the
+X@code{printf} function (@pxref{Printf}).
+X
+X@item
+XThe use of constant regexps such as @code{/foo/} as expressions, where
+Xthey are equivalent to use of the matching operator, as in @code{$0 ~
+X/foo/}.
+X@end itemize
+X
+X@node S5R4/GNU, , S5R4, Language History
+X@section Extensions In @code{gawk} Not In S5R4
+X
+XThe GNU implementation, @code{gawk}, adds these features:
+X
+X@itemize @bullet
+X@item
+XThe @code{AWKPATH} environment variable for specifying a path search for
+Xthe @samp{-f} command line option (@pxref{Command Line}).
+X
+X@item
+XThe @samp{-C} and @samp{-V} command line options (@pxref{Command Line}).
+X
+X@item
+XThe @code{IGNORECASE} variable and its effects (@pxref{Case-sensitivity}).
+X
+X@item
+XThe @file{/dev/stdin}, @file{/dev/stdout}, @file{/dev/stderr}, and
+X@file{/dev/fd/@var{n}} file name interpretation (@pxref{Special Files}).
+X
+X@item
+XThe @samp{-c} option to turn off these extensions (@pxref{Command Line}).
+X
+X@item
+XThe @samp{-a} and @samp{-e} options to specify the syntax of regular
+Xexpressions that @code{gawk} will accept (@pxref{Command Line}).
+X@end itemize
+X
+X@node Gawk Summary, Sample Program, Language History, Top
+X@appendix @code{gawk} Summary
+X
+X@ignore
+XSee, man pages are good for something.  This chapter started life as the
+Xgawk.1 man page for 2.11.
+X@end ignore
+X
+XThis appendix provides a brief summary of the @code{gawk} command line and the
+X@code{awk} language.  It is designed to serve as ``quick reference.''  It is
+Xtherefore terse, but complete.
+X
+X@menu
+X* Command Line Summary::  Recapitulation of the command line.
+X* Language Summary::      A terse review of the language.
+X* Variables/Fields::      Variables, fields, and arrays.
+X* Rules Summary::         Patterns and Actions, and their component parts.
+X* Functions Summary::     Defining and calling functions.
+X@end menu
+X
+X@node Command Line Summary, Language Summary, Gawk Summary, Gawk Summary
+X@appendixsec Command Line Options Summary
+X
+XThe command line consists of options to @code{gawk} itself, the
+X@code{awk} program text (if not supplied via the @samp{-f} option), and
+Xvalues to be made available in the @code{ARGC} and @code{ARGV}
+Xpredefined @code{awk} variables:
+X
+X@example
+Xawk @r{[@code{-F@var{fs}}] [@code{-v @var{var}=@var{val}}] [@code{-V}] [@code{-C}] [@code{-c}] [@code{-a}] [@code{-e}] [@code{--}]} '@var{program}' @var{file} @dots{}
+Xawk @r{[@code{-F@var{fs}}] @code{-f @var{source-file}} [@code{-f @var{source-file} @dots{}}] [@code{-v @var{var}=@var{val}}] [@code{-V}] [@code{-C}] [@code{-c}] [@code{-a}] [@code{-e}] [@code{--}]} @var{file} @dots{}
+X@end example
+X
+XThe options that @code{gawk} accepts are:
+X
+X@table @code
+X@item -F@var{fs}
+XUse @var{fs} for the input field separator (the value of the @code{FS}
+Xpredefined variable).
+X
+X@item -f @var{program-file}
+XRead the @code{awk} program source from the file @var{program-file}, instead
+Xof from the first command line argument.
+X
+X@item -v @var{var}=@var{val}
+XAssign the variable @var{var} the value @var{val} before program execution
+Xbegins.
+X
+X@item -a
+XSpecifies use of traditional @code{awk} syntax for regular expressions.
+XThis means that @samp{\} can be used to quote regular expression
+Xoperators inside of square brackets, just as it can be outside of them.
+X
+X@item -e
+XSpecifies use of @code{egrep} syntax for regular expressions.  This
+Xmeans that @samp{\} does not serve as a quoting character inside of
+Xsquare brackets.
+X
+X@item -c
+XSpecifies compatibility mode, in which @code{gawk} extensions are turned
+Xoff.
+X
+X@item -V
+XPrint version information for this particular copy of @code{gawk} on the error
+Xoutput.  This option may disappear in a future version of @code{gawk}.
+X
+X@item -C
+XPrint the short version of the General Public License on the error
+Xoutput.  This option may disappear in a future version of @code{gawk}.
+X
+X@item --
+XSignal the end of options.  This is useful to allow further arguments to the
+X@code{awk} program itself to start with a @samp{-}.  This is mainly for
+Xconsistency with the argument parsing conventions of POSIX.
+X@end table
+X
+XAny other options are flagged as invalid, but are otherwise ignored.
+X@xref{Command Line}, for more details.
+X
+X@node Language Summary, Variables/Fields, Command Line Summary, Gawk Summary
+X@appendixsec Language Summary
+X
+XAn @code{awk} program consists of a sequence of pattern-action statements
+Xand optional function definitions.
+X
+X@example
+X@var{pattern}    @{ @var{action statements} @}
+X
+Xfunction @var{name}(@var{parameter list})     @{ @var{action statements} @}
+X@end example
+X
+X@code{gawk} first reads the program source from the
+X@var{program-file}(s) if specified, or from the first non-option
+Xargument on the command line.  The @samp{-f} option may be used multiple
+Xtimes on the command line.  @code{gawk} reads the program text from all
+Xthe @var{program-file} files, effectively concatenating them in the
+Xorder they are specified.  This is useful for building libraries of
+X@code{awk} functions, without having to include them in each new
+X@code{awk} program that uses them.  To use a library function in a file
+Xfrom a program typed in on the command line, specify @samp{-f /dev/tty};
+Xthen type your program, and end it with a @kbd{C-d}.  @xref{Command
+XLine}.
+X
+XThe environment variable @code{AWKPATH} specifies a search path to use
+Xwhen finding source files named with the @samp{-f} option.  If the
+Xvariable @code{AWKPATH} is not set, @code{gawk} uses the default path,
+X@samp{.:/usr/lib/awk:/usr/local/lib/awk}.  If a file name given to the
+X@samp{-f} option contains a @samp{/} character, no path search is
+Xperformed.  @xref{AWKPATH Variable}, for a full description of the
+X@code{AWKPATH} environment variable.@refill
+X
+X@code{gawk} compiles the program into an internal form, and then proceeds to
+Xread each file named in the @code{ARGV} array.  If there are no files named
+Xon the command line, @code{gawk} reads the standard input.
+X
+XIf a ``file'' named on the command line has the form
+X@samp{@var{var}=@var{val}}, it is treated as a variable assignment: the
+Xvariable @var{var} is assigned the value @var{val}.
+X
+XFor each line in the input, @code{gawk} tests to see if it matches any
+X@var{pattern} in the @code{awk} program.  For each pattern that the line
+Xmatches, the associated @var{action} is executed.
+X
+X@node Variables/Fields, Rules Summary, Language Summary, Gawk Summary
+X@appendixsec Variables and Fields
+X
+X@code{awk} variables are dynamic; they come into existence when they are
+Xfirst used.  Their values are either floating-point numbers or strings.
+X@code{awk} also has one-dimension arrays; multiple-dimensional arrays
+Xmay be simulated.  There are several predefined variables that
+X@code{awk} sets as a program runs; these are summarized below.
+X
+X@menu
+X* Fields Summary::      Input field splitting.
+X* Built-in Summary::    @code{awk}'s built-in variables.
+X* Arrays Summary::      Using arrays.
+X* Data Type Summary::   Values in @code{awk} are numbers or strings.
+X@end menu
+X
+X@node Fields Summary, Built-in Summary, Variables/Fields, Variables/Fields
+X@appendixsubsec Fields
+X
+XAs each input line is read, @code{gawk} splits the line into
+X@var{fields}, using the value of the @code{FS} variable as the field
+Xseparator.  If @code{FS} is a single character, fields are separated by
+Xthat character.  Otherwise, @code{FS} is expected to be a full regular
+Xexpression.  In the special case that @code{FS} is a single blank,
+Xfields are separated by runs of blanks and/or tabs.  Note that the value
+Xof @code{IGNORECASE} (@pxref{Case-sensitivity}) also affects how fields
+Xare split when @code{FS} is a regular expression.
+X
+XEach field in the input line may be referenced by its position, @code{$1},
+X@code{$2}, and so on.  @code{$0} is the whole line.  The value of a field may
+Xbe assigned to as well.  Field numbers need not be constants:
+X
+X@example
+Xn = 5
+Xprint $n
+X@end example
+X
+X@noindent
+Xprints the fifth field in the input line.  The variable @code{NF} is set to
+Xthe total number of fields in the input line.
+X
+XReferences to nonexistent fields (i.e., fields after @code{$NF}) return
+Xthe null-string.  However, assigning to a nonexistent field (e.g.,
+X@code{$(NF+2) = 5}) increases the value of @code{NF}, creates any
+Xintervening fields with the null string as their value, and causes the
+Xvalue of @code{$0} to be recomputed, with the fields being separated by
+Xthe value of @code{OFS}.@refill
+X
+X@xref{Reading Files}, for a full description of the way @code{awk} defines
+Xand uses fields.
+X
+X@node Built-in Summary, Arrays Summary, Fields Summary, Variables/Fields
+X@appendixsubsec Built-in Variables
+X
+X@code{awk}'s built-in variables are:
+X
+X@table @code
+X@item ARGC
+XThe number of command line arguments (not including options or the
+X@code{awk} program itself).
+X
+X@item ARGV
+XThe array of command line arguments.  The array is indexed from 0 to
+X@code{ARGC} - 1.  Dynamically changing the contents of @code{ARGV} can control
+Xthe files used for data.@refill
+X
+X@item ENVIRON
+XAn array containing the values of the environment variables.  The array
+Xis indexed by variable name, each element being the value of that
+Xvariable.  Thus, the environment variable @code{HOME} would be in
+X@code{ENVIRON["HOME"]}.  Its value might be @file{/u/close}.
+X
+XChanging this array does not affect the environment seen by programs
+Xwhich @code{gawk} spawns via redirection or the @code{system} function.
+X(This may change in a future version of @code{gawk}.)
+X
+XSome operating systems do not have environment variables.
+XThe array @code{ENVIRON} is empty when running on these systems.
+X
+X@item FILENAME
+XThe name of the current input file.  If no files are specified on the command
+Xline, the value of @code{FILENAME} is @samp{-}.
+X
+X@item FNR
+XThe input record number in the current input file.
+X
+X@item FS
+XThe input field separator, a blank by default.
+X
+X@item IGNORECASE
+XThe case-sensitivity flag for regular expression operations.  If
+X@code{IGNORECASE} has a nonzero value, then pattern matching in rules,
+Xfield splitting with @code{FS}, regular expression matching with
+X@samp{~} and @samp{!~}, and the @code{gsub}, @code{index}, @code{match},
+X@code{split} and @code{sub} predefined functions all ignore case
+Xwhen doing regular expression operations.@refill
+X
+X@item NF
+XThe number of fields in the current input record.
+X
+X@item NR
+XThe total number of input records seen so far.
+X
+X@item OFMT
+XThe output format for numbers, @code{"%.6g"} by default.
+X
+X@item OFS
+XThe output field separator, a blank by default.
+X
+X@item ORS
+XThe output record separator, by default a newline.
+X
+X@item RS
+XThe input record separator, by default a newline.  @code{RS} is exceptional
+Xin that only the first character of its string value is used for separating
+Xrecords.  If @code{RS} is set to the null string, then records are separated by
+Xblank lines.  When @code{RS} is set to the null string, then the newline
+Xcharacter always acts as a field separator, in addition to whatever value
+X@code{FS} may have.@refill
+X
+X@item RSTART
+XThe index of the first character matched by @code{match}; 0 if no match.
+X
+X@item RLENGTH
+XThe length of the string matched by @code{match}; @minus{}1 if no match.
+X
+X@item SUBSEP
+XThe string used to separate multiple subscripts in array elements, by
+Xdefault @code{"\034"}.
+X@end table
+X
+X@xref{Built-in Variables}.
+X
+X@node Arrays Summary, Data Type Summary, Built-in Summary, Variables/Fields
+X@appendixsubsec Arrays
+X
+XArrays are subscripted with an expression between square brackets
+X(@samp{[} and @samp{]}).  The expression may be either a number or
+Xa string.  Since arrays are associative, string indices are meaningful
+Xand are not converted to numbers.
+X
+XIf you use multiple expressions separated by commas inside the square
+Xbrackets, then the array subscript is a string consisting of the
+Xconcatenation of the individual subscript values, converted to strings,
+Xseparated by the subscript separator (the value of @code{SUBSEP}).
+X
+XThe special operator @code{in} may be used in an @code{if} or
+X@code{while} statement to see if an array has an index consisting of a
+Xparticular value.
+X
+X@group
+X@example
+Xif (val in array)
+X        print array[val]
+X@end example
+X@end group
+X
+XIf the array has multiple subscripts, use @code{(i, j, @dots{}) in array}
+Xto test for existence of an element.
+X
+XThe @code{in} construct may also be used in a @code{for} loop to iterate
+Xover all the elements of an array.  @xref{Scanning an Array}.
+X
+XAn element may be deleted from an array using the @code{delete} statement.
+X
+X@xref{Arrays}, for more detailed information.
+X
+X@node Data Type Summary, , Arrays Summary, Variables/Fields
+X@appendixsubsec Data Types
+X
+XThe value of an @code{awk} expression is always either a number
+Xor a string.
+X
+XCertain contexts (such as arithmetic operators) require numeric
+Xvalues.  They convert strings to numbers by interpreting the text
+Xof the string as a numeral.  If the string does not look like a
+Xnumeral, it converts to 0.
+X
+XCertain contexts (such as concatenation) require string values.
+XThey convert numbers to strings by effectively printing them.
+X
+XTo force conversion of a string value to a number, simply add 0
+Xto it.  If the value you start with is already a number, this
+Xdoes not change it.
+X
+XTo force conversion of a numeric value to a string, concatenate it with
+Xthe null string.
+X
+XThe @code{awk} language defines comparisons as being done numerically if
+Xpossible, otherwise one or both operands are converted to strings and
+Xa string comparison is performed.
+X
+XUninitialized variables have the string value @code{""} (the null, or
+Xempty, string).  In contexts where a number is required, this is
+Xequivalent to 0.
+X
+X@xref{Variables}, for more information on variable naming and initialization;
+X@pxref{Conversion}, for more information on how variable values are
+Xinterpreted.@refill
+X
+X@node Rules Summary, Functions Summary, Variables/Fields, Gawk Summary
+X@appendixsec Patterns and Actions
+X
+X@menu
+X* Pattern Summary::     Quick overview of patterns.
+X* Regexp Summary::      Quick overview of regular expressions.
+X* Actions Summary::     Quick overview of actions.
+X@end menu
+X
+XAn @code{awk} program is mostly composed of rules, each consisting of a
+Xpattern followed by an action.  The action is enclosed in @samp{@{} and
+X@samp{@}}.  Either the pattern may be missing, or the action may be
+Xmissing, but, of course, not both.  If the pattern is missing, the
+Xaction is executed for every single line of input.  A missing action is
+Xequivalent to this action,
+X
+X@example
+X@{ print @}
+X@end example
+X
+X@noindent
+Xwhich prints the entire line.
+X
+XComments begin with the @samp{#} character, and continue until the end of the
+Xline.  Blank lines may be used to separate statements.  Normally, a statement
+Xends with a newline, however, this is not the case for lines ending in a
+X@samp{,}, @samp{@{}, @samp{?}, @samp{:}, @samp{&&}, or @samp{||}.  Lines
+Xending in @code{do} or @code{else} also have their statements automatically
+Xcontinued on the following line.  In other cases, a line can be continued by
+Xending it with a @samp{\}, in which case the newline is ignored.@refill
+X
+XMultiple statements may be put on one line by separating them with a @samp{;}.
+XThis applies to both the statements within the action part of a rule (the
+Xusual case), and to the rule statements themselves.
+X
+X@xref{Comments}, for information on @code{awk}'s commenting convention;
+X@pxref{Statements/Lines}, for a description of the line continuation
+Xmechanism in @code{awk}.
+X
+X@node Pattern Summary, Regexp Summary, Rules Summary, Rules Summary
+X@appendixsubsec Patterns
+X
+X@code{awk} patterns may be one of the following:
+X
+X@example
+X/@var{regular expression}/
+X@var{relational expression}
+X@var{pattern} && @var{pattern}
+X@var{pattern} || @var{pattern}
+X@var{pattern} ? @var{pattern} : @var{pattern}
+X(@var{pattern})
+X! @var{pattern}
+X@var{pattern1}, @var{pattern2}
+XBEGIN
+XEND
+X@end example
+X
+X@code{BEGIN} and @code{END} are two special kinds of patterns that are not
+Xtested against the input.  The action parts of all @code{BEGIN} rules are
+Xmerged as if all the statements had been written in a single @code{BEGIN}
+Xrule.  They are executed before any of the input is read.  Similarly, all the
+X@code{END} rules are merged, and executed when all the input is exhausted (or
+Xwhen an @code{exit} statement is executed).  @code{BEGIN} and @code{END}
+Xpatterns cannot be combined with other patterns in pattern expressions.
+X@code{BEGIN} and @code{END} rules cannot have missing action parts.@refill
+X
+XFor @samp{/@var{regular-expression}/} patterns, the associated statement is
+Xexecuted for each input line that matches the regular expression.  Regular
+Xexpressions are the same as those in @code{egrep}, and are summarized below.
+X
+XA @var{relational expression} may use any of the operators defined below in
+Xthe section on actions.  These generally test whether certain fields match
+Xcertain regular expressions.
+X
+XThe @samp{&&}, @samp{||}, and @samp{!} operators are logical ``and'',
+Xlogical ``or'', and logical ``not'', respectively, as in C.  They do
+Xshort-circuit evaluation, also as in C, and are used for combining more
+Xprimitive pattern expressions.  As in most languages, parentheses may be
+Xused to change the order of evaluation.
+X
+XThe @samp{?:} operator is like the same operator in C.  If the first
+Xpattern matches, then the second pattern is matched against the input
+Xrecord; otherwise, the third is matched.  Only one of the second and
+Xthird patterns is matched.
+X
+XThe @samp{@var{pattern1}, @var{pattern2}} form of a pattern is called a
+Xrange pattern.  It matches all input lines starting with a line that
+Xmatches @var{pattern1}, and continuing until a line that matches
+X@var{pattern2}, inclusive.  A range pattern cannot be used as an operand
+Xto any of the pattern operators.
+X
+X@xref{Patterns}, for a full description of the pattern part of @code{awk}
+Xrules.
+X
+X@node Regexp Summary, Actions Summary, Pattern Summary, Rules Summary
+X@appendixsubsec Regular Expressions
+X
+XRegular expressions are the extended kind found in @code{egrep}.
+XThey are composed of characters as follows:
+X
+X@table @code
+X@item @var{c}
+Xmatches the character @var{c} (assuming @var{c} is a character with no
+Xspecial meaning in regexps).
+X
+X@item \@var{c}
+Xmatches the literal character @var{c}.
+X
+X@item .
+Xmatches any character except newline.
+X
+X@item ^
+Xmatches the beginning of a line or a string.
+X
+X@item $
+Xmatches the end of a line or a string.
+X
+X@item [@var{abc}@dots{}]
+Xmatches any of the characters @var{abc}@dots{} (character class).
+X
+X@item [^@var{abc}@dots{}]
+Xmatches any character except @var{abc}@dots{} and newline (negated
+Xcharacter class).
+X
+X@item @var{r1}|@var{r2}
+Xmatches either @var{r1} or @var{r2} (alternation).
+X
+X@item @var{r1r2}
+Xmatches @var{r1}, and then @var{r2} (concatenation).
+X
+X@item @var{r}+
+Xmatches one or more @var{r}'s.
+X
+X@item @var{r}*
+Xmatches zero or more @var{r}'s. 
+X
+X@item @var{r}?
+Xmatches zero or one @var{r}'s. 
+X
+X@item (@var{r})
+Xmatches @var{r} (grouping).
+X@end table
+X
+X@xref{Regexp}, for a more detailed explanation of regular expressions.
+X
+XThe escape sequences allowed in string constants are also valid in
+Xregular expressions (@pxref{Constants}).
+X
+X@node Actions Summary, , Regexp Summary, Rules Summary
+X@appendixsubsec Actions
+X
+XAction statements are enclosed in braces, @samp{@{} and @samp{@}}.
+XAction statements consist of the usual assignment, conditional, and looping
+Xstatements found in most languages.  The operators, control statements,
+Xand input/output statements available are patterned after those in C.
+X
+X@menu
+X* Operator Summary::            @code{awk} operators.
+X* Control Flow Summary::        The control statements.
+X* I/O Summary::                 The I/O statements.
+X* Printf Summary::              A summary of @code{printf}.
+X* Special File Summary::        Special file names interpreted internally.
+X* Numeric Functions Summary::   Built-in numeric functions.
+X* String Functions Summary::    Built-in string functions.
+X* String Constants Summary::    Escape sequences in strings.
+X@end menu
+X
+X@node Operator Summary, Control Flow Summary, Actions Summary, Actions Summary
+X@appendixsubsubsec Operators
+X
+XThe operators in @code{awk}, in order of increasing precedence, are
+X
+X@table @code
+X@item = += -= *= /= %= ^=
+XAssignment.  Both absolute assignment (@code{@var{var}=@var{value}})
+Xand operator assignment (the other forms) are supported.
+X
+X@item ?:
+XA conditional expression, as in C.  This has the form @code{@var{expr1} ?
+X@var{expr2} : @var{expr3}}.  If @var{expr1} is true, the value of the
+Xexpression is @var{expr2}; otherwise it is @var{expr3}.  Only one of
+X@var{expr2} and @var{expr3} is evaluated.@refill
+X
+X@item ||
+XLogical ``or''.
+X
+X@item &&
+XLogical ``and''.
+X
+X@item ~ !~
+XRegular expression match, negated match.
+X
+X@item < <= > >= != ==
+XThe usual relational operators.
+X
+X@item @var{blank}
+XString concatenation.
+X
+X@item + -
+XAddition and subtraction.
+X
+X@item * / %
+XMultiplication, division, and modulus.
+X
+X@item + - !
+XUnary plus, unary minus, and logical negation.
+X
+X@item ^
+XExponentiation (@samp{**} may also be used, and @samp{**=} for the assignment
+Xoperator).
+X
+X@item ++ --
+XIncrement and decrement, both prefix and postfix.
+X
+X@item $
+XField reference.
+X@end table
+X
+X@xref{Expressions}, for a full description of all the operators listed
+Xabove.  @xref{Fields}, for a description of the field reference operator.
+X
+X@node Control Flow Summary, I/O Summary, Operator Summary, Actions Summary
+X@appendixsubsubsec Control Statements
+X
+XThe control statements are as follows:
+X
+X@example
+Xif (@var{condition}) @var{statement} @r{[} else @var{statement} @r{]}
+Xwhile (@var{condition}) @var{statement}
+Xdo @var{statement} while (@var{condition})
+Xfor (@var{expr1}; @var{expr2}; @var{expr3}) @var{statement}
+Xfor (@var{var} in @var{array}) @var{statement}
+Xbreak
+Xcontinue
+Xdelete @var{array}[@var{index}]
+Xexit @r{[} @var{expression} @r{]}
+X@{ @var{statements} @}
+X@end example
+X
+X@xref{Statements}, for a full description of all the control statements
+Xlisted above.
+X
+X@node I/O Summary, Printf Summary, Control Flow Summary, Actions Summary
+X@appendixsubsubsec I/O Statements
+X
+XThe input/output statements are as follows:
+X
+X@table @code
+X@item getline
+XSet @code{$0} from next input record; set @code{NF}, @code{NR}, @code{FNR}.
+X
+X@item getline <@var{file}
+XSet @code{$0} from next record of @var{file}; set @code{NF}.
+X
+X@item getline @var{var}
+XSet @var{var} from next input record; set @code{NF}, @code{FNR}.
+X
+X@item getline @var{var} <@var{file}
+XSet @var{var} from next record of @var{file}.
+X
+X@item next
+XStop processing the current input record.  The next input record is read and
+Xprocessing starts over with the first pattern in the @code{awk} program.
+XIf the end of the input data is reached, the @code{END} rule(s), if any,
+Xare executed.
+X
+X@item print
+XPrints the current record.
+X
+X@item print @var{expr-list}
+XPrints expressions.
+X
+X@item print @var{expr-list} > @var{file}
+XPrints expressions on @var{file}.
+X
+X@item printf @var{fmt, expr-list}
+XFormat and print.
+X
+X@item printf @var{fmt, expr-list} > file
+XFormat and print on @var{file}.
+X@end table
+X
+XOther input/output redirections are also allowed.  For @code{print} and
+X@code{printf}, @samp{>> @var{file}} appends output to the @var{file},
+Xwhile @samp{| @var{command}} writes on a pipe.  In a similar fashion,
+X@samp{@var{command} | getline} pipes input into @code{getline}.
+X@code{getline} returns 0 on end of file, and @minus{}1 on an error.@refill
+X
+X@xref{Getline}, for a full description of the @code{getline} statement.
+X@xref{Printing}, for a full description of @code{print} and
+X@code{printf}.  Finally, @pxref{Next Statement}, for a description of
+Xhow the @code{next} statement works.@refill
+X
+X@node Printf Summary, Special File Summary, I/O Summary, Actions Summary
+X@appendixsubsubsec @code{printf} Summary
+X
+XThe @code{awk} @code{printf} statement and @code{sprintf} function
+Xaccept the following conversion specification formats:
+X
+X@table @code
+X@item %c
+XAn ASCII character.  If the argument used for @samp{%c} is numeric, it is
+Xtreated as a character and printed.  Otherwise, the argument is assumed to
+Xbe a string, and the only first character of that string is printed.
+X
+X@item %d
+XA decimal number (the integer part).
+X
+X@item %i
+XAlso a decimal integer.
+X
+X@item %e
+XA floating point number of the form
+X@samp{@r{[}-@r{]}d.ddddddE@r{[}+-@r{]}dd}.@refill
+X
+X@item %f
+XA floating point number of the form
+X@r{[}@code{-}@r{]}@code{ddd.dddddd}.
+X
+X@item %g
+XUse @samp{%e} or @samp{%f} conversion, whichever is shorter, with
+Xnonsignificant zeros suppressed.
+X
+X@item %o
+XAn unsigned octal number (again, an integer).
+X
+X@item %s
+XA character string.
+X
+X@item %x
+XAn unsigned hexadecimal number (an integer).
+X
+X@item %X
+XLike @samp{%x}, except use @samp{A} through @samp{F} instead of @samp{a}
+Xthrough @samp{f} for decimal 10 through 15.@refill
+X
+X@item %%
+XA single @samp{%} character; no argument is converted.
+X@end table
+X
+XThere are optional, additional parameters that may lie between the @samp{%}
+Xand the control letter:
+X
+X@table @code
+X@item -
+XThe expression should be left-justified within its field.
+X
+X@item @var{width}
+XThe field should be padded to this width.  If @var{width} has a leading zero,
+Xthen the field is padded with zeros.  Otherwise it is padded with blanks.
+X
+X@item .@var{prec}
+XA number indicating the maximum width of strings or digits to the right
+Xof the decimal point.
+X@end table
+X
+X@xref{Printf}, for examples and for a more detailed description.
+X
+X@node Special File Summary, Numeric Functions Summary, Printf Summary, Actions Summary
+X@appendixsubsubsec Special File Names
+X
+XWhen doing I/O redirection from either @code{print} or @code{printf} into a
+Xfile, or via @code{getline} from a file, @code{gawk} recognizes certain special
+Xfile names internally.  These file names allow access to open file descriptors
+Xinherited from @code{gawk}'s parent process (usually the shell).  The
+Xfile names are:
+X
+X@table @file
+X@item /dev/stdin
+XThe standard input.
+X
+X@item /dev/stdout
+XThe standard output.
+X
+X@item /dev/stderr
+XThe standard error output.
+X
+X@item /dev/fd/@var{n}
+XThe file denoted by the open file descriptor @var{n}.
+X@end table
+X
+X@noindent
+XThese file names may also be used on the command line to name data files.
+X
+X@xref{Special Files}, for a longer description that provides the motivation
+Xfor this feature.
+X
+X@node Numeric Functions Summary, String Functions Summary, Special File Summary, Actions Summary
+X@appendixsubsubsec Numeric Functions
+X
+X@code{awk} has the following predefined arithmetic functions:
+X
+X@table @code
+X@item atan2(@var{y}, @var{x})
+Xreturns the arctangent of @var{y/x} in radians.
+X
+X@item cos(@var{expr})
+Xreturns the cosine in radians.
+X
+X@item exp(@var{expr})
+Xthe exponential function.
+X
+X@item int(@var{expr})
+Xtruncates to integer.
+X
+X@item log(@var{expr})
+Xthe natural logarithm function.
+X
+X@item rand()
+Xreturns a random number between 0 and 1.
+X
+X@item sin(@var{expr})
+Xreturns the sine in radians.
+X
+X@item sqrt(@var{expr})
+Xthe square root function.
+X
+X@item srand(@var{expr})
+Xuse @var{expr} as a new seed for the random number generator.  If no @var{expr}
+Xis provided, the time of day is used.  The return value is the previous
+Xseed for the random number generator.
+X@end table
+X
+X@node String Functions Summary, String Constants Summary, Numeric Functions Summary, Actions Summary
+X@appendixsubsubsec String Functions
+X
+X@code{awk} has the following predefined string functions:
+X
+X@table @code
+X@item gsub(@var{r}, @var{s}, @var{t})
+Xfor each substring matching the regular expression @var{r} in the string
+X@var{t}, substitute the string @var{s}, and return the number of substitutions.
+XIf @var{t} is not supplied, use @code{$0}.
+X
+X@item index(@var{s}, @var{t})
+Xreturns the index of the string @var{t} in the string @var{s}, or 0 if
+X@var{t} is not present.
+X
+X@item length(@var{s})
+Xreturns the length of the string @var{s}.
+X
+X@item match(@var{s}, @var{r})
+Xreturns the position in @var{s} where the regular expression @var{r}
+Xoccurs, or 0 if @var{r} is not present, and sets the values of @code{RSTART}
+Xand @code{RLENGTH}.
+X
+X@item split(@var{s}, @var{a}, @var{r})
+Xsplits the string @var{s} into the array @var{a} on the regular expression
+X@var{r}, and returns the number of fields.  If @var{r} is omitted, @code{FS}
+Xis used instead.
+X
+X@item sprintf(@var{fmt}, @var{expr-list})
+Xprints @var{expr-list} according to @var{fmt}, and returns the resulting string.
+X
+X@item sub(@var{r}, @var{s}, @var{t})
+Xthis is just like @code{gsub}, but only the first matching substring is
+Xreplaced.
+X
+X@item substr(@var{s}, @var{i}, @var{n})
+Xreturns the @var{n}-character substring of @var{s} starting at @var{i}.
+XIf @var{n} is omitted, the rest of @var{s} is used.
+X
+X@item tolower(@var{str})
+Xreturns a copy of the string @var{str}, with all the upper-case characters in
+X@var{str} translated to their corresponding lower-case counterparts.
+XNonalphabetic characters are left unchanged.
+X
+X@item toupper(@var{str})
+Xreturns a copy of the string @var{str}, with all the lower-case characters in
+X@var{str} translated to their corresponding upper-case counterparts.
+XNonalphabetic characters are left unchanged.
+X
+X@item system(@var{cmd-line})
+XExecute the command @var{cmd-line}, and return the exit status.
+X@end table
+X
+X@xref{Built-in}, for a description of all of @code{awk}'s built-in functions.
+X
+X@node String Constants Summary, , String Functions Summary, Actions Summary
+X@appendixsubsubsec String Constants
+X
+XString constants in @code{awk} are sequences of characters enclosed
+Xbetween double quotes (@code{"}).  Within strings, certain @dfn{escape sequences}
+Xare recognized, as in C.  These are:
+X
+X@table @code
+X@item \\
+XA literal backslash.
+X
+X@item \a
+XThe ``alert'' character; usually the ASCII BEL character.
+X
+X@item \b
+XBackspace.
+X
+X@item \f
+XFormfeed.
+X
+X@item \n
+XNewline.
+X
+X@item \r
+XCarriage return.
+X
+X@item \t
+XHorizontal tab.
+X
+X@item \v
+XVertical tab.
+X
+X@item \x@var{hex digits}
+XThe character represented by the string of hexadecimal digits following
+Xthe @samp{\x}.  As in ANSI C, all following hexadecimal digits are
+Xconsidered part of the escape sequence.  (This feature should tell us
+Xsomething about language design by committee.)  E.g., @code{"\x1B"} is a
+Xstring containing the ASCII ESC (escape) character.
+X
+X@item \@var{ddd}
+XThe character represented by the 1-, 2-, or 3-digit sequence of octal
+Xdigits.  Thus, @code{"\033"} is also a string containing the ASCII ESC
+X(escape) character.
+X
+X@item \@var{c}
+XThe literal character @var{c}.
+X@end table
+X
+XThe escape sequences may also be used inside constant regular expressions
+X(e.g., the regexp @code{@w{/[@ \t\f\n\r\v]/}} matches whitespace
+Xcharacters).@refill
+X
+X@xref{Constants}.
+X
+X@node Functions Summary, , Rules Summary, Gawk Summary
+X@appendixsec Functions
+X
+XFunctions in @code{awk} are defined as follows:
+X
+X@example
+Xfunction @var{name}(@var{parameter list}) @{ @var{statements} @}
+X@end example
+X
+XActual parameters supplied in the function call are used to instantiate
+Xthe formal parameters declared in the function.  Arrays are passed by
+Xreference, other variables are passed by value.
+X
+XIf there are fewer arguments passed than there are names in @var{parameter-list},
+Xthe extra names are given the null string as value.  Extra names have the
+Xeffect of local variables.
+X
+XThe open-parenthesis in a function call must immediately follow the
+Xfunction name, without any intervening white space.  This is to avoid a
+Xsyntactic ambiguity with the concatenation operator.
+X
+XThe word @code{func} may be used in place of @code{function}.
+X
+X@xref{User-defined}, for a more complete description.
+X
+X@node Sample Program, Notes, Gawk Summary, Top
+X@appendix Sample Program
+X
+XThe following example is a complete @code{awk} program, which prints
+Xthe number of occurrences of each word in its input.  It illustrates the
+Xassociative nature of @code{awk} arrays by using strings as subscripts.  It
+Xalso demonstrates the @samp{for @var{x} in @var{array}} construction.
+XFinally, it shows how @code{awk} can be used in conjunction with other
+Xutility programs to do a useful task of some complexity with a minimum of
+Xeffort.  Some explanations follow the program listing.@refill
+X
+X@example
+Xawk '
+X# Print list of word frequencies
+X@{
+X    for (i = 1; i <= NF; i++)
+X        freq[$i]++
+X@}
+X
+XEND @{
+X    for (word in freq)
+X        printf "%s\t%d\n", word, freq[word]
+X@}'
+X@end example
+X
+XThe first thing to notice about this program is that it has two rules.  The
+Xfirst rule, because it has an empty pattern, is executed on every line of
+Xthe input.  It uses @code{awk}'s field-accessing mechanism (@pxref{Fields})
+Xto pick out the individual words from the line, and the built-in variable
+X@code{NF} (@pxref{Built-in Variables}) to know how many fields are available.
+X
+XFor each input word, an element of the array @code{freq} is incremented to
+Xreflect that the word has been seen an additional time.@refill
+X
+XThe second rule, because it has the pattern @code{END}, is not executed
+Xuntil the input has been exhausted.  It prints out the contents of the
+X@code{freq} table that has been built up inside the first action.@refill
+X
+XNote that this program has several problems that would prevent it from being
+Xuseful by itself on real text files:@refill
+X
+X@itemize @bullet
+X@item
+XWords are detected using the @code{awk} convention that fields are
+Xseparated by whitespace and that other characters in the input (except
+Xnewlines) don't have any special meaning to @code{awk}.  This means that
+Xpunctuation characters count as part of words.@refill
+X
+X@item
+XThe @code{awk} language considers upper and lower case characters to be
+Xdistinct.  Therefore, @samp{foo} and @samp{Foo} are not treated by this
+Xprogram as the same word.  This is undesirable since in normal text, words
+Xare capitalized if they begin sentences, and a frequency analyzer should not
+Xbe sensitive to that.@refill
+X
+X@item
+XThe output does not come out in any useful order.  You're more likely to be
+Xinterested in which words occur most frequently, or having an alphabetized
+Xtable of how frequently each word occurs.@refill
+X@end itemize
+X
+XThe way to solve these problems is to use other system utilities to
+Xprocess the input and output of the @code{awk} script.  Suppose the
+Xscript shown above is saved in the file @file{frequency.awk}.  Then the
+Xshell command:@refill
+X
+X@example
+Xtr A-Z a-z < file1 | tr -cd 'a-z\012' \
+X  | awk -f frequency.awk \
+X  | sort +1 -nr
+X@end example
+X
+X@noindent
+Xproduces a table of the words appearing in @file{file1} in order of
+Xdecreasing frequency.
+X
+XThe first @code{tr} command in this pipeline translates all the upper case
+Xcharacters in @file{file1} to lower case.  The second @code{tr} command
+Xdeletes all the characters in the input except lower case characters and
+Xnewlines.  The second argument to the second @code{tr} is quoted to protect
+Xthe backslash in it from being interpreted by the shell.  The @code{awk}
+Xprogram reads this suitably massaged data and produces a word frequency
+Xtable, which is not ordered.
+X
+XThe @code{awk} script's output is now sorted by the @code{sort} command and
+Xprinted on the terminal.  The options given to @code{sort} in this example
+Xspecify to sort by the second field of each input line (skipping one field),
+Xthat the sort keys should be treated as numeric quantities (otherwise
+X@samp{15} would come before @samp{5}), and that the sorting should be done
+Xin descending (reverse) order.@refill
+X
+XSee the general operating system documentation for more information on how
+Xto use the @code{tr} and @code{sort} commands.@refill
+X
+X@ignore
+X@strong{ADR: I have some more substantial programs courtesy of Rick Adams
+Xat UUNET.  I am planning on incorporating those either in addition to or
+Xinstead of this program.}
+X
+X@strong{I would also like to incorporate the general @code{translate}
+Xfunction that I have written.}
+X@end ignore
+X
+X@node Notes, Glossary, Sample Program, Top
+X@appendix Implementation Notes
+X
+XThis appendix contains information mainly of interest to implementors and
+Xmaintainers of @code{gawk}.  Everything in it applies specifically to
+X@code{gawk}, and not to other implementations.
+X
+X@menu
+X* Compatibility Mode::   How to disable certain @code{gawk} extensions.
+X
+X* Future Extensions::    New features we may implement soon.
+X
+X* Improvements::         Suggestions for improvements by volunteers.
+X@end menu
+X
+X@node Compatibility Mode, Future Extensions, Notes, Notes
+X@appendixsec Downwards Compatibility and Debugging
+X
+X@xref{S5R4/GNU}, for a summary of the GNU extensions to the @code{awk}
+Xlanguage and program.  All of these features can be turned off either by
+Xcompiling @code{gawk} with @samp{-DSTRICT} (not recommended), or by
+Xinvoking @code{gawk} with the @samp{-c} option.@refill
+X
+XIf @code{gawk} is compiled for debugging with @samp{-DDEBUG}, then there
+Xare two more options available on the command line.
+X
+X@table @samp
+X@item -d
+XPrint out debugging information during execution.
+X
+X@item -D
+XPrint out the parse stack information as the program is being parsed.
+X@end table
+X
+XBoth of these options are intended only for serious @code{gawk} developers,
+Xand not for the casual user.  They probably have not even been compiled into
+Xyour version of @code{gawk}, since they slow down execution.
+X
+XThe code for recognizing special file names such as @file{/dev/stdin}
+Xcan be disabled at compile time with @samp{-DNO_DEV_FD}, or with
+X@samp{-DSTRICT}.@refill
+X
+X@node Future Extensions, Improvements, Compatibility Mode, Notes
+X@appendixsec Probable Future Extensions
+X
+XThis section briefly lists extensions that indicate the directions we are
+Xcurrently considering for @code{gawk}.
+X
+X@table @asis
+X@item ANSI C compatible @code{printf}
+XThe @code{printf} and @code{sprintf} functions may be enhanced to be
+Xfully compatible with the specification for the @code{printf} family
+Xof functions in ANSI C.@refill
+X
+X@item @code{RS} as a regexp
+XThe meaning of @code{RS} may be generalized along the lines of @code{FS}.
+X
+X@item Control of subprocess environment
+XChanges made in @code{gawk} to the array @code{ENVIRON} may be
+Xpropagated to subprocesses run by @code{gawk}.
+X
+X@item Data bases
+XIt may be possible to map an NDBM/GDBM file into an @code{awk} array.
+X
+X@item Single-character fields
+XThe null string, @code{""}, as a field separator, will cause field
+Xsplitting and the split function to separate individual characters.
+XThus, @code{split(a, "abcd", "")} would yield @code{a[1] == "a"},
+X@code{a[2] == "b"}, and so on.
+X
+X@item Fixed-length fields and records
+XA mechanism may be provided to allow the specification of fixed length
+Xfields and records.
+X
+X@item Regexp syntax
+XThe @code{egrep} syntax for regular expressions, now specified
+Xwith the @samp{-e} option, may become the default, since the
+XPOSIX standard may specify this.
+X
+X@c this is @emph{very} long term --- not worth including right now.
+X@ignore
+X@item The C Comma Operator
+XWe may add the C comma operator, which takes the form
+X@code{@var{expr1},@var{expr2}}.  The first expression is evaluated, and the
+Xresult is thrown away.  The value of the full expression is the value of
+X@var{expr2}.@refill
+X@end ignore
+X@end table
+X
+X@node Improvements,, Future Extensions, Notes
+X@appendixsec Suggestions for Improvements
+X
+XHere are some projects that would-be @code{gawk} hackers might like to take
+Xon.  They vary in size from a few days to a few weeks of programming,
+Xdepending on which one you choose and how fast a programmer you are.  Please
+Xsend any improvements you write to the maintainers at the GNU
+Xproject.@refill
+X
+X@enumerate
+X@item
+XState machine regexp matcher: At present, @code{gawk} uses the
+Xbacktracking regular expression matcher from the GNU subroutine library.
+XIf a regexp is really going to be used a lot of times, it is faster to
+Xconvert it once to a description of a finite state machine, then run a
+Xroutine simulating that machine every time you want to match the regexp.
+XYou might be able to use the matching routines used by GNU @code{egrep}.
+X
+X@item
+XCompilation of @code{awk} programs: @code{gawk} uses a Bison (YACC-like)
+Xparser to convert the script given it into a syntax tree; the syntax
+Xtree is then executed by a simple recursive evaluator.  Both of these
+Xsteps incur a lot of overhead, since parsing can be slow (especially if
+Xyou also do the previous project and convert regular expressions to
+Xfinite state machines at compile time) and the recursive evaluator
+Xperforms many procedure calls to do even the simplest things.@refill
+X
+XIt should be possible for @code{gawk} to convert the script's parse tree
+Xinto a C program which the user would then compile, using the normal
+XC compiler and a special @code{gawk} library to provide all the needed
+Xfunctions (regexps, fields, associative arrays, type coercion, and so
+Xon).@refill
+X
+XAn easier possibility might be for an intermediate phase of @code{awk} to
+Xconvert the parse tree into a linear byte code form like the one used
+Xin GNU Emacs Lisp.  The recursive evaluator would then be replaced by
+Xa straight line byte code interpreter that would be intermediate in speed
+Xbetween running a compiled program and doing what @code{gawk} does
+Xnow.@refill
+X
+X@item
+XAn error message section has not been included in this version of the
+Xmanual.  Perhaps some nice beta testers will document some of the messages
+Xfor the future.
+X@end enumerate
+X
+X@node Glossary, Index , Notes, Top
+X@appendix Glossary
+X
+X@table @asis
+X@item Action
+XA series of @code{awk} statements attached to a rule.  If the rule's
+Xpattern matches an input record, the @code{awk} language executes the
+Xrule's action.  Actions are always enclosed in curly braces.
+X@xref{Actions}.@refill
+X
+X@item Amazing @code{awk} Assembler
+XHenry Spencer at the University of Toronto wrote a retargetable assembler
+Xcompletely as @code{awk} scripts.  It is thousands of lines long, including
+Xmachine descriptions for several 8-bit microcomputers.  It is distributed
+Xwith @code{gawk} and is a good example of a program that would have been
+Xbetter written in another language.@refill
+X
+X@item Assignment
+XAn @code{awk} expression that changes the value of some @code{awk}
+Xvariable or data object.  An object that you can assign to is called an
+X@dfn{lvalue}.  @xref{Assignment Ops}.@refill
+X
+X@item @code{awk} Language
+XThe language in which @code{awk} programs are written.
+X
+X@item @code{awk} Program
+XAn @code{awk} program consists of a series of @dfn{patterns} and
+X@dfn{actions}, collectively known as @dfn{rules}.  For each input record
+Xgiven to the program, the program's rules are all processed in turn.
+X@code{awk} programs may also contain function definitions.@refill
+X
+X@item @code{awk} Script
+XAnother name for an @code{awk} program.
+X
+X@item Built-in Function
+XThe @code{awk} language provides built-in functions that perform various
+Xnumerical and string computations.  Examples are @code{sqrt} (for the
+Xsquare root of a number) and @code{substr} (for a substring of a
+Xstring).  @xref{Built-in}.@refill
+X
+X@item Built-in Variable
+XThe variables @code{ARGC}, @code{ARGV}, @code{ENVIRON},  @code{FILENAME},
+X@code{FNR}, @code{FS}, @code{NF}, @code{IGNORECASE}, @code{NR}, @code{OFMT},
+X@code{OFS}, @code{ORS}, @code{RLENGTH}, @code{RSTART}, @code{RS}, and
+X@code{SUBSEP}, have special meaning to @code{awk}.  Changing some of them
+Xaffects @code{awk}'s running environment.  @xref{Built-in Variables}.@refill
+X
+X@item C
+XThe system programming language that most GNU software is written in.  The
+X@code{awk} programming language has C-like syntax, and this manual
+Xpoints out similarities between @code{awk} and C when appropriate.@refill
+X
+X@item Compound Statement
+XA series of @code{awk} statements, enclosed in curly braces.  Compound
+Xstatements may be nested.  @xref{Statements}.@refill
+X
+X@item Concatenation
+END_OF_FILE
+  if test 49614 -ne `wc -c <'./gawk.texinfo.06'`; then
+    echo shar: \"'./gawk.texinfo.06'\" unpacked with wrong size!
+  fi
+  # end of './gawk.texinfo.06'
+fi
+if test -f './missing.d/strerror.c' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'./missing.d/strerror.c'\"
+else
+  echo shar: Extracting \"'./missing.d/strerror.c'\" \(1264 characters\)
+  sed "s/^X//" >'./missing.d/strerror.c' <<'END_OF_FILE'
+X/*
+X * strerror.c --- ANSI C compatible system error routine
+X */
+X
+X/* 
+X * Copyright (C) 1986, 1988, 1989 the Free Software Foundation, Inc.
+X * 
+X * This file is part of GAWK, the GNU implementation of the
+X * AWK Progamming Language.
+X * 
+X * GAWK is free software; you can redistribute it and/or modify
+X * it under the terms of the GNU General Public License as published by
+X * the Free Software Foundation; either version 1, or (at your option)
+X * any later version.
+X * 
+X * GAWK is distributed in the hope that it will be useful,
+X * but WITHOUT ANY WARRANTY; without even the implied warranty of
+X * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+X * GNU General Public License for more details.
+X * 
+X * You should have received a copy of the GNU General Public License
+X * along with GAWK; see the file COPYING.  If not, write to
+X * the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
+X */
+X
+Xextern int sys_nerr;
+Xextern char *sys_errlist[];
+X
+X/* have to get right decl of sprintf early on */
+X#ifndef BUFSIZ	/* stdio specific definition */
+X#include <stdio.h>
+X#endif
+X
+Xchar *
+Xstrerror(n)
+Xint n;
+X{
+X	static char mesg[30];
+X
+X	if (n < 0 || n > sys_nerr) {
+X		sprintf (mesg, "Unknown error (%d)", n);
+X		return mesg;
+X	} else
+X		return sys_errlist[n];
+X}
+END_OF_FILE
+  if test 1264 -ne `wc -c <'./missing.d/strerror.c'`; then
+    echo shar: \"'./missing.d/strerror.c'\" unpacked with wrong size!
+  fi
+  # end of './missing.d/strerror.c'
+fi
+if test -f './missing.d/tmpnam.c' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'./missing.d/tmpnam.c'\"
+else
+  echo shar: Extracting \"'./missing.d/tmpnam.c'\" \(484 characters\)
+  sed "s/^X//" >'./missing.d/tmpnam.c' <<'END_OF_FILE'
+X/*
+X * tmpnam - an implementation for systems lacking a library version
+X *	    this version does not rely on the P_tmpdir and L_tmpnam constants.
+X */
+X
+X#ifndef NULL
+X#define NULL	0
+X#endif
+X
+Xstatic char template[] = "/tmp/gawkXXXXXX";
+X
+Xchar *
+Xtmpnam(tmp)
+Xchar *tmp;
+X{
+X	static char tmpbuf[sizeof(template)];
+X	
+X	if (tmp == NULL) {
+X		(void) strcpy(tmpbuf, template);
+X		(void) mktemp(tmpbuf);
+X		return tmpbuf;
+X	} else {
+X		(void) strcpy(tmp, template);
+X		(void) mktemp(tmp);
+X		return tmp;
+X	}
+X}
+END_OF_FILE
+  if test 484 -ne `wc -c <'./missing.d/tmpnam.c'`; then
+    echo shar: \"'./missing.d/tmpnam.c'\" unpacked with wrong size!
+  fi
+  # end of './missing.d/tmpnam.c'
+fi
+echo shar: End of archive 7 \(of 16\).
+cp /dev/null ark7isdone
+MISSING=""
+for I in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 ; do
+    if test ! -f ark${I}isdone ; then
+	MISSING="${MISSING} ${I}"
+    fi
+done
+if test "${MISSING}" = "" ; then
+    echo You have unpacked all 16 archives.
+    rm -f ark[1-9]isdone ark[1-9][0-9]isdone
+else
+    echo You still must unpack the following archives:
+    echo "        " ${MISSING}
+fi
+exit 0
+exit 0 # Just in case...
+-- 
+Please send comp.sources.unix-related mail to rsalz@uunet.uu.net.
+Use a domain-based address or give alternate paths, or you may lose out.

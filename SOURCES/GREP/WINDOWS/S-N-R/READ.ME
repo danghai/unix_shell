@@ -1,0 +1,113 @@
+Thank you for your interest in Search and Replace!
+
+Create a directory and copy all the files on disk into it.  If you are running 
+Windows 95 or NT, create a shortcut to SR32.EXE.  Windows 3.1x users, add SR.EXE
+to a group in the Program Manager.
+
+The SR.ZIP file contains the latest version of Search and Replace for Windows (sr.exe), as well 
+as the 32-bit version of Search and Replace (sr32.exe).  The 32-bit version runs on Windows NT 
+and Windows 95, and was tested on VFAT (Windows 95's file system), and NTFS (Windows NT's 
+optional, more secure file system).
+
+New features in v2.5-2.54 include:
+- A display bug in the Windows version which showed line numbers, but no line detail on certain
+  lines for large files.
+- 32-bit version (SR32.exe) now uses the Registry instead of SR.INI file to store and retrieve
+  information.
+- Application can now be used as a File Find utility by not inputting a Search String.
+- Efficiency and size improvements.
+- Improved help file
+- A utility for moving the search history information from the SR.INI file to the Windows 95/NT
+  registry(where the program reads it from).  This utility is not included in the release but it
+  can be downloaded from http://home.sprynet.com/sprynet/funduc and from various forums
+  on CompuServe (Search for INI2REG.ZIP).  It is called INI2REG and it is FREEWARE.
+- Credit card ordering information is now available.  Also, the homepage URL is now included in
+  the documentation and the E-MAIL address for customer support is also in the documentation and
+  the About dialog.
+- About dialog clearly identifies whether the application is meant to run in Windows 95/NT or 3.1x.
+  Also, the Windows 3.1x application no longer runs under Windows 95/NT to avoid misuse which could
+  result in loss of long filename support.
+- Menu items were added (both in main menu and pop-up) to allow users to Open with Default Viewer 
+  rather than Associated Viewer.  
+  Also, menu items (both in main menu and pop-up) were added to allow opening a file with a 
+  viewer the user selects.
+- Mnemonics problem was fixed in the Main Window (Alt+T was used for Srch String and Touch).
+  Also, mnemonics were added to the View Context Window buttons.
+- A limit of 3000 files processed was removed from the Windows 95/NT version (SR32.EXE).  The
+  Windows 3.1x version (SR.EXE) still can process only 3000 files at a time.
+- The View Context window now remembers the position you left it in.  Also, the Page Up button is
+  always disabled when at the top of the file.
+- The character '_' is now a valid word character for the Whole Word Only feature.  For example, if
+  you Search for "DEBUG" with Whole Word Only on, the program will not find any "_DEBUG" lines, only the
+  ones with the word "DEBUG".
+- A Use Binary Codes mode which allows you to enter tab and linefeed characters (as well as any
+  other) binary characters by using the special character "\".  
+  Example:  Search String: #include "stdafx.h"\r\n#include "sr.h"
+           Replace String: #include <stdafx.h>\r\n#include "srreg.h"
+  You can now enter a string as follows: "\0xa3\0x09abc".  
+  A character picker dialog is provided to save you from having to use an ASCII chart.  See the "..."
+  buttons next to the Search and Replace Strings.
+  When you run a binary mode Search/Replace, the found string is shown in a rectangle (because
+  non-printable characters are not displayed, you cannot see where they are).
+- The help file is updated with the latest features.
+- In Windows 95, the SR icon now appears on the Task bar.
+- The Select Path dialog now shows long directory names.
+
+New features in v2.6 include:
+- Egrep-style regular expression support for Search and Replace (for syntax details see Help file).
+  Main differences are: 
+  ^.$ operators are not (yet) supported
+  *+? operator must precede an expression enclosed by () or [] (such as *[123] or +(Windows)).  
+      Otherwise, the operator is assumed to match any/all characters from beginning of line or to 
+      the end of the line.
+  [0-9] will span all numbers (whereas egrep only matches the first one).  To match only one, use ?[0-9].
+
+- Some problems with read-only files on a network were resolved.
+- Some speed improvements were made in the 32-bit version (sr32.exe).
+- Error messages mention the file name.
+- A Setup executable is now provided for the registered version.
+
+Features planned for future releases include:
+
+- Command-line arguments (for running from a DOS shell) will be supported for some settings.
+- More than one Search/Replace strings and files selected by you for processing will be compiled 
+  into a script to be executed by the program.
+- Strings displayed before and after the Search strings (for clipboard copy and Output File)
+  will be configurable.
+- File currently processed will be displayed on the main window.
+- Remaining regular expression operators will be supported.
+
+The same help file is used for both versions.
+
+- Ordering by check:  To order by check send this order form and a check drawn on a US bank or
+  International Money Order for $20(US) (+$3 if you want a diskette mailed to you) to 
+  Funduc Software Inc., P.O. Box 530904 Livonia, MI 48153.
+  Please allow 7-10 days for mail to reach you, then contact us by E-MAIL if you did not receive 
+  the program. Payments must be in US dollars drawn on a US bank or international postal money 
+  order in US dollars.
+
+- CompuServe subscribers may register by typing GO SWREG and using the Registration ID 7964 
+  (the cost is $23/user due to CompuServe charges).   CompuServe orders are filled by E-MAIL 
+  within 24-48 hours regardless of delivery method selected.  Therefore please check you 
+  CompuServe mail a day or two after ordering.
+
+- You can order by credit card through PSL (Public Software Library) by calling: (713)524-6394 
+  or by FAX to (713)524-6398.  Specify order is for product number 14483 (Search and Replace).  
+  The cost through this option is $25/user (due to PSL charges) + $3 (S&H if you want a diskette 
+  mailed).   You can also register by using your credit card (for the same price) and a secure 
+  Web browser (such as Netscape) from the URL: http://home.sprynet.com/sprynet/funduc.
+
+Please note:  PSL and CompuServe cannot deliver the program.  They notify us and then, 
+within 24-48 hours, the program can be mailed or E-MAILed to you.  If you have problems receiving 
+the program, contact us directly by E-MAIL at 102372.2530@compuserve.com.
+
+As part of the registration fee, you will also receive free updates for a year and customer 
+support (by E-MAIL).
+
+Thank you,
+
+Mike Funduc,  President Funduc Software Inc.
+http://home.sprynet.com/sprynet/funduc
+http://ourworld.compuserve.com/homepages/funduc
+102372.2530@compuserve.com
+funduc@sprynet.com

@@ -1,0 +1,119 @@
+---------------------------------------------------------------------------
+[Image]  [Image] [Image]
+Next: Shell scripts and Up: Windows/Unix/ksh notes for Computing Previous:
+Window management features
+---------------------------------------------------------------------------
+
+Unix and the Korn Shell
+
+   *  First, some information about Unix. Unix is an operating system: that
+     is it manages the resources of the underlying computer hardware, and
+     gives us reasonably useful facilities. It provides for us a virtual
+     machine which appears to have files, directories, convenient
+     communications with other computers, etc. Most of the practical use
+     that we make of Unix is through the operation of programs (such as vi,
+     pc, mwm, xterm, etc) which themselves rely on the virtual machine
+     provided by Unix. Surprising as it may seem, Unix itself does not even
+     deal directly with the commands that you type (such as pwd, ls, pc):
+     instead Unix is running a special program called a shell which takes
+     commands from the keyboard and translates them into Unix terms. You
+     are using a shell called the Korn Shell or ksh (usually pronounced
+     ``kay-shell''); you may have seen error messages of the kind ksh: xxx:
+     not found when you mistyped a command. The Korn Shell is a good
+     compromise between power and manageability; alternatives include: sh
+     (the Bourne Shell), and csh (the C Shell).
+
+     ksh has many powerful facilities to make life easier for you. Below,
+     you will find some useful things that may save you a lot of time.
+
+   *  When you make a mistake typing a Unix command you usually use
+     backspace and then retype a part of the line; if the line is quite
+     long and you made a mistake near the beginning, then this involves a
+     lot of retyping. There is a short cut: when you notice that you have
+     made a mistake, hit the ESC key; ksh now allows you to edit the
+     command using vi-style commands and will only try to carry out the
+     command when you hit the RETURN key (no matter where the cursor is in
+     the line). You use h and l to move the cursor left and right, x to
+     delete characters, i to insert characters (use ESC to finish the
+     insertion), and so on. Try it, it's wonderful! Note: the arrow keys
+     cannot be used during command line editing.
+
+   *  ksh keeps a history file of recent commands (by default, 128 commands
+     are remembered). You can see a recent portion of it by typing the
+     command history.
+
+   *  ksh allows you to review the commands that you have already typed,
+     one at a time, and to re-execute any command that you wish: If you hit
+     ESC to enter command line editing mode, as above, then using k and j
+     lets you step backwards and forwards in the history, one command at a
+     time. The command that you are viewing appears on the line where you
+     are supposed to be entering a command. When you find the command that
+     you are looking for, you can ask ksh to carry it out by just hitting
+     RETURN.
+
+   *  You can also edit the line if you wish, before executing it: once you
+     have found the line, as above, then you can use the vi-style editing
+     commands before hitting RETURN. This is very useful if you have just
+     typed a long command and hit RETURN without noticing a typing mistake!
+     Just hit ESC k ...editing commands... RETURN. (Note that this does not
+     actually edit the history file: the old command is still there if you
+     want to go back and find it again, and the edited command has been
+     added as the most recent command.)
+
+   *  An even easier way to re-execute the immediately previous command is
+     to just type r as a command to ksh. The immediately preceding command
+     will be echoed and executed (you will not have the opportunity to edit
+     it). There are other variants of the r command - see the ksh manual
+     entry for details.
+
+   *  Something that I find particularly useful is ksh's ability to do file
+     name completion. If you are part way through typing a command, and you
+     have typed a few characters which are the start of a filename in the
+     current directory, then if you type ESC twice ksh will search the
+     current directory and expand those few characters to the full
+     filename, leaving you in insert mode so that you can continue entering
+     the command. If several filenames start in the same way, then ksh will
+     expand as much as it can, then beep and leave you in insert mode; you
+     can then add a few more characters and hit ESC ESC again.
+
+   *  Sometimes, during a session at a workstation, you find that you need
+     to type the same command many times. For example, if you have a
+     directory with many Pascal files (  .p) mixed up with a lot of other
+     things, then you might frequently need to type
+
+            ls *.p
+
+     to get a directory listing of just the Pascal source files.
+
+     You could just keep re-executing the command from the history, but
+     there is an even quicker way. ksh can remember an alias for the
+     command: this is a name that stands for the whole command, and you can
+     ask for the command to be executed simply by using the alias name as
+     if it were a command itself. Let us suppose that you choose the alias
+     lspas to stand for the command above, then you can instruct ksh to
+     remember this by typing the command
+
+            alias lspas='ls *.p'
+
+     (Note that the ' character is on the same key as ", next to RETURN.)
+     and from then on whenever you type
+
+            lspas
+
+     as a shell command, the command ls *.p will be executed.
+
+     If you type the command alias by itself, ksh will list the current
+     aliases that are set up (it sets up several automatically). Two things
+     to remember about aliases: they can only be used in the window in
+     which you set them up; and ksh forgets about them when you log off
+     (but see below).
+
+---------------------------------------------------------------------------
+[Image]  [Image] [Image]
+Next: Shell scripts and Up: Windows/Unix/ksh notes for Computing Previous:
+Window management features
+---------------------------------------------------------------------------
+
+---------------------------------------------------------------------------
+
+Simon Jones (sbj@cs.stir.ac.uk)

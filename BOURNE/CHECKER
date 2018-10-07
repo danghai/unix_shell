@@ -1,0 +1,13 @@
+#!/bin/sh
+# Script name: checker
+# Script to demonstrate the use of special variable 
+# modifiers and arguements
+
+name=${1:?"requires an argument" }
+	echo Hello $name
+-------------------------------
+	(The Command LIne)
+$ checker 
+	./checker: 1: requires an argument
+$ checker Sue
+	Hello Sue

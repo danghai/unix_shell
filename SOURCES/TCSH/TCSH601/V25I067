@@ -1,0 +1,3495 @@
+Newsgroups: comp.sources.unix
+From: christos@ee.cornell.edu (Christos Zoulas)
+Subject: v25i067: tcsh6.01 - a csh replacement with lots of extra goodies, Part14/18
+Message-ID: <1991Dec20.214441.7723@PA.dec.com>
+Date: Fri, 20 Dec 91 21:44:41 GMT
+Approved: vixie@pa.dec.com
+
+Submitted-By: christos@ee.cornell.edu (Christos Zoulas)
+Posting-Number: Volume 25, Issue 67
+Archive-Name: tcsh-6.01/part14
+
+#! /bin/sh
+# This is a shell archive.  Remove anything before this line, then unpack
+# it by saving it into a file and typing "sh file".  To overwrite existing
+# files, type "sh file -c".  You can also feed this as standard input via
+# unshar, or by typing "sh <file", e.g..  If this archive is complete, you
+# will see the following message at the end:
+#		"End of archive 14 (of 18)."
+# Contents:  sh.func.c tw.parse.c
+# Wrapped by vixie@cognition.pa.dec.com on Fri Dec 20 13:29:29 1991
+PATH=/bin:/usr/bin:/usr/ucb ; export PATH
+if test -f 'sh.func.c' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'sh.func.c'\"
+else
+echo shar: Extracting \"'sh.func.c'\" \(38958 characters\)
+sed "s/^X//" >'sh.func.c' <<'END_OF_FILE'
+X/* $Header: /home/hyperion/mu/christos/src/sys/tcsh-6.01/RCS/sh.func.c,v 3.20 1991/12/19 22:34:14 christos Exp $ */
+X/*
+X * sh.func.c: csh builtin functions
+X */
+X/*-
+X * Copyright (c) 1980, 1991 The Regents of the University of California.
+X * All rights reserved.
+X *
+X * Redistribution and use in source and binary forms, with or without
+X * modification, are permitted provided that the following conditions
+X * are met:
+X * 1. Redistributions of source code must retain the above copyright
+X *    notice, this list of conditions and the following disclaimer.
+X * 2. Redistributions in binary form must reproduce the above copyright
+X *    notice, this list of conditions and the following disclaimer in the
+X *    documentation and/or other materials provided with the distribution.
+X * 3. All advertising materials mentioning features or use of this software
+X *    must display the following acknowledgement:
+X *	This product includes software developed by the University of
+X *	California, Berkeley and its contributors.
+X * 4. Neither the name of the University nor the names of its contributors
+X *    may be used to endorse or promote products derived from this software
+X *    without specific prior written permission.
+X *
+X * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+X * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+X * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+X * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+X * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+X * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+X * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+X * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+X * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+X * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+X * SUCH DAMAGE.
+X */
+X#include "sh.h"
+X
+RCSID("$Id: sh.func.c,v 3.20 1991/12/19 22:34:14 christos Exp $")
+X
+X#include "ed.h"
+X#include "tw.h"
+X#include "tc.h"
+X
+X/*
+X * C shell
+X */
+extern int just_signaled;
+extern char **environ;
+X
+extern bool MapsAreInited;
+extern bool NLSMapsAreInited;
+extern bool NoNLSRebind;
+X
+static int zlast = -1;
+X
+static	void	islogin		__P((void));
+static	void	reexecute	__P((struct command *));
+static	void	preread		__P((void));
+static	void	doagain		__P((void));
+static  char   *isrchx		__P((int));
+static	void	search		__P((int, int, Char *));
+static	int	getword		__P((Char *));
+static	int	keyword		__P((Char *));
+static	void	toend		__P((void));
+static	void	xecho		__P((int, Char **));
+X
+struct biltins *
+isbfunc(t)
+X    struct command *t;
+X{
+X    register Char *cp = t->t_dcom[0];
+X    register struct biltins *bp, *bp1, *bp2;
+X    static struct biltins label = {"", dozip, 0, 0};
+X    static struct biltins foregnd = {"%job", dofg1, 0, 0};
+X    static struct biltins backgnd = {"%job &", dobg1, 0, 0};
+X
+X    if (lastchr(cp) == ':') {
+X	label.bname = short2str(cp);
+X	return (&label);
+X    }
+X    if (*cp == '%') {
+X	if (t->t_dflg & F_AMPERSAND) {
+X	    t->t_dflg &= ~F_AMPERSAND;
+X	    backgnd.bname = short2str(cp);
+X	    return (&backgnd);
+X	}
+X	foregnd.bname = short2str(cp);
+X	return (&foregnd);
+X    }
+X#ifdef WARP
+X    /*
+X     * This is a perhaps kludgy way to determine if the warp builtin is to be
+X     * acknowledged or not.  If checkwarp() fails, then we are to assume that
+X     * the warp command is invalid, and carry on as we would handle any other
+X     * non-builtin command.         -- JDK 2/4/88
+X     */
+X    if (eq(STRwarp, cp) && !checkwarp()) {
+X	return (0);		/* this builtin disabled */
+X    }
+X#endif /* WARP */
+X    /*
+X     * Binary search Bp1 is the beginning of the current search range. Bp2 is
+X     * one past the end.
+X     */
+X    for (bp1 = bfunc, bp2 = bfunc + nbfunc; bp1 < bp2;) {
+X	register i;
+X
+X	bp = bp1 + ((bp2 - bp1) >> 1);
+X	if ((i = *cp - *bp->bname) == 0 &&
+X	    (i = Strcmp(cp, str2short(bp->bname))) == 0)
+X	    return bp;
+X	if (i < 0)
+X	    bp2 = bp;
+X	else
+X	    bp1 = bp + 1;
+X    }
+X    return (0);
+X}
+X
+void
+func(t, bp)
+X    register struct command *t;
+X    register struct biltins *bp;
+X{
+X    int     i;
+X
+X    xechoit(t->t_dcom);
+X    setname(bp->bname);
+X    i = blklen(t->t_dcom) - 1;
+X    if (i < bp->minargs)
+X	stderror(ERR_NAME | ERR_TOOFEW);
+X    if (i > bp->maxargs)
+X	stderror(ERR_NAME | ERR_TOOMANY);
+X    (*bp->bfunct) (t->t_dcom, t);
+X}
+X
+X/*ARGSUSED*/
+void
+doonintr(v, c)
+X    Char  **v;
+X    struct command *c;
+X{
+X    register Char *cp;
+X    register Char *vv = v[1];
+X
+X    if (parintr == SIG_IGN)
+X	return;
+X    if (setintr && intty)
+X	stderror(ERR_NAME | ERR_TERMINAL);
+X    cp = gointr;
+X    gointr = 0;
+X    xfree((ptr_t) cp);
+X    if (vv == 0) {
+X#ifdef BSDSIGS
+X	if (setintr)
+X	    (void) sigblock(sigmask(SIGINT));
+X	else
+X	    (void) signal(SIGINT, SIG_DFL);
+X#else /* !BSDSIGS */
+X	if (setintr)
+X	    (void) sighold(SIGINT);
+X	else
+X	    (void) sigset(SIGINT, SIG_DFL);
+X#endif /* BSDSIGS */
+X	gointr = 0;
+X    }
+X    else if (eq((vv = strip(vv)), STRminus)) {
+X#ifdef BSDSIGS
+X	(void) signal(SIGINT, SIG_IGN);
+X#else /* !BSDSIGS */
+X	(void) sigset(SIGINT, SIG_IGN);
+X#endif /* BSDSIGS */
+X	gointr = Strsave(STRminus);
+X    }
+X    else {
+X	gointr = Strsave(vv);
+X#ifdef BSDSIGS
+X	(void) signal(SIGINT, pintr);
+X#else /* !BSDSIGS */
+X	(void) sigset(SIGINT, pintr);
+X#endif /* BSDSIGS */
+X    }
+X}
+X
+X/*ARGSUSED*/
+void
+donohup(v, c)
+X    Char **v;
+X    struct command *c;
+X{
+X    if (intty)
+X	stderror(ERR_NAME | ERR_TERMINAL);
+X    if (setintr == 0) {
+X	(void) signal(SIGHUP, SIG_IGN);
+X#ifdef CC
+X	submit(getpid());
+X#endif /* CC */
+X    }
+X}
+X
+X/*ARGSUSED*/
+void
+dozip(v, c)
+X    Char **v;
+X    struct command *c;
+X{
+X    ;
+X}
+X
+void
+prvars()
+X{
+X    plist(&shvhed);
+X}
+X
+X/*ARGSUSED*/
+void
+doalias(v, c)
+X    register Char **v;
+X    struct command *c;
+X{
+X    register struct varent *vp;
+X    register Char *p;
+X
+X    v++;
+X    p = *v++;
+X    if (p == 0)
+X	plist(&aliases);
+X    else if (*v == 0) {
+X	vp = adrof1(strip(p), &aliases);
+X	if (vp)
+X	    blkpr(vp->vec), xprintf("\n");
+X    }
+X    else {
+X	if (eq(p, STRalias) || eq(p, STRunalias)) {
+X	    setname(short2str(p));
+X	    stderror(ERR_NAME | ERR_DANGER);
+X	}
+X	set1(strip(p), saveblk(v), &aliases);
+X	tw_clear_comm_list();
+X    }
+X}
+X
+X/*ARGSUSED*/
+void
+unalias(v, c)
+X    Char  **v;
+X    struct command *c;
+X{
+X    unset1(v, &aliases);
+X    tw_clear_comm_list();
+X}
+X
+X/*ARGSUSED*/
+void
+dologout(v, c)
+X    Char **v;
+X    struct command *c;
+X{
+X    islogin();
+X    goodbye(NULL, NULL);
+X}
+X
+X/*ARGSUSED*/
+void
+dologin(v, c)
+X    Char  **v;
+X    struct command *c;
+X{
+X    islogin();
+X    rechist();
+X    (void) signal(SIGTERM, parterm);
+X    (void) execl(_PATH_LOGIN, "login", short2str(v[1]), NULL);
+X    untty();
+X    xexit(1);
+X}
+X
+X
+X#ifdef NEWGRP
+X/*ARGSUSED*/
+void
+donewgrp(v, c)
+X    Char  **v;
+X    struct command *c;
+X{
+X    if (chkstop == 0 && setintr)
+X	panystop(0);
+X    (void) signal(SIGTERM, parterm);
+X    (void) execl(_PATH_BIN_NEWGRP, "newgrp", short2str(v[1]), NULL);
+X    (void) execl(_PATH_USRBIN_NEWGRP, "newgrp", short2str(v[1]), NULL);
+X    untty();
+X    xexit(1);
+X}
+X#endif /* NEWGRP */
+X
+static void
+islogin()
+X{
+X    if (chkstop == 0 && setintr)
+X	panystop(0);
+X    if (loginsh)
+X	return;
+X    stderror(ERR_NOTLOGIN);
+X}
+X
+void
+doif(v, kp)
+X    Char  **v;
+X    struct command *kp;
+X{
+X    register int i;
+X    register Char **vv;
+X
+X    v++;
+X    i = expr(&v);
+X    vv = v;
+X    if (*vv == NULL)
+X	stderror(ERR_NAME | ERR_EMPTYIF);
+X    if (eq(*vv, STRthen)) {
+X	if (*++vv)
+X	    stderror(ERR_NAME | ERR_IMPRTHEN);
+X	setname(short2str(STRthen));
+X	/*
+X	 * If expression was zero, then scan to else , otherwise just fall into
+X	 * following code.
+X	 */
+X	if (!i)
+X	    search(T_IF, 0, NULL);
+X	return;
+X    }
+X    /*
+X     * Simple command attached to this if. Left shift the node in this tree,
+X     * munging it so we can reexecute it.
+X     */
+X    if (i) {
+X	lshift(kp->t_dcom, vv - kp->t_dcom);
+X	reexecute(kp);
+X	donefds();
+X    }
+X}
+X
+X/*
+X * Reexecute a command, being careful not
+X * to redo i/o redirection, which is already set up.
+X */
+static void
+reexecute(kp)
+X    register struct command *kp;
+X{
+X    kp->t_dflg &= F_SAVE;
+X    kp->t_dflg |= F_REPEAT;
+X    /*
+X     * If tty is still ours to arbitrate, arbitrate it; otherwise dont even set
+X     * pgrp's as the jobs would then have no way to get the tty (we can't give
+X     * it to them, and our parent wouldn't know their pgrp, etc.
+X     */
+X    execute(kp, (tpgrp > 0 ? tpgrp : -1), NULL, NULL);
+X}
+X
+X/*ARGSUSED*/
+void
+doelse (v, c)
+X    Char **v;
+X    struct command *c;
+X{
+X    search(T_ELSE, 0, NULL);
+X}
+X
+X/*ARGSUSED*/
+void
+dogoto(v, c)
+X    Char  **v;
+X    struct command *c;
+X{
+X    Char   *lp;
+X
+X    gotolab(lp = globone(v[1], G_ERROR));
+X    xfree((ptr_t) lp);
+X}
+X
+void
+gotolab(lab)
+X    Char *lab;
+X{
+X    register struct whyle *wp;
+X    /*
+X     * While we still can, locate any unknown ends of existing loops. This
+X     * obscure code is the WORST result of the fact that we don't really parse.
+X     */
+X    zlast = T_GOTO;
+X    for (wp = whyles; wp; wp = wp->w_next)
+X	if (wp->w_end.type == F_SEEK && wp->w_end.f_seek == 0) {
+X	    search(T_BREAK, 0, NULL);
+X	    btell(&wp->w_end);
+X	}
+X	else {
+X	    bseek(&wp->w_end);
+X	}
+X    search(T_GOTO, 0, lab);
+X    /*
+X     * Eliminate loops which were exited.
+X     */
+X    wfree();
+X}
+X
+X/*ARGSUSED*/
+void
+doswitch(v, c)
+X    register Char **v;
+X    struct command *c;
+X{
+X    register Char *cp, *lp;
+X
+X    v++;
+X    if (!*v || *(*v++) != '(')
+X	stderror(ERR_SYNTAX);
+X    cp = **v == ')' ? STRNULL : *v++;
+X    if (*(*v++) != ')')
+X	v--;
+X    if (*v)
+X	stderror(ERR_SYNTAX);
+X    search(T_SWITCH, 0, lp = globone(cp, G_ERROR));
+X    xfree((ptr_t) lp);
+X}
+X
+X/*ARGSUSED*/
+void
+dobreak(v, c)
+X    Char **v;
+X    struct command *c;
+X{
+X    if (whyles)
+X	toend();
+X    else
+X	stderror(ERR_NAME | ERR_NOTWHILE);
+X}
+X
+X/*ARGSUSED*/
+void
+doexit(v, c)
+X    Char  **v;
+X    struct command *c;
+X{
+X    if (chkstop == 0 && (intty || intact) && evalvec == 0)
+X	panystop(0);
+X    /*
+X     * Don't DEMAND parentheses here either.
+X     */
+X    v++;
+X    if (*v) {
+X	set(STRstatus, putn(expr(&v)));
+X	if (*v)
+X	    stderror(ERR_NAME | ERR_EXPRESSION);
+X    }
+X    btoeof();
+X    if (intty)
+X	(void) close(SHIN);
+X}
+X
+X/*ARGSUSED*/
+void
+doforeach(v, c)
+X    register Char **v;
+X    struct command *c;
+X{
+X    register Char *cp, *sp;
+X    register struct whyle *nwp;
+X
+X    v++;
+X    sp = cp = strip(*v);
+X    if (!letter(*sp))
+X	stderror(ERR_NAME | ERR_VARBEGIN);
+X    while (*cp && alnum(*cp))
+X	cp++;
+X    if (*cp)
+X	stderror(ERR_NAME | ERR_VARALNUM);
+X    if ((cp - sp) > MAXVARLEN)
+X	stderror(ERR_NAME | ERR_VARTOOLONG);
+X    cp = *v++;
+X    if (v[0][0] != '(' || v[blklen(v) - 1][0] != ')')
+X	stderror(ERR_NAME | ERR_NOPAREN);
+X    v++;
+X    gflag = 0, tglob(v);
+X    v = globall(v);
+X    if (v == 0)
+X	stderror(ERR_NAME | ERR_NOMATCH);
+X    nwp = (struct whyle *) xcalloc(1, sizeof *nwp);
+X    nwp->w_fe = nwp->w_fe0 = v;
+X    gargv = 0;
+X    btell(&nwp->w_start);
+X    nwp->w_fename = Strsave(cp);
+X    nwp->w_next = whyles;
+X    nwp->w_end.type = F_SEEK;
+X    whyles = nwp;
+X    /*
+X     * Pre-read the loop so as to be more comprehensible to a terminal user.
+X     */
+X    zlast = T_FOREACH;
+X    if (intty)
+X	preread();
+X    doagain();
+X}
+X
+X/*ARGSUSED*/
+void
+dowhile(v, c)
+X    Char  **v;
+X    struct command *c;
+X{
+X    register int status;
+X    register bool again = whyles != 0 && SEEKEQ(&whyles->w_start, &lineloc) &&
+X    whyles->w_fename == 0;
+X
+X    v++;
+X    /*
+X     * Implement prereading here also, taking care not to evaluate the
+X     * expression before the loop has been read up from a terminal.
+X     */
+X    if (intty && !again)
+X	status = !exp0(&v, 1);
+X    else
+X	status = !expr(&v);
+X    if (*v)
+X	stderror(ERR_NAME | ERR_EXPRESSION);
+X    if (!again) {
+X	register struct whyle *nwp =
+X	(struct whyle *) xcalloc(1, sizeof(*nwp));
+X
+X	nwp->w_start = lineloc;
+X	nwp->w_end.type = F_SEEK;
+X	nwp->w_end.f_seek = 0;
+X	nwp->w_next = whyles;
+X	whyles = nwp;
+X	zlast = T_WHILE;
+X	if (intty) {
+X	    /*
+X	     * The tty preread
+X	     */
+X	    preread();
+X	    doagain();
+X	    return;
+X	}
+X    }
+X    if (status)
+X	/* We ain't gonna loop no more, no more! */
+X	toend();
+X}
+X
+static void
+preread()
+X{
+X    whyles->w_end.type = I_SEEK;
+X    if (setintr)
+X#ifdef BSDSIGS
+X	(void) sigsetmask(sigblock((sigmask_t) 0) & ~sigmask(SIGINT));
+X#else /* !BSDSIGS */
+X	(void) sigrelse (SIGINT);
+X#endif /* BSDSIGS */
+X    search(T_BREAK, 0, NULL);		/* read the expression in */
+X    if (setintr)
+X#ifdef BSDSIGS
+X	(void) sigblock(sigmask(SIGINT));
+X#else /* !BSDSIGS */
+X	(void) sighold(SIGINT);
+X#endif /* BSDSIGS */
+X    btell(&whyles->w_end);
+X}
+X
+X/*ARGSUSED*/
+void
+doend(v, c)
+X    Char **v;
+X    struct command *c;
+X{
+X    if (!whyles)
+X	stderror(ERR_NAME | ERR_NOTWHILE);
+X    btell(&whyles->w_end);
+X    doagain();
+X}
+X
+X/*ARGSUSED*/
+void
+docontin(v, c)
+X    Char **v;
+X    struct command *c;
+X{
+X    if (!whyles)
+X	stderror(ERR_NAME | ERR_NOTWHILE);
+X    doagain();
+X}
+X
+static void
+doagain()
+X{
+X    /* Repeating a while is simple */
+X    if (whyles->w_fename == 0) {
+X	bseek(&whyles->w_start);
+X	return;
+X    }
+X    /*
+X     * The foreach variable list actually has a spurious word ")" at the end of
+X     * the w_fe list.  Thus we are at the of the list if one word beyond this
+X     * is 0.
+X     */
+X    if (!whyles->w_fe[1]) {
+X	dobreak(NULL, NULL);
+X	return;
+X    }
+X    set(whyles->w_fename, Strsave(*whyles->w_fe++));
+X    bseek(&whyles->w_start);
+X}
+X
+void
+dorepeat(v, kp)
+X    Char  **v;
+X    struct command *kp;
+X{
+X    register int i;
+X
+X#ifdef BSDSIGS
+X    register sigmask_t omask = 0;
+X
+X#endif /* BSDSIGS */
+X
+X    i = getn(v[1]);
+X    if (setintr)
+X#ifdef BSDSIGS
+X	omask = sigblock(sigmask(SIGINT)) & ~sigmask(SIGINT);
+X#else /* !BSDSIGS */
+X	(void) sighold(SIGINT);
+X#endif /* BSDSIGS */
+X    lshift(v, 2);
+X    while (i > 0) {
+X	if (setintr)
+X#ifdef BSDSIGS
+X	    (void) sigsetmask(omask);
+X#else /* !BSDSIGS */
+X	    (void) sigrelse (SIGINT);
+X#endif /* BSDSIGS */
+X	reexecute(kp);
+X	--i;
+X    }
+X    donefds();
+X    if (setintr)
+X#ifdef BSDSIGS
+X	(void) sigsetmask(omask);
+X#else /* !BSDSIGS */
+X	(void) sigrelse (SIGINT);
+X#endif /* BSDSIGS */
+X}
+X
+X/*ARGSUSED*/
+void
+doswbrk(v, c)
+X    Char **v;
+X    struct command *c;
+X{
+X    search(T_BRKSW, 0, NULL);
+X}
+X
+int
+srchx(cp)
+X    register Char *cp;
+X{
+X    register struct srch *sp, *sp1, *sp2;
+X    register i;
+X
+X    /*
+X     * Binary search Sp1 is the beginning of the current search range. Sp2 is
+X     * one past the end.
+X     */
+X    for (sp1 = srchn, sp2 = srchn + nsrchn; sp1 < sp2;) {
+X	sp = sp1 + ((sp2 - sp1) >> 1);
+X	if ((i = *cp - *sp->s_name) == 0 &&
+X	    (i = Strcmp(cp, str2short(sp->s_name))) == 0)
+X	    return sp->s_value;
+X	if (i < 0)
+X	    sp2 = sp;
+X	else
+X	    sp1 = sp + 1;
+X    }
+X    return (-1);
+X}
+X
+static char *
+isrchx(n)
+X    register int n;
+X{
+X    register struct srch *sp, *sp2;
+X
+X    for (sp = srchn, sp2 = srchn + nsrchn; sp < sp2; sp++)
+X	if (sp->s_value == n)
+X	    return (sp->s_name);
+X    return ("");
+X}
+X
+X
+static Char Stype;
+static Char *Sgoal;
+X
+static void
+search(type, level, goal)
+X    int     type;
+X    register int level;
+X    Char   *goal;
+X{
+X    Char    wordbuf[BUFSIZE];
+X    register Char *aword = wordbuf;
+X    register Char *cp;
+X
+X    Stype = type;
+X    Sgoal = goal;
+X    if (type == T_GOTO) {
+X	struct Ain a;
+X	a.type = F_SEEK;
+X	a.f_seek = 0;
+X	bseek(&a);
+X    }
+X    do {
+X	if (intty && fseekp == feobp && aret == F_SEEK)
+X	    printprompt(1, str2short(isrchx(type == T_BREAK ?
+X					    zlast : type)));
+X	/* xprintf("? "), flush(); */
+X	aword[0] = 0;
+X	(void) getword(aword);
+X	switch (srchx(aword)) {
+X
+X	case T_ELSE:
+X	    if (level == 0 && type == T_IF)
+X		return;
+X	    break;
+X
+X	case T_IF:
+X	    while (getword(aword))
+X		continue;
+X	    if ((type == T_IF || type == T_ELSE) &&
+X		eq(aword, STRthen))
+X		level++;
+X	    break;
+X
+X	case T_ENDIF:
+X	    if (type == T_IF || type == T_ELSE)
+X		level--;
+X	    break;
+X
+X	case T_FOREACH:
+X	case T_WHILE:
+X	    if (type == T_BREAK)
+X		level++;
+X	    break;
+X
+X	case T_END:
+X	    if (type == T_BREAK)
+X		level--;
+X	    break;
+X
+X	case T_SWITCH:
+X	    if (type == T_SWITCH || type == T_BRKSW)
+X		level++;
+X	    break;
+X
+X	case T_ENDSW:
+X	    if (type == T_SWITCH || type == T_BRKSW)
+X		level--;
+X	    break;
+X
+X	case T_LABEL:
+X	    if (type == T_GOTO && getword(aword) && eq(aword, goal))
+X		level = -1;
+X	    break;
+X
+X	default:
+X	    if (type != T_GOTO && (type != T_SWITCH || level != 0))
+X		break;
+X	    if (lastchr(aword) != ':')
+X		break;
+X	    aword[Strlen(aword) - 1] = 0;
+X	    if ((type == T_GOTO && eq(aword, goal)) ||
+X		(type == T_SWITCH && eq(aword, STRdefault)))
+X		level = -1;
+X	    break;
+X
+X	case T_CASE:
+X	    if (type != T_SWITCH || level != 0)
+X		break;
+X	    (void) getword(aword);
+X	    if (lastchr(aword) == ':')
+X		aword[Strlen(aword) - 1] = 0;
+X	    cp = strip(Dfix1(aword));
+X	    if (Gmatch(goal, cp))
+X		level = -1;
+X	    xfree((ptr_t) cp);
+X	    break;
+X
+X	case T_DEFAULT:
+X	    if (type == T_SWITCH && level == 0)
+X		level = -1;
+X	    break;
+X	}
+X	(void) getword(NULL);
+X    } while (level >= 0);
+X}
+X
+static int
+getword(wp)
+X    register Char *wp;
+X{
+X    register int found = 0;
+X    register int c, d;
+X    int     kwd = 0;
+X    Char   *owp = wp;
+X
+X    c = readc(1);
+X    d = 0;
+X    do {
+X	while (c == ' ' || c == '\t')
+X	    c = readc(1);
+X	if (c == '#')
+X	    do
+X		c = readc(1);
+X	    while (c >= 0 && c != '\n');
+X	if (c < 0)
+X	    goto past;
+X	if (c == '\n') {
+X	    if (wp)
+X		break;
+X	    return (0);
+X	}
+X	unreadc(c);
+X	found = 1;
+X	do {
+X	    c = readc(1);
+X	    if (c == '\\' && (c = readc(1)) == '\n')
+X		c = ' ';
+X	    if (c == '\'' || c == '"')
+X		if (d == 0)
+X		    d = c;
+X		else if (d == c)
+X		    d = 0;
+X	    if (c < 0)
+X		goto past;
+X	    if (wp) {
+X		*wp++ = c;
+X		*wp = 0;	/* end the string b4 test */
+X	    }
+X	} while ((d || (!(kwd = keyword(owp)) && c != ' '
+X		  && c != '\t')) && c != '\n');
+X    } while (wp == 0);
+X
+X    /*
+X     * if we have read a keyword ( "if", "switch" or "while" ) then we do not
+X     * need to unreadc the look-ahead char
+X     */
+X    if (!kwd) {
+X	unreadc(c);
+X	if (found)
+X	    *--wp = 0;
+X    }
+X
+X    return (found);
+X
+past:
+X    switch (Stype) {
+X
+X    case T_IF:
+X	stderror(ERR_NAME | ERR_NOTFOUND, "then/endif");
+X
+X    case T_ELSE:
+X	stderror(ERR_NAME | ERR_NOTFOUND, "endif");
+X
+X    case T_BRKSW:
+X    case T_SWITCH:
+X	stderror(ERR_NAME | ERR_NOTFOUND, "endsw");
+X
+X    case T_BREAK:
+X	stderror(ERR_NAME | ERR_NOTFOUND, "end");
+X
+X    case T_GOTO:
+X	setname(short2str(Sgoal));
+X	stderror(ERR_NAME | ERR_NOTFOUND, "label");
+X
+X    default:
+X	break;
+X    }
+X    /* NOTREACHED */
+X    return (0);
+X}
+X
+X/*
+X * keyword(wp) determines if wp is one of the built-n functions if,
+X * switch or while. It seems that when an if statement looks like
+X * "if(" then getword above sucks in the '(' and so the search routine
+X * never finds what it is scanning for. Rather than rewrite doword, I hack
+X * in a test to see if the string forms a keyword. Then doword stops
+X * and returns the word "if" -strike
+X */
+X
+static int
+keyword(wp)
+X    Char   *wp;
+X{
+X    static Char STRif[] = {'i', 'f', '\0'};
+X    static Char STRwhile[] = {'w', 'h', 'i', 'l', 'e', '\0'};
+X    static Char STRswitch[] = {'s', 'w', 'i', 't', 'c', 'h', '\0'};
+X
+X    if (!wp)
+X	return (0);
+X
+X    if ((Strcmp(wp, STRif) == 0) || (Strcmp(wp, STRwhile) == 0)
+X	|| (Strcmp(wp, STRswitch) == 0))
+X	return (1);
+X
+X    return (0);
+X}
+X
+static void
+toend()
+X{
+X    if (whyles->w_end.type == F_SEEK && whyles->w_end.f_seek == 0) {
+X	search(T_BREAK, 0, NULL);
+X	btell(&whyles->w_end);
+X	whyles->w_end.f_seek--;
+X    }
+X    else {
+X	bseek(&whyles->w_end);
+X    }
+X    wfree();
+X}
+X
+void
+wfree()
+X{
+X    struct Ain    o;
+X    struct whyle *nwp;
+X
+X#ifdef FDEBUG
+X    static char foo[] = "IAFE";
+X#endif /* FDEBUG */
+X
+X    btell(&o);
+X
+X#ifdef FDEBUG
+X    xprintf("o->type %c o->a_seek %d o->f_seek %d\n", 
+X	    foo[o.type + 1], o.a_seek, o.f_seek);
+X#endif /* FDEBUG */
+X
+X    for (; whyles; whyles = nwp) {
+X	register struct whyle *wp = whyles;
+X	nwp = wp->w_next;
+X
+X#ifdef FDEBUG
+X	xprintf("start->type %c start->a_seek %d start->f_seek %d\n", 
+X		foo[wp->w_start.type+1], 
+X		wp->w_start.a_seek, wp->w_start.f_seek);
+X	xprintf("end->type %c end->a_seek %d end->f_seek %d\n", 
+X		foo[wp->w_end.type + 1], wp->w_end.a_seek, wp->w_end.f_seek);
+X#endif /* FDEBUG */
+X
+X	/*
+X	 * XXX: We free loops that have different seek types.
+X	 */
+X	if (wp->w_end.type != I_SEEK && wp->w_start.type == wp->w_end.type &&
+X	    wp->w_start.type == o.type) {
+X	    if (wp->w_end.type == F_SEEK) {
+X		if (o.f_seek >= wp->w_start.f_seek && 
+X		    (wp->w_end.f_seek == 0 || o.f_seek < wp->w_end.f_seek))
+X		    break;
+X	    }
+X	    else {
+X		if (o.a_seek >= wp->w_start.a_seek && 
+X		    (wp->w_end.a_seek == 0 || o.a_seek < wp->w_end.a_seek))
+X		    break;
+X	    }
+X	}
+X
+X	if (wp->w_fe0)
+X	    blkfree(wp->w_fe0);
+X	if (wp->w_fename)
+X	    xfree((ptr_t) wp->w_fename);
+X	xfree((ptr_t) wp);
+X    }
+X}
+X
+X/*ARGSUSED*/
+void
+doecho(v, c)
+X    Char  **v;
+X    struct command *c;
+X{
+X    xecho(' ', v);
+X}
+X
+X/*ARGSUSED*/
+void
+doglob(v, c)
+X    Char  **v;
+X    struct command *c;
+X{
+X    xecho(0, v);
+X    flush();
+X}
+X
+static void
+xecho(sep, v)
+X    int    sep;
+X    register Char **v;
+X{
+X    register Char *cp;
+X    int     nonl = 0;
+X
+X    if (setintr)
+X#ifdef BSDSIGS
+X	(void) sigsetmask(sigblock((sigmask_t) 0) & ~sigmask(SIGINT));
+X#else /* !BSDSIGS */
+X	(void) sigrelse (SIGINT);
+X#endif /* BSDSIGS */
+X    v++;
+X    if (*v == 0)
+X	return;
+X    gflag = 0, tglob(v);
+X    if (gflag) {
+X	v = globall(v);
+X	if (v == 0)
+X	    stderror(ERR_NAME | ERR_NOMATCH);
+X    }
+X    else {
+X	v = gargv = saveblk(v);
+X	trim(v);
+X    }
+X    if (sep == ' ' && *v && eq(*v, STRmn))
+X	nonl++, v++;
+X    while (cp = *v++) {
+X	register int c;
+X
+X	while (c = *cp++) {
+X#if SVID > 0
+X#ifndef OREO
+X	    if (c == '\\') {
+X		switch (c = *cp++) {
+X		case 'b':
+X		    c = '\b';
+X		    break;
+X		case 'c':
+X		    nonl = 1;
+X		    goto done;
+X		case 'f':
+X		    c = '\f';
+X		    break;
+X		case 'n':
+X		    c = '\n';
+X		    break;
+X		case 'r':
+X		    c = '\r';
+X		    break;
+X		case 't':
+X		    c = '\t';
+X		    break;
+X		case 'v':
+X		    c = '\v';
+X		    break;
+X		case '\\':
+X		    c = '\\';
+X		    break;
+X		case '0':
+X		    c = 0;
+X		    if (*cp >= '0' && *cp < '8')
+X			c = c * 8 + *cp++ - '0';
+X		    if (*cp >= '0' && *cp < '8')
+X			c = c * 8 + *cp++ - '0';
+X		    if (*cp >= '0' && *cp < '8')
+X			c = c * 8 + *cp++ - '0';
+X		    break;
+X		case '\0':
+X		    c = *--cp;
+X		    break;
+X		default:
+X		    xputchar('\\' | QUOTE);
+X		    break;
+X		}
+X	    }
+X#endif /* OREO */
+X#endif /* SVID > 0 */
+X	    xputchar(c | QUOTE);
+X
+X	}
+X	if (*v)
+X	    xputchar(sep | QUOTE);
+X    }
+X#if SVID > 0
+X#ifndef OREO
+done:
+X#endif /* OREO */
+X#endif /* SVID > 0 */
+X    if (sep && nonl == 0)
+X	xputchar('\n');
+X    else
+X	flush();
+X    if (setintr)
+X#ifdef BSDSIGS
+X	(void) sigblock(sigmask(SIGINT));
+X#else /* !BSDSIGS */
+X	(void) sighold(SIGINT);
+X#endif /* BSDSIGS */
+X    if (gargv)
+X	blkfree(gargv), gargv = 0;
+X}
+X
+X/* from "Karl Berry." <karl%mote.umb.edu@relay.cs.net> -- for NeXT things
+X   (and anything else with a modern compiler) */
+X
+X/*ARGSUSED*/
+void
+dosetenv(v, c)
+X    register Char **v;
+X    struct command *c;
+X{
+X    Char   *vp, *lp;
+X
+X    v++;
+X    if ((vp = *v++) == 0) {
+X	register Char **ep;
+X
+X	if (setintr)
+X#ifdef BSDSIGS
+X	    (void) sigsetmask(sigblock((sigmask_t) 0) & ~sigmask(SIGINT));
+X#else /* !BSDSIGS */
+X	    (void) sigrelse (SIGINT);
+X#endif /* BSDSIGS */
+X	for (ep = STR_environ; *ep; ep++)
+X	    xprintf("%s\n", short2str(*ep));
+X	return;
+X    }
+X    if ((lp = *v++) == 0)
+X	lp = STRNULL;
+X    Setenv(vp, lp = globone(lp, G_APPEND));
+X    if (eq(vp, STRPATH)) {
+X	importpath(lp);
+X	dohash(NULL, NULL);
+X    }
+X#ifdef apollo
+X    else if (eq(vp, STRSYSTYPE))
+X	dohash(NULL, NULL);
+X#endif /* apollo */
+X    else if (eq(vp, STRLANG) || eq(vp, STRLC_CTYPE)) {
+X#ifdef NLS
+X	int     k;
+X
+X	(void) setlocale(LC_ALL, "");
+X	for (k = 0200; k <= 0377 && !Isprint(k); k++);
+X	AsciiOnly = k > 0377;
+X#else /* !NLS */
+X	AsciiOnly = 0;
+X#endif /* NLS */
+X	NLSMapsAreInited = 0;
+X	ed_Init();
+X	if (MapsAreInited && !NLSMapsAreInited)
+X	    (void) ed_InitNLSMaps();
+X    }
+X    else if (eq(vp, STRNOREBIND)) {
+X	NoNLSRebind = 1;
+X    }
+X#ifdef SIG_WINDOW
+X    else if ((eq(lp, STRNULL) &&
+X	      (eq(vp, STRLINES) || eq(vp, STRCOLUMNS))) ||
+X	     eq(vp, STRTERMCAP)) {
+X	check_window_size(1);
+X    }
+X#endif /* SIG_WINDOW */
+X    xfree((ptr_t) lp);
+X}
+X
+X/*ARGSUSED*/
+void
+dounsetenv(v, c)
+X    register Char **v;
+X    struct command *c;
+X{
+X    Char  **ep, *p, *n;
+X    int     i, maxi;
+X    static Char *name = NULL;
+X
+X    if (name)
+X	xfree((ptr_t) name);
+X    /*
+X     * Find the longest environment variable
+X     */
+X    for (maxi = 0, ep = STR_environ; *ep; ep++) {
+X	for (i = 0, p = *ep; *p && *p != '='; p++, i++);
+X	if (i > maxi)
+X	    maxi = i;
+X    }
+X
+X    name = (Char *) xmalloc((size_t) (maxi + 1) * sizeof(Char));
+X
+X    while (++v && *v) 
+X	for (maxi = 1; maxi;)
+X	    for (maxi = 0, ep = STR_environ; *ep; ep++) {
+X		for (n = name, p = *ep; *p && *p != '='; *n++ = *p++);
+X		*n = '\0';
+X		if (!Gmatch(name, *v))
+X		    continue;
+X		maxi = 1;
+X		if (eq(name, STRNOREBIND))
+X		    NoNLSRebind = 0;
+X#ifdef apollo
+X		else if (eq(name, STRSYSTYPE))
+X		    dohash(NULL, NULL);
+X#endif /* apollo */
+X		else if (eq(name, STRLANG) || eq(name, STRLC_CTYPE)) {
+X#ifdef NLS
+X		    int     k;
+X
+X		    (void) setlocale(LC_ALL, "");
+X		    for (k = 0200; k <= 0377 && !Isprint(k); k++);
+X		    AsciiOnly = k > 0377;
+X#else /* !NLS */
+X		    AsciiOnly = getenv("LANG") == NULL &&
+X			getenv("LC_CTYPE") == NULL;
+X#endif /* NLS */
+X		    NLSMapsAreInited = 0;
+X		    ed_Init();
+X		    if (MapsAreInited && !NLSMapsAreInited)
+X			(void) ed_InitNLSMaps();
+X
+X		}
+X		/*
+X		 * Delete name, and start again cause the environment changes
+X		 */
+X		Unsetenv(name);
+X		break;
+X	    }
+X    xfree((ptr_t) name); name = NULL;
+X}
+X
+void
+Setenv(name, val)
+X    Char   *name, *val;
+X{
+X#ifdef SETENV_IN_LIB
+X/*
+X * XXX: This does not work right, since tcsh cannot track changes to
+X * the environment this way. (the builtin setenv without arguments does
+X * not print the right stuff neither does unsetenv). This was for Mach,
+X * it is not needed anymore.
+X */
+X#undef setenv
+X    char    nameBuf[BUFSIZE];
+X    char   *cname = short2str(name);
+X
+X    if (cname == NULL)
+X	return;
+X    (void) strcpy(nameBuf, cname);
+X    setenv(nameBuf, short2str(val), 1);
+X#else /* !SETENV_IN_LIB */
+X    register Char **ep = STR_environ;
+X    register Char *cp, *dp;
+X    Char   *blk[2];
+X    Char  **oep = ep;
+X
+X
+X    for (; *ep; ep++) {
+X	for (cp = name, dp = *ep; *cp && *cp == *dp; cp++, dp++)
+X	    continue;
+X	if (*cp != 0 || *dp != '=')
+X	    continue;
+X	cp = Strspl(STRequal, val);
+X	xfree((ptr_t) * ep);
+X	*ep = strip(Strspl(name, cp));
+X	xfree((ptr_t) cp);
+X	blkfree((Char **) environ);
+X	environ = short2blk(STR_environ);
+X	return;
+X    }
+X    cp = Strspl(name, STRequal);
+X    blk[0] = strip(Strspl(cp, val));
+X    xfree((ptr_t) cp);
+X    blk[1] = 0;
+X    STR_environ = blkspl(STR_environ, blk);
+X    blkfree((Char **) environ);
+X    environ = short2blk(STR_environ);
+X    xfree((ptr_t) oep);
+X#endif /* SETENV_IN_LIB */
+X}
+X
+void
+Unsetenv(name)
+X    Char   *name;
+X{
+X    register Char **ep = STR_environ;
+X    register Char *cp, *dp;
+X    Char  **oep = ep;
+X
+X    for (; *ep; ep++) {
+X	for (cp = name, dp = *ep; *cp && *cp == *dp; cp++, dp++)
+X	    continue;
+X	if (*cp != 0 || *dp != '=')
+X	    continue;
+X	cp = *ep;
+X	*ep = 0;
+X	STR_environ = blkspl(STR_environ, ep + 1);
+X	environ = short2blk(STR_environ);
+X	*ep = cp;
+X	xfree((ptr_t) cp);
+X	xfree((ptr_t) oep);
+X	return;
+X    }
+X}
+X
+X/*ARGSUSED*/
+void
+doumask(v, c)
+X    register Char **v;
+X    struct command *c;
+X{
+X    register Char *cp = v[1];
+X    register int i;
+X
+X    if (cp == 0) {
+X	i = umask(0);
+X	(void) umask(i);
+X	xprintf("%o\n", i);
+X	return;
+X    }
+X    i = 0;
+X    while (Isdigit(*cp) && *cp != '8' && *cp != '9')
+X	i = i * 8 + *cp++ - '0';
+X    if (*cp || i < 0 || i > 0777)
+X	stderror(ERR_NAME | ERR_MASK);
+X    (void) umask(i);
+X}
+X
+X#ifndef HAVENOLIMIT
+X# ifndef BSDTIMES
+X   typedef long RLIM_TYPE;
+X#  ifndef RLIM_INFINITY
+X    extern RLIM_TYPE ulimit();
+X#   define RLIM_INFINITY 0x003fffff
+X#   define RLIMIT_FSIZE 1
+X#  endif /* RLIM_INFINITY */
+X#  ifdef aiws
+X#   define toset(a) (((a) == 3) ? 1004 : (a) + 1)
+X#   define RLIMIT_DATA	3
+X#   define RLIMIT_STACK 1005
+X#  else /* aiws */
+X#   define toset(a) ((a) + 1)
+X#  endif /* aiws */
+X# else /* BSDTIMES */
+X   typedef int RLIM_TYPE;
+X# endif /* BSDTIMES */
+X
+X
+static struct limits {
+X    int     limconst;
+X    char   *limname;
+X    int     limdiv;
+X    char   *limscale;
+X}       limits[] = {
+X
+X# ifdef RLIMIT_CPU
+X    RLIMIT_CPU, 	"cputime",	1,	"seconds",
+X# endif /* RLIMIT_CPU */
+X
+X# ifdef RLIMIT_FSIZE
+X#  ifndef aiws
+X    RLIMIT_FSIZE, 	"filesize",	1024,	"kbytes",
+X#  else
+X    RLIMIT_FSIZE, 	"filesize",	512,	"blocks",
+X#  endif /* aiws */
+X# endif /* RLIMIT_FSIZE */
+X
+X# ifdef RLIMIT_DATA
+X    RLIMIT_DATA, 	"datasize",	1024,	"kbytes",
+X# endif /* RLIMIT_DATA */
+X
+X# ifdef RLIMIT_STACK
+X#  ifndef aiws
+X    RLIMIT_STACK, 	"stacksize",	1024,	"kbytes",
+X#  else
+X    RLIMIT_STACK, 	"stacksize",	1024 * 1024,	"kbytes",
+X#  endif /* aiws */
+X# endif /* RLIMIT_STACK */
+X
+X# ifdef RLIMIT_CORE
+X    RLIMIT_CORE, 	"coredumpsize",	1024,	"kbytes",
+X# endif /* RLIMIT_CORE */
+X
+X# ifdef RLIMIT_RSS
+X    RLIMIT_RSS, 	"memoryuse",	1024,	"kbytes",
+X# endif /* RLIMIT_RSS */
+X
+X# ifdef RLIMIT_NOFILE
+X    RLIMIT_NOFILE, 	"descriptors", 1,	"",
+X# endif /* RLIMIT_NOFILE */
+X
+X# ifdef RLIMIT_CONCUR
+X    RLIMIT_CONCUR, 	"concurrency", 1,	"thread(s)",
+X# endif /* RLIMIT_CONCUR */
+X
+X# ifdef RLIMIT_MEMLOCK
+X    RLIMIT_MEMLOCK,	"memorylocked",	1024,	"kbytes",
+X# endif /* RLIMIT_MEMLOCK */
+X
+X# ifdef RLIMIT_NPROC
+X    RLIMIT_NPROC,	"maxproc",	1,	"",
+X# endif /* RLIMIT_NPROC */
+X
+X# ifdef RLIMIT_OFILE
+X    RLIMIT_OFILE,	"openfiles",	1,	"",
+X# endif /* RLIMIT_OFILE */
+X
+X    -1, 		NULL, 		0, 	NULL
+X};
+X
+static struct limits *findlim();
+static RLIM_TYPE getval();
+static void limtail();
+static void plim();
+static int setlim();
+X
+X#if defined(convex) || defined(__convex__)
+static  RLIM_TYPE
+restrict_limit(value)
+X    double  value;
+X{
+X    /*
+X     * is f too large to cope with? return the maximum or minimum int
+X     */
+X    if (value > (double) INT_MAX)
+X	return (INT_MAX);
+X    else if (value < (double) INT_MIN)
+X	return (INT_MIN);
+X    else
+X	return ((int) value);
+X}
+X#endif /* convex */
+X
+X
+static struct limits *
+findlim(cp)
+X    Char   *cp;
+X{
+X    register struct limits *lp, *res;
+X
+X    res = (struct limits *) NULL;
+X    for (lp = limits; lp->limconst >= 0; lp++)
+X	if (prefix(cp, str2short(lp->limname))) {
+X	    if (res)
+X		stderror(ERR_NAME | ERR_AMBIG);
+X	    res = lp;
+X	}
+X    if (res)
+X	return (res);
+X    stderror(ERR_NAME | ERR_LIMIT);
+X    /* NOTREACHED */
+X    return (0);
+X}
+X
+X/*ARGSUSED*/
+void
+dolimit(v, c)
+X    register Char **v;
+X    struct command *c;
+X{
+X    register struct limits *lp;
+X    register RLIM_TYPE limit;
+X    char    hard = 0;
+X
+X    v++;
+X    if (*v && eq(*v, STRmh)) {
+X	hard = 1;
+X	v++;
+X    }
+X    if (*v == 0) {
+X	for (lp = limits; lp->limconst >= 0; lp++)
+X	    plim(lp, hard);
+X	return;
+X    }
+X    lp = findlim(v[0]);
+X    if (v[1] == 0) {
+X	plim(lp, hard);
+X	return;
+X    }
+X    limit = getval(lp, v + 1);
+X    if (setlim(lp, hard, limit) < 0)
+X	stderror(ERR_SILENT);
+X}
+X
+static  RLIM_TYPE
+getval(lp, v)
+X    register struct limits *lp;
+X    Char  **v;
+X{
+X# if defined(convex) || defined(__convex__)
+X    RLIM_TYPE restrict_limit();
+X# endif /* convex */
+X
+X    register float f;
+X    double  atof();
+X    static int lmin = 0x80000000, lmax = 0x7fffffff;
+X    Char   *cp = *v++;
+X
+X    f = atof(short2str(cp));
+X
+X# if defined(convex) || defined(__convex__)
+X    /*
+X     * is f too large to cope with. limit f to minint, maxint  - X-6768 by
+X     * strike
+X     */
+X    if ((f < (double) INT_MIN) || (f > (double) INT_MAX)) {
+X	stderror(ERR_NAME | ERR_TOOLARGE);
+X    }
+X# endif /* convex */
+X
+X    while (Isdigit(*cp) || *cp == '.' || *cp == 'e' || *cp == 'E')
+X	cp++;
+X    if (*cp == 0) {
+X	if (*v == 0)
+X# if defined(convex) || defined(__convex__)
+X	    return ((RLIM_TYPE) restrict_limit((f + 0.5) * lp->limdiv));
+X# else /* convex */
+X	    return ((RLIM_TYPE) ((f + 0.5) * lp->limdiv));
+X# endif /* convex */
+X	cp = *v;
+X    }
+X    switch (*cp) {
+X# ifdef RLIMIT_CPU
+X    case ':':
+X	if (lp->limconst != RLIMIT_CPU)
+X	    goto badscal;
+X#  if defined(convex) || defined(__convex__)
+X	return ((RLIM_TYPE)
+X		restrict_limit((f * 60.0 + atof(short2str(cp + 1)))));
+X#  else /* convex */
+X	return ((RLIM_TYPE) (f * 60.0 + atof(short2str(cp + 1))));
+X#  endif /* convex */
+X    case 'h':
+X	if (lp->limconst != RLIMIT_CPU)
+X	    goto badscal;
+X	limtail(cp, "hours");
+X	f *= 3600.0;
+X	break;
+X    case 'm':
+X	if (lp->limconst == RLIMIT_CPU) {
+X	    limtail(cp, "minutes");
+X	    f *= 60.0;
+X	    break;
+X	}
+X	*cp = 'm';
+X	limtail(cp, "megabytes");
+X	f *= 1024.0 * 1024.0;
+X	break;
+X    case 's':
+X	if (lp->limconst != RLIMIT_CPU)
+X	    goto badscal;
+X	limtail(cp, "seconds");
+X	break;
+X# endif /* RLIMIT_CPU */
+X    case 'M':
+X# ifdef RLIMIT_CPU
+X	if (lp->limconst == RLIMIT_CPU)
+X	    goto badscal;
+X# endif /* RLIMIT_CPU */
+X	*cp = 'm';
+X	limtail(cp, "megabytes");
+X	f *= 1024.0 * 1024.0;
+X	break;
+X    case 'k':
+X# ifdef RLIMIT_CPU
+X	if (lp->limconst == RLIMIT_CPU)
+X	    goto badscal;
+X# endif /* RLIMIT_CPU */
+X	limtail(cp, "kbytes");
+X	f *= 1024.0;
+X	break;
+X    case 'b':
+X# ifdef RLIMIT_CPU
+X	if (lp->limconst == RLIMIT_CPU)
+X	    goto badscal;
+X# endif /* RLIMIT_CPU */
+X	limtail(cp, "blocks");
+X	f *= 512.0;
+X	break;
+X    case 'u':
+X	limtail(cp, "unlimited");
+X	return (RLIM_INFINITY);
+X    default:
+X# ifdef RLIMIT_CPU
+badscal:
+X# endif /* RLIMIT_CPU */
+X	stderror(ERR_NAME | ERR_SCALEF);
+X    }
+X# if defined(convex) || defined(__convex__)
+X    return ((RLIM_TYPE) restrict_limit((f + 0.5)));
+X# else
+X    f += 0.5;
+X    if (f > (float) lmax)
+X	return lmax;
+X    else if (f < (float) lmin)
+X	return lmin;
+X    else
+X	return ((RLIM_TYPE) f);
+X# endif /* convex */
+X}
+X
+static void
+limtail(cp, str)
+X    Char   *cp;
+X    char   *str;
+X{
+X    while (*cp && *cp == *str)
+X	cp++, str++;
+X    if (*cp)
+X	stderror(ERR_BADSCALE, str);
+X}
+X
+X
+X/*ARGSUSED*/
+static void
+plim(lp, hard)
+X    register struct limits *lp;
+X    Char    hard;
+X{
+X# ifdef BSDTIMES
+X    struct rlimit rlim;
+X# endif /* BSDTIMES */
+X    RLIM_TYPE limit;
+X
+X    xprintf("%s \t", lp->limname);
+X
+X# ifndef BSDTIMES
+X    limit = ulimit(lp->limconst, 0);
+X#  ifdef aiws
+X    if (lp->limconst == RLIMIT_DATA)
+X	limit -= 0x20000000;
+X#  endif /* aiws */
+X# else /* BSDTIMES */
+X    (void) getrlimit(lp->limconst, &rlim);
+X    limit = hard ? rlim.rlim_max : rlim.rlim_cur;
+X# endif /* BSDTIMES */
+X
+X    if (limit == RLIM_INFINITY)
+X	xprintf("unlimited");
+X# ifdef RLIMIT_CPU
+X    else if (lp->limconst == RLIMIT_CPU)
+X	psecs((long) limit);
+X# endif /* RLIMIT_CPU */
+X    else
+X# ifndef BSDTIMES
+X    if (lp->limconst == RLIMIT_FSIZE)
+X	/*
+X	 * Christos: filesize comes in 512 blocks. we divide by 2 to get 1024
+X	 * blocks. Note we cannot pre-multiply cause we might overflow (A/UX)
+X	 */
+X	xprintf("%ld %s", (long) (limit / (lp->limdiv == 1024 ? 2 : 1)), 
+X	        lp->limscale);
+X    else
+X# endif /* BSDTIMES */
+X	xprintf("%ld %s", (long) (limit / lp->limdiv), lp->limscale);
+X    xprintf("\n");
+X}
+X
+X/*ARGSUSED*/
+void
+dounlimit(v, c)
+X    register Char **v;
+X    struct command *c;
+X{
+X    register struct limits *lp;
+X    int     lerr = 0;
+X    Char    hard = 0;
+X
+X    v++;
+X    if (*v && eq(*v, STRmh)) {
+X	hard = 1;
+X	v++;
+X    }
+X    if (*v == 0) {
+X	for (lp = limits; lp->limconst >= 0; lp++)
+X	    if (setlim(lp, hard, (RLIM_TYPE) RLIM_INFINITY) < 0)
+X		lerr++;
+X	if (lerr)
+X	    stderror(ERR_SILENT);
+X	return;
+X    }
+X    while (*v) {
+X	lp = findlim(*v++);
+X	if (setlim(lp, hard, (RLIM_TYPE) RLIM_INFINITY) < 0)
+X	    stderror(ERR_SILENT);
+X    }
+X}
+X
+static int
+setlim(lp, hard, limit)
+X    register struct limits *lp;
+X    Char    hard;
+X    RLIM_TYPE limit;
+X{
+X# ifdef BSDTIMES
+X    struct rlimit rlim;
+X
+X    (void) getrlimit(lp->limconst, &rlim);
+X
+X    if (hard)
+X	rlim.rlim_max = limit;
+X    else if (limit == RLIM_INFINITY && geteuid() != 0)
+X	rlim.rlim_cur = rlim.rlim_max;
+X    else
+X	rlim.rlim_cur = limit;
+X
+X    if (setrlimit(lp->limconst, &rlim) < 0) {
+X# else /* BSDTIMES */
+X    if (limit != RLIM_INFINITY && lp->limconst == RLIMIT_FSIZE)
+X	limit /= 512;
+X# ifdef aiws
+X    if (lp->limconst == RLIMIT_DATA)
+X	limit += 0x20000000;
+X# endif /* aiws */
+X    if (ulimit(toset(lp->limconst), limit) < 0) {
+X# endif /* BSDTIMES */
+X	xprintf("%s: %s: Can't %s%s limit\n", bname, lp->limname,
+X		limit == RLIM_INFINITY ? "remove" : "set",
+X		hard ? " hard" : "");
+X	return (-1);
+X    }
+X    return (0);
+X}
+X
+X#endif /* !HAVENOLIMIT */
+X
+X/*ARGSUSED*/
+void
+dosuspend(v, c)
+X    Char **v;
+X    struct command *c;
+X{
+X    int     ctpgrp;
+X
+X    sigret_t(*old) ();
+X
+X    if (loginsh)
+X	stderror(ERR_SUSPLOG);
+X    untty();
+X
+X#ifdef BSDJOBS
+X    old = signal(SIGTSTP, SIG_DFL);
+X    (void) kill(0, SIGTSTP);
+X    /* the shell stops here */
+X    (void) signal(SIGTSTP, old);
+X#else /* !BSDJOBS */
+X    stderror(ERR_JOBCONTROL);
+X#endif /* BSDJOBS */
+X
+X#ifdef BSDJOBS
+X    if (tpgrp != -1) {
+retry:
+X	ctpgrp = tcgetpgrp(FSHTTY);
+X	if (ctpgrp != opgrp) {
+X	    old = signal(SIGTTIN, SIG_DFL);
+X	    (void) kill(0, SIGTTIN);
+X	    (void) signal(SIGTTIN, old);
+X	    goto retry;
+X	}
+X	(void) setpgid(0, shpgrp);
+X	(void) tcsetpgrp(FSHTTY, shpgrp);
+X    }
+X#endif /* BSDJOBS */
+X    (void) setdisc(FSHTTY);
+X}
+X
+X/* This is the dreaded EVAL built-in.
+X *   If you don't fiddle with file descriptors, and reset didfds,
+X *   this command will either ignore redirection inside or outside
+X *   its aguments, e.g. eval "date >x"  vs.  eval "date" >x
+X *   The stuff here seems to work, but I did it by trial and error rather
+X *   than really knowing what was going on.  If tpgrp is zero, we are
+X *   probably a background eval, e.g. "eval date &", and we want to
+X *   make sure that any processes we start stay in our pgrp.
+X *   This is also the case for "time eval date" -- stay in same pgrp.
+X *   Otherwise, under stty tostop, processes will stop in the wrong
+X *   pgrp, with no way for the shell to get them going again.  -IAN!
+X */
+X
+static Char **gv = NULL;
+X
+X/*ARGSUSED*/
+void
+doeval(v, c)
+X    Char  **v;
+X    struct command *c;
+X{
+X    Char  **oevalvec;
+X    Char   *oevalp;
+X    int     odidfds;
+X#ifndef FIOCLEX
+X    int     odidcch;
+X#endif /* FIOCLEX */
+X    jmp_buf osetexit;
+X    int     my_reenter;
+X    Char  **savegv;
+X    int     saveIN, saveOUT, saveDIAG;
+X    int     oSHIN, oSHOUT, oSHDIAG;
+X
+X    oevalvec = evalvec;
+X    oevalp = evalp;
+X    odidfds = didfds;
+X#ifndef FIOCLEX
+X    odidcch = didcch;
+X#endif /* FIOCLEX */
+X    oSHIN = SHIN;
+X    oSHOUT = SHOUT;
+X    oSHDIAG = SHDIAG;
+X
+X    savegv = gv;
+X
+X    v++;
+X    if (*v == 0)
+X	return;
+X    gflag = 0, tglob(v);
+X    if (gflag) {
+X	gv = v = globall(v);
+X	gargv = 0;
+X	if (v == 0)
+X	    stderror(ERR_NOMATCH);
+X	v = copyblk(v);
+X    }
+X    else {
+X	gv = NULL;
+X	v = copyblk(v);
+X	trim(v);
+X    }
+X
+X    saveIN = dcopy(SHIN, -1);
+X    saveOUT = dcopy(SHOUT, -1);
+X    saveDIAG = dcopy(SHDIAG, -1);
+X
+X    getexit(osetexit);
+X
+X    /* PWP: setjmp/longjmp bugfix for optimizing compilers */
+X#ifdef cray
+X    my_reenter = 1;             /* assume non-zero return val */
+X    if (setexit() == 0) {
+X	my_reenter = 0;         /* Oh well, we were wrong */
+X#else /* !cray */
+X    if ((my_reenter = setexit()) == 0) {
+X#endif /* cray */
+X	evalvec = v;
+X	evalp = 0;
+X	SHIN = dcopy(0, -1);
+X	SHOUT = dcopy(1, -1);
+X	SHDIAG = dcopy(2, -1);
+X#ifndef FIOCLEX
+X	didcch = 0;
+X#endif /* FIOCLEX */
+X	didfds = 0;
+X	process(0);
+X    }
+X
+X    evalvec = oevalvec;
+X    evalp = oevalp;
+X    doneinp = 0;
+X#ifndef FIOCLEX
+X    didcch = odidcch;
+X#endif /* FIOCLEX */
+X    didfds = odidfds;
+X    (void) close(SHIN);
+X    (void) close(SHOUT);
+X    (void) close(SHDIAG);
+X    SHIN = dmove(saveIN, oSHIN);
+X    SHOUT = dmove(saveOUT, oSHOUT);
+X    SHDIAG = dmove(saveDIAG, oSHDIAG);
+X
+X    if (gv)
+X	blkfree(gv);
+X
+X    gv = savegv;
+X    resexit(osetexit);
+X    if (my_reenter)
+X	stderror(ERR_SILENT);
+X}
+END_OF_FILE
+if test 38958 -ne `wc -c <'sh.func.c'`; then
+    echo shar: \"'sh.func.c'\" unpacked with wrong size!
+fi
+# end of 'sh.func.c'
+fi
+if test -f 'tw.parse.c' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'tw.parse.c'\"
+else
+echo shar: Extracting \"'tw.parse.c'\" \(39815 characters\)
+sed "s/^X//" >'tw.parse.c' <<'END_OF_FILE'
+X/* $Header: /home/hyperion/mu/christos/src/sys/tcsh-6.01/RCS/tw.parse.c,v 3.18 1991/12/19 21:40:06 christos Exp $ */
+X/*
+X * tw.parse.c: Everyone has taken a shot in this futile effort to
+X *	       lexically analyze a csh line... Well we cannot good
+X *	       a job as good as sh.lex.c; but we try. Amazing that
+X *	       it works considering how many hands have touched this code
+X */
+X/*-
+X * Copyright (c) 1980, 1991 The Regents of the University of California.
+X * All rights reserved.
+X *
+X * Redistribution and use in source and binary forms, with or without
+X * modification, are permitted provided that the following conditions
+X * are met:
+X * 1. Redistributions of source code must retain the above copyright
+X *    notice, this list of conditions and the following disclaimer.
+X * 2. Redistributions in binary form must reproduce the above copyright
+X *    notice, this list of conditions and the following disclaimer in the
+X *    documentation and/or other materials provided with the distribution.
+X * 3. All advertising materials mentioning features or use of this software
+X *    must display the following acknowledgement:
+X *	This product includes software developed by the University of
+X *	California, Berkeley and its contributors.
+X * 4. Neither the name of the University nor the names of its contributors
+X *    may be used to endorse or promote products derived from this software
+X *    without specific prior written permission.
+X *
+X * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+X * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+X * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+X * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+X * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+X * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+X * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+X * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+X * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+X * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+X * SUCH DAMAGE.
+X */
+X#include "sh.h"
+X
+RCSID("$Id: tw.parse.c,v 3.18 1991/12/19 21:40:06 christos Exp $")
+X
+X#include "tw.h"
+X#include "ed.h"
+X#include "tc.h"
+X
+X/* #define TENEDEBUG */
+X
+X/* true if the path has relative elements */
+static bool relatives_in_path;
+X
+static int maxitems = 0;
+Char  **command_list = (Char **) NULL;	/* the pre-digested list of commands
+X					 * for speed and general usefullness */
+int     numcommands = 0;
+int     have_sorted = 0;
+X
+X/* Set to TRUE if recexact is set and an exact match is found
+X * along with other, longer, matches.
+X */
+int non_unique_match = FALSE;
+X
+X#ifdef notdef
+int     dirctr = 0;		/* -1 0 1 2 ... */
+X
+X#endif
+Char    dirflag[5];		/* ' nn\0' - dir #s -  . 1 2 ... */
+X
+static bool SearchNoDirErr = 0;	/* t_search returns -2 if dir is unreadable */
+X
+X/* do the expand or list on the command line -- SHOULD BE REPLACED */
+X
+extern Char NeedsRedraw;	/* from ed.h */
+extern int TermH;		/* from the editor routines */
+extern int lbuffed;		/* from sh.print.c */
+X
+static	void	 free_items		__P((Char **, int));
+static	void	 extract_dir_and_name	__P((Char *, Char *, Char *));
+static	Char	*quote_meta		__P((Char *, bool));
+static	Char	*getentry		__P((DIR *, int));
+static	Char	*dollar			__P((Char *, Char *));
+static	Char	*tilde			__P((Char *, Char *));
+static	Char	 filetype		__P((Char *, Char *));
+static	int	 t_glob			__P((Char ***));
+static	int	 is_prefix		__P((Char *, Char *));
+static	int	 is_suffix		__P((Char *, Char *));
+static	int	 recognize		__P((Char *, Char *, int, int));
+static	int	 ignored		__P((Char *));
+static	void	 tw_get_comm_list	__P((void));
+static	int	 isadirectory		__P((Char *, Char *));
+X
+X/*
+X * If we find a set command, then we break a=b to a= and word becomes
+X * b else, we don't break a=b.
+X */
+X#define isaset(c, w) ((w)[-1] == '=' && \
+X		      ((c)[0] == 's' && (c)[1] == 'e' && (c)[2] == 't' && \
+X		       ((c[3] == ' ' || (c)[3] == '\t'))))
+X/*
+X * Return value for tenematch():
+X *  > 1:    No. of items found
+X *  = 1:    Exactly one match / spelling corrected
+X *  = 0:    No match / spelling was correct
+X *  < 0:    Error (incl spelling correction impossible)
+X */
+int
+tenematch(inputline, inputline_size, num_read, command)
+X    Char   *inputline;		/* match string prefix */
+X    int     inputline_size;	/* max size of string */
+X    int     num_read;		/* # actually in inputline */
+X    COMMAND command;		/* LIST or RECOGNIZE or PRINT_HELP */
+X
+X{
+X    Char    word[FILSIZ + 1];
+X    register Char *str_end, *word_start, *cmd_start, *wp;
+X    Char   *cmd_st;
+X    int     space_left;
+X    int     is_a_cmd;		/* UNIX command rather than filename */
+X    int     search_ret;		/* what search returned for debugging */
+X    /* 
+X     * XXX: Avoid gcc bug. If in_single and in_double are ints 
+X     * then they always stay 0.
+X     */
+X    Char    in_single, in_double;	/* In single or in_double quotes */
+X    int     backq, skp;
+X
+X    str_end = &inputline[num_read];
+X
+X    /*
+X     * Check if in backquotes
+X     */
+X    for (cmd_st = str_end, backq = 0;
+X	 cmd_st >= inputline;
+X	 backq ^= (*cmd_st-- == '`'));
+X    /*
+X     * space backward looking for the beginning of this command
+X     */
+X    for (cmd_st = str_end; cmd_st > inputline; --cmd_st)
+X	if ((iscmdmeta(cmd_st[-1]) || (cmd_st[-1] == '`' && backq))
+X	    && ((cmd_st - 1 == inputline) || (cmd_st[-2] != '\\')))
+X	    break;
+X    /* step forward over leading spaces */
+X    while (*cmd_st != '\0' && (*cmd_st == ' ' || *cmd_st == '\t'))
+X	cmd_st++;
+X
+X    /*
+X     * Find LAST occurence of a delimiter in the inputline. The word start is
+X     * one character past it.
+X     */
+X    for (word_start = str_end, skp = 0; word_start > inputline; --word_start) {
+X	if (!backq && word_start[-1] == '`') {
+X	    skp ^= 1;
+X	    continue;
+X	}
+X	if (skp)
+X	    continue;
+X	if ((ismetahash(word_start[-1]) || isaset(cmd_st, word_start)) &&
+X	    (word_start[-1] != '$') &&
+X	    ((word_start - 1 == inputline) || (word_start[-2] != '\\')))
+X	    break;
+X    }
+X
+X
+X
+X#ifdef masscomp
+X    /*
+X     * Avoid a nasty message from the RTU 4.1A & RTU 5.0 compiler concerning
+X     * the "overuse of registers". According to the compiler release notes,
+X     * incorrect code may be produced unless the offending expression is
+X     * rewritten. Therefore, we can't just ignore it, DAS DEC-90.
+X     */
+X    space_left = inputline_size;
+X    space_left -= word_start - inputline + 1;
+X#else
+X    space_left = inputline_size - (word_start - inputline) - 1;
+X#endif
+X
+X    /*
+X     * Quote args
+X     */
+X    in_double = 0;
+X    in_single = 0;
+X    for (cmd_start = word_start, wp = word; 
+X	 cmd_start < str_end && wp <= word + FILSIZ; cmd_start++) 
+X	switch (*cmd_start) {
+X	case '\'':
+X	    if (!in_double) {
+X		if (in_single)
+X		    in_single = 0;
+X		else
+X		    in_single = QUOTE;
+X	    }
+X	    else
+X		*wp++ = *cmd_start | QUOTE;
+X	    break;
+X	case '"':
+X	    if (!in_single) {
+X		if (in_double)
+X		    in_double = 0;
+X		else
+X		    in_double = QUOTE;
+X	    }
+X	    else
+X		*wp++ = *cmd_start | QUOTE;
+X	    break;
+X	case '/':
+X	    /*
+X	     * This is so that the recognize stuff works easily
+X	     */
+X	    *wp++ = *cmd_start;
+X	    break;
+X	case '\\':
+X	    if (in_single || in_double)
+X		*wp++ = *cmd_start | QUOTE;
+X	    else
+X		*wp++ = *++cmd_start | QUOTE;
+X	    break;
+X	default:
+X	    *wp++ = *cmd_start | in_single;
+X	    break;
+X	}
+X    if (wp > word + FILSIZ)
+X	return (-1);
+X    *wp = '\0';
+X    /*
+X     * Move the word_start further if still in quotes, cause the
+X     * quotes so far have no effect.
+X     */
+X    if ((in_single || in_double) && (*word_start == '\'' || *word_start == '"'))
+X	word_start++;
+X
+X    is_a_cmd = starting_a_command(word_start - 1, inputline);
+X#ifdef TENEDEBUG
+X    xprintf("starting_a_command %d\n", is_a_cmd);
+X    xprintf("\ncmd_st:%s:\n", short2str(cmd_st));
+X    xprintf("word:%s:\n", short2str(word));
+X    xprintf("word:");
+X    for (wp = word; *wp; wp++)
+X	xprintf("%c", *wp & QUOTE ? '-' : ' ');
+X    xprintf(":\n");
+X#endif
+X    switch ((int) command) {
+X	Char    buffer[FILSIZ + 1], *bptr;
+X	Char   *slshp;
+X	Char   *items[2], **ptr;
+X	int     i, count;
+X
+X    case RECOGNIZE:
+X	if (adrof(STRautocorrect)) {
+X	    if ((slshp = Strrchr(word, '/')) != NULL && slshp[1] != '\0') {
+X		SearchNoDirErr = 1;
+X		for (bptr = word; bptr < slshp; bptr++) {
+X		    /*
+X		     * do not try to correct spelling of words containing
+X		     * globbing characters
+X		     */
+X		    if (isglob(*bptr)) {
+X			SearchNoDirErr = 0;
+X			break;
+X		    }
+X		}
+X	    }
+X	}
+X	else
+X	    slshp = STRNULL;
+X	search_ret = t_search(word, wp, command, space_left, is_a_cmd, 1);
+X	SearchNoDirErr = 0;
+X
+X	if (search_ret == -2) {
+X	    Char    rword[FILSIZ + 1];
+X
+X	    (void) Strcpy(rword, slshp);
+X	    if (slshp != STRNULL)
+X		*slshp = '\0';
+X	    if ((search_ret = spell_me(word, sizeof(word), is_a_cmd)) == 1) {
+X		DeleteBack(str_end - word_start);/* get rid of old word */
+X		(void) Strcat(word, rword);
+X		if (InsertStr(word) < 0)	/* insert newly spelled word */
+X		    return -1;	/* error inserting */
+X		wp = word + Strlen(word);
+X		search_ret = t_search(word, wp, command, space_left,
+X				      is_a_cmd, 1);
+X	    }
+X	}
+X
+X	/*
+X	 * Change by Christos Zoulas: if the name has metachars in it, quote
+X	 * the metachars, but only if we are outside quotes.
+X	 * We don't quote the last space if we had a unique match and 
+X	 * addsuffix was set. Otherwise the last space was part of a word.
+X	 */
+X	if (*wp && InsertStr((in_single || in_double) ?
+X			     wp : quote_meta(wp, search_ret == 1 &&
+X					     (bool) is_set(STRaddsuffix))) < 0)
+X	    /* put it in the input buffer */
+X	    return -1;		/* error inserting */
+X	return search_ret;
+X
+X    case SPELL:
+X	for (bptr = word_start; bptr < str_end; bptr++) {
+X	    /*
+X	     * do not try to correct spelling of words containing globbing
+X	     * characters
+X	     */
+X	    if (isglob(*bptr))
+X		return 0;
+X	}
+X	if ((search_ret = spell_me(word, sizeof(word), is_a_cmd)) == 1) {
+X	    DeleteBack(str_end - word_start);	/* get rid of old word */
+X	    if (InsertStr(word) < 0)	/* insert newly spelled word */
+X		return -1;	/* error inserting */
+X	}
+X	return search_ret;
+X
+X    case PRINT_HELP:
+X	do_help(cmd_st);
+X	return 1;
+X
+X    case GLOB:
+X    case GLOB_EXPAND:
+X	(void) Strncpy(buffer, word, FILSIZ + 1);
+X	items[0] = buffer;
+X	items[1] = NULL;
+X	ptr = items;
+X	if (is_a_cmd) {
+X	    xprintf("\nSorry no globbing for commands yet..\n");
+X	    return -1;
+X	}
+X	if ((count = t_glob(&ptr)) > 0) {
+X	    if (command == GLOB)
+X		print_by_column(STRNULL, ptr, count, is_a_cmd);
+X	    else {
+X		DeleteBack(str_end - word_start);/* get rid of old word */
+X		for (i = 0; i < count; i++)
+X		    if (ptr[i] && *ptr[i]) {
+X			if (InsertStr((in_single || in_double) ?
+X				      ptr[i] : quote_meta(ptr[i], 0)) < 0 ||
+X			    InsertStr(STRspace) < 0) {
+X			    blkfree(ptr);
+X			    return (-1);
+X			}
+X		    }
+X	    }
+X	    blkfree(ptr);
+X	}
+X	return count;
+X
+X    case VARS_EXPAND:
+X	if (dollar(buffer, word)) {
+X	    DeleteBack(str_end - word_start);
+X	    if (InsertStr((in_single || in_double) ?
+X			  buffer : quote_meta(buffer, 0)) < 0)
+X		return (-1);
+X	    return (1);
+X	}
+X	return (0);
+X
+X    case PATH_NORMALIZE:
+X	if ((bptr = dnormalize(word)) != NULL) {
+X	    (void) Strcpy(buffer, bptr);
+X	    xfree((ptr_t) bptr);
+X	    DeleteBack(str_end - word_start);
+X	    if (InsertStr((in_single || in_double) ?
+X			  buffer : quote_meta(buffer, 0)) < 0)
+X		return (-1);
+X	    return (1);
+X	}
+X	return (0);
+X
+X    case LIST:
+X	search_ret = t_search(word, wp, command, space_left, is_a_cmd, 1);
+X	return search_ret;
+X
+X    default:
+X	xprintf("tcsh: Internal match error.\n");
+X	return 1;
+X
+X    }
+X}
+X
+X
+X
+X
+static int
+t_glob(v)
+X    register Char ***v;
+X{
+X    jmp_buf osetexit;
+X
+X    if (**v == 0)
+X	return (0);
+X    gflag = 0, tglob(*v);
+X    if (gflag) {
+X	getexit(osetexit);	/* make sure to come back here */
+X	if (setexit() == 0)
+X	    *v = globall(*v);
+X	resexit(osetexit);
+X	gargv = 0;
+X	if (haderr) {
+X	    haderr = 0;
+X	    NeedsRedraw = 1;
+X	    return (-1);
+X	}
+X	if (*v == 0)
+X	    return (0);
+X    }
+X    else
+X	return (0);
+X
+X    return (gargc);
+X}
+X
+X
+X/*
+X * quote (\) the meta-characters in a word
+X * except trailing space if trail_space is set
+X * return pointer to quoted word in static storage
+X */
+static Char *
+quote_meta(word, trail_space)
+X    Char   *word;
+X    bool    trail_space;
+X{
+X    static Char buffer[2 * FILSIZ + 1], *bptr, *wptr;
+X
+X    for (bptr = buffer, wptr = word; *wptr != '\0';) {
+X	if ((cmap(*wptr, _META | _DOL | _Q | _ESC | _GLOB) || *wptr == HIST ||
+X	     *wptr == HISTSUB) &&
+X	    (*wptr != ' ' || !trail_space || 
+X	     *(wptr + 1) != '\0') && *wptr != '#')
+X	    *bptr++ = '\\';
+X	*bptr++ = *wptr++;
+X    }
+X    *bptr = '\0';
+X    return (buffer);
+X}
+X
+X
+X/*
+X * return true if check items initial chars in template
+X * This differs from PWB imatch in that if check is null
+X * it items anything
+X */
+X
+static int
+is_prefix(check, template)
+X    register Char *check, *template;
+X{
+X    for (; *check; check++, template++)
+X	if ((*check & TRIM) != (*template & TRIM))
+X	    return (FALSE);
+X    return (TRUE);
+X}
+X
+X/*
+X *  Return true if the chars in template appear at the
+X *  end of check, I.e., are it's suffix.
+X */
+static int
+is_suffix(check, template)
+X    register Char *check, *template;
+X{
+X    register Char *t, *c;
+X
+X    for (t = template; *t++;);
+X    for (c = check; *c++;);
+X    for (;;) {
+X	if (t == template)
+X	    return 1;
+X	--t;
+X	--c;
+X	if (c == check || (*t & TRIM) != (*c & TRIM))
+X	    return 0;
+X    }
+X}
+X
+static int
+ignored(entry)
+X    register Char *entry;
+X{
+X    struct varent *vp;
+X    register Char **cp;
+X
+X    if ((vp = adrof(STRfignore)) == NULL || (cp = vp->vec) == NULL)
+X	return (FALSE);
+X    for (; *cp != NULL; cp++)
+X	if (is_suffix(entry, *cp))
+X	    return (TRUE);
+X    return (FALSE);
+X}
+X
+X/* return true if the command starting at wordstart is a command */
+X
+X#define EVEN(x) (((x) & 1) != 1)
+X
+int
+starting_a_command(wordstart, inputline)
+X    register Char *wordstart, *inputline;
+X{
+X    register Char *ptr, *ncmdstart;
+X    int     count;
+X    static  Char
+X            cmdstart[] = {'`', ';', '&', '(', '|', '\0'},
+X            cmdalive[] = {' ', '\t', '\'', '"', '<', '>', '\0'};
+X
+X    /*
+X     * Find if the number of backquotes is odd or even.
+X     */
+X    for (ptr = wordstart, count = 0;
+X	 ptr >= inputline;
+X	 count += (*ptr-- == '`'));
+X    /*
+X     * if the number of backquotes is even don't include the backquote char in
+X     * the list of command starting delimiters [if it is zero, then it does not
+X     * matter]
+X     */
+X    ncmdstart = cmdstart + EVEN(count);
+X
+X    /*
+X     * look for the characters previous to this word if we find a command
+X     * starting delimiter we break. if we find whitespace and another previous
+X     * word then we are not a command
+X     * 
+X     * count is our state machine: 0 looking for anything 1 found white-space
+X     * looking for non-ws
+X     */
+X    for (count = 0; wordstart >= inputline; wordstart--) {
+X	if (*wordstart == '\0')
+X	    continue;
+X	if (Strchr(ncmdstart, *wordstart))
+X	    break;
+X	/*
+X	 * found white space
+X	 */
+X	if (ptr = Strchr(cmdalive, *wordstart))
+X	    count = 1;
+X	if (count == 1 && !ptr)
+X	    return (FALSE);
+X    }
+X
+X    if (wordstart > inputline)
+X	switch (*wordstart) {
+X	case '&':		/* Look for >& */
+X	    while (wordstart > inputline &&
+X		   (*--wordstart == ' ' || *wordstart == '\t'));
+X	    if (*wordstart == '>')
+X		return (FALSE);
+X	    break;
+X	case '(':		/* check for foreach, if etc. */
+X	    while (wordstart > inputline &&
+X		   (*--wordstart == ' ' || *wordstart == '\t'));
+X	    if (!iscmdmeta(*wordstart) &&
+X		(*wordstart != ' ' && *wordstart != '\t'))
+X		return (FALSE);
+X	    break;
+X	default:
+X	    break;
+X	}
+X    return (TRUE);
+X}
+X
+X
+X
+X/*
+X * Object: extend what user typed up to an ambiguity.
+X * Algorithm:
+X * On first match, copy full entry (assume it'll be the only match)
+X * On subsequent matches, shorten extended_name to the first
+X * character mismatch between extended_name and entry.
+X * If we shorten it back to the prefix length, stop searching.
+X */
+static int
+recognize(extended_name, entry, name_length, numitems)
+X    Char   *extended_name, *entry;
+X    int     name_length, numitems;
+X{
+X    if (numitems == 1)		/* 1st match */
+X	copyn(extended_name, entry, MAXNAMLEN);
+X    else {			/* 2nd and subsequent matches */
+X	register Char *x, *ent;
+X	register int len = 0;
+X
+X	for (x = extended_name, ent = entry;
+X	     *x && (*x & TRIM) == (*ent & TRIM); x++, len++, ent++);
+X	*x = '\0';		/* Shorten at 1st char diff */
+X	if (len == name_length)	/* Ambiguous to prefix? */
+X	    return (-1);	/* So stop now and save time */
+X    }
+X    return (0);
+X}
+X
+X
+X
+X/*
+X * Perform a RECOGNIZE or LIST command on string "word".
+X *
+X * Return value:
+X *  >= 0:   SPELL command: "distance" (see spdist())
+X *          other:         No. of items found
+X *  < 0:    Error (message or beep is output)
+X */
+X
+X/*ARGSUSED*/
+int
+t_search(word, wp, command, max_word_length, looking_for_command, list_max)
+X    Char   *word, *wp;		/* original end-of-word */
+X    COMMAND command;
+X    int     max_word_length, looking_for_command, list_max;
+X{
+X    register ignoring = 1, nignored = 0;
+X    register name_length,	/* Length of prefix (file name) */
+X            looking_for_lognames;	/* True if looking for login names */
+X    int     showpathn;		/* True if we want path number */
+X    Char    tilded_dir[FILSIZ + 1],	/* dir after ~ expansion */
+X            dollar_dir[FILSIZ + 1],	/* dir after $ expansion */
+X            dir[FILSIZ + 1],	/* /x/y/z/ part in /x/y/z/f */
+X            name[MAXNAMLEN + 1],/* f part in /d/d/d/f */
+X            extended_name[MAXNAMLEN + 1],	/* the recognized (extended)
+X						 * name */
+X           *entry = NULL,	/* single directory entry or logname */
+X           *target;		/* Target to expand/correct/list */
+X    int     next_command = 0;	/* the next command to take out of */
+X
+X    /* the list of commands */
+X    int     looking_for_shellvar,	/* true if looking for $foo */
+X            looking_for_file;	/* true if looking for a file name */
+X    Char  **pathv;		/* pointer to PATH elements */
+X    struct varent *vptr = NULL;/* current shell variable position */
+X    Char  **envptr = NULL;	/* current env. variable position */
+X
+X    int     d = 4, nd;		/* distance and new distance to command for
+X				 * SPELL */
+X    int     exec_check = 0, dir_ok = 0;	/* need to check
+X					 * executability/directory */
+X
+X    static  Char		/* For unset path		 */
+X    *       pv[2] = {STRNULL, NULL};
+X    static  DIR
+X    *       dir_fd = NULL;
+X    static  Char
+X    **      items = NULL;	/* file names when doing a LIST */
+X
+X    /*
+X     * bugfix by Marty Grossman (grossman@CC5.BBN.COM): directory listing can
+X     * dump core when interrupted
+X     */
+X    static int numitems;
+X
+X    pathv = (vptr = adrof(STRPATH)) == NULL ? pv : vptr->vec;
+X
+X    if (items != NULL)
+X	FREE_ITEMS(items, numitems);
+X    numitems = 0;
+X    if (dir_fd != NULL)
+X	FREE_DIR(dir_fd);
+X
+X    non_unique_match = FALSE;	/* See the recexact code below */
+X
+X    extract_dir_and_name(word, dir, name);
+X    looking_for_lognames = (*word == '~') && (Strchr(word, '/') == NULL);
+X    looking_for_shellvar = (target = Strrchr(name, '$')) &&
+X	(Strchr(name, '/') == NULL);
+X    looking_for_file = (!looking_for_command && !looking_for_lognames &&
+X			!looking_for_shellvar) || Strchr(word, '/');
+X
+X    /* PWP: don't even bother when doing ALL of the commands */
+X    if (looking_for_command && (*word == '\0')) 
+X	return (-1);
+X    tilded_dir[0] = '\0';
+X    dollar_dir[0] = '\0';
+X
+X    if (looking_for_shellvar) {	/* Looking for a shell var? */
+X	vptr = tw_start_shell_list();
+X	envptr = tw_start_env_list();
+X	target++;
+X    }
+X    else
+X	target = name;
+X    if (looking_for_shellvar || looking_for_file) {
+X	Char   *nd = NULL;
+X
+X	/* Open the directory */
+X	/* expand ~user/... and variables stuff */
+X	if ((dollar(dollar_dir, dir) == 0) ||
+X	    (tilde(tilded_dir, dollar_dir) == 0) ||
+X	    !(nd = dnormalize(*tilded_dir ? tilded_dir : STRdot)) ||
+X	    ((dir_fd = opendir(short2str(nd))) == NULL)) {
+X	    xfree((ptr_t) nd);
+X	    if (command == SPELL || SearchNoDirErr)
+X		return (-2);
+X	    /*
+X	     * From: Amos Shapira <amoss@cs.huji.ac.il>
+X	     * Print a better message when completion fails
+X	     */
+X	    xprintf("\n%s %s\n",
+X		    *tilded_dir ? short2str(tilded_dir) :
+X		    (*dollar_dir ? short2str(dollar_dir) : short2str(dir)),
+X		    (errno == ENOTDIR ? "not a directory" :
+X		    (errno == ENOENT ? "not found" : "unreadable")));
+X	    NeedsRedraw = 1;
+X	    return (-1);
+X	}
+X	if (nd) {
+X	    if (*tilded_dir != '\0') {
+X		Char   *s, *d, *p;
+X
+X		/*
+X		 * Copy and append a / if there was one
+X		 */
+X		for (p = tilded_dir; *p; p++);
+X		if (*--p == '/') {
+X		    for (p = nd; *p; p++);
+X		    if (*--p != '/')
+X			p = NULL;
+X		}
+X		for (d = tilded_dir, s = nd; *d++ = *s++;);
+X		if (!p) {
+X		    *d-- = '\0';
+X		    *d = '/';
+X		}
+X	    }
+X	    xfree((ptr_t) nd);
+X	}
+X    }
+X    else if (looking_for_lognames) {	/* Looking for login names? */
+X	/*
+X	 * Check if the spelling was already correct
+X	 * From: Rob McMahon <cudcv@cu.warwick.ac.uk>
+X	 */
+X	if (command == SPELL && getpwnam(short2str(&word[1])) != NULL) {
+X#ifdef YPBUGS
+X	    fix_yp_bugs();
+X#endif /* YPBUGS */
+X	    return (0);
+X	}
+X	copyn(name, &word[1], MAXNAMLEN);	/* name sans ~ */
+X	(void) setpwent();	/* Open passwd file */
+X    }
+X    else if (looking_for_command) {
+X	if (!numcommands)	/* if we have no list of commands */
+X	    tw_get_comm_list();
+X	if (!have_sorted) {	/* if we haven't sorted them yet */
+X	    tw_add_builtins();
+X	    tw_add_aliases();
+X	    tw_sort_comms();	/* re-build the command path for twenex.c */
+X	}
+X	copyn(target, word, MAXNAMLEN);	/* so it can match things */
+X    }
+X    else {
+X	xprintf("\ntcsh internal error: I don't know what I'm looking for!\n");
+X	NeedsRedraw = 1;
+X	return (-1);
+X    }
+X
+X
+again:
+X    name_length = Strlen(target);
+X    showpathn = looking_for_command && is_set(STRlistpathnum);
+X
+X    while (1) {
+X	if (looking_for_shellvar) {
+X	    if ((entry = tw_next_shell_var(&vptr)) == NULL)
+X		if ((entry = tw_next_env_var(&envptr)) == NULL)
+X		    break;
+X	}
+X	else if (looking_for_file || looking_for_lognames) {
+X	    if ((entry = getentry(dir_fd, looking_for_lognames)) == NULL) {
+X		break;
+X	    }
+X
+X	    /*
+X	     * Don't match . files on null prefix match
+X	     */
+X	    if (name_length == 0 && entry[0] == '.' &&
+X		!looking_for_lognames && !is_set(STRshowdots))
+X		continue;
+X	    if (looking_for_command && !looking_for_lognames) {
+X		exec_check = 1;
+X		dir_ok = 1;
+X	    }
+X	}
+X	else if (looking_for_command) {
+X#ifdef  NOTDEF			/* Not possible */
+X	    if (numcommands == 0) {
+X		dohash(NULL, NULL);
+X	    }
+X#endif
+X	    /* searching . added by Andreas Luik <luik@isaak.isa.de> */
+X
+X	    if ((next_command < numcommands) &&
+X		(entry = command_list[next_command]) == NULL)
+X		next_command = numcommands;
+X	    if (next_command >= numcommands) {	/* search relative elems */
+X		if (!relatives_in_path)
+X		    break;	/* we don't need to do it */
+X		while ((dir_fd == NULL ||
+X			(entry = getentry(dir_fd, FALSE)) == NULL) &&
+X		       *pathv) {
+X		    if (dir_fd != NULL)
+X			FREE_DIR(dir_fd);
+X		    entry = NULL;
+X		    while (*pathv && pathv[0][0] == '/')
+X			pathv++;
+X		    if (*pathv) {
+X			/*
+X			 * We complete directories only on '.' should that
+X			 * be changed?
+X			 */
+X			if (pathv[0][0] == '\0' ||
+X			    (pathv[0][0] == '.' && pathv[0][1] == '\0')) {
+X			    *tilded_dir = '\0';
+X			    dir_fd = opendir(".");
+X			    dir_ok = 1;	
+X			}
+X			else {
+X			    copyn(tilded_dir, *pathv, FILSIZ);
+X			    catn(tilded_dir, STRslash, FILSIZ);
+X			    dir_fd = opendir(short2str(*pathv));
+X			    dir_ok = 0;
+X			}
+X			pathv++;
+X		    }
+X		}
+X		if (entry == NULL)
+X		    break;	/* end of PATH */
+X		/*
+X		 * executability check for other than "." should perhaps be
+X		 * conditional on recognize_only_executables?
+X		 */
+X		exec_check = 1;
+X	    }
+X	    else
+X		next_command++;
+X	}
+X
+X	if (command == SPELL) {	/* correct the spelling of the last bit */
+X	    if (name_length == 0) {/* zero-length word can't be misspelled */
+X		extended_name[0] = '\0';/* (not trying is important for ~) */
+X		d = 0;
+X		break;
+X	    }
+X	    nd = spdist(entry, target);	/* test the entry against original */
+X	    if (nd <= d && nd != 4) {
+X		if (exec_check && !executable(tilded_dir, entry, dir_ok))
+X		    continue;
+X		(void) Strcpy(extended_name, entry);
+X		d = nd;
+X		if (d == 0)	/* if found it exactly */
+X		    break;
+X	    }
+X	    else if (nd == 4) {
+X		if (spdir(extended_name, tilded_dir, entry, target)) {
+X		    if (exec_check &&
+X			!executable(tilded_dir, extended_name, dir_ok))
+X			continue;
+X		    d = 0;
+X		    break;
+X		}
+X	    }
+X	}
+X	else if (command == LIST) {	/* LIST command */
+X	    register int length;
+X	    register long i;
+X	    register Char **ni, **p2;
+X
+X	    if (!is_prefix(target, entry))
+X		continue;
+X	    if (exec_check && !executable(tilded_dir, entry, dir_ok))
+X		continue;
+X
+X	    if (items == NULL || maxitems == 0) {
+X		items = (Char **) xmalloc((size_t) (sizeof(items[0]) *
+X						    (ITEMS_START + 1)));
+X		maxitems = ITEMS_START;
+X		for (i = 0, p2 = items; i < maxitems; i++)
+X		    *p2++ = NULL;
+X	    }
+X	    else if (numitems >= maxitems) {
+X		ni = (Char **) xrealloc((ptr_t) items, (size_t)
+X				(sizeof(items[0])) * (maxitems + ITEMS_INCR));
+X		items = ni;
+X		maxitems += ITEMS_INCR;
+X	    }
+X
+X
+X	    length = Strlen(entry) + 1;
+X	    if (showpathn)
+X		length += Strlen(dirflag);
+X	    if (!looking_for_lognames && !looking_for_shellvar)
+X		length++;
+X
+X	    /* safety check */
+X	    items[numitems] = (Char *) xmalloc((size_t)(length * sizeof(Char)));
+X
+X	    copyn(items[numitems], entry, MAXNAMLEN);
+X
+X	    if (!looking_for_lognames && !looking_for_shellvar
+X		&& !(looking_for_command && !looking_for_file)) {
+X		Char    typestr[2];
+X
+X		typestr[0] = filetype(tilded_dir, entry);
+X		typestr[1] = '\0';
+X		catn(items[numitems], typestr, MAXNAMLEN);
+X	    }
+X
+X	    if (showpathn)
+X		catn(items[numitems], dirflag, MAXNAMLEN);
+X	    numitems++;
+X	}
+X	else {			/* RECOGNIZE command */
+X	    if (!is_prefix(target, entry))
+X		continue;
+X	    if (exec_check && !executable(tilded_dir, entry, dir_ok))
+X		continue;
+X
+X	    if (ignoring && ignored(entry)) {
+X		nignored++;
+X		continue;
+X	    }
+X	    if (is_set(STRrecexact)) {
+X		if (StrQcmp(target, entry) == 0) {	/* EXACT match */
+X		    copyn(extended_name, entry, MAXNAMLEN);
+X		    numitems = 1;	/* fake into expanding */
+X		    non_unique_match = TRUE;
+X		    break;
+X		}
+X	    }
+X	    if (recognize(extended_name, entry, name_length, ++numitems))
+X		break;
+X	}
+X    }
+X
+X    if (ignoring && numitems == 0 && nignored > 0) {
+X	ignoring = 0;
+X	nignored = 0;
+X	if (looking_for_lognames)
+X	    (void) setpwent();
+X	else
+X	    rewinddir(dir_fd);
+X	goto again;
+X    }
+X    if (looking_for_lognames) {
+X#ifdef YPBUGS
+X	fix_yp_bugs();
+X#endif				/* YPBUGS */
+X	(void) endpwent();
+X    }
+X    else if (looking_for_file || looking_for_shellvar ||
+X	     (looking_for_command && relatives_in_path)) {
+X	if (dir_fd != NULL)
+X	    FREE_DIR(dir_fd);
+X    }
+X
+X    if (command == RECOGNIZE) {
+X	if (numitems > 0) {
+X	    if (looking_for_lognames)
+X		copyn(word, STRtilde, 1);
+X	    else if (looking_for_shellvar) {
+X		Char   *ptr = Strrchr(word, '$');
+X
+X		*++ptr = '\0';	/* Delete after the dollar */
+X	    }
+X	    else if (looking_for_file)
+X		copyn(word, dir, max_word_length);	/* put back dir part */
+X	    else
+X		word[0] = '\0';
+X	    catn(word, extended_name, max_word_length);	/* add extended name */
+X	    if (is_set(STRaddsuffix)) {
+X		if (numitems == 1) {
+X		    if (looking_for_lognames) {	/* add / */
+X			catn(word, STRslash, max_word_length);
+X		    }
+X		    else if (looking_for_shellvar) {
+X			struct varent *vp = adrof(extended_name);
+X			Char   *stp;
+X
+X			/*
+X			 * Don't consider array variables or empty variables
+X			 */
+X			if (vp) {
+X			    if (!(stp = vp->vec[0]) || vp->vec[0][0] == '\0' ||
+X				vp->vec[1]) {
+X				catn(word, STRspace, max_word_length);
+X				stp = NULL;
+X			    }
+X			    else
+X				stp = vp->vec[0];
+X			}
+X			else if ((stp = Getenv(extended_name)) == NULL)
+X			    catn(word, STRspace, max_word_length);
+X			if (stp != NULL) {
+X			    *--target = '\0';
+X			    (void) Strcat(tilded_dir, name);
+X			    if (isadirectory(tilded_dir, stp))
+X				catn(word, STRslash, max_word_length);
+X			    else
+X				catn(word, STRspace, max_word_length);
+X			}
+X		    }
+X		    else if (looking_for_file || looking_for_command) {
+X			if (isadirectory(tilded_dir, extended_name)) {
+X			    catn(word, STRslash, max_word_length);
+X			}
+X			else {
+X			    catn(word, STRspace, max_word_length);
+X			}
+X		    }
+X		}
+X	    }
+X	}
+X	return (numitems);	/* at the end */
+X    }
+X    else if (command == LIST) {
+X	register int max_items = 0;
+X	register Char *cp;
+X
+X	if (cp = value(STRlistmax)) {
+X	    while (*cp) {
+X		if (!Isdigit(*cp)) {
+X		    max_items = 0;
+X		    break;
+X		}
+X		max_items = max_items * 10 + *cp++ - '0';
+X	    }
+X	}
+X
+X	if ((max_items > 0) && (numitems > max_items) && list_max) {
+X	    char    tc;
+X
+X	    xprintf("There are %d items, list them anyway? [n/y] ", numitems);
+X	    flush();
+X	    /* We should be in Rawmode here, so no \n to catch */
+X	    (void) read(SHIN, &tc, 1);
+X	    xprintf("%c\r\n", tc);	/* echo the char, do a newline */
+X	    if ((tc != 'y') && (tc != 'Y'))
+X		goto done_list;
+X	}
+X	qsort((ptr_t) items, (size_t) numitems, sizeof(items[1]), 
+X	      (int (*) __P((const void *, const void *))) fcompare);
+X
+X	print_by_column(STRNULL, items, numitems, TRUE);
+X
+done_list:
+X	if (items != NULL)
+X	    FREE_ITEMS(items, numitems);
+X	return (numitems);
+X    }
+X    else if (command == SPELL) {
+X	if (looking_for_lognames)
+X	    copyn(word, STRtilde, 1);
+X	else if (looking_for_shellvar) {
+X	    Char   *ptr = Strrchr(word, '$');
+X
+X	    *++ptr = '\0';	/* Delete after the dollar */
+X	}
+X	else if (looking_for_file)
+X	    copyn(word, dir, max_word_length);	/* put back dir part */
+X	else
+X	    word[0] = '\0';
+X	catn(word, extended_name, max_word_length);	/* add extended name */
+X	return (d);
+X    }
+X    else {
+X	xprintf("Bad tw_command\n");
+X	return (0);
+X    }
+X}
+X
+X
+X
+X/* stuff for general command line hacking */
+X
+X/*
+X * Strip next directory from path; return ptr to next unstripped directory.
+X */
+X
+X#ifdef notdef
+Char * extract_dir_from_path(path, dir)
+X    Char   *path, dir[];
+X{
+X    register Char *d = dir;
+X
+X    while (*path && (*path == ' ' || *path == ':'))
+X	path++;
+X    while (*path && (*path != ' ' && *path != ':'))
+X	*(d++) = *(path++);
+X    while (*path && (*path == ' ' || *path == ':'))
+X	path++;
+X
+X    ++dirctr;
+X    if (*dir == '.')
+X	(void) Strcpy(dirflag, STRdotsp);
+X    else {
+X	dirflag[0] = ' ';
+X	if (dirctr <= 9) {
+X	    dirflag[1] = '0' + dirctr;
+X	    dirflag[2] = '\0';
+X	}
+X	else {
+X	    dirflag[1] = '0' + dirctr / 10;
+X	    dirflag[2] = '0' + dirctr % 10;
+X	    dirflag[3] = '\0';
+X	}
+X    }
+X    *(d++) = '/';
+X    *d = 0;
+X
+X    return path;
+X}
+X
+X#endif
+X
+X
+static void
+free_items(items, numitems)
+X    register Char **items;
+X    register int numitems;
+X{
+X    register int i;
+X
+X/*     for (i = 0; items[i] != (Char *)NULL; i++) */
+X    for (i = 0; i < numitems; i++)
+X	xfree((ptr_t) items[i]);
+X    xfree((ptr_t) items);
+X    maxitems = 0;
+X}
+X
+X
+X/*
+X * parse full path in file into 2 parts: directory and file names
+X * Should leave final slash (/) at end of dir.
+X */
+static void
+extract_dir_and_name(path, dir, name)
+X    Char   *path, *dir, *name;
+X{
+X    register Char *p;
+X
+X    p = Strrchr(path, '/');
+X    if (p == NULL) {
+X	copyn(name, path, MAXNAMLEN);
+X	dir[0] = '\0';
+X    }
+X    else {
+X	p++;
+X	copyn(name, p, MAXNAMLEN);
+X	copyn(dir, path, p - path);
+X    }
+X}
+X
+static Char *
+getentry(dir_fd, looking_for_lognames)
+X    DIR    *dir_fd;
+X    int     looking_for_lognames;
+X{
+X    register struct passwd *pw;
+X    static Char retname[MAXPATHLEN];
+X
+X    register struct dirent *dirp;
+X
+X    if (looking_for_lognames) {	/* Is it login names we want? */
+X	/*
+X	 * We don't want to get interrupted inside getpwent()
+X	 * because the yellow pages code is not interruptible,
+X	 * and if we call endpwent() immediatetely after
+X	 * (in pintr()) we may be freeing an invalid pointer
+X	 */
+X#ifdef BSDSIGS
+X	sigmask_t omask = sigblock(sigmask(SIGINT));
+X#else
+X	(void) sighold(SIGINT);
+X#endif /* BSDSIGS */
+X	/* ISC does not declare getpwent()? */
+X	pw = (struct passwd *) getpwent();
+X#ifdef BSDSIGS
+X	(void) sigsetmask(omask);
+X#else
+X	(void) sigrelse(SIGINT);
+X#endif /* BSDSIGS */
+X
+X	if (pw == NULL) {
+X#ifdef YPBUGS
+X	    fix_yp_bugs();
+X#endif
+X	    return (NULL);
+X	}
+X	(void) Strcpy(retname, str2short(pw->pw_name));
+X	return (retname);
+X    }
+X    else {			/* It's a dir entry we want */
+X	if (dirp = readdir(dir_fd)) {
+X	    (void) Strcpy(retname, str2short(dirp->d_name));
+X	    return (retname);
+X	}
+X	return (NULL);
+X    }
+X}
+X
+X/*
+X * expand "/$old1/$old2/old3/"
+X * to "/value_of_old1/value_of_old2/old3/"
+X */
+static Char *
+dollar(new, old)
+X    Char   *new, *old;
+X{
+X    Char   *var, *val, *p, save;
+X    int     space;
+X
+X    for (space = FILSIZ, p = new; *old && space > 0;)
+X	if (*old != '$') {
+X	    *p++ = *old++;
+X	    space--;
+X	}
+X	else {
+X	    struct varent *vp;
+X
+X	    /* found a variable, expand it */
+X	    for (var = ++old; alnum(*old); old++);
+X	    save = *old;
+X	    *old = '\0';
+X	    vp = adrof(var);
+X	    val = (!vp) ? Getenv(var) : NULL;
+X	    *old = save;
+X	    /*
+X	     * Don't expand array variables
+X	     */
+X	    if (vp) {
+X		if (!vp->vec[0] || vp->vec[1]) {
+X		    *new = '\0';
+X		    return (NULL);
+X		}
+X		else
+X		    val = vp->vec[0];
+X	    }
+X	    else if (!val) {
+X		*new = '\0';
+X		return (NULL);
+X	    }
+X	    for (; space > 0 && *val; space--)
+X		*p++ = *val++;
+X	}
+X    *p = '\0';
+X    return (new);
+X}
+X
+X/*
+X * expand "old" file name with possible tilde usage
+X *		~person/mumble
+X * expands to
+X *		home_directory_of_person/mumble
+X * into string "new".
+X */
+X
+static Char *
+tilde(new, old)
+X    Char   *new, *old;
+X{
+X    register Char *o, *p;
+X
+X    if ((old[0] != '~') &&
+X	(old[0] != '=' || (!Isdigit(old[1]) && old[1] != '-'))) {
+X	(void) Strcpy(new, old);
+X	return (new);
+X    }
+X
+X    for (p = new, o = &old[1]; *o && *o != '/'; *p++ = *o++);
+X    *p = '\0';
+X
+X    if (old[0] == '~') {
+X	if (gethdir(new)) {
+X	    new[0] = '\0';
+X	    return (NULL);
+X	}
+X    }
+X    else {			/* '=' stack expansion */
+X	if (!getstakd(new, (old[1] == '-') ? -1 : old[1] - '0')) {
+X	    new[0] = '\0';
+X	    return (NULL);
+X	}
+X    }
+X    (void) Strcat(new, o);
+X    return (new);
+X}
+X
+static  Char
+filetype(dir, file)		/* symbology from 4.3 ls command */
+X    Char   *dir, *file;
+X{
+X    if (dir) {
+X	Char    path[512];
+X	char   *ptr;
+X	struct stat statb;
+X
+X	(void) Strcpy(path, dir);
+X	catn(path, file, sizeof(path) / sizeof(Char));
+X
+X	if (lstat(ptr = short2str(path), &statb) != -1)
+X	    /* see above #define of lstat */
+X	{
+X#ifdef S_ISLNK
+X	    if (S_ISLNK(statb.st_mode)) {	/* Symbolic link */
+X		if (adrof(STRlistlinks)) {
+X		    if (stat(ptr, &statb) == -1)
+X			return ('&');
+X		    else if (S_ISDIR(statb.st_mode))
+X			return ('>');
+X		    else
+X			return ('@');
+X		}
+X		else
+X		    return ('@');
+X	    }
+X#endif
+X#ifdef S_ISSOCK
+X	    if (S_ISSOCK(statb.st_mode))	/* Socket */
+X		return ('=');
+X#endif
+X#ifdef S_ISFIFO
+X	    if (S_ISFIFO(statb.st_mode)) /* Named Pipe */
+X		return ('|');
+X#endif
+X#ifdef S_ISHIDDEN
+X	    if (S_ISHIDDEN(statb.st_mode)) /* Hidden Directory [aix] */
+X		return ('+');
+X#endif
+X#ifdef S_ISCDF	
+X	    if (S_ISCDF(statb.st_mode))	/* Context Dependent Files [hpux] */
+X		return ('+');
+X#endif 
+X#ifdef S_ISNWK
+X	    if (S_ISNWK(statb.st_mode)) /* Network Special [hpux] */
+X		return (':');
+X#endif
+X	    if (S_ISCHR(statb.st_mode))	/* char device */
+X		return ('%');
+X	    if (S_ISBLK(statb.st_mode))	/* block device */
+X		return ('#');
+X	    if (S_ISDIR(statb.st_mode))	/* normal Directory */
+X		return ('/');
+X	    if (statb.st_mode & 0111)
+X		return ('*');
+X	}
+X    }
+X    return (' ');
+X}
+X
+static int
+isadirectory(dir, file)		/* return 1 if dir/file is a directory */
+X    Char   *dir, *file;		/* uses stat rather than lstat to get dest. */
+X{
+X    if (dir) {
+X	Char    path[MAXPATHLEN];
+X	struct stat statb;
+X
+X	(void) Strcpy(path, dir);
+X	catn(path, file, sizeof(path) / sizeof(Char));
+X	if (stat(short2str(path), &statb) >= 0) {	/* resolve through
+X							 * symlink */
+X#ifdef S_ISSOCK
+X	    if (S_ISSOCK(statb.st_mode))	/* Socket */
+X		return 0;
+X#endif
+X#ifdef S_ISFIFO
+X	    if (S_ISFIFO(statb.st_mode))	/* Named Pipe */
+X		return 0;
+X#endif
+X	    if (S_ISDIR(statb.st_mode))	/* normal Directory */
+X		return 1;
+X	}
+X    }
+X    return 0;
+X}
+X
+X/*
+X * Print sorted down columns
+X */
+void
+print_by_column(dir, items, count, no_file_suffix)
+X    register Char *dir, *items[];
+X    int     count, no_file_suffix;
+X{
+X    register int i, r, c, columns, rows;
+X    unsigned int w, maxwidth = 0;
+X    extern int Tty_raw_mode;
+X
+X    lbuffed = 0;		/* turn off line buffering */
+X
+X    for (i = 0; i < count; i++)	/* find widest string */
+X	maxwidth = max(maxwidth, Strlen(items[i]));
+X
+X    maxwidth += no_file_suffix ? 1 : 2;	/* for the file tag and space */
+X    columns = (TermH + 1) / maxwidth;	/* PWP: terminal size change */
+X    if (!columns)
+X	columns = 1;
+X    rows = (count + (columns - 1)) / columns;
+X
+X    for (r = 0; r < rows; r++) {
+X	for (c = 0; c < columns; c++) {
+X	    i = c * rows + r;
+X
+X	    if (i < count) {
+X		w = Strlen(items[i]);
+X
+X		if (no_file_suffix) {
+X		    /* Print the command name */
+X		    xprintf("%s", short2str(items[i]));
+X		}
+X		else {
+X		    /* Print filename followed by '/' or '*' or ' ' */
+X		    xprintf("%s%c", short2str(items[i]),
+X			    filetype(dir, items[i]));
+X		    w++;
+X		}
+X
+X		if (c < (columns - 1))	/* Not last column? */
+X		    for (; w < maxwidth; w++)
+X			xputchar(' ');
+X	    }
+X	}
+X	if (Tty_raw_mode)
+X	    xputchar('\r');
+X	xputchar('\n');
+X    }
+X
+X    lbuffed = 1;		/* turn back on line buffering */
+X    flush();
+X}
+X
+X
+int
+StrQcmp(str1, str2)
+X    register Char *str1, *str2;
+X{
+X    for (; *str1 && (*str1 & TRIM) == (*str2 & TRIM); str1++, str2++);
+X    /*
+X     * The following case analysis is necessary so that characters which look
+X     * negative collate low against normal characters but high against the
+X     * end-of-string NUL.
+X     */
+X    if (*str1 == '\0' && *str2 == '\0')
+X	return (0);
+X    else if (*str1 == '\0')
+X	return (-1);
+X    else if (*str2 == '\0')
+X	return (1);
+X    else
+X	return ((*str1 & TRIM) - (*str2 & TRIM));
+X}
+X
+X/*
+X * For qsort()
+X */
+int
+fcompare(file1, file2)
+X    Char  **file1, **file2;
+X{
+X#if defined(NLS) && !defined(NOSTRCOLL)
+X    char    buf[2048];
+X
+X    (void) strcpy(buf, short2str(*file1));
+X    return ((int) strcoll(buf, short2str(*file2)));
+X#else
+X    return (StrQcmp(*file1, *file2));
+X#endif
+X}
+X
+X/*
+X * Concatenate src onto tail of des.
+X * Des is a string whose maximum length is count.
+X * Always null terminate.
+X */
+X
+void
+catn(des, src, count)
+X    register Char *des, *src;
+X    register count;
+X{
+X    while (--count >= 0 && *des)
+X	des++;
+X    while (--count >= 0)
+X	if ((*des++ = *src++) == 0)
+X	    return;
+X    *des = '\0';
+X}
+X
+X/*
+X * like strncpy but always leave room for trailing \0
+X * and always null terminate.
+X */
+void
+copyn(des, src, count)
+X    register Char *des, *src;
+X    register count;
+X{
+X    while (--count >= 0)
+X	if ((*des++ = *src++) == 0)
+X	    return;
+X    *des = '\0';
+X}
+X
+static void
+tw_get_comm_list()
+X{				/* stolen from sh.exec.c dohash() */
+X    register DIR *dirp;
+X    register struct dirent *dp;
+X    register Char *dir;
+X    register Char **pv;
+X    struct varent *v = adrof(STRpath);
+X
+X    relatives_in_path = 0;	/* set to false until we know better */
+X    tw_clear_comm_list();
+X    if (v == 0)			/* if no path */
+X	return;
+X
+X    if (adrof(STRrecognize_only_executables)) {
+X	for (pv = v->vec; *pv; pv++) {
+X	    if (pv[0][0] != '/') {
+X		relatives_in_path = 1;
+X		continue;
+X	    }
+X	    dirp = opendir(short2str(*pv));
+X	    if (dirp == NULL)
+X		continue;
+X
+X	    dir = Strspl(*pv, STRslash);
+X	    while ((dp = readdir(dirp)) != NULL) {
+X		/* the call to executable() may make this a bit slow */
+X		if (dp->d_ino != 0 &&
+X		    executable(dir, str2short(dp->d_name), 0))
+X		    tw_add_comm_name(str2short(dp->d_name));
+X	    }
+X	    (void) closedir(dirp);
+X	    xfree((ptr_t) dir);
+X	}
+X    }
+X    else {
+X	for (pv = v->vec; *pv; pv++) {
+X	    if (pv[0][0] != '/') {
+X		relatives_in_path = 1;
+X		continue;
+X	    }
+X	    dirp = opendir(short2str(*pv));
+X	    if (dirp == NULL)
+X		continue;
+X
+X	    while ((dp = readdir(dirp)) != NULL) {
+X		if (dp->d_ino != 0)
+X		    tw_add_comm_name(str2short(dp->d_name));
+X	    }
+X	    (void) closedir(dirp);
+X	}
+X    }
+X}
+END_OF_FILE
+if test 39815 -ne `wc -c <'tw.parse.c'`; then
+    echo shar: \"'tw.parse.c'\" unpacked with wrong size!
+fi
+# end of 'tw.parse.c'
+fi
+echo shar: End of archive 14 \(of 18\).
+cp /dev/null ark14isdone
+MISSING=""
+for I in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 ; do
+    if test ! -f ark${I}isdone ; then
+	MISSING="${MISSING} ${I}"
+    fi
+done
+if test "${MISSING}" = "" ; then
+    echo You have unpacked all 18 archives.
+    rm -f ark[1-9]isdone ark[1-9][0-9]isdone
+else
+    echo You still need to unpack the following archives:
+    echo "        " ${MISSING}
+fi
+##  End of shell archive.
+exit 0

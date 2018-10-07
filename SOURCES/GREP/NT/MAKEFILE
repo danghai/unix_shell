@@ -1,0 +1,44 @@
+#
+# NMAKE Makefile for GNU [ef]?grep
+#
+
+CFLAGS	= -Ox -DUSG -D__MSC__ -D__NT__
+GREP	= -Fogrep -DPROGNAME=\"grep\"
+EGREP	= -Foegrep -DPROGNAME=\"egrep\"
+
+#  the objects
+EOBJS	= egrep.obj dfa.obj regex.obj getopt.obj setargv.obj
+FOBJS	= fgrep.obj kwset.obj obstack.obj getopt.obj setargv.obj
+GOBJS	= grep.obj dfa.obj regex.obj getopt.obj setargv.obj
+
+#  the good things to make
+all:	egrep.exe fgrep.exe grep.exe
+
+clean:
+	-rm -f egrep.exe fgrep.exe grep.exe *.obj
+
+install:	egrep.exe fgrep.exe grep.exe
+	@cp egrep.exe fgrep.exe grep.exe $(BINDIR)
+
+egrep.exe:	$(EOBJS)
+	cl -Fe$@ $(EOBJS)
+
+fgrep.exe:	$(FOBJS)
+	cl -Fe$@ $(FOBJS)
+
+grep.exe:	$(GOBJS)
+	cl -Fe$@ $(GOBJS)
+
+grep.obj:	grep.c
+	$(CC) $(CFLAGS) $(GREP) -c grep.c
+
+egrep.obj:	grep.c
+	$(CC) $(CFLAGS) $(EGREP) -c grep.c
+
+setargv.obj:	setargv.c
+	$(CC) $(CFLAGS) -DFIXARG0 -DGLOB -DSORTARGS -DUPPERCASE -DLCFAT -c setargv.c
+
+dfa.obj grep.obj egrep.obj:	dfa.h
+grep.obj egrep.obj regex.obj:	regex.h
+kwset.obj fgrep.obj:		kwset.h obstack.h
+obstack.obj:			obstack.h

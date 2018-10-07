@@ -1,0 +1,83 @@
+                       Logical & Arithmetic Operators
+
+One of the more obscure parts of the Korn shell syntax allows you to
+combine exit statuses logically, so that you can test more than one
+thing at a time.
+
+Syntax:
+        statement1 && statement2        means execute statement1 and if
+its exit status is 0 (sucessful) then execute statement2
+        statement1 || statement2        means execute statement1 and if
+its exit status is not 0 then execute statement2
+
+For example:
+
+filename=$1
+word1=$2
+word2=$3
+if grep $word1 $filename && grep word2 $filename
+then
+print "$word1 and $word2 are both in $filename"
+fi
+
+ARITHMETIC FUNCTIONS
+
+The Korn shell is the only shell to have the arithmetic expression
+feature built in to its syntax.
+
+Korn shell arithmetic expressions are equivalent to their counterparts
+in the C language.
+
+The syntax for arithmetic expressions is:
+
+        $((....))
+
+The arithmetic operators are:
+
+Operator        Meaning
+  +             Plus
+  -             Minus
+  *             Multiply
+  /             Divide (with truncation)
+  %             Remainder
+  <<            Bit-shift left
+  >>            Bit-shift right
+  &             Bitwise and
+  |             Bitwise or
+  ~             Bitwise not
+  ^             Bitwise exclusive or
+
+Parentheses can be used to group subexpressions.  The arithmetic
+expression syntax also (like C) supports relational operators as "truth
+values" of 1 for true and 0 for false.  The following table shows the
+relational operators and the logical operators that can be used to
+combine relational expressions.
+
+Operator        Meaning
+  <             Less than
+  >             Greater than
+  <=            Less than or equal to
+  >=            Greater than or equal to
+  ==            Equal to
+  !=            Not equal to
+  &&            Logical and
+  ||            Logical or
+
+For example, $((3>2)) has the value 1; $(( (3>2) || (4<=1) )) also has
+the value 1, since at least one of the two expressions is true.
+
+The shell also supports base N numbers, where N is between 2 and 36.
+The notation B#N means "N base B".  Of course, if you omit the B#, the
+base defaults to 10.  For example:
+        print $((2#100101)) yields 37
+        print $((16#ff)) yields 255
+
+Another built-in function that is not strictly a part of the arithmetic
+functions, but is usefully dealt here is the RANDOM function.  Each time
+this variable is referenced, a random integer, uniformly distributed
+between 0 and 32767, is generated.  The sequence of random numbers can
+be initialsed by assigning a numeric value to RANDOM.  An example of it
+use, to generate a random number between 1 and 10 would be:
+        $(($RANDOM%10+1))
+This is taken the remainder of the random number when divided by 10,
+giving 0 to 9, and then adding 1 to get 1 to 10.

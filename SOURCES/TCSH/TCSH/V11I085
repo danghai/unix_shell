@@ -1,0 +1,2936 @@
+Subject:  v11i085:  Tcsh for 4.3 CSH, Part02/02
+Newsgroups: comp.sources.unix
+Sender: sources
+Approved: rs@uunet.UU.NET
+
+Submitted-by: chris@nrcvax.uucp (Chris Grevstad)
+Posting-number: Volume 11, Issue 85
+Archive-name: tcsh.4.3/part02
+
+#! /bin/sh
+# This is a shell archive, meaning:
+# 1. Remove everything above the #! /bin/sh line.
+# 2. Save the resulting text in a file.
+# 3. Execute the file with /bin/sh (not csh) to create:
+#	DIFFS.2
+# This archive created: Thu Sep 24 16:28:19 1987
+export PATH; PATH=/bin:/usr/bin:$PATH
+if test -f 'DIFFS.2'
+then
+	echo shar: "will not over-write existing file 'DIFFS.2'"
+else
+cat << \SHAR_EOF > 'DIFFS.2'
+*** sh.glob.c	Tue May 13 01:27:18 1986
+--- /usr/src/local/tcsh/sh.glob.c	Mon Aug 17 21:32:21 1987
+***************
+*** 9,15
+  #endif
+  
+  #include "sh.h"
+! #include <sys/dir.h>
+  
+  /*
+   * C Shell
+
+--- 9,15 -----
+  #endif
+  
+  #include "sh.h"
+! /* #include <sys/dir.h> */
+  
+  /*
+   * C Shell
+***************
+*** 118,123
+  sortscmp(a1, a2)
+  	char **a1, **a2;
+  {
+  
+  	 return (strcmp(*a1, *a2));
+  }
+
+--- 118,132 -----
+  sortscmp(a1, a2)
+  	char **a1, **a2;
+  {
++ 	if (!a1)			/* check for NULL */
++ 		return (a2?1:0);
++ 	if (!a2)
++ 		return (-1);
++ 	
++ 	if (!*a1)			/* check for NULL */
++ 		return (*a2?1:0);
++ 	if (!*a2)
++ 		return (-1);
+  
+  	 return (strcmp(*a1, *a2));
+  }
+***************
+*** 131,136
+  
+  	sgpathp = gpathp;
+  	cs = as;
+  	if (*cs == '~' && gpathp == gpath) {
+  		addpath('~');
+  		for (cs++; letter(*cs) || digit(*cs) || *cs == '-';)
+
+--- 140,164 -----
+  
+  	sgpathp = gpathp;
+  	cs = as;
++ 	/*
++ 	 * kfk - 17 Jan 1984 - stack hack
++ 	 * allows user to get at arbitrary dir names in stack.
++ 	 */
++ 	if (*cs == '=' && gpathp == gpath) {
++ 		addpath ('=');
++ 		if (digit (*++cs) || *cs == '-') {
++ 			int dig;
++ 			dig = (*cs == '-') ? -1 : *cs - '0';
++ 			cs++;
++ 			if (*cs && *cs != '/')
++ 				error ("Stack hack: =<dig>{/path...}");
++ 			getstakd (gpath, dig, 1);
++ 				/* last "1" = call error if needed */
++ 			gpathp = strend (gpath);
++ 		}
++ 	}
++ 	/* kfk - end stack hack change */
++ 
+  	if (*cs == '~' && gpathp == gpath) {
+  		addpath('~');
+  		for (cs++; letter(*cs) || digit(*cs) || *cs == '-';)
+***************
+*** 295,301
+  	register char *sentp;
+  	char sglobbed = globbed;
+  
+! 	if (*s == '.' && *p != '.')
+  		return (0);
+  	sentp = entp;
+  	entp = s;
+
+--- 323,329 -----
+  	register char *sentp;
+  	char sglobbed = globbed;
+  
+! 	if (*s == '.' && *p != '.') /* PWP: this makes [.]login != .login */
+  		return (0);
+  	sentp = entp;
+  	entp = s;
+***************
+*** 309,315
+  	register char *s, *p;
+  {
+  	register int scc;
+! 	int ok, lc;
+  	char *sgpathp;
+  	struct stat stb;
+  	int c, cc;
+
+--- 337,343 -----
+  	register char *s, *p;
+  {
+  	register int scc;
+! 	int ok, lc, notin;
+  	char *sgpathp;
+  	struct stat stb;
+  	int c, cc;
+***************
+*** 322,328
+  		case '{':
+  			return (execbrc(p - 1, s - 1));
+  
+! 		case '[':
+  			ok = 0;
+  			lc = 077777;
+  			while (cc = *p++) {
+
+--- 350,357 -----
+  		case '{':
+  			return (execbrc(p - 1, s - 1));
+  
+! 		case '[':	/* PWP -- BRACKET IS HERE!! */
+! 			if (!scc) return 0; /* if at end if string */
+  			ok = 0;
+  			lc = 077777;
+  			if (*p == '^') {
+***************
+*** 325,330
+  		case '[':
+  			ok = 0;
+  			lc = 077777;
+  			while (cc = *p++) {
+  				if (cc == ']') {
+  					if (ok)
+
+--- 354,364 -----
+  			if (!scc) return 0; /* if at end if string */
+  			ok = 0;
+  			lc = 077777;
++ 			if (*p == '^') {
++ 				notin = 1;
++ 				p++;
++ 			} else
++ 				notin = 0;
+  			while (cc = *p++) {
+  				if (cc == ']') {
+  					if (notin) { /* PWP for not in list */
+***************
+*** 327,335
+  			lc = 077777;
+  			while (cc = *p++) {
+  				if (cc == ']') {
+! 					if (ok)
+! 						break;
+! 					return (0);
+  				}
+  				if (cc == '-') {
+  					if (lc <= scc && scc <= *p++)
+
+--- 361,377 -----
+  				notin = 0;
+  			while (cc = *p++) {
+  				if (cc == ']') {
+! 					if (notin) { /* PWP for not in list */
+! 						if (!ok)
+! 							break;
+! 						else
+! 							return (0);
+! 					} else {
+! 						if (ok)
+! 							break;
+! 						else
+! 							return (0);
+! 					}
+  				}
+  				if (cc == '-') {
+  					if (lc <= scc && scc <= *p++)
+***************
+*** 335,341
+  					if (lc <= scc && scc <= *p++)
+  						ok++;
+  				} else
+! 					if (scc == (lc = cc))
+  						ok++;
+  			}
+  			if (cc == 0)
+
+--- 377,383 -----
+  					if (lc <= scc && scc <= *p++)
+  						ok++;
+  				} else
+! 					if (scc && (scc == (lc = cc)))
+  						ok++;
+  			}
+  			if (cc == 0)
+***************
+*** 393,399
+  	register char *s, *p;
+  {
+  	register int scc;
+! 	int ok, lc;
+  	int c, cc;
+  
+  	for (;;) {
+
+--- 435,441 -----
+  	register char *s, *p;
+  {
+  	register int scc;
+! 	int ok, lc, notin;
+  	int c, cc;
+  
+  	for (;;) {
+***************
+*** 400,406
+  		scc = *s++ & TRIM;
+  		switch (c = *p++) {
+  
+! 		case '[':
+  			ok = 0;
+  			lc = 077777;
+  			while (cc = *p++) {
+
+--- 442,449 -----
+  		scc = *s++ & TRIM;
+  		switch (c = *p++) {
+  
+! 		case '[':	/* PWP -- HERE TOO!! */
+! 			if (!scc) return 0; /* if at end if string */
+  			ok = 0;
+  			lc = 077777;
+  			if (*p == '^') {
+***************
+*** 403,408
+  		case '[':
+  			ok = 0;
+  			lc = 077777;
+  			while (cc = *p++) {
+  				if (cc == ']') {
+  					if (ok)
+
+--- 446,456 -----
+  			if (!scc) return 0; /* if at end if string */
+  			ok = 0;
+  			lc = 077777;
++ 			if (*p == '^') {
++ 			    notin = 1;
++ 			    p++;
++ 			} else
++ 			    notin = 0;
+  			while (cc = *p++) {
+  				if (cc == ']') {
+  					if (notin) { /* PWP for not in list */
+***************
+*** 405,410
+  			lc = 077777;
+  			while (cc = *p++) {
+  				if (cc == ']') {
+  					if (ok)
+  						break;
+  					return (0);
+
+--- 453,464 -----
+  			    notin = 0;
+  			while (cc = *p++) {
+  				if (cc == ']') {
++ 					if (notin) { /* PWP for not in list */
++ 					    if (!ok)
++ 						break;
++ 					    else
++ 						return (0);
++ 					} else {
+  					if (ok)
+  						break;
+  					    else
+***************
+*** 407,412
+  				if (cc == ']') {
+  					if (ok)
+  						break;
+  					return (0);
+  				}
+  				if (cc == '-') {
+
+--- 461,467 -----
+  					} else {
+  					if (ok)
+  						break;
++ 					    else
+  					return (0);
+  				}
+  				}
+***************
+*** 409,414
+  						break;
+  					return (0);
+  				}
+  				if (cc == '-') {
+  					if (lc <= scc && scc <= *p++)
+  						ok++;
+
+--- 464,470 -----
+  					    else
+  					return (0);
+  				}
++ 				}
+  				if (cc == '-') {
+  					if (lc <= scc && scc <= *p++)
+  						ok++;
+***************
+*** 413,419
+  					if (lc <= scc && scc <= *p++)
+  						ok++;
+  				} else
+! 					if (scc == (lc = cc))
+  						ok++;
+  			}
+  			if (cc == 0)
+
+--- 469,475 -----
+  					if (lc <= scc && scc <= *p++)
+  						ok++;
+  				} else
+! 					if (scc && (scc == (lc = cc)))
+  						ok++;
+  			}
+  			if (cc == 0)
+***************
+*** 503,509
+  	register char *p, c;
+  
+  	while (p = *t++) {
+! 		if (*p == '~')
+  			gflag |= 2;
+  		else if (*p == '{' && (p[1] == '\0' || p[1] == '}' && p[2] == '\0'))
+  			continue;
+
+--- 559,566 -----
+  	register char *p, c;
+  
+  	while (p = *t++) {
+! 			/* added additional '=' test for stack hack */
+! 		if ((*p == '~') || (*p == '='))
+  			gflag |= 2;
+  		else if (*p == '{' && (p[1] == '\0' || p[1] == '}' && p[2] == '\0'))
+  			continue;
+*** sh.h	Sat Mar 29 07:37:09 1986
+--- /usr/src/local/tcsh/sh.h	Mon Aug 17 22:48:18 1987
+***************
+*** 8,13
+  
+  #include <sys/time.h>
+  #include <sys/resource.h>
+  #include <sys/param.h>
+  #include <sys/stat.h>
+  #include <sys/signal.h>
+
+--- 8,16 -----
+  
+  #include <sys/time.h>
+  #include <sys/resource.h>
++ #ifdef	SVID
++ #include <sys/types.h>
++ #endif
+  #include <sys/param.h>
+  #include <sys/stat.h>
+  #include <sys/signal.h>
+***************
+*** 28,33
+  
+  #define	isdir(d)	((d.st_mode & S_IFMT) == S_IFDIR)
+  
+  typedef	char	bool;
+  
+  #define	eq(a, b)	(strcmp(a, b) == 0)
+
+--- 31,78 -----
+  
+  #define	isdir(d)	((d.st_mode & S_IFMT) == S_IFDIR)
+  
++ #include <sys/ioctl.h>
++ 
++ #ifndef SVID
++ #include <sgtty.h>
++ #include <sys/dir.h>
++ #else SVID
++ # ifdef OREO
++ #include <sgtty.h>
++ #include <sys/dir.h>
++ # else OREO
++ #include "dir.h"
++ # endif OREO
++ #endif SVID
++ 
++ /* #include <ctype.h> */
++ #include <pwd.h>
++ 
++ #ifdef SVID
++ # ifndef pyr
++ #include <time.h>
++ # endif pyr
++ #include <termio.h>
++ #endif
++ 
++ 	
++ /*
++  * kfk 26 Jan 1984 - for login watch functions.
++  */
++ #include <utmp.h>
++ struct who {
++ 	struct who *w_next;
++ 	struct who *w_prev;
++ 	char w_name[10];
++ 	char w_new[10];
++ 	char w_tty[10];
++ 	int w_status;
++ };
++ #define ONLINE		01
++ #define OFFLINE		02
++ #define CHANGED		04
++ #define ANNOUNCE	010
++ /* kfk - end change */
+  typedef	char	bool;
+  
+  /* kfk - additions to support scheduled commands */
+***************
+*** 30,35
+  
+  typedef	char	bool;
+  
+  #define	eq(a, b)	(strcmp(a, b) == 0)
+  
+  /*
+
+--- 75,89 -----
+  /* kfk - end change */
+  typedef	char	bool;
+  
++ /* kfk - additions to support scheduled commands */
++ struct sched_event {
++ 	struct	sched_event	*t_next;
++ 	long			t_when;
++ 	char			**t_lex;
++ };
++ extern	long	time();
++ /* kfk - end change */
++ 
+  #define	eq(a, b)	(strcmp(a, b) == 0)
+  
+  /*
+***************
+*** 51,59
+  bool	setintr;		/* Set interrupts on/off -> Wait intr... */
+  bool	timflg;			/* Time the next waited for command */
+  bool	havhash;		/* path hashing is available */
+- #ifdef FILEC
+- bool	filec;			/* doing filename expansion */
+- #endif
+  
+  /*
+   * Global i/o info
+
+--- 105,110 -----
+  bool	setintr;		/* Set interrupts on/off -> Wait intr... */
+  bool	timflg;			/* Time the next waited for command */
+  bool	havhash;		/* path hashing is available */
+  
+  /*
+   * Global i/o info
+***************
+*** 66,71
+  int	errno;			/* Error from C library routines */
+  char	*shtemp;		/* Temp name for << shell files in /tmp */
+  struct	timeval time0;		/* Time at which the shell started */
+  struct	rusage ru0;
+  
+  /*
+
+--- 117,123 -----
+  int	errno;			/* Error from C library routines */
+  char	*shtemp;		/* Temp name for << shell files in /tmp */
+  struct	timeval time0;		/* Time at which the shell started */
++ #ifndef OREO
+  struct	rusage ru0;
+  #endif OREO
+  
+***************
+*** 67,72
+  char	*shtemp;		/* Temp name for << shell files in /tmp */
+  struct	timeval time0;		/* Time at which the shell started */
+  struct	rusage ru0;
+  
+  /*
+   * Miscellany
+
+--- 119,125 -----
+  struct	timeval time0;		/* Time at which the shell started */
+  #ifndef OREO
+  struct	rusage ru0;
++ #endif OREO
+  
+  /*
+   * Miscellany
+***************
+*** 79,84
+  /* If tpgrp is -1, leave tty alone! */
+  int	opgrp;			/* Initial pgrp and tty pgrp */
+  int	oldisc;			/* Initial line discipline or -1 */
+  
+  /*
+   * These are declared here because they want to be
+
+--- 132,140 -----
+  /* If tpgrp is -1, leave tty alone! */
+  int	opgrp;			/* Initial pgrp and tty pgrp */
+  int	oldisc;			/* Initial line discipline or -1 */
++ char PromptBuf[256];		/* buffer for the actual printed prompt.
++ 				   this is used in tenex.c and sh.c for
++ 				   pegets.c */
+  
+  /*
+   * These are declared here because they want to be
+***************
+*** 369,374
+  	struct	wordent Hlex;
+  	int	Hnum;
+  	int	Href;
+  	struct	Hist *Hnext;
+  } Histlist;
+  
+
+--- 425,431 -----
+  	struct	wordent Hlex;
+  	int	Hnum;
+  	int	Href;
++ 	long	Htime;
+  	struct	Hist *Hnext;
+  } Histlist;
+  
+***************
+*** 423,428
+  char	*index();
+  struct	biltins *isbfunc();
+  off_t	lseek();
+  char	*operate();
+  int	phup();
+  int	pintr();
+
+--- 480,486 -----
+  char	*index();
+  struct	biltins *isbfunc();
+  off_t	lseek();
++ struct	tm *localtime();
+  char	*operate();
+  int	phup();
+  int	pintr();
+***************
+*** 471,473
+  	char	*iname;		/* name from /usr/include */
+  	char	*pname;		/* print name */
+  } mesg[];
+
+--- 529,534 -----
+  	char	*iname;		/* name from /usr/include */
+  	char	*pname;		/* print name */
+  } mesg[];
++ 
++ #define	sighold(sig)	sigblock(sigmask(sig))
++ 	
+*** sh.hist.c	Thu Jun  6 13:15:33 1985
+--- /usr/src/local/tcsh/sh.hist.c	Mon Aug 17 21:32:24 1987
+***************
+*** 53,58
+  	register struct Hist *np;
+  
+  	np = (struct Hist *) xalloc(sizeof *np);
+  	np->Hnum = np->Href = event;
+  	if (docopy)
+  		copylex(&np->Hlex, lp);
+
+--- 53,59 -----
+  	register struct Hist *np;
+  
+  	np = (struct Hist *) xalloc(sizeof *np);
++ 	time(&(np->Htime));
+  	np->Hnum = np->Href = event;
+  	if (docopy)
+  		copylex(&np->Hlex, lp);
+***************
+*** 135,140
+  	register struct Hist *hp;
+  	int hflg;
+  {
+  
+  	if (hflg == 0)
+  		printf("%6d\t", hp->Hnum);
+
+--- 136,143 -----
+  	register struct Hist *hp;
+  	int hflg;
+  {
++ 	struct tm *t;
++ 	char ampm = 'a';
+  
+  	if (hflg == 0)
+  	{
+***************
+*** 137,142
+  {
+  
+  	if (hflg == 0)
+  		printf("%6d\t", hp->Hnum);
+  	prlex(&hp->Hlex);
+  }
+
+--- 140,146 -----
+  	char ampm = 'a';
+  
+  	if (hflg == 0)
++ 	{
+  		printf("%6d\t", hp->Hnum);
+  		t = localtime(&hp->Htime);
+  		if (t->tm_hour >= 12)
+***************
+*** 138,142
+  
+  	if (hflg == 0)
+  		printf("%6d\t", hp->Hnum);
+  	prlex(&hp->Hlex);
+  }
+
+--- 142,157 -----
+  	if (hflg == 0)
+  	{
+  		printf("%6d\t", hp->Hnum);
++ 		t = localtime(&hp->Htime);
++ 		if (t->tm_hour >= 12)
++ 		{
++ 			if (t->tm_hour > 12)
++ 				t->tm_hour -= 12;
++ 			ampm = 'p';
++ 		}
++ 		else if (t->tm_hour == 0)
++ 			t->tm_hour = 12;
++ 		printf ("%2d:%02d%cm\t", t->tm_hour, t->tm_min, ampm);
++ 	}
+  	prlex(&hp->Hlex);
+  }
+*** sh.init.c	Thu Jun  6 13:15:48 1985
+--- /usr/src/local/tcsh/sh.init.c	Tue Aug 18 21:57:22 1987
+***************
+*** 16,21
+  
+  extern	int doalias();
+  extern	int dobg();
+  extern	int dobreak();
+  extern	int dochngd();
+  extern	int docontin();
+
+--- 16,22 -----
+  
+  extern	int doalias();
+  extern	int dobg();
++ extern	int dobind();
+  extern	int dobreak();
+  extern	int dochngd();
+  extern	int docontin();
+***************
+*** 37,42
+  extern	int dojobs();
+  extern	int dokill();
+  extern	int dolet();
+  extern	int dolimit();
+  extern	int dologin();
+  extern	int dologout();
+
+--- 38,44 -----
+  extern	int dojobs();
+  extern	int dokill();
+  extern	int dolet();
++ #ifndef OREO
+  extern	int dolimit();
+  #endif
+  extern	int dolog();
+***************
+*** 38,43
+  extern	int dokill();
+  extern	int dolet();
+  extern	int dolimit();
+  extern	int dologin();
+  extern	int dologout();
+  #ifdef NEWGRP
+
+--- 40,47 -----
+  extern	int dolet();
+  #ifndef OREO
+  extern	int dolimit();
++ #endif
++ extern	int dolog();
+  extern	int dologin();
+  extern	int dologout();
+  #ifdef NEWGRP
+***************
+*** 50,55
+  extern	int dopopd();
+  extern	int dopushd();
+  extern	int dorepeat();
+  extern	int doset();
+  extern	int dosetenv();
+  extern	int dosource();
+
+--- 54,60 -----
+  extern	int dopopd();
+  extern	int dopushd();
+  extern	int dorepeat();
++ extern	int dosched();
+  extern	int doset();
+  extern	int dosetenv();
+  extern	int dosource();
+***************
+*** 58,63
+  extern	int doswbrk();
+  extern	int doswitch();
+  extern	int dotime();
+  extern	int dounlimit();
+  extern	int doumask();
+  extern	int dowait();
+
+--- 63,69 -----
+  extern	int doswbrk();
+  extern	int doswitch();
+  extern	int dotime();
++ #ifndef OREO
+  extern	int dounlimit();
+  #endif
+  extern	int doumask();
+***************
+*** 59,64
+  extern	int doswitch();
+  extern	int dotime();
+  extern	int dounlimit();
+  extern	int doumask();
+  extern	int dowait();
+  extern	int dowhile();
+
+--- 65,71 -----
+  extern	int dotime();
+  #ifndef OREO
+  extern	int dounlimit();
++ #endif
+  extern	int doumask();
+  extern	int dowait();
+  extern	int dowhile();
+***************
+*** 74,79
+  extern	int dounhash();
+  extern	int unset();
+  extern	int dounsetenv();
+  
+  #define	INF	1000
+  
+
+--- 81,87 -----
+  extern	int dounhash();
+  extern	int unset();
+  extern	int dounsetenv();
++ extern	int dolist();		/* for ls-F */
+  
+  #define	INF	1000
+  
+***************
+*** 86,91
+  	"alias",	doalias,	0,	INF,
+  	"alloc",	showall,	0,	1,
+  	"bg",		dobg,		0,	INF,
+  	"break",	dobreak,	0,	0,
+  	"breaksw",	doswbrk,	0,	0,
+  #ifdef IIASA
+
+--- 94,100 -----
+  	"alias",	doalias,	0,	INF,
+  	"alloc",	showall,	0,	1,
+  	"bg",		dobg,		0,	INF,
++ 	"bind",		dobind,		0,	2,
+  	"break",	dobreak,	0,	0,
+  	"breaksw",	doswbrk,	0,	0,
+  #ifdef IIASA
+***************
+*** 119,124
+  	"if",		doif,		1,	INF,
+  	"jobs",		dojobs,		0,	1,
+  	"kill",		dokill,		1,	INF,
+  	"limit",	dolimit,	0,	3,
+  	"login",	dologin,	0,	1,
+  	"logout",	dologout,	0,	0,
+
+--- 128,134 -----
+  	"if",		doif,		1,	INF,
+  	"jobs",		dojobs,		0,	1,
+  	"kill",		dokill,		1,	INF,
++ #ifndef OREO
+  	"limit",	dolimit,	0,	3,
+  #endif OREO
+  	"linedit",	doecho,		0,	INF,
+***************
+*** 120,125
+  	"jobs",		dojobs,		0,	1,
+  	"kill",		dokill,		1,	INF,
+  	"limit",	dolimit,	0,	3,
+  	"login",	dologin,	0,	1,
+  	"logout",	dologout,	0,	0,
+  #ifdef NEWGRP
+
+--- 130,138 -----
+  	"kill",		dokill,		1,	INF,
+  #ifndef OREO
+  	"limit",	dolimit,	0,	3,
++ #endif OREO
++ 	"linedit",	doecho,		0,	INF,
++ 	"log",		dolog,		0,	0,
+  	"login",	dologin,	0,	1,
+  	"logout",	dologout,	0,	0,
+  	"ls-F",		dolist,		0,	INF,
+***************
+*** 122,127
+  	"limit",	dolimit,	0,	3,
+  	"login",	dologin,	0,	1,
+  	"logout",	dologout,	0,	0,
+  #ifdef NEWGRP
+  	"newgrp",	donewgrp,	1,	1,
+  #endif
+
+--- 135,141 -----
+  	"log",		dolog,		0,	0,
+  	"login",	dologin,	0,	1,
+  	"logout",	dologout,	0,	0,
++ 	"ls-F",		dolist,		0,	INF,
+  #ifdef NEWGRP
+  	"newgrp",	donewgrp,	1,	1,
+  #endif
+***************
+*** 136,141
+  #endif
+  	"rehash",	dohash,		0,	0,
+  	"repeat",	dorepeat,	2,	INF,
+  	"set",		doset,		0,	INF,
+  	"setenv",	dosetenv,	0,	2,
+  	"shift",	shift,		0,	1,
+
+--- 150,156 -----
+  #endif
+  	"rehash",	dohash,		0,	0,
+  	"repeat",	dorepeat,	2,	INF,
++ 	"sched",	dosched,	0,	INF,
+  	"set",		doset,		0,	INF,
+  	"setenv",	dosetenv,	0,	2,
+  	"shift",	shift,		0,	1,
+***************
+*** 147,152
+  	"umask",	doumask,	0,	1,
+  	"unalias",	unalias,	1,	INF,
+  	"unhash",	dounhash,	0,	0,
+  	"unlimit",	dounlimit,	0,	INF,
+  	"unset",	unset,		1,	INF,
+  	"unsetenv",	dounsetenv,	1,	INF,
+
+--- 162,168 -----
+  	"umask",	doumask,	0,	1,
+  	"unalias",	unalias,	1,	INF,
+  	"unhash",	dounhash,	0,	0,
++ #ifndef OREO
+  	"unlimit",	dounlimit,	0,	INF,
+  #endif
+  	"unset",	unset,		1,	INF,
+***************
+*** 148,153
+  	"unalias",	unalias,	1,	INF,
+  	"unhash",	dounhash,	0,	0,
+  	"unlimit",	dounlimit,	0,	INF,
+  	"unset",	unset,		1,	INF,
+  	"unsetenv",	dounsetenv,	1,	INF,
+  	"wait",		dowait,		0,	0,
+
+--- 164,170 -----
+  	"unhash",	dounhash,	0,	0,
+  #ifndef OREO
+  	"unlimit",	dounlimit,	0,	INF,
++ #endif
+  	"unset",	unset,		1,	INF,
+  	"unsetenv",	dounsetenv,	1,	INF,
+  	"wait",		dowait,		0,	0,
+***************
+*** 219,224
+  	"PIPE",	"Broken pipe",
+  	"ALRM",	"Alarm clock",
+  	"TERM",	"Terminated",
+  	"URG",	"Urgent I/O condition",
+  	"STOP",	"Stopped (signal)",
+  	"TSTP",	"Stopped",
+
+--- 236,243 -----
+  	"PIPE",	"Broken pipe",
+  	"ALRM",	"Alarm clock",
+  	"TERM",	"Terminated",
++ #ifdef SVID
++ # ifdef pyr			/* these are really the BSD sigs, plus a few */
+  	"URG",	"Urgent I/O condition",
+  	"STOP",	"Stopped (signal)",
+  	"TSTP",	"Stopped",
+***************
+*** 226,232
+  	"CHLD",	"Child exited",
+  	"TTIN", "Stopped (tty input)",
+  	"TTOU", "Stopped (tty output)",
+! 	"IO",	"I/O possible",
+  	"XCPU",	"Cputime limit exceeded",
+  	"XFSZ", "Filesize limit exceeded",
+  	"VTALRM","Virtual timer expired",
+
+--- 245,251 -----
+  	"CHLD",	"Child exited",
+  	"TTIN", "Stopped (tty input)",
+  	"TTOU", "Stopped (tty output)",
+! 	"IO",   "I/O possible",
+  	"XCPU",	"Cputime limit exceeded",
+  	"XFSZ", "Filesize limit exceeded",
+  	"VTALRM", "Virtual time alarm",
+***************
+*** 229,237
+  	"IO",	"I/O possible",
+  	"XCPU",	"Cputime limit exceeded",
+  	"XFSZ", "Filesize limit exceeded",
+! 	"VTALRM","Virtual timer expired",
+! 	"PROF",	"Profiling timer expired",
+! 	"WINCH","Window size changed",
+  	0,	"Signal 29",
+  	"USR1",	"User defined signal 1",
+  	"USR2",	"User defined signal 2",
+
+--- 248,286 -----
+  	"IO",   "I/O possible",
+  	"XCPU",	"Cputime limit exceeded",
+  	"XFSZ", "Filesize limit exceeded",
+! 	"VTALRM", "Virtual time alarm",
+! 	"PROF",	"Profiling time alarm",
+! 	"USR1",	"User signal 1",
+! 	"USR2",	"User signal 2",
+! 	"PWR",	"Power failure",
+! 	0,	"Signal 31",
+! 	0,	"Signal 32"
+! # else pyr			/* the first four real SVID sigs. */
+! 	"USR1",	"User signal 1",
+! 	"USR2", "User signal 2",
+! 	"CHLD",	"Child exited",
+! 	"PWR",  "Power failure",
+! #  ifdef OREO
+! 	"TSTP",	"Stopped",
+! 	"TTIN", "Stopped (tty input)",
+! 	"TTOU", "Stopped (tty output)",
+! 	"STOP",	"Stopped (signal)",
+! 	"XCPU",	"Cputime limit exceeded",
+! 	"XFSZ", "Filesize limit exceeded",
+! 	"VTALRM", "Virtual time alarm",
+! 	"PROF", "Profiling time alarm",
+! 	"WINCH", "Window size changed",
+! 	"CONT",	"Continued",
+! #  else OREO
+! 	0,	"Signal 20",
+! 	0,	"Signal 21",
+! 	0,	"Signal 22",
+! 	0,	"Signal 23",
+! 	0,	"Signal 24",
+! 	0,	"Signal 25",
+! 	0,	"Signal 26",
+! 	0,	"Signal 27",
+! 	0,	"Signal 28",
+  	0,	"Signal 29",
+  #  endif OREO
+  	0,	"Signal 30",
+***************
+*** 233,238
+  	"PROF",	"Profiling timer expired",
+  	"WINCH","Window size changed",
+  	0,	"Signal 29",
+  	"USR1",	"User defined signal 1",
+  	"USR2",	"User defined signal 2",
+  	0,	"Signal 32"
+
+--- 282,321 -----
+  	0,	"Signal 27",
+  	0,	"Signal 28",
+  	0,	"Signal 29",
++ #  endif OREO
++ 	0,	"Signal 30",
++ 	0,	"Signal 31",
++ 	0,	"Signal 32"
++ # endif pyr
++ #else SVID
++ 	"URG",	"Urgent I/O condition",
++ 	"STOP",	"Stopped (signal)",
++ 	"TSTP",	"Stopped",
++ 	"CONT",	"Continued",
++ 	"CHLD",	"Child exited",
++ 	"TTIN", "Stopped (tty input)",
++ 	"TTOU", "Stopped (tty output)",
++ 	"IO",   "I/O possible",
++ 	"XCPU",	"Cputime limit exceeded",
++ 	"XFSZ", "Filesize limit exceeded",
++ 	"VTALRM", "Virtual time alarm",
++ 	"PROF",	"Profiling time alarm",
++ # ifdef sun
++ 	"WINCH", "Window size changed",
++ 	"LOST",	"Resource lost",
++ 	"USR1",	"User signal 1",
++ 	"USR2",	"User signal 2",
++ 	0,	"Signal 32"
++ # else sun
++ #  ifdef pyr
++ 	"USR1",	"User signal 1",
++ 	"USR2",	"User signal 2",
++ 	"PWR",	"Power failure",
++ 	0,	"Signal 31",
++ 	0,	"Signal 32"
++ #  else pyr
++ 	"WINCH", "Window size changed",
++ 	0,	"Signal 29",
+  	"USR1",	"User defined signal 1",
+  	"USR2",	"User defined signal 2",
+  	0,	"Signal 32"
+***************
+*** 236,239
+  	"USR1",	"User defined signal 1",
+  	"USR2",	"User defined signal 2",
+  	0,	"Signal 32"
+  };
+
+--- 319,325 -----
+  	"USR1",	"User defined signal 1",
+  	"USR2",	"User defined signal 2",
+  	0,	"Signal 32"
++ #  endif pyr
++ # endif sun
++ #endif SVID
+  };
+*** sh.lex.c	Sat Mar 29 07:38:02 1986
+--- /usr/src/local/tcsh/sh.lex.c	Thu Sep 17 23:23:42 1987
+***************
+*** 9,15
+  #endif
+  
+  #include "sh.h"
+- #include <sgtty.h>
+  
+  /*
+   * C shell
+
+--- 9,14 -----
+  #endif
+  
+  #include "sh.h"
+  
+  /*
+   * C shell
+***************
+*** 221,234
+  					c |= QUOTE;
+  				else {
+  					if (c == '\n')
+! 						/*
+! 						if (c1 == '`')
+! 							c = ' ';
+! 						else
+! 						*/
+! 							c |= QUOTE;
+! 					ungetC(c);
+! 					c = '\\';
+  				}
+  			} else if (c == '\n') {
+  				seterrc("Unmatched ", c1);
+
+--- 220,234 -----
+  					c |= QUOTE;
+  				else {
+  					if (c == '\n')
+! 						c |= QUOTE;
+! 					else if (c == '"')
+! 						c |= QUOTE;
+! 					else if (c == '\'')
+! 						c |= QUOTE;
+! 					else {
+! 						ungetC(c);
+! 						c = '\\';
+! 					}
+  				}
+  			} else if (c == '\n') {
+  				seterrc("Unmatched ", c1);
+***************
+*** 1126,1131
+  reread:
+  		c = bgetc();
+  		if (c < 0) {
+  			struct sgttyb tty;
+  
+  			if (wanteof)
+
+--- 1126,1135 -----
+  reread:
+  		c = bgetc();
+  		if (c < 0) {
++ #ifdef	SVID
++ #include <termio.h>
++ 			struct termio tty;
++ #else
+  			struct sgttyb tty;
+  #endif SVID
+  
+***************
+*** 1127,1132
+  		c = bgetc();
+  		if (c < 0) {
+  			struct sgttyb tty;
+  
+  			if (wanteof)
+  				return (-1);
+
+--- 1131,1137 -----
+  			struct termio tty;
+  #else
+  			struct sgttyb tty;
++ #endif SVID
+  
+  			if (wanteof)
+  				return (-1);
+***************
+*** 1131,1136
+  			if (wanteof)
+  				return (-1);
+  			/* was isatty but raw with ignoreeof yields problems */
+  			if (ioctl(SHIN, TIOCGETP, (char *)&tty) == 0 &&
+  			    (tty.sg_flags & RAW) == 0) {
+  				/* was 'short' for FILEC */
+
+--- 1136,1145 -----
+  			if (wanteof)
+  				return (-1);
+  			/* was isatty but raw with ignoreeof yields problems */
++ #ifdef SVID
++ 			if (ioctl(SHIN, TCGETA, &tty)==0 &&
++ 			    (tty.c_cc[VEOF] != CEOF)) {
++ #else SVID
+  			if (ioctl(SHIN, TIOCGETP, (char *)&tty) == 0 &&
+  			    (tty.sg_flags & RAW) == 0) {
+  #endif
+***************
+*** 1133,1139
+  			/* was isatty but raw with ignoreeof yields problems */
+  			if (ioctl(SHIN, TIOCGETP, (char *)&tty) == 0 &&
+  			    (tty.sg_flags & RAW) == 0) {
+! 				/* was 'short' for FILEC */
+  				int ctpgrp;
+  
+  				if (++sincereal > 25)
+
+--- 1142,1148 -----
+  #else SVID
+  			if (ioctl(SHIN, TIOCGETP, (char *)&tty) == 0 &&
+  			    (tty.sg_flags & RAW) == 0) {
+! #endif
+  				int ctpgrp;
+  
+  				if (++sincereal > 25)
+***************
+*** 1138,1143
+  
+  				if (++sincereal > 25)
+  					goto oops;
+  				if (tpgrp != -1 &&
+  				    ioctl(FSHTTY, TIOCGPGRP, (char *)&ctpgrp) == 0 &&
+  				    tpgrp != ctpgrp) {
+
+--- 1147,1153 -----
+  
+  				if (++sincereal > 25)
+  					goto oops;
++ #ifdef BSDJOBS
+  				if (tpgrp != -1 &&
+  				    ioctl(FSHTTY, TIOCGPGRP, (char *)&ctpgrp) == 0 &&
+  				    tpgrp != ctpgrp) {
+***************
+*** 1147,1152
+  printf("Reset tty pgrp from %d to %d\n", ctpgrp, tpgrp);
+  					goto reread;
+  				}
+  				if (adrof("ignoreeof")) {
+  					if (loginsh)
+  						printf("\nUse \"logout\" to logout.\n");
+
+--- 1157,1163 -----
+  printf("Reset tty pgrp from %d to %d\n", ctpgrp, tpgrp);
+  					goto reread;
+  				}
++ #endif BSDJOBS
+  				if (adrof("ignoreeof")) {
+  					if (loginsh)
+  						printf("\nUse \"logout\" to logout.\n");
+***************
+*** 1151,1157
+  					if (loginsh)
+  						printf("\nUse \"logout\" to logout.\n");
+  					else
+! 						printf("\nUse \"exit\" to leave csh.\n");
+  					reset();
+  				}
+  				if (chkstop == 0)
+
+--- 1162,1168 -----
+  					if (loginsh)
+  						printf("\nUse \"logout\" to logout.\n");
+  					else
+! 						printf("\nUse \"exit\" to leave tcsh.\n");
+  					reset();
+  				}
+  				if (chkstop == 0)
+***************
+*** 1171,1178
+  bgetc()
+  {
+  	register int buf, off, c;
+! #ifdef FILEC
+! 	char ttyline[BUFSIZ];
+  	register int numleft = 0, roomleft;
+  #endif
+  
+
+--- 1182,1188 -----
+  bgetc()
+  {
+  	register int buf, off, c;
+! 	extern char InputBuf[];
+  	register int numleft = 0, roomleft;
+  
+  #ifdef TELL
+***************
+*** 1174,1180
+  #ifdef FILEC
+  	char ttyline[BUFSIZ];
+  	register int numleft = 0, roomleft;
+- #endif
+  
+  #ifdef TELL
+  	if (cantell) {
+
+--- 1184,1189 -----
+  	register int buf, off, c;
+  	extern char InputBuf[];
+  	register int numleft = 0, roomleft;
+  
+  #ifdef TELL
+  	if (cantell) {
+***************
+*** 1187,1193
+  			do
+  				c = read(SHIN, fbuf[0], BUFSIZ);
+  			while (c < 0 && errno == EINTR);
+! 			if (c <= 0)
+  				return (-1);
+  			feobp += c;
+  		}
+
+--- 1196,1202 -----
+  			do
+  				c = read(SHIN, fbuf[0], BUFSIZ);
+  			while (c < 0 && errno == EINTR);
+! 			if (c <= 0) {
+  				return (-1);
+  			}
+  			feobp += c;
+***************
+*** 1189,1194
+  			while (c < 0 && errno == EINTR);
+  			if (c <= 0)
+  				return (-1);
+  			feobp += c;
+  		}
+  		c = fbuf[0][fseekp - fbobp];
+
+--- 1198,1204 -----
+  			while (c < 0 && errno == EINTR);
+  			if (c <= 0) {
+  				return (-1);
++ 			}
+  			feobp += c;
+  		}
+  		c = fbuf[0][fseekp - fbobp];
+***************
+*** 1210,1216
+  		fbuf = nfbuf;
+  		fbuf[fblocks] = calloc(BUFSIZ, sizeof (char));
+  		fblocks++;
+! 		goto again;
+  	}
+  	if (fseekp >= feobp) {
+  		buf = (int) feobp / BUFSIZ;
+
+--- 1220,1227 -----
+  		fbuf = nfbuf;
+  		fbuf[fblocks] = calloc(BUFSIZ, sizeof (char));
+  		fblocks++;
+! 		if (!intty)
+! 			goto again;
+  	}
+  	if (fseekp >= feobp) {
+  		buf = (int) feobp / BUFSIZ;
+***************
+*** 1215,1221
+  	if (fseekp >= feobp) {
+  		buf = (int) feobp / BUFSIZ;
+  		off = (int) feobp % BUFSIZ;
+! #ifndef FILEC
+  		for (;;) {
+  			c = read(SHIN, fbuf[buf] + off, BUFSIZ - off);
+  #else
+
+--- 1226,1232 -----
+  	if (fseekp >= feobp) {
+  		buf = (int) feobp / BUFSIZ;
+  		off = (int) feobp % BUFSIZ;
+!  		roomleft = BUFSIZ - off;
+  		for (;;) {
+  			if (intty) { 	/* then use twenex routine */
+  				/* PWP: get a line */
+***************
+*** 1217,1234
+  		off = (int) feobp % BUFSIZ;
+  #ifndef FILEC
+  		for (;;) {
+! 			c = read(SHIN, fbuf[buf] + off, BUFSIZ - off);
+! #else
+! 		roomleft = BUFSIZ - off;
+! 		for (;;) {
+! 			if (filec && intty) {
+! 				c = numleft ? numleft : tenex(ttyline, BUFSIZ);
+! 				if (c > roomleft) {
+! 					/* start with fresh buffer */
+! 					feobp = fseekp = fblocks * BUFSIZ;
+! 					numleft = c;
+! 					goto again;
+! 				}
+  				if (c > 0)
+  					copy(fbuf[buf] + off, ttyline, c);
+  				numleft = 0;
+
+--- 1228,1244 -----
+  		off = (int) feobp % BUFSIZ;
+   		roomleft = BUFSIZ - off;
+  		for (;;) {
+! 			if (intty) { 	/* then use twenex routine */
+! 				/* PWP: get a line */
+! 				c = numleft ? numleft : Inputl();
+! 				if (c > roomleft) /* No room in this buffer? */
+! 					{
+! 						/* start with fresh buffer */
+! 						feobp = fseekp =
+! 							fblocks * BUFSIZ;
+! 						numleft = c;
+! 						goto again;
+! 					}
+  				if (c > 0)
+  					copy (fbuf[buf] + off, InputBuf, c);
+  				/* copy (fbuf[buf] + off, ttyline, c); */
+***************
+*** 1230,1236
+  					goto again;
+  				}
+  				if (c > 0)
+! 					copy(fbuf[buf] + off, ttyline, c);
+  				numleft = 0;
+  			} else
+  				c = read(SHIN, fbuf[buf] + off, roomleft);
+
+--- 1240,1247 -----
+  						goto again;
+  					}
+  				if (c > 0)
+! 					copy (fbuf[buf] + off, InputBuf, c);
+! 				/* copy (fbuf[buf] + off, ttyline, c); */
+  				numleft = 0;
+  			}
+  			else {
+***************
+*** 1232,1238
+  				if (c > 0)
+  					copy(fbuf[buf] + off, ttyline, c);
+  				numleft = 0;
+! 			} else
+  				c = read(SHIN, fbuf[buf] + off, roomleft);
+  #endif
+  			if (c >= 0)
+
+--- 1243,1250 -----
+  					copy (fbuf[buf] + off, InputBuf, c);
+  				/* copy (fbuf[buf] + off, ttyline, c); */
+  				numleft = 0;
+! 			}
+! 			else {
+  				c = read(SHIN, fbuf[buf] + off, roomleft);
+  			}
+  			if (c >= 0)
+***************
+*** 1234,1240
+  				numleft = 0;
+  			} else
+  				c = read(SHIN, fbuf[buf] + off, roomleft);
+! #endif
+  			if (c >= 0)
+  				break;
+  			if (errno == EWOULDBLOCK) {
+
+--- 1246,1252 -----
+  			}
+  			else {
+  				c = read(SHIN, fbuf[buf] + off, roomleft);
+! 			}
+  			if (c >= 0)
+  				break;
+  			if (errno == EWOULDBLOCK) {
+***************
+*** 1239,1245
+  				break;
+  			if (errno == EWOULDBLOCK) {
+  				int off = 0;
+! 
+  				(void) ioctl(SHIN, FIONBIO, (char *)&off);
+  			} else if (errno != EINTR)
+  				break;
+
+--- 1251,1257 -----
+  				break;
+  			if (errno == EWOULDBLOCK) {
+  				int off = 0;
+! 				
+  				(void) ioctl(SHIN, FIONBIO, (char *)&off);
+  			} else if (errno != EINTR)
+  				break;
+***************
+*** 1244,1250
+  			} else if (errno != EINTR)
+  				break;
+  		}
+! 		if (c <= 0)
+  			return (-1);
+  		feobp += c;
+  #ifndef FILEC
+
+--- 1256,1262 -----
+  			} else if (errno != EINTR)
+  				break;
+  		}
+! 		if (c <= 0) {
+  			return (-1);
+  		}
+  		feobp += c;
+***************
+*** 1246,1251
+  		}
+  		if (c <= 0)
+  			return (-1);
+  		feobp += c;
+  #ifndef FILEC
+  		goto again;
+
+--- 1258,1264 -----
+  		}
+  		if (c <= 0) {
+  			return (-1);
++ 		}
+  		feobp += c;
+  		if (!intty)
+  			goto again;
+***************
+*** 1247,1256
+  		if (c <= 0)
+  			return (-1);
+  		feobp += c;
+! #ifndef FILEC
+! 		goto again;
+! #else
+! 		if (filec && !intty)
+  			goto again;
+  #endif
+  	}
+
+--- 1260,1266 -----
+  			return (-1);
+  		}
+  		feobp += c;
+! 		if (!intty)
+  			goto again;
+  	}
+  	c = fbuf[buf][(int) fseekp % BUFSIZ];
+***************
+*** 1252,1258
+  #else
+  		if (filec && !intty)
+  			goto again;
+- #endif
+  	}
+  	c = fbuf[buf][(int) fseekp % BUFSIZ];
+  	fseekp++;
+
+--- 1262,1267 -----
+  		feobp += c;
+  		if (!intty)
+  			goto again;
+  	}
+  	c = fbuf[buf][(int) fseekp % BUFSIZ];
+  	fseekp++;
+*** sh.local.h	Thu Jun  6 13:15:34 1985
+--- /usr/src/local/tcsh/sh.local.h	Mon Aug 17 21:32:31 1987
+***************
+*** 22,28
+   */
+  
+  #define	BUFSIZ	1024		/* default buffer size */
+! #define	SHELLPATH	"/bin/csh"
+  #define	OTHERSH		"/bin/sh"
+  #define FORKSLEEP	10	/* delay loop on non-interactive fork failure */
+  #define	MAILINTVL	600	/* 10 minutes */
+
+--- 22,30 -----
+   */
+  
+  #define	BUFSIZ	1024		/* default buffer size */
+! #ifndef SHELLPATH
+! #define	SHELLPATH	"/bin/tcsh"
+! #endif
+  #define	OTHERSH		"/bin/sh"
+  #define FORKSLEEP	10	/* delay loop on non-interactive fork failure */
+  #define	MAILINTVL	600	/* 10 minutes */
+*** sh.misc.c	Sat Mar 29 07:37:28 1986
+--- /usr/src/local/tcsh/sh.misc.c	Mon Aug 17 21:32:32 1987
+***************
+*** 88,94
+  #else
+  	showall(av);
+  	printf("i=%d: Out of memory\n", i);
+! 	chdir("/usr/bill/cshcore");
+  	abort();
+  #endif
+  	return 0;		/* fool lint */
+
+--- 88,94 -----
+  #else
+  	showall(av);
+  	printf("i=%d: Out of memory\n", i);
+! 	/* chdir("/usr/bill/cshcore"); */
+  	abort();
+  #endif
+  	return 0;		/* fool lint */
+*** sh.print.c	Thu Jun  6 13:15:28 1985
+--- /usr/src/local/tcsh/sh.print.c	Mon Aug 17 21:44:36 1987
+***************
+*** 42,48
+  	printf("%d%d", i / 10, i % 10);
+  }
+  
+! char	linbuf[128];
+  char	*linp = linbuf;
+  
+  putchar(c)
+
+--- 42,48 -----
+  	printf("%d%d", i / 10, i % 10);
+  }
+  
+! char	linbuf[2048];		/* was 128 */
+  char	*linp = linbuf;
+  int lbuffed = 1;		/* true if line buffered */
+  
+***************
+*** 44,49
+  
+  char	linbuf[128];
+  char	*linp = linbuf;
+  
+  putchar(c)
+  	register int c;
+
+--- 44,50 -----
+  
+  char	linbuf[2048];		/* was 128 */
+  char	*linp = linbuf;
++ int lbuffed = 1;		/* true if line buffered */
+  
+  putchar(c)
+  	register int c;
+***************
+*** 49,55
+  	register int c;
+  {
+  
+! 	if ((c & QUOTE) == 0 && (c == 0177 || c < ' ' && c != '\t' && c != '\n')) {
+  		putchar('^');
+  		if (c == 0177)
+  			c = '?';
+
+--- 50,56 -----
+  	register int c;
+  {
+  
+! 	if ((c & QUOTE) == 0 && (c == 0177 || c < ' ' && c != '\t' && c != '\n' && c != '\r')) {
+  		putchar('^');
+  		if (c == 0177)
+  			c = '?';
+***************
+*** 58,64
+  	}
+  	c &= TRIM;
+  	*linp++ = c;
+! 	if (c == '\n' || linp >= &linbuf[sizeof linbuf - 2])
+  		flush();
+  }
+  
+
+--- 59,65 -----
+  	}
+  	c &= TRIM;
+  	*linp++ = c;
+! 	if ((lbuffed && c == '\n') || linp >= &linbuf[sizeof linbuf - 2])
+  		flush();
+  }
+  
+***************
+*** 62,67
+  		flush();
+  }
+  
+  draino()
+  {
+  
+
+--- 63,77 -----
+  		flush();
+  }
+  
++ putraw(c)
++ 	register int c;
++ {
++ 	c &= TRIM;
++ 	*linp++ = c;
++ 	if (linp >= &linbuf[sizeof linbuf - 2])
++ 		flush();
++ }
++ 
+  draino()
+  {
+  
+***************
+*** 87,92
+  		(void) write(unit, "\n", 1);
+  	}
+  #endif
+! 	(void) write(unit, linbuf, linp - linbuf);
+  	linp = linbuf;
+  }
+
+--- 97,102 -----
+  		(void) write(unit, "\n", 1);
+  	}
+  #endif
+! 	(void) write(unit, linbuf, (int) (linp - linbuf));
+  	linp = linbuf;
+  }
+*** sh.proc.c	Tue May 13 01:12:46 1986
+--- /usr/src/local/tcsh/sh.proc.c	Mon Aug 17 21:32:39 1987
+***************
+*** 34,39
+  	register int pid;
+  	union wait w;
+  	int jobflags;
+  	struct rusage ru;
+  
+  loop:
+
+--- 34,40 -----
+  	register int pid;
+  	union wait w;
+  	int jobflags;
++ #ifndef OREO
+  	struct rusage ru;
+  #endif
+  
+***************
+*** 35,40
+  	union wait w;
+  	int jobflags;
+  	struct rusage ru;
+  
+  loop:
+  	pid = wait3(&w, (setintr ? WNOHANG|WUNTRACED:WNOHANG), &ru);
+
+--- 36,42 -----
+  	int jobflags;
+  #ifndef OREO
+  	struct rusage ru;
++ #endif
+  
+  loop:
+  	pid = wait3(&w, (setintr ? WNOHANG|WUNTRACED:WNOHANG),
+***************
+*** 37,43
+  	struct rusage ru;
+  
+  loop:
+! 	pid = wait3(&w, (setintr ? WNOHANG|WUNTRACED:WNOHANG), &ru);
+  	if (pid <= 0) {
+  		if (errno == EINTR) {
+  			errno = 0;
+
+--- 39,50 -----
+  #endif
+  
+  loop:
+! 	pid = wait3(&w, (setintr ? WNOHANG|WUNTRACED:WNOHANG),
+! #ifdef	OREO
+! 		    0);
+! #else	OREO
+! 		    &ru);
+! #endif	OREO
+  	if (pid <= 0) {
+  		if (errno == EINTR) {
+  			errno = 0;
+***************
+*** 60,65
+  	} else {
+  		if (pp->p_flags & (PTIME|PPTIME) || adrof("time"))
+  			(void) gettimeofday(&pp->p_etime, (struct timezone *)0);
+  		pp->p_rusage = ru;
+  		if (WIFSIGNALED(w)) {
+  			if (w.w_termsig == SIGINT)
+
+--- 67,73 -----
+  	} else {
+  		if (pp->p_flags & (PTIME|PPTIME) || adrof("time"))
+  			(void) gettimeofday(&pp->p_etime, (struct timezone *)0);
++ #ifndef	OREO
+  		pp->p_rusage = ru;
+  #endif OREO
+  		if (WIFSIGNALED(w)) {
+***************
+*** 61,66
+  		if (pp->p_flags & (PTIME|PPTIME) || adrof("time"))
+  			(void) gettimeofday(&pp->p_etime, (struct timezone *)0);
+  		pp->p_rusage = ru;
+  		if (WIFSIGNALED(w)) {
+  			if (w.w_termsig == SIGINT)
+  				pp->p_flags |= PINTERRUPTED;
+
+--- 69,75 -----
+  			(void) gettimeofday(&pp->p_etime, (struct timezone *)0);
+  #ifndef	OREO
+  		pp->p_rusage = ru;
++ #endif OREO
+  		if (WIFSIGNALED(w)) {
+  			if (w.w_termsig == SIGINT)
+  				pp->p_flags |= PINTERRUPTED;
+***************
+*** 211,216
+  		sigpause(sigblock(0) &~ sigmask(SIGCHLD));
+  	}
+  	(void) sigsetmask(omask);
+  	if (tpgrp > 0)			/* get tty back */
+  		(void) ioctl(FSHTTY, TIOCSPGRP, (char *)&tpgrp);
+  	if ((jobflags&(PSIGNALED|PSTOPPED|PTIME)) ||
+
+--- 220,226 -----
+  		sigpause(sigblock(0) &~ sigmask(SIGCHLD));
+  	}
+  	(void) sigsetmask(omask);
++ #ifdef	BSDJOBS
+  	if (tpgrp > 0)			/* get tty back */
+  		(void) ioctl(FSHTTY, TIOCSPGRP, (char *)&tpgrp);
+  #endif	BSDJOBS
+***************
+*** 213,218
+  	(void) sigsetmask(omask);
+  	if (tpgrp > 0)			/* get tty back */
+  		(void) ioctl(FSHTTY, TIOCSPGRP, (char *)&tpgrp);
+  	if ((jobflags&(PSIGNALED|PSTOPPED|PTIME)) ||
+  	     !eq(dcwd->di_name, fp->p_cwd->di_name)) {
+  		if (jobflags&PSTOPPED)
+
+--- 223,229 -----
+  #ifdef	BSDJOBS
+  	if (tpgrp > 0)			/* get tty back */
+  		(void) ioctl(FSHTTY, TIOCSPGRP, (char *)&tpgrp);
++ #endif	BSDJOBS
+  	if ((jobflags&(PSIGNALED|PSTOPPED|PTIME)) ||
+  	     !eq(dcwd->di_name, fp->p_cwd->di_name)) {
+  		if (jobflags&PSTOPPED)
+***************
+*** 628,633
+  		if (pp->p_flags&PPTIME && !(status&(PSTOPPED|PRUNNING))) {
+  			if (linp != linbuf)
+  				printf("\n\t");
+  			{ static struct rusage zru;
+  			  prusage(&zru, &pp->p_rusage, &pp->p_etime,
+  			    &pp->p_btime);
+
+--- 639,645 -----
+  		if (pp->p_flags&PPTIME && !(status&(PSTOPPED|PRUNNING))) {
+  			if (linp != linbuf)
+  				printf("\n\t");
++ #ifndef OREO
+  			{ static struct rusage zru;
+  			  prusage(&zru, &pp->p_rusage, &pp->p_etime,
+  			    &pp->p_btime);
+***************
+*** 632,637
+  			  prusage(&zru, &pp->p_rusage, &pp->p_etime,
+  			    &pp->p_btime);
+  			}
+  		}
+  		if (tp == pp->p_friends) {
+  			if (linp != linbuf)
+
+--- 644,650 -----
+  			  prusage(&zru, &pp->p_rusage, &pp->p_etime,
+  			    &pp->p_btime);
+  			}
++ #endif OREO
+  		}
+  		if (tp == pp->p_friends) {
+  			if (linp != linbuf)
+***************
+*** 654,659
+  ptprint(tp)
+  	register struct process *tp;
+  {
+  	struct timeval tetime, diff;
+  	static struct timeval ztime;
+  	struct rusage ru;
+
+--- 667,675 -----
+  ptprint(tp)
+  	register struct process *tp;
+  {
++ #ifdef OREO
++ 	printf ("There is no time stuff for OREO yet (sorry).\n");
++ #else OREO
+  	struct timeval tetime, diff;
+  	static struct timeval ztime;
+  	struct rusage ru;
+***************
+*** 669,674
+  			tetime = diff;
+  	} while ((pp = pp->p_friends) != tp);
+  	prusage(&zru, &ru, &tetime, &ztime);
+  }
+  
+  /*
+
+--- 685,691 -----
+  			tetime = diff;
+  	} while ((pp = pp->p_friends) != tp);
+  	prusage(&zru, &ru, &tetime, &ztime);
++ #endif OREO
+  }
+  
+  /*
+***************
+*** 896,901
+  	if (!foregnd)
+  		pclrcurr(pp);
+  	(void) pprint(pp, foregnd ? NAME|JOBDIR : NUMBER|NAME|AMPERSAND);
+  	if (foregnd)
+  		(void) ioctl(FSHTTY, TIOCSPGRP, (char *)&pp->p_jobid);
+  	if (jobflags&PSTOPPED)
+
+--- 913,919 -----
+  	if (!foregnd)
+  		pclrcurr(pp);
+  	(void) pprint(pp, foregnd ? NAME|JOBDIR : NUMBER|NAME|AMPERSAND);
++ #ifdef	BSDJOBS
+  	if (foregnd)
+  		(void) ioctl(FSHTTY, TIOCSPGRP, (char *)&pp->p_jobid);
+  	if (jobflags&PSTOPPED)
+***************
+*** 900,905
+  		(void) ioctl(FSHTTY, TIOCSPGRP, (char *)&pp->p_jobid);
+  	if (jobflags&PSTOPPED)
+  		(void) killpg(pp->p_jobid, SIGCONT);
+  	(void) sigsetmask(omask);
+  }
+  
+
+--- 918,924 -----
+  		(void) ioctl(FSHTTY, TIOCSPGRP, (char *)&pp->p_jobid);
+  	if (jobflags&PSTOPPED)
+  		(void) killpg(pp->p_jobid, SIGCONT);
++ #endif	BSDJOBS
+  	(void) sigsetmask(omask);
+  }
+  
+***************
+*** 1063,1068
+  			(void) signal(SIGINT, SIG_IGN);
+  			(void) signal(SIGQUIT, SIG_IGN);
+  		}
+  		if (wanttty > 0)
+  			(void) ioctl(FSHTTY, TIOCSPGRP, (char *)&pgrp);
+  		if (wanttty >= 0 && tpgrp >= 0)
+
+--- 1082,1088 -----
+  			(void) signal(SIGINT, SIG_IGN);
+  			(void) signal(SIGQUIT, SIG_IGN);
+  		}
++ #ifdef BSDJOBS
+  		if (wanttty > 0)
+  			(void) ioctl(FSHTTY, TIOCSPGRP, (char *)&pgrp);
+  		if (wanttty >= 0 && tpgrp >= 0)
+***************
+*** 1069,1074
+  			(void) setpgrp(0, pgrp);
+  		if (tpgrp > 0)
+  			tpgrp = 0;		/* gave tty away */
+  		/*
+  		 * Nohup and nice apply only to TCOM's but it would be
+  		 * nice (?!?) if you could say "nohup (foo;bar)"
+
+--- 1089,1095 -----
+  			(void) setpgrp(0, pgrp);
+  		if (tpgrp > 0)
+  			tpgrp = 0;		/* gave tty away */
++ #endif BSDJOBS
+  		/*
+  		 * Nohup and nice apply only to TCOM's but it would be
+  		 * nice (?!?) if you could say "nohup (foo;bar)"
+*** sh.proc.h	Thu Jun  6 13:15:49 1985
+--- /usr/src/local/tcsh/sh.proc.h	Mon Aug 17 21:32:40 1987
+***************
+*** 30,35
+  	/* if a job is stopped/background p_jobid gives its pgrp */
+  	struct	timeval p_btime;	/* begin time */
+  	struct	timeval p_etime;	/* end time */
+  	struct	rusage p_rusage;
+  	char	*p_command;		/* first PMAXLEN chars of command */
+  };
+
+--- 30,36 -----
+  	/* if a job is stopped/background p_jobid gives its pgrp */
+  	struct	timeval p_btime;	/* begin time */
+  	struct	timeval p_etime;	/* end time */
++ #ifndef OREO
+  	struct	rusage p_rusage;
+  #endif	OREO
+  	char	*p_command;		/* first PMAXLEN chars of command */
+***************
+*** 31,36
+  	struct	timeval p_btime;	/* begin time */
+  	struct	timeval p_etime;	/* end time */
+  	struct	rusage p_rusage;
+  	char	*p_command;		/* first PMAXLEN chars of command */
+  };
+  
+
+--- 32,38 -----
+  	struct	timeval p_etime;	/* end time */
+  #ifndef OREO
+  	struct	rusage p_rusage;
++ #endif	OREO
+  	char	*p_command;		/* first PMAXLEN chars of command */
+  };
+  
+*** sh.sem.c	Tue May 13 01:08:43 1986
+--- /usr/src/local/tcsh/sh.sem.c	Thu Sep 24 15:04:35 1987
+***************
+*** 187,192
+  					(void) signal(SIGINT, SIG_IGN);
+  					(void) signal(SIGQUIT, SIG_IGN);
+  				}
+  				if (wanttty > 0)
+  					(void) ioctl(FSHTTY, TIOCSPGRP,
+  						(char *)&pgrp);
+
+--- 187,193 -----
+  					(void) signal(SIGINT, SIG_IGN);
+  					(void) signal(SIGQUIT, SIG_IGN);
+  				}
++ #ifdef BSDJOBS
+  				if (wanttty > 0)
+  					(void) ioctl(FSHTTY, TIOCSPGRP,
+  						(char *)&pgrp);
+***************
+*** 192,197
+  						(char *)&pgrp);
+  				if (wanttty >= 0 && tpgrp >= 0)
+  					(void) setpgrp(0, pgrp);
+  				if (tpgrp > 0)
+  					tpgrp = 0;
+  				if (t->t_dflg & FNOHUP)
+
+--- 193,199 -----
+  						(char *)&pgrp);
+  				if (wanttty >= 0 && tpgrp >= 0)
+  					(void) setpgrp(0, pgrp);
++ #endif	BSDJOBS
+  				if (tpgrp > 0)
+  					tpgrp = 0;
+  				if (t->t_dflg & FNOHUP)
+*** sh.set.c	Thu Jun  6 13:15:54 1985
+--- /usr/src/local/tcsh/sh.set.c	Thu Sep 24 15:03:28 1987
+***************
+*** 81,87
+  
+  			HIST = *p++;
+  			HISTSUB = *p;
+! 		} else if (eq(vp, "user"))
+  			setenv("USER", value(vp));
+  		else if (eq(vp, "term"))
+  			setenv("TERM", value(vp));
+
+--- 81,87 -----
+  
+  			HIST = *p++;
+  			HISTSUB = *p;
+! 		} else if (eq(vp, "user")) {
+  			setenv("USER", value(vp));
+  		} else if (eq(vp, "term")) {
+  			setenv("TERM", value(vp));
+***************
+*** 83,89
+  			HISTSUB = *p;
+  		} else if (eq(vp, "user"))
+  			setenv("USER", value(vp));
+! 		else if (eq(vp, "term"))
+  			setenv("TERM", value(vp));
+  		else if (eq(vp, "home"))
+  			setenv("HOME", value(vp));
+
+--- 83,89 -----
+  			HISTSUB = *p;
+  		} else if (eq(vp, "user")) {
+  			setenv("USER", value(vp));
+! 		} else if (eq(vp, "term")) {
+  			setenv("TERM", value(vp));
+  			ed_Init(); /* reset the editor */
+  		} else if (eq(vp, "home")) {
+***************
+*** 85,91
+  			setenv("USER", value(vp));
+  		else if (eq(vp, "term"))
+  			setenv("TERM", value(vp));
+! 		else if (eq(vp, "home"))
+  			setenv("HOME", value(vp));
+  #ifdef FILEC
+  		else if (eq(vp, "filec"))
+
+--- 85,92 -----
+  			setenv("USER", value(vp));
+  		} else if (eq(vp, "term")) {
+  			setenv("TERM", value(vp));
+! 			ed_Init(); /* reset the editor */
+! 		} else if (eq(vp, "home")) {
+  			setenv("HOME", value(vp));
+  		}
+  	} while (p = *v++);
+***************
+*** 87,96
+  			setenv("TERM", value(vp));
+  		else if (eq(vp, "home"))
+  			setenv("HOME", value(vp));
+! #ifdef FILEC
+! 		else if (eq(vp, "filec"))
+! 			filec = 1;
+! #endif
+  	} while (p = *v++);
+  }
+  
+
+--- 88,94 -----
+  			ed_Init(); /* reset the editor */
+  		} else if (eq(vp, "home")) {
+  			setenv("HOME", value(vp));
+! 		}
+  	} while (p = *v++);
+  }
+  
+***************
+*** 435,444
+  		HIST = '!';
+  		HISTSUB = '^';
+  	}
+- #ifdef FILEC
+- 	if (adrof("filec") == 0)
+- 		filec = 0;
+- #endif
+  }
+  
+  unset1(v, head)
+
+--- 433,438 -----
+  		HIST = '!';
+  		HISTSUB = '^';
+  	}
+  }
+  
+  unset1(v, head)
+*** sh.time.c	Tue May 13 01:07:31 1986
+--- /usr/src/local/tcsh/sh.time.c	Mon Aug 17 21:32:45 1987
+***************
+*** 16,21
+  
+  settimes()
+  {
+  	struct rusage ruch;
+  
+  	(void) gettimeofday(&time0, (struct timezone *)0);
+
+--- 16,22 -----
+  
+  settimes()
+  {
++ #ifndef OREO
+  	struct rusage ruch;
+  #endif
+  
+***************
+*** 17,22
+  settimes()
+  {
+  	struct rusage ruch;
+  
+  	(void) gettimeofday(&time0, (struct timezone *)0);
+  	(void) getrusage(RUSAGE_SELF, &ru0);
+
+--- 18,24 -----
+  {
+  #ifndef OREO
+  	struct rusage ruch;
++ #endif
+  
+  	(void) gettimeofday(&time0, (struct timezone *)0);
+  #ifndef	OREO
+***************
+*** 19,24
+  	struct rusage ruch;
+  
+  	(void) gettimeofday(&time0, (struct timezone *)0);
+  	(void) getrusage(RUSAGE_SELF, &ru0);
+  	(void) getrusage(RUSAGE_CHILDREN, &ruch);
+  	ruadd(&ru0, &ruch);
+
+--- 21,27 -----
+  #endif
+  
+  	(void) gettimeofday(&time0, (struct timezone *)0);
++ #ifndef	OREO
+  	(void) getrusage(RUSAGE_SELF, &ru0);
+  	(void) getrusage(RUSAGE_CHILDREN, &ruch);
+  	ruadd(&ru0, &ruch);
+***************
+*** 22,27
+  	(void) getrusage(RUSAGE_SELF, &ru0);
+  	(void) getrusage(RUSAGE_CHILDREN, &ruch);
+  	ruadd(&ru0, &ruch);
+  }
+  
+  /*
+
+--- 25,31 -----
+  	(void) getrusage(RUSAGE_SELF, &ru0);
+  	(void) getrusage(RUSAGE_CHILDREN, &ruch);
+  	ruadd(&ru0, &ruch);
++ #endif OREO
+  }
+  
+  /*
+***************
+*** 30,35
+   */
+  dotime()
+  {
+  	struct timeval timedol;
+  	struct rusage ru1, ruch;
+  
+
+--- 34,40 -----
+   */
+  dotime()
+  {
++ #ifndef OREO
+  	struct timeval timedol;
+  	struct rusage ru1, ruch;
+  
+***************
+*** 38,43
+  	ruadd(&ru1, &ruch);
+  	(void) gettimeofday(&timedol, (struct timezone *)0);
+  	prusage(&ru0, &ru1, &timedol, &time0);
+  }
+  
+  /*
+
+--- 43,49 -----
+  	ruadd(&ru1, &ruch);
+  	(void) gettimeofday(&timedol, (struct timezone *)0);
+  	prusage(&ru0, &ru1, &timedol, &time0);
++ #endif
+  }
+  
+  /*
+***************
+*** 57,62
+  	(void) setpriority(PRIO_PROCESS, 0, nval);
+  }
+  
+  ruadd(ru, ru2)
+  	register struct rusage *ru, *ru2;
+  {
+
+--- 63,69 -----
+  	(void) setpriority(PRIO_PROCESS, 0, nval);
+  }
+  
++ #ifndef OREO
+  ruadd(ru, ru2)
+  	register struct rusage *ru, *ru2;
+  {
+***************
+*** 155,160
+  	}
+  	putchar('\n');
+  }
+  
+  pdeltat(t1, t0)
+  	struct timeval *t1, *t0;
+
+--- 162,168 -----
+  	}
+  	putchar('\n');
+  }
++ #endif
+  
+  pdeltat(t1, t0)
+  	struct timeval *t1, *t0;
+*** Makefile	Thu Sep 24 15:24:33 1987
+--- /usr/src/local/tcsh/Makefile	Mon Aug 17 21:53:45 1987
+***************
+*** 37,43
+  
+  # on some machines, the alloc.c works.  On others, it dosn't.  Besides, 
+  # nmalloc is much faster...
+! ALLOC=nmalloc.o
+  
+  SHOBJS=	sh.o sh.dir.o sh.dol.o sh.err.o sh.exec.o \
+  	sh.exp.o sh.func.o sh.glob.o sh.hist.o sh.init.o sh.lex.o sh.misc.o \
+
+--- 37,43 -----
+  
+  # on some machines, the alloc.c works.  On others, it dosn't.  Besides, 
+  # nmalloc is much faster...
+! ALLOC=alloc.o
+  
+  SHOBJS=	sh.o sh.char.o sh.dir.o sh.dol.o sh.err.o \
+  	sh.exec.o sh.exp.o sh.file.o sh.func.o sh.glob.o sh.hist.o sh.init.o \
+***************
+*** 39,47
+  # nmalloc is much faster...
+  ALLOC=nmalloc.o
+  
+! SHOBJS=	sh.o sh.dir.o sh.dol.o sh.err.o sh.exec.o \
+! 	sh.exp.o sh.func.o sh.glob.o sh.hist.o sh.init.o sh.lex.o sh.misc.o \
+! 	sh.parse.o sh.print.o sh.proc.o sh.sem.o sh.set.o sh.sig.o sh.time.o
+  
+  TWOBJS=	tw.help.o tw.init.o tw.parse.o tw.spell.o
+  
+
+--- 39,48 -----
+  # nmalloc is much faster...
+  ALLOC=alloc.o
+  
+! SHOBJS=	sh.o sh.char.o sh.dir.o sh.dol.o sh.err.o \
+! 	sh.exec.o sh.exp.o sh.file.o sh.func.o sh.glob.o sh.hist.o sh.init.o \
+! 	sh.lex.o sh.misc.o sh.parse.o sh.print.o sh.proc.o sh.sem.o sh.set.o \
+! 	sh.time.o
+  
+  TWOBJS=	tw.help.o tw.init.o tw.parse.o tw.spell.o
+  
+***************
+*** 61,67
+  	rm -f tcsh.ps
+  	-ptroff -man tcsh.1 > tcsh.ps
+  
+! ${SHOBJS}: sh.h sh.local.h
+  
+  ${TWOBJS}: sh.h sh.local.h tw.h
+  
+
+--- 62,68 -----
+  	rm -f tcsh.ps
+  	-ptroff -man tcsh.1 > tcsh.ps
+  
+! # ${SHOBJS}: sh.h sh.local.h
+  
+  ${TWOBJS}: sh.h sh.local.h tw.h
+  
+***************
+*** 124,126
+  
+  tags:	/tmp
+  	${CTAGS} sh*.c
+
+--- 125,148 -----
+  
+  tags:	/tmp
+  	${CTAGS} sh*.c
++ 
++ sh.o: sh.h sh.local.h sh.char.h
++ sh.char.o: sh.char.h
++ sh.dir.o: sh.h sh.local.h sh.dir.h
++ sh.dol.o: sh.h sh.local.h sh.char.h
++ sh.err.o: sh.h sh.local.h sh.char.h
++ sh.exec.o: sh.h sh.local.h sh.char.h
++ sh.exp.o: sh.h sh.local.h sh.char.h
++ sh.file.o: sh.h sh.local.h sh.char.h
++ sh.func.o: sh.h sh.local.h sh.char.h
++ sh.glob.o: sh.h sh.local.h sh.char.h
++ sh.hist.o: sh.h sh.local.h sh.char.h
++ sh.init.o: sh.local.h
++ sh.lex.o: sh.h sh.local.h sh.char.h
++ sh.misc.o: sh.h sh.local.h sh.char.h
++ sh.parse.o: sh.h sh.local.h sh.char.h
++ sh.print.o: sh.h sh.local.h sh.char.h
++ sh.proc.o: sh.h sh.local.h sh.dir.h sh.proc.h sh.char.h
++ sh.sem.o: sh.h sh.local.h sh.proc.h sh.char.h
++ sh.set.o: sh.h sh.local.h sh.char.h
++ sh.time.o: sh.h sh.local.h sh.char.h
+*** ed.init.c	Thu Sep 24 15:24:43 1987
+--- /usr/src/local/tcsh/ed.init.c	Mon Aug 31 09:26:09 1987
+***************
+*** 86,92
+  	nlc.t_lnextc = CTRL(v);	/* literal next character */
+  
+  #  ifdef SIGWINCH
+! 	sigset(SIGWINCH, window_change); /* for window systems */
+  #  endif
+  # endif OREO
+  #else SVID
+
+--- 86,92 -----
+  	nlc.t_lnextc = CTRL(v);	/* literal next character */
+  
+  #  ifdef SIGWINCH
+! 	signal(SIGWINCH, window_change); /* for window systems */
+  #  endif
+  # endif OREO
+  #else SVID
+***************
+*** 135,141
+  	nlc.t_lnextc = CTRL(v);	/* literal next character */
+  
+  # ifdef SIGWINCH
+! 	sigset(SIGWINCH, window_change); /* for window systems */
+  # endif
+  #endif SVID
+      }
+
+--- 135,141 -----
+  	nlc.t_lnextc = CTRL(v);	/* literal next character */
+  
+  # ifdef SIGWINCH
+! 	signal(SIGWINCH, window_change); /* for window systems */
+  # endif
+  #endif SVID
+      }
+***************
+*** 190,196
+      }
+  
+      xb.sg_erase = '\177';	/* del prev. char == DEL */
+!     xb.sg_kill = CTRL(w);	/* special case of del region */
+  
+      xtc.t_intrc = CTRL(c);	/* SIGINTR */
+      xtc.t_quitc = CTRL(\\);	/* SIGQUIT */
+
+--- 190,196 -----
+      }
+  
+      xb.sg_erase = '\177';	/* del prev. char == DEL */
+!     xb.sg_kill = CTRL(u);	/* special case of del region */
+  
+      xtc.t_intrc = CTRL(c);	/* SIGINTR */
+      xtc.t_quitc = CTRL(\\);	/* SIGQUIT */
+*** ed.inputl.c	Thu Sep 24 15:24:45 1987
+--- /usr/src/local/tcsh/ed.inputl.c	Thu Sep 17 23:24:16 1987
+***************
+*** 212,218
+  
+      hp = Histlist.Hnext;
+      if (hp == (struct Hist *)0) {
+! 	printf ("no hp\n");
+  	Beep();
+  	return;
+      }
+
+--- 212,218 -----
+  
+      hp = Histlist.Hnext;
+      if (hp == (struct Hist *)0) {
+! 	printf ("No history pointer, probably no history\n");
+  	Beep();
+  	return;
+      }
+*** ed.screen.c	Thu Sep 24 15:25:04 1987
+--- /usr/src/local/tcsh/ed.screen.c	Mon Aug 17 23:51:23 1987
+***************
+*** 55,61
+  
+      if (where > TermV) {
+  #ifdef DEBUG_SCREEN
+! 	printf ("MoveToLine: where is riduculous: %d\r\n", where);
+  	flush();
+  #endif
+  	return;
+
+--- 55,61 -----
+  
+      if (where > TermV) {
+  #ifdef DEBUG_SCREEN
+! 	printf ("MoveToLine: where is ridiculous: %d\r\n", where);
+  	flush();
+  #endif
+  	return;
+***************
+*** 240,245
+      char *area = buffer;
+      char *MyTerm;
+      char *getenv();
+  
+  #ifdef SIGWINCH
+      sighold(SIGWINCH);		/* don't want to confuse things here */
+
+--- 240,246 -----
+      char *area = buffer;
+      char *MyTerm;
+      char *getenv();
++     int	omask;
+  
+  #ifdef SIGWINCH
+      omask = sighold(SIGWINCH);		/* don't want to confuse things here */
+***************
+*** 242,248
+      char *getenv();
+  
+  #ifdef SIGWINCH
+!     sighold(SIGWINCH);		/* don't want to confuse things here */
+  #endif
+  
+      MyTerm = getenv("TERM");
+
+--- 243,249 -----
+      int	omask;
+  
+  #ifdef SIGWINCH
+!     omask = sighold(SIGWINCH);		/* don't want to confuse things here */
+  #endif
+  
+      MyTerm = getenv("TERM");
+***************
+*** 355,361
+      ClearDisp();
+  
+  #ifdef SIGWINCH
+!     sigrelse(SIGWINCH);		/* can change it again */
+  #endif
+  }
+  
+
+--- 356,362 -----
+      ClearDisp();
+  
+  #ifdef SIGWINCH
+!     sigsetmask(omask);
+  #endif
+  }
+  
+***************
+*** 396,401
+      ClearDisp();
+  
+  #ifdef SIGWINCH
+!     sigrelse(SIGWINCH);		/* can change it again */
+  #endif
+  }
+
+--- 397,403 -----
+      ClearDisp();
+  
+  #ifdef SIGWINCH
+!     (void) sigsetmask(sigblock(0) & ~sigmask(SIGWINCH));
+  #endif
+  }
+  
+***************
+*** 399,401
+      sigrelse(SIGWINCH);		/* can change it again */
+  #endif
+  }
+
+--- 400,409 -----
+      (void) sigsetmask(sigblock(0) & ~sigmask(SIGWINCH));
+  #endif
+  }
++ 
++ 
++ 
++ 
++ 
++ 
++ 
+*** pwprintf.c	Thu Sep 24 15:25:07 1987
+--- /usr/src/local/tcsh/pwprintf.c	Mon Aug 17 22:24:47 1987
+***************
+*** 1,7
+  /* A public-domain, minimal printf routine that prints through the putchar()
+     routine.  Feel free to use for anything...  -- 7/17/87 Paul Placeway */
+  
+! #include <ctype.h>
+  #include <varargs.h>
+  
+  /* use varargs since it's the RIGHT WAY, and assuming things about parameters
+
+--- 1,9 -----
+  /* A public-domain, minimal printf routine that prints through the putchar()
+     routine.  Feel free to use for anything...  -- 7/17/87 Paul Placeway */
+  
+! #include "sh.h"
+! /*#include <ctype.h>*/
+! #include "sh.char.h"
+  #include <varargs.h>
+  
+  /* use varargs since it's the RIGHT WAY, and assuming things about parameters
+*** sh.nfunc.c	Thu Sep 24 15:24:30 1987
+--- /usr/src/local/tcsh/sh.nfunc.c	Mon Aug 17 23:19:24 1987
+***************
+*** 7,12
+  #include "tw.h"
+  
+  #include <sys/ioctl.h>
+  
+  static int parsekey();
+  static char *unparsekey();
+
+--- 7,13 -----
+  #include "tw.h"
+  
+  #include <sys/ioctl.h>
++ #include "sh.char.h"
+  
+  static int parsekey();
+  static char *unparsekey();
+***************
+*** 11,16
+  static int parsekey();
+  static char *unparsekey();
+  
+  /*
+   * Tops-C shell
+   */
+
+--- 12,19 -----
+  static int parsekey();
+  static char *unparsekey();
+  
++ extern	int	tglob(), trim();
++ 
+  /*
+   * Tops-C shell
+   */
+***************
+*** 344,350
+      struct stat statb;
+      
+      if (setintr)
+! 	sigrelse(SIGINT);
+  
+      if (*++v == NULL) {
+  	t_search("", (char *)0, LIST, 0, 0);
+
+--- 347,353 -----
+      struct stat statb;
+      
+      if (setintr)
+! 		(void) sigsetmask(sigblock(0) & ~sigmask(SIGINT));
+  
+      if (*++v == NULL) {
+  	t_search("", (char *)0, LIST, 0, 0);
+***************
+*** 356,362
+  	if (v == 0)
+  	    bferr("No match");
+      } else
+! 	scan(v, trim);
+      k = 0;
+      if (*(v+1))
+  	f = 1;
+
+--- 359,368 -----
+  	if (v == 0)
+  	    bferr("No match");
+      } else
+! 	    /*
+! 	    scan(v, trim);
+! 	    */
+! 	    trim(v);
+      k = 0;
+      if (*(v+1))
+  	f = 1;
+*** tw.h	Thu Sep 24 15:25:11 1987
+--- /usr/src/local/tcsh/tw.h	Mon Aug 17 23:15:06 1987
+***************
+*** 1,3
+  #ifdef MAKE_TWENEX
+  
+  #define FREE_ITEMS(items,num)\
+
+--- 1,4 -----
++ 
+  #ifdef MAKE_TWENEX
+  
+  #define FREE_ITEMS(items,num)\
+***************
+*** 2,8
+  
+  #define FREE_ITEMS(items,num)\
+  {\
+!     sighold (SIGINT);\
+      free_items (items,num);\
+      items = NULL;\
+      sigrelse (SIGINT);\
+
+--- 3,10 -----
+  
+  #define FREE_ITEMS(items,num)\
+  {\
+!     int	omask;\
+!     omask = sighold (SIGINT);\
+      free_items (items,num);\
+      items = NULL;\
+      sigsetmask(omask);\
+***************
+*** 5,11
+      sighold (SIGINT);\
+      free_items (items,num);\
+      items = NULL;\
+!     sigrelse (SIGINT);\
+  }
+  
+  #define FREE_DIR(fd)\
+
+--- 7,13 -----
+      omask = sighold (SIGINT);\
+      free_items (items,num);\
+      items = NULL;\
+!     sigsetmask(omask);\
+  }
+  
+  #define FREE_DIR(fd)\
+***************
+*** 10,16
+  
+  #define FREE_DIR(fd)\
+  {\
+!     sighold (SIGINT);\
+      closedir (fd);\
+      fd = NULL;\
+      sigrelse (SIGINT);\
+
+--- 12,19 -----
+  
+  #define FREE_DIR(fd)\
+  {\
+!     int	omask;\
+!     omask = sighold (SIGINT);\
+      closedir (fd);\
+      fd = NULL;\
+      sigsetmask(omask);\
+***************
+*** 13,19
+      sighold (SIGINT);\
+      closedir (fd);\
+      fd = NULL;\
+!     sigrelse (SIGINT);\
+  }
+  
+  #define TRUE		1
+
+--- 16,22 -----
+      omask = sighold (SIGINT);\
+      closedir (fd);\
+      fd = NULL;\
+!     sigsetmask(omask);\
+  }
+  
+  #define TRUE		1
+*** tw.help.c	Thu Sep 24 15:25:13 1987
+--- /usr/src/local/tcsh/tw.help.c	Mon Aug 17 23:16:22 1987
+***************
+*** 3,9
+  #include "tw.h"
+  #include "sh.h"
+  
+- 
+  /* actually look up and print documentation on a file.  Look down the path
+     for an approiate file, then print it.  Note that the printing is NOT 
+     PAGED.  This is because the function is NOT ment to look at manual pages,
+
+--- 3,8 -----
+  #include "tw.h"
+  #include "sh.h"
+  
+  /* actually look up and print documentation on a file.  Look down the path
+     for an appropriate file, then print it.  Note that the printing is NOT 
+     PAGED.  This is because the function is NOT ment to look at manual pages,
+***************
+*** 5,11
+  
+  
+  /* actually look up and print documentation on a file.  Look down the path
+!    for an approiate file, then print it.  Note that the printing is NOT 
+     PAGED.  This is because the function is NOT ment to look at manual pages,
+     it only does so if there is no .help file to look in. */
+  
+
+--- 4,10 -----
+  #include "sh.h"
+  
+  /* actually look up and print documentation on a file.  Look down the path
+!    for an appropriate file, then print it.  Note that the printing is NOT 
+     PAGED.  This is because the function is NOT ment to look at manual pages,
+     it only does so if there is no .help file to look in. */
+  
+*** tw.init.c	Thu Sep 24 15:25:15 1987
+--- /usr/src/local/tcsh/tw.init.c	Thu Sep 24 15:45:32 1987
+***************
+*** 120,125
+      register char *cp;
+      register struct biltins *bptr;
+  
+      for (bptr = bfunc; cp = bptr->bname; bptr++) {
+  	tw_add_comm_name (cp);
+      }
+
+--- 120,127 -----
+      register char *cp;
+      register struct biltins *bptr;
+  
++     for (bptr = bfunc; bptr < &bfunc[nbfunc]; bptr++) {
++ #ifdef	OUTDEF
+      for (bptr = bfunc; cp = bptr->bname; bptr++) {
+  #endif
+  	tw_add_comm_name (cp);
+***************
+*** 121,126
+      register struct biltins *bptr;
+  
+      for (bptr = bfunc; cp = bptr->bname; bptr++) {
+  	tw_add_comm_name (cp);
+      }
+  }
+
+--- 123,129 -----
+      for (bptr = bfunc; bptr < &bfunc[nbfunc]; bptr++) {
+  #ifdef	OUTDEF
+      for (bptr = bfunc; cp = bptr->bname; bptr++) {
++ #endif
+  	tw_add_comm_name (cp);
+      }
+  }
+***************
+*** 127,132
+  
+  tw_add_aliases ()
+  {
+      register struct varent *vp;
+  
+      vp = &aliases;
+
+--- 130,161 -----
+  
+  tw_add_aliases ()
+  {
++ 	register struct varent *p;
++ 	register struct varent *c;
++ 
++ 	p = &aliases;
++ 	for (;;) {
++ 		while (p->v_left)
++ 			p = p->v_left;
++ 	x:
++ 		if (p->v_parent == 0)		/* is it the header? */
++ 			return;
++ 		tw_add_comm_name(p->v_name);
++ 		if (p->v_right) {
++ 			p = p->v_right;
++ 			continue;
++ 		}
++ 		do {
++ 			c = p;
++ 			p = p->v_parent;
++ 		} while (p->v_right == c);
++ 		goto x;
++ 	}
++ }
++ 
++ #ifdef	OUTDEF
++ tw_add_aliases ()
++ {
+      register struct varent *vp;
+  
+      vp = &aliases;
+***************
+*** 136,138
+      }
+  
+  }
+
+--- 165,169 -----
+      }
+  
+  }
++ #endif
++ 
+*** tw.parse.c	Thu Sep 24 15:25:19 1987
+--- /usr/src/local/tcsh/tw.parse.c	Thu Sep 24 15:46:59 1987
+***************
+*** 64,70
+  /*  printf ("\ncmd_st:%s:\nword_start:%s:\n", cmd_st, word_start); */
+  				/* for debugging */
+      if (command == RECOGNIZE) {
+!         search_ret = t_search (word, wp, command, space_left, is_a_cmd);
+  	if (InsertStr(wp) < 0)	/* put it in the input buffer */
+  	    return 2;		/* error inserting */
+  	return search_ret;
+
+--- 64,70 -----
+  /*  printf ("\ncmd_st:%s:\nword_start:%s:\n", cmd_st, word_start); */
+  				/* for debugging */
+      if (command == RECOGNIZE) {
+! 	search_ret = t_search (word, wp, command, space_left, is_a_cmd);
+  	if (InsertStr(wp) < 0)	/* put it in the input buffer */
+  	    return 2;		/* error inserting */
+  	return search_ret;
+***************
+*** 200,206
+      numitems = 0;
+      if (dir_fd != NULL)
+  	FREE_DIR (dir_fd);
+- 
+      looking_for_lognames = (*word == '~') && (index (word, '/') == NULL);
+      looking_for_command &= (*word != '~') && (index (word, '/') == NULL);
+  
+
+--- 200,205 -----
+      numitems = 0;
+      if (dir_fd != NULL)
+  	FREE_DIR (dir_fd);
+      looking_for_lognames = (*word == '~') && (index (word, '/') == NULL);
+      looking_for_command &= (*word != '~') && (index (word, '/') == NULL);
+  
+***************
+*** 206,212
+  
+      dot_got = FALSE;
+      stat (".", &dot_statb);
+- 
+      if (looking_for_lognames) {			/* Looking for login names? */
+  	setpwent ();				/* Open passwd file */
+  	copyn (name, &word[1], MAXNAMLEN);	/* name sans ~ */
+
+--- 205,210 -----
+  
+      dot_got = FALSE;
+      stat (".", &dot_statb);
+      if (looking_for_lognames) {			/* Looking for login names? */
+  	setpwent ();				/* Open passwd file */
+  	copyn (name, &word[1], MAXNAMLEN);	/* name sans ~ */
+*** tw.spell.c	Thu Sep 24 15:24:53 1987
+--- /usr/src/local/tcsh/tw.spell.c	Mon Aug 17 23:00:23 1987
+***************
+*** 1,4
+- #include "sh.h"
+  #define MAKE_TWENEX
+  #include "tw.h"
+  
+
+--- 1,3 -----
+  #define MAKE_TWENEX
+  #include "tw.h"
+  
+SHAR_EOF
+fi
+exit 0
+#	End of shell archive

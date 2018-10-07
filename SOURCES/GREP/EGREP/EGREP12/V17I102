@@ -1,0 +1,305 @@
+Path: ssbell!uunet!lll-winken!ames!mailrus!bbn!bbn.com!rsalz
+From: rsalz@uunet.uu.net (Rich Salz)
+Newsgroups: comp.sources.unix
+Subject: v17i102:  Gnu E?GREP (it's fast), Part05/05
+Message-ID: <1496@papaya.bbn.com>
+Date: 9 Feb 89 19:16:51 GMT
+Lines: 296
+Approved: rsalz@uunet.UU.NET
+
+Submitted-by: Mike Haertel <mike@wheaties.ai.mit.edu>
+Posting-number: Volume 17, Issue 102
+Archive-name: gnugrep/part05
+
+#! /bin/sh
+# This is a shell archive.  Remove anything before this line, then unpack
+# it by saving it into a file and typing "sh file".  To overwrite existing
+# files, type "sh file -c".  You can also feed this as standard input via
+# unshar, or by typing "sh <file", e.g..  If this archive is complete, you
+# will see the following message at the end:
+#		"End of shell archive."
+# Contents:  regex.h
+PATH=/bin:/usr/bin:/usr/ucb ; export PATH
+if test -f 'regex.h' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'regex.h'\"
+else
+echo shar: Extracting \"'regex.h'\" \(12504 characters\)
+sed "s/^X//" >'regex.h' <<'END_OF_FILE'
+X/* Definitions for data structures callers pass the regex library.
+X   Copyright (C) 1985 Free Software Foundation, Inc.
+X
+X		       NO WARRANTY
+X
+X  BECAUSE THIS PROGRAM IS LICENSED FREE OF CHARGE, WE PROVIDE ABSOLUTELY
+XNO WARRANTY, TO THE EXTENT PERMITTED BY APPLICABLE STATE LAW.  EXCEPT
+XWHEN OTHERWISE STATED IN WRITING, FREE SOFTWARE FOUNDATION, INC,
+XRICHARD M. STALLMAN AND/OR OTHER PARTIES PROVIDE THIS PROGRAM "AS IS"
+XWITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
+XBUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND
+XFITNESS FOR A PARTICULAR PURPOSE.  THE ENTIRE RISK AS TO THE QUALITY
+XAND PERFORMANCE OF THE PROGRAM IS WITH YOU.  SHOULD THE PROGRAM PROVE
+XDEFECTIVE, YOU ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR
+XCORRECTION.
+X
+X IN NO EVENT UNLESS REQUIRED BY APPLICABLE LAW WILL RICHARD M.
+XSTALLMAN, THE FREE SOFTWARE FOUNDATION, INC., AND/OR ANY OTHER PARTY
+XWHO MAY MODIFY AND REDISTRIBUTE THIS PROGRAM AS PERMITTED BELOW, BE
+XLIABLE TO YOU FOR DAMAGES, INCLUDING ANY LOST PROFITS, LOST MONIES, OR
+XOTHER SPECIAL, INCIDENTAL OR CONSEQUENTIAL DAMAGES ARISING OUT OF THE
+XUSE OR INABILITY TO USE (INCLUDING BUT NOT LIMITED TO LOSS OF DATA OR
+XDATA BEING RENDERED INACCURATE OR LOSSES SUSTAINED BY THIRD PARTIES OR
+XA FAILURE OF THE PROGRAM TO OPERATE WITH ANY OTHER PROGRAMS) THIS
+XPROGRAM, EVEN IF YOU HAVE BEEN ADVISED OF THE POSSIBILITY OF SUCH
+XDAMAGES, OR FOR ANY CLAIM BY ANY OTHER PARTY.
+X
+X		GENERAL PUBLIC LICENSE TO COPY
+X
+X  1. You may copy and distribute verbatim copies of this source file
+Xas you receive it, in any medium, provided that you conspicuously and
+Xappropriately publish on each copy a valid copyright notice "Copyright
+X(C) 1985 Free Software Foundation, Inc."; and include following the
+Xcopyright notice a verbatim copy of the above disclaimer of warranty
+Xand of this License.  You may charge a distribution fee for the
+Xphysical act of transferring a copy.
+X
+X  2. You may modify your copy or copies of this source file or
+Xany portion of it, and copy and distribute such modifications under
+Xthe terms of Paragraph 1 above, provided that you also do the following:
+X
+X    a) cause the modified files to carry prominent notices stating
+X    that you changed the files and the date of any change; and
+X
+X    b) cause the whole of any work that you distribute or publish,
+X    that in whole or in part contains or is a derivative of this
+X    program or any part thereof, to be licensed at no charge to all
+X    third parties on terms identical to those contained in this
+X    License Agreement (except that you may choose to grant more extensive
+X    warranty protection to some or all third parties, at your option).
+X
+X    c) You may charge a distribution fee for the physical act of
+X    transferring a copy, and you may at your option offer warranty
+X    protection in exchange for a fee.
+X
+XMere aggregation of another unrelated program with this program (or its
+Xderivative) on a volume of a storage or distribution medium does not bring
+Xthe other program under the scope of these terms.
+X
+X  3. You may copy and distribute this program (or a portion or derivative
+Xof it, under Paragraph 2) in object code or executable form under the terms
+Xof Paragraphs 1 and 2 above provided that you also do one of the following:
+X
+X    a) accompany it with the complete corresponding machine-readable
+X    source code, which must be distributed under the terms of
+X    Paragraphs 1 and 2 above; or,
+X
+X    b) accompany it with a written offer, valid for at least three
+X    years, to give any third party free (except for a nominal
+X    shipping charge) a complete machine-readable copy of the
+X    corresponding source code, to be distributed under the terms of
+X    Paragraphs 1 and 2 above; or,
+X
+X    c) accompany it with the information you received as to where the
+X    corresponding source code may be obtained.  (This alternative is
+X    allowed only for noncommercial distribution and only if you
+X    received the program in object code or executable form alone.)
+X
+XFor an executable file, complete source code means all the source code for
+Xall modules it contains; but, as a special exception, it need not include
+Xsource code for modules which are standard libraries that accompany the
+Xoperating system on which the executable file runs.
+X
+X  4. You may not copy, sublicense, distribute or transfer this program
+Xexcept as expressly provided under this License Agreement.  Any attempt
+Xotherwise to copy, sublicense, distribute or transfer this program is void and
+Xyour rights to use the program under this License agreement shall be
+Xautomatically terminated.  However, parties who have received computer
+Xsoftware programs from you with this License Agreement will not have
+Xtheir licenses terminated so long as such parties remain in full compliance.
+X
+X  5. If you wish to incorporate parts of this program into other free
+Xprograms whose distribution conditions are different, write to the Free
+XSoftware Foundation at 675 Mass Ave, Cambridge, MA 02139.  We have not yet
+Xworked out a simple rule that can be stated here, but we will often permit
+Xthis.  We will be guided by the two goals of preserving the free status of
+Xall derivatives of our free software and of promoting the sharing and reuse of
+Xsoftware.
+X
+X
+XIn other words, you are welcome to use, share and improve this program.
+XYou are forbidden to forbid anyone else to use, share and improve
+Xwhat you give them.   Help stamp out software-hoarding!  */
+X
+X
+X/* Define number of parens for which we record the beginnings and ends.
+X   This affects how much space the `struct re_registers' type takes up.  */
+X#ifndef RE_NREGS
+X#define RE_NREGS 10
+X#endif
+X
+X/* These bits are used in the obscure_syntax variable to choose among
+X   alternative regexp syntaxes.  */
+X
+X/* 1 means plain parentheses serve as grouping, and backslash
+X     parentheses are needed for literal searching.
+X   0 means backslash-parentheses are grouping, and plain parentheses
+X     are for literal searching.  */
+X#define RE_NO_BK_PARENS 1
+X
+X/* 1 means plain | serves as the "or"-operator, and \| is a literal.
+X   0 means \| serves as the "or"-operator, and | is a literal.  */
+X#define RE_NO_BK_VBAR 2
+X
+X/* 0 means plain + or ? serves as an operator, and \+, \? are literals.
+X   1 means \+, \? are operators and plain +, ? are literals.  */
+X#define RE_BK_PLUS_QM 4
+X
+X/* 1 means | binds tighter than ^ or $.
+X   0 means the contrary.  */
+X#define RE_TIGHT_VBAR 8
+X
+X/* 1 means treat \n as an _OR operator
+X   0 means treat it as a normal character */
+X#define RE_NEWLINE_OR 16
+X
+X/* 0 means that a special characters (such as *, ^, and $) always have
+X     their special meaning regardless of the surrounding context.
+X   1 means that special characters may act as normal characters in some
+X     contexts.  Specifically, this applies to:
+X	^ - only special at the beginning, or after ( or |
+X	$ - only special at the end, or before ) or |
+X	*, +, ? - only special when not after the beginning, (, or | */
+X#define RE_CONTEXT_INDEP_OPS 32
+X
+X/* Now define combinations of bits for the standard possibilities.  */
+X#define RE_SYNTAX_AWK (RE_NO_BK_PARENS | RE_NO_BK_VBAR | RE_CONTEXT_INDEP_OPS)
+X#define RE_SYNTAX_EGREP (RE_SYNTAX_AWK | RE_NEWLINE_OR)
+X#define RE_SYNTAX_GREP (RE_BK_PLUS_QM | RE_NEWLINE_OR)
+X#define RE_SYNTAX_EMACS 0
+X
+X/* This data structure is used to represent a compiled pattern. */
+X
+Xstruct re_pattern_buffer
+X  {
+X    char *buffer;	/* Space holding the compiled pattern commands. */
+X    int allocated;	/* Size of space that  buffer  points to */
+X    int used;		/* Length of portion of buffer actually occupied */
+X    char *fastmap;	/* Pointer to fastmap, if any, or zero if none. */
+X			/* re_search uses the fastmap, if there is one,
+X			   to skip quickly over totally implausible characters */
+X    char *translate;	/* Translate table to apply to all characters before comparing.
+X			   Or zero for no translation.
+X			   The translation is applied to a pattern when it is compiled
+X			   and to data when it is matched. */
+X    char fastmap_accurate;
+X			/* Set to zero when a new pattern is stored,
+X			   set to one when the fastmap is updated from it. */
+X    char can_be_null;   /* Set to one by compiling fastmap
+X			   if this pattern might match the null string.
+X			   It does not necessarily match the null string
+X			   in that case, but if this is zero, it cannot.
+X			   2 as value means can match null string
+X			   but at end of range or before a character
+X			   listed in the fastmap.  */
+X  };
+X
+X/* Structure to store "register" contents data in.
+X
+X   Pass the address of such a structure as an argument to re_match, etc.,
+X   if you want this information back.
+X
+X   start[i] and end[i] record the string matched by \( ... \) grouping i,
+X   for i from 1 to RE_NREGS - 1.
+X   start[0] and end[0] record the entire string matched. */
+X
+Xstruct re_registers
+X  {
+X    int start[RE_NREGS];
+X    int end[RE_NREGS];
+X  };
+X
+X/* These are the command codes that appear in compiled regular expressions, one per byte.
+X  Some command codes are followed by argument bytes.
+X  A command code can specify any interpretation whatever for its arguments.
+X  Zero-bytes may appear in the compiled regular expression. */
+X
+Xenum regexpcode
+X  {
+X    unused,
+X    exactn,    /* followed by one byte giving n, and then by n literal bytes */
+X    begline,   /* fails unless at beginning of line */
+X    endline,   /* fails unless at end of line */
+X    jump,	 /* followed by two bytes giving relative address to jump to */
+X    on_failure_jump,	 /* followed by two bytes giving relative address of place
+X		            to resume at in case of failure. */
+X    finalize_jump,	 /* Throw away latest failure point and then jump to address. */
+X    maybe_finalize_jump, /* Like jump but finalize if safe to do so.
+X			    This is used to jump back to the beginning
+X			    of a repeat.  If the command that follows
+X			    this jump is clearly incompatible with the
+X			    one at the beginning of the repeat, such that
+X			    we can be sure that there is no use backtracking
+X			    out of repetitions already completed,
+X			    then we finalize. */
+X    dummy_failure_jump,  /* jump, and push a dummy failure point.
+X			    This failure point will be thrown away
+X			    if an attempt is made to use it for a failure.
+X			    A + construct makes this before the first repeat.  */
+X    anychar,	 /* matches any one character */
+X    charset,     /* matches any one char belonging to specified set.
+X		    First following byte is # bitmap bytes.
+X		    Then come bytes for a bit-map saying which chars are in.
+X		    Bits in each byte are ordered low-bit-first.
+X		    A character is in the set if its bit is 1.
+X		    A character too large to have a bit in the map
+X		    is automatically not in the set */
+X    charset_not, /* similar but match any character that is NOT one of those specified */
+X    start_memory, /* starts remembering the text that is matched
+X		    and stores it in a memory register.
+X		    followed by one byte containing the register number.
+X		    Register numbers must be in the range 0 through NREGS. */
+X    stop_memory, /* stops remembering the text that is matched
+X		    and stores it in a memory register.
+X		    followed by one byte containing the register number.
+X		    Register numbers must be in the range 0 through NREGS. */
+X    duplicate,    /* match a duplicate of something remembered.
+X		    Followed by one byte containing the index of the memory register. */
+X    before_dot,	 /* Succeeds if before dot */
+X    at_dot,	 /* Succeeds if at dot */
+X    after_dot,	 /* Succeeds if after dot */
+X    begbuf,      /* Succeeds if at beginning of buffer */
+X    endbuf,      /* Succeeds if at end of buffer */
+X    wordchar,    /* Matches any word-constituent character */
+X    notwordchar, /* Matches any char that is not a word-constituent */
+X    wordbeg,	 /* Succeeds if at word beginning */
+X    wordend,	 /* Succeeds if at word end */
+X    wordbound,   /* Succeeds if at a word boundary */
+X    notwordbound, /* Succeeds if not at a word boundary */
+X    syntaxspec,  /* Matches any character whose syntax is specified.
+X		    followed by a byte which contains a syntax code, Sword or such like */
+X    notsyntaxspec /* Matches any character whose syntax differs from the specified. */
+X  };
+X
+Xextern char *re_compile_pattern ();
+X/* Is this really advertised? */
+Xextern void re_compile_fastmap ();
+Xextern int re_search (), re_search_2 ();
+Xextern int re_match (), re_match_2 ();
+X
+X/* 4.2 bsd compatibility (yuck) */
+Xextern char *re_comp ();
+Xextern int re_exec ();
+X
+X#ifdef SYNTAX_TABLE
+Xextern char *re_syntax_table;
+X#endif
+END_OF_FILE
+if test 12504 -ne `wc -c <'regex.h'`; then
+    echo shar: \"'regex.h'\" unpacked with wrong size!
+fi
+# end of 'regex.h'
+fi
+echo shar: End of shell archive.
+exit 0
+
+-- 
+Please send comp.sources.unix-related mail to rsalz@uunet.uu.net.

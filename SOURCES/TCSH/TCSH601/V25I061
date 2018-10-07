@@ -1,0 +1,3026 @@
+Newsgroups: comp.sources.unix
+From: christos@ee.cornell.edu (Christos Zoulas)
+Subject: v25i061: tcsh6.01 - a csh replacement with lots of extra goodies, Part08/18
+Message-ID: <1991Dec20.214216.7050@PA.dec.com>
+Date: Fri, 20 Dec 91 21:42:16 GMT
+Approved: vixie@pa.dec.com
+
+Submitted-By: christos@ee.cornell.edu (Christos Zoulas)
+Posting-Number: Volume 25, Issue 61
+Archive-Name: tcsh-6.01/part08
+
+#! /bin/sh
+# This is a shell archive.  Remove anything before this line, then unpack
+# it by saving it into a file and typing "sh file".  To overwrite existing
+# files, type "sh file -c".  You can also feed this as standard input via
+# unshar, or by typing "sh <file", e.g..  If this archive is complete, you
+# will see the following message at the end:
+#		"End of archive 8 (of 18)."
+# Contents:  Fixes ed.init.c sh.glob.c sh.set.c
+# Wrapped by vixie@cognition.pa.dec.com on Fri Dec 20 13:29:26 1991
+PATH=/bin:/usr/bin:/usr/ucb ; export PATH
+if test -f 'Fixes' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'Fixes'\"
+else
+echo shar: Extracting \"'Fixes'\" \(19526 characters\)
+sed "s/^X//" >'Fixes' <<'END_OF_FILE'
+V6.01.00, 12/19/91 [for comp.sources.unix]
+X22. Restore the original prompt in automatic correction when the user
+X    asks to re-edit the command.
+X21. Better error for unreadable files in tw.parse.c
+X20. Sequent patches.
+X19. (V6.00.08 beta 12/14/91)
+X18. Filenames containing # were spelled/expanded incorrectly.
+X17. Stellar/stellix port.
+X16. Hpux 8.0 has SIGWINDOW but we cannot get the window size. Protect
+X    against window changes updating $LINES and $COLUMNS.
+X15. Mach setpath did not work right.
+X14. Mach does not need setenv in lib; in fact that does not work right.
+X13. shell level gets decremented when we exec.
+X12. restart_fg_editor picked the wrong editor if arg contained a slash.
+X    e.g vi ~/.cshrc
+X11. (V6.00.07 beta 12/08/91)
+X10. Allow use of vfork() on systems that do not have job control.
+X9.  Avoid NUMCC from being defined twice.
+X8.  (V6.00.06 beta 12/05/91)
+X7.  SunOS3's FIOCLEX dups...
+X6.  Yet another globbing bug fix from Michael (echo .[^.])
+X5.  Ultrix now wants __ before cpp symbols.
+X4.  Workaround sun's header files inconsistency so tcsh can be compiled
+X    with #undef POSIX
+X3.  Fixed limit stuff so that large values don't cause errors.
+X2.  Fixed =1 and ~user error messages (Per)
+X1.  (beta-5 6.00.04 == 6.00.05)
+X
+X$#*
+X$#* New numbering scheme (The last 2 digits are reserved for beta releases
+X$#* from now on. So we start at 6.00.06 which is 6.00.04 beta 6, and we are
+X$#* going to release 6.01.00...
+X$#*
+X
+V6.00.04, (never released)
+X34. (beta-5 11/25/91)
+X33. Simplify code in BindArrowKeys()
+X32. Get rid of the PNULL's
+X31. Support for shadow password in locking code. (From Kimmo)
+X30. Normalize-path editor function.
+X29. (beta-4 11/21/91)
+X28. minix additions
+X27. bindkey fixes (-c addition, casting cleanups)
+X26. (beta-3 11/16/91)
+X25. Prompt length checking. 
+X24. Michael's fixes for the watching code. Tcsh could core dump when using
+X    a corrupted utmp.
+X23. overwrite mode flag, and autologout locking code.
+X22. overwrite mode would still insert digits!
+X21. Get the value of _POSIX_VDISABLE from pathconf...
+X20. Hpux 8.0 fixes. Sigstack botches with shared libraries. Ansi mode
+X    static initialization of structures with prototyped function pointers
+X    gives spurious warnings...
+X19. Onintr in /etc rc files is disabled.
+X18. (beta-2 11/03/91)
+X17. Multi-line aliases with `` bug fix.
+X16. Sticky emacs overwrite mode.
+X15. Autolist option.
+X14. Fix for redirection with wildcard filanames.
+X13. No error correction for multi-line commands.
+X12. Esix-4 re-defines p_pid. Argh...
+X11. (beta-1 10/28/91)
+X10. Foreach loops were broken again.
+X9.  SUNOS localtime() bug does not only happen on the 8th byte. [Michael]
+X8.  sh.dir.c, memory corruption in dinit(). Thanks Michael.
+X7.  uts broken <sys/stat.h> work-around, and has a wait3()
+X6.  SGI (-t filename) extension, returns true when filename is a tty.
+X5.  'default:' addition in all switch() statements.
+X4.  oflag was not being updated correctly in Rawmode()
+X3.  missing 'break;' in prompt code '%y'.
+X2.  infinite loop in :a<mod> code.
+X1.  hashstat was not reporting hits+misses
+X
+V6.00.03, 10/21/91
+X31. watch code now accepts shell patterns.
+X30. new hashing code portability fixes.
+X29. $foo:gs/:/ / fix and 'a' modifier addition.
+X28. Added $! (the pid of the last background job forked)
+X27. exec does not kill the shell when it fails.
+X26. Irix4.0 decls.
+X25. SVR4 uthost fixes from Kimmo Suominen
+X24. Imake addition from marc
+X23. New i-search from Per.
+X22. ibmesa fixes
+X21. convex fixes.
+X20. t command for vi.
+X19. SVR4 fixes (reverse pipeline and sigaction()) from David Dawes.
+X18. New hashing from Marc
+X17. Added : to the ~name separators so ~foo:~bar works.
+X16. New ed.init.c. Added ed.term.c
+X15. Still can't get the history exactly csh-like... !-2$ was broken...
+X14. vi character searches.
+X13. -Dvar=name command line option for the apollos.
+X12. Prompt format changes for date/directory.
+X11. Vi searches.
+X10. Emacs i-search. [currently not bound]
+X9.  Vi additions ([dc]-{w,$,f<c>},Undo)
+X8.  tcsh -n parses now builtin structures.
+X7.  seek to the end on errors in loops.
+X6.  echotc -s was broken
+X5.  Better !event parsing. !foo;!bar was broken.
+X4.  foreach loops and if statements in aliases.
+X3.  .cshdirs would corrupt the heap if some directories were not there.
+X2.  System V echo was broken with \
+X1.  Fixed echo '!-1', history would eat the quote.
+X
+V6.00.02, 08/05/91 [For comp.sources.unix]
+X8.  tcsh will always set $LOGNAME and $USER if not already set in the
+X    environment.
+X7.  added $histfile.
+X6.  echo `echo` * and  echo ~ {} were broken
+X5.  setty builtin addition
+X4.  Multiple : modifiers [experimental, disabled with -DCOMPAT]
+X3.  7 bit fixes, and hp9000s500.
+X2.  #undef DEBUG in tc.alloc.c, so we continue if we get a bad free() 
+X1.  getn() is now protected against NULL strings.
+X
+V6.00.01, 07/16/91
+X17. added beepcmd, and fixed small tenematch bugs.
+X16. Renamed DUP2 flag to HAVEDUP2 cause AIXPS2 defines DUP2 already.
+X15. More ANSI fixes, and mit additions (load-average)
+X14. don't clear ECHOE, background programs might need it.
+X13. Refresh bug fix...
+X12. getpwent() should not be interrupted (yellow pages), cause it might
+X    leave dangling pointers, that endpwent() will trash.
+X11. ChangeSize is now responsible to set the screen size to something
+X    sane, but it should not affect the environment if the information
+X    it received is not valid
+X10. Find out if we are running under emacs using $TERM. It is more 
+X    reliable.
+X9.  tcsh was broken if SHORT_STRINGS was not defined (glob() problem)
+X8.  If GetSize() fails it should always return reasonable screen sizes.
+X7.  globbing should not fail if one or more patterns match.
+X6.  increased the number of aliases in the loop detection code.
+X5.  DGUX has size_t and pid_t defined now...
+X4.  ESIX does not have EWOULDBLOCK or EAGAIN & POSIX... That was not handled
+X    correctly.
+X3.  rs6000 needs BSDWAIT.
+X2.  Hpux susp key could not be changed.
+X1.  Apollo fixes.
+X
+V6.00.00, 07/04/91
+X45. Fixed quoting of VSTART/VSTOP on termios
+X44. Memory leak every time you pipe in or out.
+X43. echo {foo bar.[ch]}. Did not check for end of word.
+X42. ANSI prototypes
+X41. dmove() would leave the source descriptor open when using dup2()
+X    e.g.
+X    while (1)
+X	echo foo >>! bar
+X    end
+X    runs out of file descriptors
+X40. recursive `` expanded via aliases would abort.
+X39. set home=../relative-path-name was broken.
+X    e.g.
+X    set home=../..; cd ..;
+X    <abort>
+X38. Incorrect error when changing to directory:
+X    e.g.
+X    mkdir not-in-cd-path; chmod -x not-in-cd-path; cd not-in-cd-path;
+X    echoed:
+X       not-in-cd-path: No such file or directory.
+X    it should have said
+X       not-in-cd-path: Permission denied.
+X37. if ( \! =~ [\!] ) echo ok, did not echo ok. Quoting inside [] pattern.
+X36. More than 127 jobs caused job # to go negative
+X35. unsetenv <pattern> ... Added support for more than one pattern.
+X34. More background process status report fixes.
+X33. Apollo builtin support.
+X32. Glob fix. echo '*' * was not handled properly.
+X31. Glob fix. setenv FOO `sleep 1` would either cause a segmentation fault.
+X    or print ambiguous.
+X30. Glob fix. Quoted characters inside [] were not handled properly.
+X29. Removed TELL and VMUNIX defines. I think we cannot compile on V6 anyway
+X28. Overflow check for expansions.
+X27. Added matchbeep, shell pattern history searching.
+X26. Added code to handle /dev/std{in,out,err}
+X25. Fixed POSIX speed handling in raw mode.
+X24. Fixed a flushing bug in the filec code in sh.file.c
+X23. Compiled and added hp9000s700 to the list of hosts.
+X22. Fixed horrible bug in gmatch() 
+X	switch (4)
+X	case [a-z]:
+X		echo bug;
+X		breaksw;
+X	case 4:
+X		echo ok;
+X		breaksw;
+X	endsw
+X21. Fixes for _SEQUENT_ ut_host.
+X20. FLUSHO added
+X19. mkdir foo\`bar; cd foo\`bar; was broken
+X18. EWOULDBLOCK == EAGAIN on RENO check for that too.
+X17. Dword() simplified and removed the gotos.
+X16. Hpux now compiles with POSIX. Moved the local chars modes in ed.init.c
+X    after the tty modes.
+X15. Process group fixes for POSIX
+X14. We need <sys/filio.h> on the suns for FIOCLEX!!! We did not close
+X    our file descriptors before...
+X13. A/UX fixes.
+X12. History events that start with a number are not necessarily numeric:
+X    > !3d
+X    3d: Event not fount
+X11. History loop detection added.
+X    > alias a \!#
+X    > b; a
+X10. Alias loop detection code was ineffective on eager optimizers.
+X 9. All errors should now go through our table. Next step we should
+X    add nls error messages.
+X 8. Unsetenv now globs its arguments! Before it did not...
+X 7. Added tilde cache and -l flag.
+X 6. Added autocorrect
+X 5. Fixed for so that background jobs in scripts get process groups
+X 4. Fixed amazing memory leak in setenv()...
+X 3. Added short2qstr() so that we can form quoted strings to be used with glob()
+X 2. str2short and short2str allocate space dynamically.
+X 1. Fixed bug related to the is*() routines called with shorts.
+X    [only if NLS and SHORT_STRINGS are defined].
+X    (The _ctype_ was getting indexed with shorts...)
+X 0. Complete overhaul. Brought in the 4.4 csh stuff. Separated most
+X    tcsh and csh code except where I would have to add more global
+X    variables. Compiled correctly with both lint and gcc -Wall on
+X    a sparc running 4.1
+X
+V5.20.03, 03/20/91.	- Never released
+X25. Kanji, SXA additions.
+X24. (exec foo) should not fail if they are suspended jobs.
+X23. Support kernel paging stuff on aix 370.
+X22. Now we handle correctly the environment variables LINES, COLUMNS,
+X    TERMCAP for window size changes...
+X21. Tcsh 5.18c+ had broken NULL chars on scripts.
+X    > cat > foo 
+X    #!/usr/local/bin/tcsh -f
+X    echo "foo"
+X    echo "^V^@"
+X    echo "bar"
+X    ^D
+X    > chmod +x foo; foo
+X    foo
+X20. Posix has EAGAIN and not EWOULDBLOCK
+X19. Don't set ECHOK; makes kill ^U ugly.
+X18. $shell is SHELLPATH and not $SHELL any more.
+X17. Added -n flag to cd, pushd, popd and dirs. Documented -l and -v
+X    flags.
+X16. Documented and fixed chase_symlinks and ignore_symlinks.
+X15. Call endpwent() when you get interrupted...
+X    cd ~chri<tab>^C
+X    cd ~christos/<enter>
+X    <stuck>
+X14. Exec when you have suspended jobs asks for verification.
+X13. Variable length fixes:
+X    >set abcdefghijklmnopqrstuvwxyz=1
+X    >echo $abcdefghijklmnopqrstuvwxyz
+X    abcdefghijklmnopqrs: Undefined variable
+X    Now we have better messages too...
+X12. Icon fixes...
+X11. Quote expanded glob and history chars too.
+X10. If someone sets SHIN to O_NDELAY we died... Now we set it back...
+X 9. unset path; unsetenv PATH; ls-F; (poof) fixed...
+X 8. Patches for masscomp, and ${var123} lexical analysis fix...
+X 7. Patch for sunview bug: A partially covered suntool sends SIGWINCH every
+X    time the text is scrolled, causing annoying redraw effects. Now tcsh
+X    checks if the size really changed before doing anything.
+X 6. Interrupt in the middle of cwdcmd, and periodic does not remove the
+X    aliases.
+X 5. prompt2 and prompt3 fixes:
+X    Prompt2 now prints the status of the parser by default.
+X    Prompt3 can now have the standard prompt escape sequences.
+X 4. eval file descriptor re-direction fix.
+X    >set p='w | tail +3'
+X    >eval $p
+X    (originally | tail +3 was ignored)
+X 3. $edit != emacs anymore; it was misleading, 'set edit' enables editing
+X    'unset edit' disables it.
+X 2. PERROR define fix. 
+X 1. irix3.3.1 line discipline fix.
+X
+V5.20.02, 12/15/90.
+X32. /etc/Logout added and merged with /etc/Login flag.
+X31. Fixed tty chars in ed.init.c. Some of them were not handled correctly.
+X30. Command execution does not leak memory any more, and doing
+X    ~ four times does not core-dump.
+X29. Fixed the notorious csh 'if(' bug (part of the convex fixes)
+X28. Intelligent getwd() on startup, and canonicalization.
+X27. Intelligent directory stack. Gets updated when $HOME changes.
+X26. Directory stack/save-restore additions
+X25. Convex Fixes.
+X24. Fixed onlret, and echonl getting stuck on svid.
+X23. Shouldn't leave tty in raw mode at auto-logout (e.g. when su'ing from a
+X    csh, this is annoying).
+X22. Some users had environment EMACS set to something, and with my bad fix
+X    at pl 1 found that they didn't have echo... (of course, even before my
+X    "fix", they didn't have editing...). Anyway, refined the check to be
+X    for EMACS=t, which is what emacs sets when running a subshell.
+X21. kill -CONT %job, would not update the status of the job, but it would
+X    just restart it.
+X20. Sequent fixes.
+X19. AIX370 signal and TCF fixes.
+X18. fixed ls-F -l, SIGINT problem.
+X17. aix on the ps2 does not have strcoll() either.
+X16. Bind [A - [D and OA to OD in vi mode to the arrow key functions
+X    so that they work from insert mode.
+X15. %~ was not working correctly for /home/news and /home/newsbin...
+X14. Removed Rcs Log
+X13. ISC unix fixes.
+X12. sunos3.x wants <sys/dir.h> not <dirent.h>
+X11. Remove precmd's, cwdcmd's and periodic cmds that had errors.
+X10. Compile sunos4.1 using termio. 
+X 9. Rs6000 line discipline fixes. 
+X 8. T_Tabs was wrong for termio machines.
+X 7. Don't bind single keystroke arrow keys, when they are already bound!
+X 6. Test for newline and tab before deciding not to send shell scripts
+X    to the bourne shell.
+X 5. Added LITERAL prompt stuff.
+X 4. Fixed gethostname() in sh.rest.c to return the nodename.
+X 3. Do not quote spell checked stuff. This is not very intelligent but
+X    works better than before.
+X 2. Fixes for relative path components. (paths that start with a .)
+X 1. Fixed so that Rawmode() is not called when we are not editing
+X    (breaks running under emacs)
+X
+V5.20.01, 11/15/90.
+X12. Recognize environment variables too.
+X11. Always start in Rawmode()
+X10. don't try to execute binary files using the bourne shell.
+X 9. Vi change to end of line updates correctly now.
+X 8. Prompt in continuation lines.
+X 7. Prompt in if statements fix.
+X 6. System V ^C works right now.
+X 5. ^Z works correctly in bindings
+X 4. Better error messages for variables.
+X 3. dinit() now is more robust.
+X 2. Added aux2.0 patches.
+X 1. Fixed bug with arrow key bindings in ed.screen.c. All the keys
+X    were bound to up-history!
+X
+V5.20.00, 11/10/90.
+X26. Fixed system V and POSIX time reporting.
+X25. Fixed ed.screen.c so that it does not use malloc().
+X24. Fixed SIGWINCH on the iris
+X23. Fixed ed.screen.c, so that settc works correcly. It used to set
+X    the termcap with a string that was allocated from the stack!
+X22. Fixed listing of commands, where the last command was not checked.
+X21. Fixed which command. It did not work for
+X    \<command>, if command was aliased.
+X20. Eliminated CSH4.3 define. You've had enough time to upgrade from 4.2
+X19. Fixed GotTermCaps to be called only once.
+X18. Added bindkey -r
+X17. Attributes were not getting reset correctly.
+X16. history -t does not print the time-stamp.
+X15. AddXkey, works now for single character xkeys.
+X14. filetype() knows better about symlinks.
+X13. ls-F works with filenames that have metachars
+X12. Completion/spelling works with quoted things.
+X11. Fixed refresh bug. Repeat by:
+X    On an intelligent terminal that has insert and delete chars (xterm)
+X    > orphan
+X    > vi orphan.c
+X    > ^P^P
+X10. Fixed so that if we don't have a tty on stdin editing is disabled.
+X 9. Check for nested process forking, to avoid loops such as:
+X    > alias foo 'set bar=`foo`'
+X    > foo
+X 8. Fix setting of AsciiOnly (Per)
+X 7. tw.spell.c, defined F_OK for systems that don't have it.
+X 6. ourwait.h had typo in ifdef.
+X 5. BSD compilers need a cast to int for enums used in 
+X    switches (Matthew Day)
+X 4. Found the cause for the core-dump in long backquote 
+X    expansions (Mark Davies)
+X 3. Some externs in ed.h needed to be truly externs...
+X    reported by Mark Davies, bug appeared only on hp9000s800.
+X 2. Changed $tcsh, and $version strings.
+X 1. Added internal sprintf function, renamed putchar to CSHputchar,
+X    printf to CSHprintf, sprintf to CSHsprintf.
+X
+V5.19.02, 10/23/90.
+X36. Added /etc/cshrc for the SGI irises.
+X35. Added expand-variables function.
+X34. Documented $time in tcsh.man
+X33. Shell variables are now 'recognized' when expanding/listing things.
+X32. ls-F does not eat the last slash on the / directory!
+X31. Strings bound to keys are printed inside double quotes.
+X30. History now remembers the exact line, not just an unparsed version of
+X    the tokens.
+X29. Renamed itoa to Itoa(), so things in libc that use itoa() don't break.
+X28. Ported to IBM aix/ps2. 
+X27. Fixed eval so that it forks when the output is piped
+X    Repeat by:
+X    > who | grep $user
+X    > eval who | grep $user
+X26. Fixed so that 'nice <builtin changing the working directory>' does not
+X    nice or fork.
+X    Consider doing:
+X    nice cd /tmp && rm *.c (don't try it!!!)
+X    [what actually happens is that nice has to fork, then the child executes
+X     chdir, and the parent stays where it was]
+X25. Added Dan's patches (nls, builtin bindkey, fixes to the editor).
+X24. Added aix370, migrate, getspath, getspath, getxvers, setxvers
+X23. Added builtin echotc, removed sl and el.
+X22. Ported to 4.4 BSD. This involved changing the way lots of flags worked,
+X    cleanup of the SVID stuff, and addition of more compilation flags.
+X    Now POSIX can work whed BSD is defined...
+X21. Fixed so that el, sl work. Actually they are to be removed soon and
+X    be replaced with echotc.
+X20. Avoid the Quoted Space hack for alias when printing jobs!
+X    [aliases to the same name avoid further alias expansion, by 
+X     inserting a quoted space in front of the command. In SHORT_STRINGS
+X     QUOTE is the 15th bit so print ignores it thinking it is the
+X     end of the string. So we just skip the Quoted Space....]
+X    Repeat by:
+X    > set notify
+X    > alias ls ls -F
+X    > (ls) &
+X    Prints        Exit 0 (
+X    Should print: Exit 0 ( ls -F )
+X19. Fixed so that "", '', ``, all produce ': Command not found',
+X    and not the spurious messages.
+X    Repeat by:
+X    > set path = (/bin /usr/bin .... .)
+X    > ""
+X    /some/path/name/: Command not found
+X18. Enable the use of <ctype.h> macros if they exist and NLS is defined.
+X    NLS code is not ready yet.
+X17. Fixed rmstar and continue_jobs code, so that they are not compile
+X    options, but shell variables. Now you need to 'set rmstar' to get
+X    enable rmstar.
+X16. Fixed SIGWINCH, SIGWINDOW, and setting of li, co, that broke
+X    suntools, and others.
+X    Repeat by:
+X    Start a shelltool of size other than 80x34
+X    > telltc
+X    > stty -a
+X    do not report the same number of lines and columns.
+X15. More fixes to tw.parse.c, and tw.spell.c.
+X14. More fixes to sh.char.c.
+X13. Fixed coredump caused by ``.
+X12. Fixed spell-line code..
+X11. Trapped SIGCHLD in sh.sem.c, while forking. Still there is a small
+X    race, but the probability of happening is smaller!
+X10. Fixed sh.char.c to be ISO compliant.
+X 9. Added expand-glob
+X 8. Fixed ourwait.h for little endians.
+X 7. Fixed that foreach i (^D expands correctly.
+X 6. Fixed so that listmax is ignored in ls-F.
+X 5. Fixed spelling correction so that single letter words and words that
+X    contain globbing chars do not get spell checked.
+X 4. Changed NeXT HOSTTYPE to next, since all HOSTTYPE's are lower case.
+X 3. Fixed symmetry, and changed symmetry HOSTTYPE from sequent to symmetry.
+X 2. Added boldfacing, underlining chars.
+X 1. Added IRIX3.3.1 support.
+X
+V5.19.01, 9/26/90.
+X7. Brought the README file up-to-date, and changed the bug report
+X   address to point to me.
+X6. sh.lex.c. In addla(), overflow computation was wrong.
+X5. Fixed SHELLPATH, to be set correctly when $SHELL is not set.
+X4. Fixed print statement in sh.proc.c that contained \215.
+X3. Fixed the Makefile and MAKEDIFFS so that a tahoe diff can be made.
+X2. RS6000: hacked around execv bug, and ed.init.c warning.
+X1. Editor should not be enabled when we don't have a tty.
+END_OF_FILE
+if test 19526 -ne `wc -c <'Fixes'`; then
+    echo shar: \"'Fixes'\" unpacked with wrong size!
+fi
+# end of 'Fixes'
+fi
+if test -f 'ed.init.c' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'ed.init.c'\"
+else
+echo shar: Extracting \"'ed.init.c'\" \(19471 characters\)
+sed "s/^X//" >'ed.init.c' <<'END_OF_FILE'
+X/* $Header: /home/hyperion/mu/christos/src/sys/tcsh-6.01/RCS/ed.init.c,v 3.23 1991/12/19 22:34:14 christos Exp $ */
+X/*
+X * ed.init.c: Editor initializations
+X */
+X/*-
+X * Copyright (c) 1980, 1991 The Regents of the University of California.
+X * All rights reserved.
+X *
+X * Redistribution and use in source and binary forms, with or without
+X * modification, are permitted provided that the following conditions
+X * are met:
+X * 1. Redistributions of source code must retain the above copyright
+X *    notice, this list of conditions and the following disclaimer.
+X * 2. Redistributions in binary form must reproduce the above copyright
+X *    notice, this list of conditions and the following disclaimer in the
+X *    documentation and/or other materials provided with the distribution.
+X * 3. All advertising materials mentioning features or use of this software
+X *    must display the following acknowledgement:
+X *	This product includes software developed by the University of
+X *	California, Berkeley and its contributors.
+X * 4. Neither the name of the University nor the names of its contributors
+X *    may be used to endorse or promote products derived from this software
+X *    without specific prior written permission.
+X *
+X * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+X * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+X * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+X * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+X * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+X * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+X * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTS_ION)
+X * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+X * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+X * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+X * SUCH DAMAGE.
+X */
+X#include "sh.h"
+X
+RCSID("$Id: ed.init.c,v 3.23 1991/12/19 22:34:14 christos Exp $")
+X
+X#include "ed.h"
+X#include "ed.term.h"
+X#include "tc.h"
+X#include "ed.defns.h"
+X
+X/* ed.init.c -- init routines for the line editor */
+X/* #define DEBUG_TTY */
+X
+int     Tty_raw_mode = 0;	/* Last tty change was to raw mode */
+int     MacroLvl = -1;		/* pointer to current macro nesting level; */
+X				/* (-1 == none) */
+static int Tty_quote_mode = 0;	/* Last tty change was to quote mode */
+static unsigned char vdisable;	/* The value of _POSIX_VDISABLE from 
+X				 * pathconf(2) */
+X
+int     Tty_eight_bit = -1;	/* does the tty handle eight bits */
+X
+extern bool GotTermCaps;
+X
+static ttydata_t extty, edtty, tstty;
+X#define qutty tstty
+X
+extern int insource;
+X#define SHTTY (insource ? OLDSTD : SHIN)
+X
+static unsigned char ttychars[NN_IO][C_NCC] = {
+X    {
+X	CINTR,		 CQUIT, 	 CERASE, 	   CKILL,	
+X	CEOF, 		 CEOL, 		 CEOL2, 	   CSWTCH, 
+X	CDSWTCH,	 CERASE2,	 CSTART, 	   CSTOP,
+X	CWERASE, 	 CSUSP, 	 CDSUSP, 	   CREPRINT,
+X	CDISCARD, 	 CLNEXT,	 CSTATUS,	   CPAGE,
+X	CPGOFF,		 CKILL2, 	 CBRK, 		   CMIN,
+X	CTIME
+X    },
+X    {
+X	CINTR, 		 CQUIT, 	  CERASE, 	   CKILL, 
+X	_POSIX_VDISABLE, _POSIX_VDISABLE, _POSIX_VDISABLE, _POSIX_VDISABLE, 
+X	_POSIX_VDISABLE, CERASE2,	  CSTART, 	   CSTOP, 	   
+X	_POSIX_VDISABLE, _POSIX_VDISABLE, _POSIX_VDISABLE, _POSIX_VDISABLE, 
+X	CDISCARD, 	 _POSIX_VDISABLE, _POSIX_VDISABLE, _POSIX_VDISABLE, 
+X	_POSIX_VDISABLE, _POSIX_VDISABLE, _POSIX_VDISABLE, 1,
+X	0
+X    },
+X    {	
+X	0,		 0,		  0,		   0,
+X	0,		 0,		  0,		   0,
+X	0,		 0,		  0,		   0,
+X	0,		 0,		  0,		   0,
+X	0,		 0,		  0,		   0,
+X	0,		 0,		  0,		   0,
+X	0
+X    }
+X};
+X
+X#ifdef SIG_WINDOW
+void
+check_window_size(force)
+X    int     force;
+X{
+X#ifdef BSDSIGS
+X    sigmask_t omask;
+X#endif /* BSDSIGS */
+X    int     lins, cols;
+X
+X    /* don't want to confuse things here */
+X#ifdef BSDSIGS
+X    omask = sigblock(sigmask(SIG_WINDOW)) & ~sigmask(SIG_WINDOW);
+X#else /* BSDSIGS */
+X    (void) sighold(SIG_WINDOW);
+X#endif /* BSDSIGS */
+X    /*
+X     * From: bret@shark.agps.lanl.gov (Bret Thaeler) Avoid sunview bug, where a
+X     * partially hidden window gets a SIG_WINDOW every time the text is
+X     * scrolled
+X     */
+X    if (GetSize(&lins, &cols) || force) {
+X	if (GettingInput) {
+X	    ClearLines();
+X	    ClearDisp();
+X	    MoveToLine(0);
+X	    MoveToChar(0);
+X	    ChangeSize(lins, cols);
+X	    Refresh();
+X	}
+X	else
+X	    ChangeSize(lins, cols);
+X    }
+X#ifdef BSDSIGS
+X    (void) sigsetmask(omask);	/* can change it again */
+X#else				/* BSDSIGS */
+X    (void) sigrelse(SIG_WINDOW);
+X#endif /* BSDSIGS */
+X}
+X
+sigret_t
+X/*ARGSUSED*/
+window_change(snum)
+int snum;
+X{
+X#ifdef UNRELSIGS 
+X    /* If we were called as a signal handler, restore it. */
+X    if (snum > 0)
+X      sigset(snum, window_change);
+X#endif /* UNRELSIGS */
+X    check_window_size(0);
+X#ifndef SIGVOID
+X    return (snum);
+X#endif 
+X}
+X
+X#endif /* SIG_WINDOW */
+X
+void
+ed_set_tty_eight_bit()
+X{
+X    if (tty_getty(SHTTY, &extty) == -1) {
+X#ifdef DEBUG_TTY
+X	xprintf("ed_set_tty_eight_bit: tty_getty: %s\n", strerror(errno));
+X#endif /* DEBUG_TTY */
+X	return;
+X    }
+X    Tty_eight_bit = tty_geteightbit(&extty);
+X}
+X
+X			
+int
+ed_Setup(rst)
+X    int rst;
+X{
+X    static int havesetup = 0;
+X
+X    if (havesetup) 	/* if we have never been called */
+X	return(0);
+X
+X#if defined(POSIX) && defined(_PC_VDISABLE) && !defined(BSD4_4)
+X    { 
+X	long pcret;
+X
+X	if ((pcret = fpathconf(SHTTY, _PC_VDISABLE)) == -1L)
+X	    vdisable = _POSIX_VDISABLE;
+X	else 
+X	    vdisable = pcret;
+X	if (vdisable != _POSIX_VDISABLE && rst != 0)
+X	    for (rst = 0; rst < C_NCC - 2; rst++) {
+X		if (ttychars[ED_IO][rst] == _POSIX_VDISABLE)
+X		    ttychars[ED_IO][rst] = vdisable;
+X		if (ttychars[EX_IO][rst] == _POSIX_VDISABLE)
+X		    ttychars[EX_IO][rst] = vdisable;
+X	    }
+X    }
+X#else /* ! POSIX || !_PC_VDISABLE && !defined(BSD4_4) */
+X    vdisable = _POSIX_VDISABLE;
+X#endif /* POSIX && _PC_VDISABLE */
+X	
+X    inputmode = MODE_INSERT;	/* start out in insert mode */
+X    ed_InitMaps();
+X    Hist_num = 0;
+X    Expand = 0;
+X
+X    if (tty_getty(SHTTY, &extty) == -1) {
+X#ifdef DEBUG_TTY
+X	xprintf("ed_Setup: tty_getty: %s\n", strerror(errno));
+X#endif /* DEBUG_TTY */
+X	return(-1);
+X    }
+X
+X    tstty = edtty = extty;
+X
+X    T_Speed = tty_getspeed(&extty);
+X    T_Tabs = tty_gettabs(&extty);
+X    Tty_eight_bit = tty_geteightbit(&extty);
+X
+X#if defined(POSIX) || defined(TERMIO)
+X    extty.d_t.c_iflag &= ~ttylist[EX_IO][M_INPUT].t_clrmask;
+X    extty.d_t.c_iflag |=  ttylist[EX_IO][M_INPUT].t_setmask;
+X
+X    extty.d_t.c_oflag &= ~ttylist[EX_IO][M_OUTPUT].t_clrmask;
+X    extty.d_t.c_oflag |=  ttylist[EX_IO][M_OUTPUT].t_setmask;
+X
+X    extty.d_t.c_cflag &= ~ttylist[EX_IO][M_CONTROL].t_clrmask;
+X    extty.d_t.c_cflag |=  ttylist[EX_IO][M_CONTROL].t_setmask;
+X
+X    extty.d_t.c_lflag &= ~ttylist[EX_IO][M_LINED].t_clrmask;
+X    extty.d_t.c_lflag |=  ttylist[EX_IO][M_LINED].t_setmask;
+X
+X# ifdef IRIX3_3
+X    extty.d_t.c_line = NTTYDISC;
+X# endif /* IRIX3_3 */
+X
+X#else	/* GSTTY */		/* V7, Berkeley style tty */
+X
+X    if (T_Tabs) {	/* order of &= and |= is important to XTABS */
+X	extty.d_t.sg_flags &= ~(ttylist[EX_IO][M_CONTROL].t_clrmask|XTABS);
+X	extty.d_t.sg_flags |=   ttylist[EX_IO][M_CONTROL].t_setmask;
+X    }
+X    else {
+X	extty.d_t.sg_flags &= ~ttylist[EX_IO][M_CONTROL].t_clrmask;
+X	extty.d_t.sg_flags |= (ttylist[EX_IO][M_CONTROL].t_setmask|XTABS);
+X    }
+X
+X    extty.d_lb &= ~ttylist[EX_IO][M_LOCAL].t_clrmask;
+X    extty.d_lb |=  ttylist[EX_IO][M_LOCAL].t_setmask;
+X
+X#endif /* GSTTY */
+X    /*
+X     * Reset the tty chars to reasonable defaults
+X     * If they are disabled, then enable them.
+X     */
+X    if (rst) {
+X	if (tty_cooked_mode(&tstty)) {
+X	    tty_getchar(&tstty, ttychars[TS_IO]);
+X	    /*
+X	     * Don't affect CMIN and CTIME
+X	     */
+X	    for (rst = 0; rst < C_NCC - 2; rst++) {
+X		if (ttychars[TS_IO][rst] != vdisable &&
+X		    ttychars[EX_IO][rst] != vdisable)
+X		    ttychars[EX_IO][rst] = ttychars[TS_IO][rst];
+X		if (ttychars[TS_IO][rst] != vdisable &&
+X		    ttychars[ED_IO][rst] != vdisable)
+X		    ttychars[ED_IO][rst] = ttychars[TS_IO][rst];
+X	    }
+X	}
+X	tty_setchar(&extty, ttychars[EX_IO]);
+X	if (tty_setty(SHTTY, &extty) == -1) {
+X#ifdef DEBUG_TTY
+X	    xprintf("ed_Setup: tty_setty: %s\n", strerror(errno));
+X#endif /* DEBUG_TTY */
+X	    return(-1);
+X	}
+X    }
+X    else
+X	tty_setchar(&extty, ttychars[EX_IO]);
+X
+X# ifdef SIG_WINDOW
+X    (void) sigset(SIG_WINDOW, window_change);	/* for window systems */
+X# endif 
+X    havesetup = 1;
+X    return(0);
+X}
+X
+void
+ed_Init()
+X{
+X    ResetInLine();		/* reset the input pointers */
+X    GettingInput = 0;		/* just in case */
+X    LastKill = KillBuf;		/* no kill buffer */
+X
+X#ifdef DEBUG_EDIT
+X    CheckMaps();		/* do a little error checking on key maps */
+X#endif 
+X
+X    if (ed_Setup(0) == -1)
+X	return;
+X
+X    /*
+X     * if we have been called before but GotTermCaps isn't set, our TERM has
+X     * changed, so get new termcaps and try again
+X     */
+X
+X    if (!GotTermCaps)
+X	GetTermCaps();		/* does the obvious, but gets term type each
+X				 * time */
+X
+X#if defined(TERMIO) || defined(POSIX)
+X    edtty.d_t.c_iflag &= ~ttylist[ED_IO][M_INPUT].t_clrmask;
+X    edtty.d_t.c_iflag |=  ttylist[ED_IO][M_INPUT].t_setmask;
+X
+X    edtty.d_t.c_oflag &= ~ttylist[ED_IO][M_OUTPUT].t_clrmask;
+X    edtty.d_t.c_oflag |=  ttylist[ED_IO][M_OUTPUT].t_setmask;
+X
+X    edtty.d_t.c_cflag &= ~ttylist[ED_IO][M_CONTROL].t_clrmask;
+X    edtty.d_t.c_cflag |=  ttylist[ED_IO][M_CONTROL].t_setmask;
+X
+X    edtty.d_t.c_lflag &= ~ttylist[ED_IO][M_LINED].t_clrmask;
+X    edtty.d_t.c_lflag |=  ttylist[ED_IO][M_LINED].t_setmask;
+X
+X
+X# ifdef IRIX3_3
+X    edtty.d_t.c_line = NTTYDISC;
+X# endif /* IRIX3_3 */
+X
+X#else /* GSTTY */
+X
+X    if (T_Tabs) {	/* order of &= and |= is important to XTABS */
+X	edtty.d_t.sg_flags &= ~(ttylist[ED_IO][M_CONTROL].t_clrmask | XTABS);
+X	edtty.d_t.sg_flags |=   ttylist[ED_IO][M_CONTROL].t_setmask;
+X    }
+X    else {
+X	edtty.d_t.sg_flags &= ~ttylist[ED_IO][M_CONTROL].t_clrmask;
+X	edtty.d_t.sg_flags |= (ttylist[ED_IO][M_CONTROL].t_setmask | XTABS);
+X    }
+X
+X    edtty.d_lb &= ~ttylist[ED_IO][M_LOCAL].t_clrmask;
+X    edtty.d_lb |=  ttylist[ED_IO][M_LOCAL].t_setmask;
+X#endif /* POSIX || TERMIO */
+X
+X    tty_setchar(&edtty, ttychars[ED_IO]);
+X}
+X
+X/* 
+X * Check and re-init the line. set the terminal into 1 char at a time mode.
+X */
+int
+Rawmode()
+X{
+X    if (Tty_raw_mode)
+X	return (0);
+X
+X#ifdef _IBMR2
+X    tty_setdisc(SHTTY, ED_IO);
+X#endif /* _IBMR2 */
+X
+X    if (tty_getty(SHTTY, &tstty) == -1) {
+X#ifdef DEBUG_TTY
+X	xprintf("Rawmode: tty_getty: %s\n", strerror(errno));
+X#endif /* DEBUG_TTY */
+X	return(-1);
+X    }
+X
+X    /*
+X     * We always keep up with the eight bit setting and the speed of the
+X     * tty. But only we only believe changes that are made to cooked mode!
+X     */
+X#if defined(POSIX) || defined(TERMIO)
+X    Tty_eight_bit = tty_geteightbit(&tstty);
+X    T_Speed = tty_getspeed(&tstty);
+X
+X# ifdef POSIX
+X    /*
+X     * Fix from: Steven (Steve) B. Green <xrsbg@charney.gsfc.nasa.gov>
+X     * Speed was not being set up correctly under POSIX.
+X     */
+X    if (tty_getspeed(&extty) != T_Speed || tty_getspeed(&edtty) != T_Speed) {
+X	(void) cfsetispeed(&extty.d_t, T_Speed);
+X	(void) cfsetospeed(&extty.d_t, T_Speed);
+X	(void) cfsetispeed(&edtty.d_t, T_Speed);
+X	(void) cfsetospeed(&edtty.d_t, T_Speed);
+X    }
+X# endif /* POSIX */
+X#else /* GSTTY */
+X
+X    T_Speed = tty_getspeed(&tstty);
+X    Tty_eight_bit = tty_geteightbit(&tstty);
+X
+X    if (extty.d_t.sg_ispeed != tstty.d_t.sg_ispeed) {
+X	extty.d_t.sg_ispeed = tstty.d_t.sg_ispeed;
+X	edtty.d_t.sg_ispeed = tstty.d_t.sg_ispeed;
+X    }
+X
+X    if (extty.d_t.sg_ospeed != tstty.d_t.sg_ospeed) {
+X	extty.d_t.sg_ospeed = tstty.d_t.sg_ospeed;
+X	edtty.d_t.sg_ospeed = tstty.d_t.sg_ospeed;
+X    }
+X#endif /* POSIX || TERMIO */
+X
+X    if (tty_cooked_mode(&tstty)) {
+X#if defined(POSIX) || defined(TERMIO)
+X	if (tstty.d_t.c_cflag != extty.d_t.c_cflag) { 
+X	    extty.d_t.c_cflag  = tstty.d_t.c_cflag;
+X	    extty.d_t.c_cflag &= ~ttylist[EX_IO][M_CONTROL].t_clrmask;
+X	    extty.d_t.c_cflag |=  ttylist[EX_IO][M_CONTROL].t_setmask;
+X
+X	    edtty.d_t.c_cflag  = tstty.d_t.c_cflag;
+X	    edtty.d_t.c_cflag &= ~ttylist[ED_IO][M_CONTROL].t_clrmask;
+X	    edtty.d_t.c_cflag |=  ttylist[ED_IO][M_CONTROL].t_setmask;
+X	}
+X
+X	if ((tstty.d_t.c_lflag != extty.d_t.c_lflag) &&
+X	    (tstty.d_t.c_lflag != edtty.d_t.c_lflag)) {
+X	    extty.d_t.c_lflag = tstty.d_t.c_lflag;
+X	    extty.d_t.c_lflag &= ~ttylist[EX_IO][M_LINED].t_clrmask;
+X	    extty.d_t.c_lflag |=  ttylist[EX_IO][M_LINED].t_setmask;
+X
+X	    edtty.d_t.c_lflag = tstty.d_t.c_lflag;
+X	    edtty.d_t.c_lflag &= ~ttylist[ED_IO][M_LINED].t_clrmask;
+X	    edtty.d_t.c_lflag |=  ttylist[ED_IO][M_LINED].t_setmask;
+X	}
+X
+X	if ((tstty.d_t.c_iflag != extty.d_t.c_iflag) &&
+X	    (tstty.d_t.c_iflag != edtty.d_t.c_iflag)) {
+X	    extty.d_t.c_iflag = tstty.d_t.c_iflag;
+X	    extty.d_t.c_iflag &= ~ttylist[EX_IO][M_INPUT].t_clrmask;
+X	    extty.d_t.c_iflag |=  ttylist[EX_IO][M_INPUT].t_setmask;
+X
+X	    edtty.d_t.c_iflag = tstty.d_t.c_iflag;
+X	    edtty.d_t.c_iflag &= ~ttylist[ED_IO][M_INPUT].t_clrmask;
+X	    edtty.d_t.c_iflag |=  ttylist[ED_IO][M_INPUT].t_setmask;
+X	}
+X
+X	if ((tstty.d_t.c_oflag != extty.d_t.c_oflag) &&
+X	    (tstty.d_t.c_oflag != edtty.d_t.c_oflag)) {
+X	    extty.d_t.c_oflag = tstty.d_t.c_oflag;
+X	    extty.d_t.c_oflag &= ~ttylist[EX_IO][M_OUTPUT].t_clrmask;
+X	    extty.d_t.c_oflag |=  ttylist[EX_IO][M_OUTPUT].t_setmask;
+X
+X	    edtty.d_t.c_oflag = tstty.d_t.c_oflag;
+X	    edtty.d_t.c_oflag &= ~ttylist[ED_IO][M_OUTPUT].t_clrmask;
+X	    edtty.d_t.c_oflag |=  ttylist[ED_IO][M_OUTPUT].t_setmask;
+X	}
+X
+X	if (tty_gettabs(&extty) == 0) 
+X	    T_Tabs = 0;
+X	else 
+X	    T_Tabs = CanWeTab();
+X
+X#else /* GSTTY */
+X
+X	if (((tstty.d_t.sg_flags != extty.d_t.sg_flags) || 
+X	     (tstty.d_lb != extty.d_lb)) &&
+X	    ((tstty.d_t.sg_flags != edtty.d_t.sg_flags) || 
+X	     (tstty.d_lb != edtty.d_lb))) {
+X
+X	    extty.d_t.sg_flags = tstty.d_t.sg_flags;
+X
+X	    /*
+X	     * re-test for some things here (like maybe the user typed 
+X	     * "stty -tabs"
+X	     */
+X	    if (tty_gettabs(&extty) == 0)
+X		T_Tabs = 0;
+X	    else 
+X		T_Tabs = CanWeTab();
+X
+X	    extty.d_t.sg_flags &= ~ttylist[EX_IO][M_CONTROL].t_clrmask;
+X	    extty.d_t.sg_flags |=  ttylist[EX_IO][M_CONTROL].t_setmask;
+X
+X	    if (T_Tabs)		/* order of &= and |= is important to XTABS */
+X		extty.d_t.sg_flags &= ~XTABS;
+X	    else 
+X		extty.d_t.sg_flags |= XTABS;
+X
+X	    extty.d_lb = tstty.d_lb;
+X	    extty.d_lb &= ~ttylist[EX_IO][M_LOCAL].t_clrmask;
+X	    extty.d_lb |= ttylist[EX_IO][M_LOCAL].t_setmask;
+X
+X	    edtty.d_t.sg_flags = extty.d_t.sg_flags;
+X	    if (T_Tabs) {	/* order of &= and |= is important to XTABS */
+X		edtty.d_t.sg_flags &= 
+X			~(ttylist[ED_IO][M_CONTROL].t_clrmask|XTABS);
+X		edtty.d_t.sg_flags |=   ttylist[ED_IO][M_CONTROL].t_setmask;
+X	    }
+X	    else {
+X		edtty.d_t.sg_flags &= ~ttylist[ED_IO][M_CONTROL].t_clrmask;
+X		edtty.d_t.sg_flags |= 
+X			(ttylist[ED_IO][M_CONTROL].t_setmask|XTABS);
+X	    }
+X
+X	    edtty.d_lb = tstty.d_lb;
+X	    edtty.d_lb &= ~ttylist[ED_IO][M_LOCAL].t_clrmask;
+X	    edtty.d_lb |= ttylist[ED_IO][M_LOCAL].t_setmask;
+X	}
+X# endif /* TERMIO || POSIX */
+X	{
+X	    extern int didsetty;
+X	    int i;
+X
+X	    tty_getchar(&tstty, ttychars[TS_IO]);
+X	    /*
+X	     * Check if the user made any changes.
+X	     * If he did, then propagate the changes to the
+X	     * edit and execute data structures.
+X	     */
+X	    for (i = 0; i < C_NCC; i++)
+X		if (ttychars[TS_IO][i] != ttychars[EX_IO][i])
+X		    break;
+X		
+X	    if (i != C_NCC || didsetty) {
+X		didsetty = 0;
+X		/*
+X		 * Propagate changes only to the unprotected chars
+X		 * that have been modified just now.
+X		 */
+X		for (i = 0; i < C_NCC; i++) {
+X		    if (!((ttylist[ED_IO][M_CHAR].t_setmask & C_SH(i))) &&
+X			(ttychars[TS_IO][i] != ttychars[EX_IO][i]))
+X			ttychars[ED_IO][i] = ttychars[TS_IO][i];
+X		    if (ttylist[ED_IO][M_CHAR].t_clrmask & C_SH(i))
+X			ttychars[ED_IO][i] = vdisable;
+X		}
+X		tty_setchar(&edtty, ttychars[ED_IO]);
+X
+X		for (i = 0; i < C_NCC; i++) {
+X		    if (!((ttylist[EX_IO][M_CHAR].t_setmask & C_SH(i))) &&
+X			(ttychars[TS_IO][i] != ttychars[EX_IO][i]))
+X			ttychars[EX_IO][i] = ttychars[TS_IO][i];
+X		    if (ttylist[EX_IO][M_CHAR].t_clrmask & C_SH(i))
+X			ttychars[EX_IO][i] = vdisable;
+X		}
+X		tty_setchar(&extty, ttychars[EX_IO]);
+X	    }
+X
+X	}
+X    }
+X    if (tty_setty(SHTTY, &edtty) == -1) {
+X#ifdef DEBUG_TTY
+X	xprintf("Rawmode: tty_setty: %s\n", strerror(errno));
+X#endif /* DEBUG_TTY */
+X	return -1;
+X    }
+X    Tty_raw_mode = 1;
+X    flush();			/* flush any buffered output */
+X    return (0);
+X}
+X
+int
+Cookedmode()
+X{				/* set tty in normal setup */
+X    sigret_t(*orig_intr) ();
+X
+X#ifdef _IBMR2
+X    tty_setdisc(SHTTY, EX_IO);
+X#endif /* _IBMR2 */
+X
+X    if (!Tty_raw_mode)
+X	return (0);
+X
+X    /* hold this for reseting tty */
+X#ifdef BSDSIGS
+X    orig_intr = (sigret_t (*)()) signal(SIGINT, SIG_IGN);
+X#else
+X    orig_intr = (sigret_t (*)()) sigset(SIGINT, SIG_IGN);
+X#endif /* BSDSIGS */
+X    if (tty_setty(SHTTY, &extty) == -1) {
+X#ifdef DEBUG_TTY
+X	xprintf("Cookedmode: tty_setty: %s\n", strerror(errno));
+X#endif /* DEBUG_TTY */
+X	return -1;
+X    }
+X    Tty_raw_mode = 0;
+X#ifdef BSDSIGS
+X    (void) signal(SIGINT, orig_intr);	/* take these again */
+X#else
+X    (void) sigset(SIGINT, orig_intr);	/* take these again */
+X#endif /* BSDSIGS */
+X    return (0);
+X}
+X
+void
+ResetInLine()
+X{
+X    Cursor = InputBuf;		/* reset cursor */
+X    LastChar = InputBuf;
+X    InputLim = &InputBuf[INBUFSIZE - 2];
+X    Mark = InputBuf;
+X    MetaNext = 0;
+X    CurrentKeyMap = CcKeyMap;
+X    AltKeyMap = 0;
+X    Hist_num = 0;
+X    DoingArg = 0;
+X    Argument = 1;
+X#ifdef notdef
+X    LastKill = KillBuf;		/* no kill buffer */
+X#endif 
+X    LastCmd = F_UNASSIGNED;	/* previous command executed */
+X    MacroLvl = -1;		/* no currently active macros */
+X}
+X
+static Char *Input_Line = NULL;
+int
+Load_input_line()
+X{
+X    long    chrs = 0;
+X
+X    if (Input_Line)
+X	xfree((ptr_t) Input_Line);
+X    Input_Line = NULL;
+X
+X    if (Tty_raw_mode)
+X	return 0;
+X
+X#ifdef FIONREAD
+X    (void) ioctl(SHIN, FIONREAD, &chrs);
+X    if (chrs > 0) {
+X	char    buf[BUFSIZE];
+X
+X	chrs = read(SHIN, buf, (size_t) min(chrs, BUFSIZE - 1));
+X	if (chrs > 0) {
+X	    buf[chrs] = '\0';
+X	    Input_Line = Strsave(str2short(buf));
+X	    PushMacro(Input_Line);
+X	}
+X    }
+X#endif  /* FIONREAD */
+X    return chrs > 0;
+X}
+X
+X/*
+X * Bugfix (in Swedish) by:
+X * Johan Widen
+X * SICS, PO Box 1263, S-163 13 SPANGA, SWEDEN
+X * {mcvax,munnari,cernvax,diku,inria,prlb2,penet,ukc,unido}!enea!sics.se!jw
+X * Internet: jw@sics.se
+X *
+X * (via Hans J Albertsson (thanks))
+X */
+void
+QuoteModeOn()
+X{
+X    if (MacroLvl >= 0)
+X	return;
+X
+X    qutty = edtty;
+X
+X#if defined(TERMIO) || defined(POSIX)
+X    qutty.d_t.c_iflag &= ~ttylist[QU_IO][M_INPUT].t_clrmask;
+X    qutty.d_t.c_iflag |=  ttylist[QU_IO][M_INPUT].t_setmask;
+X
+X    qutty.d_t.c_oflag &= ~ttylist[QU_IO][M_OUTPUT].t_clrmask;
+X    qutty.d_t.c_oflag |=  ttylist[QU_IO][M_OUTPUT].t_setmask;
+X
+X    qutty.d_t.c_cflag &= ~ttylist[QU_IO][M_CONTROL].t_clrmask;
+X    qutty.d_t.c_cflag |=  ttylist[QU_IO][M_CONTROL].t_setmask;
+X
+X    qutty.d_t.c_lflag &= ~ttylist[QU_IO][M_LINED].t_clrmask;
+X    qutty.d_t.c_lflag |=  ttylist[QU_IO][M_LINED].t_setmask;
+X#else /* GSTTY */
+X    qutty.d_t.sg_flags &= ~ttylist[QU_IO][M_CONTROL].t_clrmask;
+X    qutty.d_t.sg_flags |= ttylist[QU_IO][M_CONTROL].t_setmask;
+X    qutty.d_lb &= ~ttylist[QU_IO][M_LOCAL].t_clrmask;
+X    qutty.d_lb |= ttylist[QU_IO][M_LOCAL].t_setmask;
+X
+X#endif /* TERMIO || POSIX */
+X    if (tty_setty(SHTTY, &qutty) == -1) {
+X#ifdef DEBUG_TTY
+X	xprintf("QuoteModeOn: tty_setty: %s\n", strerror(errno));
+X#endif /* DEBUG_TTY */
+X	return;
+X    }
+X    Tty_quote_mode = 1;
+X    return;
+X}
+X
+void
+QuoteModeOff()
+X{
+X    if (!Tty_quote_mode)
+X	return;
+X    Tty_quote_mode = 0;
+X    if (tty_setty(SHTTY, &edtty) == -1) {
+X#ifdef DEBUG_TTY
+X	xprintf("QuoteModeOff: tty_setty: %s\n", strerror(errno));
+X#endif /* DEBUG_TTY */
+X	return;
+X    }
+X    return;
+X}
+END_OF_FILE
+if test 19471 -ne `wc -c <'ed.init.c'`; then
+    echo shar: \"'ed.init.c'\" unpacked with wrong size!
+fi
+# end of 'ed.init.c'
+fi
+if test -f 'sh.glob.c' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'sh.glob.c'\"
+else
+echo shar: Extracting \"'sh.glob.c'\" \(18771 characters\)
+sed "s/^X//" >'sh.glob.c' <<'END_OF_FILE'
+X/* $Header: /home/hyperion/mu/christos/src/sys/tcsh-6.01/RCS/sh.glob.c,v 3.14 1991/12/19 22:34:14 christos Exp $ */
+X/*
+X * sh.glob.c: Regular expression expansion
+X */
+X/*-
+X * Copyright (c) 1980, 1991 The Regents of the University of California.
+X * All rights reserved.
+X *
+X * Redistribution and use in source and binary forms, with or without
+X * modification, are permitted provided that the following conditions
+X * are met:
+X * 1. Redistributions of source code must retain the above copyright
+X *    notice, this list of conditions and the following disclaimer.
+X * 2. Redistributions in binary form must reproduce the above copyright
+X *    notice, this list of conditions and the following disclaimer in the
+X *    documentation and/or other materials provided with the distribution.
+X * 3. All advertising materials mentioning features or use of this software
+X *    must display the following acknowledgement:
+X *	This product includes software developed by the University of
+X *	California, Berkeley and its contributors.
+X * 4. Neither the name of the University nor the names of its contributors
+X *    may be used to endorse or promote products derived from this software
+X *    without specific prior written permission.
+X *
+X * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+X * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+X * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+X * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+X * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+X * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+X * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+X * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+X * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+X * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+X * SUCH DAMAGE.
+X */
+X#include "sh.h"
+X
+RCSID("$Id: sh.glob.c,v 3.14 1991/12/19 22:34:14 christos Exp $")
+X
+X#include "tc.h"
+X
+X#include "glob.h"
+X
+static int noglob;
+static int pargsiz, gargsiz;
+X
+X/*
+X * Values for gflag
+X */
+X#define	G_NONE	0		/* No globbing needed			*/
+X#define	G_GLOB	1		/* string contains *?[] characters	*/
+X#define	G_CSH	2		/* string contains ~`{ characters	*/
+X
+X#define	GLOBSPACE	100	/* Alloc increment			*/
+X
+X#define LBRC '{'
+X#define RBRC '}'
+X#define LBRK '['
+X#define RBRK ']'
+X#define EOS '\0'
+X
+Char  **gargv = NULL;
+long    gargc = 0;
+Char  **pargv = NULL;
+long    pargc = 0;
+X
+X/*
+X * globbing is now done in two stages. In the first pass we expand
+X * csh globbing idioms ~`{ and then we proceed doing the normal
+X * globbing if needed ?*[
+X *
+X * Csh type globbing is handled in globexpand() and the rest is
+X * handled in glob() which is part of the 4.4BSD libc.
+X *
+X */
+static	Char	 *globtilde	__P((Char **, Char *));
+static	Char	 *globequal	__P((Char **, Char *));
+static	Char	**libglob	__P((Char **));
+static	Char	**globexpand	__P((Char **));
+static	int	  globbrace	__P((Char *, Char *, Char ***));
+static	void	  pword		__P((void));
+static	void	  psave		__P((int));
+static	void	  backeval	__P((Char *, bool));
+X
+static Char *
+globtilde(nv, s)
+X    Char  **nv, *s;
+X{
+X    Char    gbuf[MAXPATHLEN], *gstart, *b, *u, *e;
+X#ifdef apollo
+X    int slash;
+X#endif
+X
+X    gstart = gbuf;
+X    *gstart++ = *s++;
+X    u = s;
+X    for (b = gstart, e = &gbuf[MAXPATHLEN - 1]; 
+X	 *s && *s != '/' && *s != ':' && b < e;
+X	 *b++ = *s++);
+X    *b = EOS;
+X    if (gethdir(gstart)) {
+X	blkfree(nv);
+X	if (*gstart)
+X	    stderror(ERR_UNKUSER, short2str(gstart));
+X	else
+X	    stderror(ERR_NOHOME);
+X    }
+X    b = &gstart[Strlen(gstart)];
+X#ifdef apollo
+X    slash = gstart[0] == '/' && gstart[1] == '\0';
+X#endif
+X    while (*s)
+X	*b++ = *s++;
+X    *b = EOS;
+X    --u;
+X    xfree((ptr_t) u);
+X#ifdef apollo
+X    if (slash && gstart[1] == '/')
+X	gstart++;
+X#endif
+X    return (Strsave(gstart));
+X}
+X
+static Char *
+globequal(nv, s)
+X    Char  **nv, *s;
+X{
+X    int     dig;
+X    Char    gp[MAXPATHLEN], *b, *d;
+X
+X    /*
+X     * kfk - 17 Jan 1984 - stack hack allows user to get at arbitrary dir names
+X     * in stack. PWP: let =foobar pass through (for X windows)
+X     */
+X    if ((Isdigit(s[1]) || s[1] == '-') && (s[2] == '\0' || s[2] == '/')) {
+X	dig = (s[1] == '-') ? -1 : s[1] - '0';
+X	if (!getstakd(gp, dig)) {
+X	    blkfree(nv);
+X	    stderror(ERR_DEEP);
+X	}
+X	for (b = &s[2], d = &gp[Strlen(gp)]; *d++ = *b++;);
+X	xfree((ptr_t) s);
+X	return (Strsave(gp));
+X    }
+X    else
+X	return (s);
+X}
+X
+static int
+globbrace(s, p, bl)
+X    Char   *s, *p, ***bl;
+X{
+X    int     i, len;
+X    Char   *pm, *pe, *lm, *pl;
+X    Char  **nv, **vl;
+X    Char    gbuf[MAXPATHLEN];
+X    int     size = GLOBSPACE;
+X
+X    nv = vl = (Char **) xmalloc((size_t) sizeof(Char *) * size);
+X    *vl = NULL;
+X
+X    len = 0;
+X    /* copy part up to the brace */
+X    for (lm = gbuf, p = s; *p != LBRC; *lm++ = *p++)
+X	continue;
+X
+X    /* check for balanced braces */
+X    for (i = 0, pe = ++p; *pe; pe++)
+X	if (*pe == LBRK) {
+X	    /* Ignore everything between [] */
+X	    for (++pe; *pe != RBRK && *pe != EOS; pe++)
+X		continue;
+X	    if (*pe == EOS) {
+X		blkfree(nv);
+X		return (-RBRK);
+X	    }
+X	}
+X	else if (*pe == LBRC)
+X	    i++;
+X	else if (*pe == RBRC) {
+X	    if (i == 0)
+X		break;
+X	    i--;
+X	}
+X
+X    if (i != 0 || *pe == '\0') {
+X	blkfree(nv);
+X	return (-RBRC);
+X    }
+X
+X    for (i = 0, pl = pm = p; pm <= pe; pm++)
+X	switch (*pm) {
+X	case LBRK:
+X	    for (++pm; *pm != RBRK && *pm != EOS; pm++)
+X		continue;
+X	    if (*pm == EOS) {
+X		*vl = NULL;
+X		blkfree(nv);
+X		return (-RBRK);
+X	    }
+X	    break;
+X	case LBRC:
+X	    i++;
+X	    break;
+X	case RBRC:
+X	    if (i) {
+X		i--;
+X		break;
+X	    }
+X	    /* FALLTHROUGH */
+X	case ',':
+X	    if (i && *pm == ',')
+X		break;
+X	    else {
+X		Char    savec = *pm;
+X
+X		*pm = EOS;
+X		(void) Strcpy(lm, pl);
+X		(void) Strcat(gbuf, pe + 1);
+X		*pm = savec;
+X		*vl++ = Strsave(gbuf);
+X		len++;
+X		pl = pm + 1;
+X		if (vl == &nv[size]) {
+X		    size += GLOBSPACE;
+X		    nv = (Char **) xrealloc((ptr_t) nv, (size_t)
+X					    size * sizeof(Char *));
+X		    vl = &nv[size - GLOBSPACE];
+X		}
+X	    }
+X	    break;
+X	default:
+X	    break;
+X	}
+X    *vl = NULL;
+X    *bl = nv;
+X    return (len);
+X}
+X
+static Char **
+globexpand(v)
+X    Char  **v;
+X{
+X    Char   *s;
+X    Char  **nv, **vl, **el;
+X    int     size = GLOBSPACE;
+X
+X
+X    nv = vl = (Char **) xmalloc((size_t) sizeof(Char *) * size);
+X    *vl = NULL;
+X
+X    /*
+X     * Step 1: expand backquotes.
+X     */
+X    while (s = *v++) {
+X	if (Strchr(s, '`')) {
+X	    int     i;
+X
+X	    (void) dobackp(s, 0);
+X	    for (i = 0; i < pargc; i++) {
+X		*vl++ = pargv[i];
+X		if (vl == &nv[size]) {
+X		    size += GLOBSPACE;
+X		    nv = (Char **) xrealloc((ptr_t) nv,
+X					    (size_t) size * sizeof(Char *));
+X		    vl = &nv[size - GLOBSPACE];
+X		}
+X	    }
+X	    xfree((ptr_t) pargv);
+X	    pargv = NULL;
+X	}
+X	else {
+X	    *vl++ = Strsave(s);
+X	    if (vl == &nv[size]) {
+X		size += GLOBSPACE;
+X		nv = (Char **) xrealloc((ptr_t) nv, (size_t)
+X					size * sizeof(Char *));
+X		vl = &nv[size - GLOBSPACE];
+X	    }
+X	}
+X    }
+X    *vl = NULL;
+X
+X    if (noglob)
+X	return (nv);
+X
+X    /*
+X     * Step 2: expand braces
+X     */
+X    el = vl;
+X    vl = nv;
+X    for (s = *vl; s; s = *++vl) {
+X	Char   *b;
+X	Char  **vp, **bp;
+X
+X	if ((b = Strchr(s, LBRC)) && b[1] != '\0' && b[1] != RBRC) {
+X	    Char  **bl;
+X	    int     len;
+X
+X	    if ((len = globbrace(s, b, &bl)) < 0) {
+X		blkfree(nv);
+X		stderror(ERR_MISSING, -len);
+X	    }
+X	    xfree((ptr_t) s);
+X	    if (len == 1) {
+X		*vl-- = *bl;
+X		xfree((ptr_t) bl);
+X		continue;
+X	    }
+X	    len = blklen(bl);
+X	    if (&el[len] >= &nv[size]) {
+X		int     l, e;
+X
+X		l = &el[len] - &nv[size];
+X		size += GLOBSPACE > l ? GLOBSPACE : l;
+X		l = vl - nv;
+X		e = el - nv;
+X		nv = (Char **) xrealloc((ptr_t) nv, (size_t)
+X					size * sizeof(Char *));
+X		vl = nv + l;
+X		el = nv + e;
+X	    }
+X	    vp = vl--;
+X	    *vp = *bl;
+X	    len--;
+X	    for (bp = el; bp != vp; bp--)
+X		bp[len] = *bp;
+X	    el += len;
+X	    vp++;
+X	    for (bp = bl + 1; *bp; *vp++ = *bp++)
+X		continue;
+X	    xfree((ptr_t) bl);
+X	}
+X
+X    }
+X
+X    /*
+X     * Step 3: expand ~ =
+X     */
+X    vl = nv;
+X    for (s = *vl; s; s = *++vl)
+X	switch (*s) {
+X	case '~':
+X	    *vl = globtilde(nv, s);
+X	    break;
+X	case '=':
+X	    *vl = globequal(nv, s);
+X	    break;
+X	default:
+X	    break;
+X	}
+X    vl = nv;
+X    return (vl);
+X}
+X
+static Char *
+handleone(str, vl, action)
+X    Char   *str, **vl;
+X    int     action;
+X{
+X
+X    Char   *cp, **vlp = vl;
+X
+X    switch (action) {
+X    case G_ERROR:
+X	setname(short2str(str));
+X	blkfree(vl);
+X	stderror(ERR_NAME | ERR_AMBIG);
+X	break;
+X    case G_APPEND:
+X	trim(vlp);
+X	str = Strsave(*vlp++);
+X	do {
+X	    cp = Strspl(str, STRspace);
+X	    xfree((ptr_t) str);
+X	    str = Strspl(cp, *vlp);
+X	    xfree((ptr_t) cp);
+X	}
+X	while (*++vlp);
+X	blkfree(vl);
+X	break;
+X    case G_IGNORE:
+X	str = Strsave(strip(*vlp));
+X	blkfree(vl);
+X	break;
+X    default:
+X	break;
+X    }
+X    return (str);
+X}
+X
+static Char **
+libglob(vl)
+X    Char  **vl;
+X{
+X    int     gflgs = GLOB_QUOTE | GLOB_NOMAGIC | GLOB_ALTNOT;
+X    glob_t  globv;
+X    char   *ptr;
+X    int     nonomatch = adrof(STRnonomatch) != 0, magic = 0, match = 0;
+X
+X    if (!vl || !vl[0])
+X	return(vl);
+X
+X    globv.gl_offs = 0;
+X    globv.gl_pathv = 0;
+X    globv.gl_pathc = 0;
+X
+X    if (nonomatch)
+X	gflgs |= GLOB_NOCHECK;
+X
+X    do {
+X	ptr = short2qstr(*vl);
+X	switch (glob(ptr, gflgs, 0, &globv)) {
+X	case GLOB_ABEND:
+X	    setname(ptr);
+X	    stderror(ERR_NAME | ERR_GLOB);
+X	    /* NOTREACHED */
+X	case GLOB_NOSPACE:
+X	    stderror(ERR_NOMEM);
+X	    /* NOTREACHED */
+X	default:
+X	    break;
+X	}
+X	if (globv.gl_flags & GLOB_MAGCHAR) {
+X	    match |= (globv.gl_matchc != 0);
+X	    magic = 1;
+X	}
+X	gflgs |= GLOB_APPEND;
+X    }
+X    while (*++vl);
+X    vl = (globv.gl_pathc == 0 || (magic && !match && !nonomatch)) ? 
+X	NULL : blk2short(globv.gl_pathv);
+X    globfree(&globv);
+X    return (vl);
+X}
+X
+Char   *
+globone(str, action)
+X    Char   *str;
+X    int     action;
+X{
+X
+X    Char   *v[2], **vl, **vo;
+X    int gflg;
+X
+X    noglob = adrof(STRnoglob) != 0;
+X    gflag = 0;
+X    v[0] = str;
+X    v[1] = 0;
+X    tglob(v);
+X    gflg = gflag;
+X    if (gflg == G_NONE)
+X	return (strip(Strsave(str)));
+X
+X    if (gflg & G_CSH) {
+X	/*
+X	 * Expand back-quote, tilde and brace
+X	 */
+X	vo = globexpand(v);
+X	if (noglob || (gflg & G_GLOB) == 0) {
+X	    if (vo[0] == NULL) {
+X		xfree((ptr_t) vo);
+X		return (Strsave(STRNULL));
+X	    }
+X	    if (vo[1] != NULL) 
+X		return (handleone(str, vo, action));
+X	    else {
+X		str = strip(vo[0]);
+X		xfree((ptr_t) vo);
+X		return (str);
+X	    }
+X	}
+X    }
+X    else if (noglob || (gflg & G_GLOB) == 0)
+X	return (strip(Strsave(str)));
+X    else
+X	vo = v;
+X
+X    vl = libglob(vo);
+X    if ((gflg & G_CSH) && vl != vo)
+X	blkfree(vo);
+X    if (vl == NULL) {
+X	setname(short2str(str));
+X	stderror(ERR_NAME | ERR_NOMATCH);
+X    }
+X    if (vl[0] == NULL) {
+X	xfree((ptr_t) vl);
+X	return (Strsave(STRNULL));
+X    }
+X    if (vl[1]) 
+X	return (handleone(str, vl, action));
+X    else {
+X	str = strip(*vl);
+X	xfree((ptr_t) vl);
+X	return (str);
+X    }
+X}
+X
+Char  **
+globall(v)
+X    Char  **v;
+X{
+X    Char  **vl, **vo;
+X    int gflg = gflag;
+X
+X    if (!v || !v[0]) {
+X	gargv = saveblk(v);
+X	gargc = blklen(gargv);
+X	return (gargv);
+X    }
+X
+X    noglob = adrof(STRnoglob) != 0;
+X
+X    if (gflg & G_CSH)
+X	/*
+X	 * Expand back-quote, tilde and brace
+X	 */
+X	vl = vo = globexpand(v);
+X    else
+X	vl = vo = saveblk(v);
+X
+X    if (!noglob && (gflg & G_GLOB)) {
+X	vl = libglob(vo);
+X	if ((gflg & G_CSH) && vl != vo)
+X	    blkfree(vo);
+X    }
+X    else
+X	trim(vl);
+X
+X    gargc = vl ? blklen(vl) : 0;
+X    return (gargv = vl);
+X}
+X
+void
+ginit()
+X{
+X    gargsiz = GLOBSPACE;
+X    gargv = (Char **) xmalloc((size_t) sizeof(Char *) * gargsiz);
+X    gargv[0] = 0;
+X    gargc = 0;
+X}
+X
+void
+rscan(t, f)
+X    register Char **t;
+X    void    (*f) ();
+X{
+X    register Char *p;
+X
+X    while (p = *t++)
+X	while (*p)
+X	    (*f) (*p++);
+X}
+X
+void
+trim(t)
+X    register Char **t;
+X{
+X    register Char *p;
+X
+X    while (p = *t++)
+X	while (*p)
+X	    *p++ &= TRIM;
+X}
+X
+void
+tglob(t)
+X    register Char **t;
+X{
+X    register Char *p, c;
+X
+X    while (p = *t++) {
+X	if (*p == '~' || *p == '=')
+X	    gflag |= G_CSH;
+X	else if (*p == '{' &&
+X		 (p[1] == '\0' || (p[1] == '}' && p[2] == '\0')))
+X	    continue;
+X	while (c = *p++)
+X	    if (isglob(c))
+X		gflag |= (c == '{' || c == '`') ? G_CSH : G_GLOB;
+X    }
+X}
+X
+X/*
+X * Command substitute cp.  If literal, then this is a substitution from a
+X * << redirection, and so we should not crunch blanks and tabs, separating
+X * words only at newlines.
+X */
+Char  **
+dobackp(cp, literal)
+X    Char   *cp;
+X    bool    literal;
+X{
+X    register Char *lp, *rp;
+X    Char   *ep, word[MAXPATHLEN];
+X
+X    if (pargv) {
+X#ifdef notdef
+X	abort();
+X#endif
+X	blkfree(pargv);
+X    }
+X    pargsiz = GLOBSPACE;
+X    pargv = (Char **) xmalloc((size_t) sizeof(Char *) * pargsiz);
+X    pargv[0] = NULL;
+X    pargcp = pargs = word;
+X    pargc = 0;
+X    pnleft = MAXPATHLEN - 4;
+X    for (;;) {
+X	for (lp = cp; *lp != '`'; lp++) {
+X	    if (*lp == 0) {
+X		if (pargcp != pargs)
+X		    pword();
+X		return (pargv);
+X	    }
+X	    psave(*lp);
+X	}
+X	lp++;
+X	for (rp = lp; *rp && *rp != '`'; rp++)
+X	    if (*rp == '\\') {
+X		rp++;
+X		if (!*rp)
+X		    goto oops;
+X	    }
+X	if (!*rp)
+X    oops:  stderror(ERR_UNMATCHED, '`');
+X	ep = Strsave(lp);
+X	ep[rp - lp] = 0;
+X	backeval(ep, literal);
+X	cp = rp + 1;
+X    }
+X}
+X
+static void
+backeval(cp, literal)
+X    Char   *cp;
+X    bool    literal;
+X{
+X    register int icnt, c;
+X    register Char *ip;
+X    struct command faket;
+X    bool    hadnl;
+X    int     pvec[2], quoted;
+X    Char   *fakecom[2], ibuf[BUFSIZE];
+X    char    tibuf[BUFSIZE];
+X
+X    hadnl = 0;
+X    icnt = 0;
+X    quoted = (literal || (cp[0] & QUOTE)) ? QUOTE : 0;
+X    faket.t_dtyp = NODE_COMMAND;
+X    faket.t_dflg = 0;
+X    faket.t_dlef = 0;
+X    faket.t_drit = 0;
+X    faket.t_dspr = 0;
+X    faket.t_dcom = fakecom;
+X    fakecom[0] = STRfakecom1;
+X    fakecom[1] = 0;
+X
+X    /*
+X     * We do the psave job to temporarily change the current job so that the
+X     * following fork is considered a separate job.  This is so that when
+X     * backquotes are used in a builtin function that calls glob the "current
+X     * job" is not corrupted.  We only need one level of pushed jobs as long as
+X     * we are sure to fork here.
+X     */
+X    psavejob();
+X
+X    /*
+X     * It would be nicer if we could integrate this redirection more with the
+X     * routines in sh.sem.c by doing a fake execute on a builtin function that
+X     * was piped out.
+X     */
+X    mypipe(pvec);
+X    if (pfork(&faket, -1) == 0) {
+X	struct wordent paraml;
+X	struct command *t;
+X
+X	(void) close(pvec[0]);
+X	(void) dmove(pvec[1], 1);
+X	(void) dmove(SHDIAG, 2);
+X	initdesc();
+X	/*
+X	 * Bugfix for nested backquotes by Michael Greim <greim@sbsvax.UUCP>,
+X	 * posted to comp.bugs.4bsd 12 Sep. 1989.
+X	 */
+X	if (pargv)		/* mg, 21.dec.88 */
+X	    blkfree(pargv), pargv = 0, pargsiz = 0;
+X	/* mg, 21.dec.88 */
+X	arginp = cp;
+X	while (*cp)
+X	    *cp++ &= TRIM;
+X
+X        /*
+X	 * In the child ``forget'' everything about current aliases or
+X	 * eval vectors.
+X	 */
+X	alvec = NULL;
+X	evalvec = NULL;
+X	alvecp = NULL;
+X	evalp = NULL;
+X	(void) lex(&paraml);
+X	if (seterr)
+X	    stderror(ERR_OLD);
+X	alias(&paraml);
+X	t = syntax(paraml.next, &paraml, 0);
+X	if (seterr)
+X	    stderror(ERR_OLD);
+X	if (t)
+X	    t->t_dflg |= F_NOFORK;
+X#ifdef SIGTSTP
+X	(void) sigignore(SIGTSTP);
+X#endif
+X#ifdef SIGTTIN
+X	(void) sigignore(SIGTTIN);
+X#endif
+X#ifdef SIGTTOU
+X	(void) sigignore(SIGTTOU);
+X#endif
+X	execute(t, -1, NULL, NULL);
+X	exitstat();
+X    }
+X    xfree((ptr_t) cp);
+X    (void) close(pvec[1]);
+X    c = 0;
+X    ip = NULL;
+X    do {
+X	int     cnt = 0;
+X
+X	for (;;) {
+X	    if (icnt == 0) {
+X		int     i;
+X
+X		ip = ibuf;
+X		do
+X		    icnt = read(pvec[0], tibuf, BUFSIZE);
+X		while (icnt == -1 && errno == EINTR);
+X		if (icnt <= 0) {
+X		    c = -1;
+X		    break;
+X		}
+X		for (i = 0; i < icnt; i++)
+X		    ip[i] = (unsigned char) tibuf[i];
+X	    }
+X	    if (hadnl)
+X		break;
+X	    --icnt;
+X	    c = (*ip++ & TRIM);
+X	    if (c == 0)
+X		break;
+X	    if (c == '\n') {
+X		/*
+X		 * Continue around the loop one more time, so that we can eat
+X		 * the last newline without terminating this word.
+X		 */
+X		hadnl = 1;
+X		continue;
+X	    }
+X	    if (!quoted && (c == ' ' || c == '\t'))
+X		break;
+X	    cnt++;
+X	    psave(c | quoted);
+X	}
+X	/*
+X	 * Unless at end-of-file, we will form a new word here if there were
+X	 * characters in the word, or in any case when we take text literally.
+X	 * If we didn't make empty words here when literal was set then we
+X	 * would lose blank lines.
+X	 */
+X	if (c != -1 && (cnt || literal))
+X	    pword();
+X	hadnl = 0;
+X    } while (c >= 0);
+X    (void) close(pvec[0]);
+X    pwait();
+X    prestjob();
+X}
+X
+static void
+psave(c)
+X    int    c;
+X{
+X    if (--pnleft <= 0)
+X	stderror(ERR_WTOOLONG);
+X    *pargcp++ = c;
+X}
+X
+static void
+pword()
+X{
+X    psave(0);
+X    if (pargc == pargsiz - 1) {
+X	pargsiz += GLOBSPACE;
+X	pargv = (Char **) xrealloc((ptr_t) pargv,
+X				   (size_t) pargsiz * sizeof(Char *));
+X    }
+X    pargv[pargc++] = Strsave(pargs);
+X    pargv[pargc] = NULL;
+X    pargcp = pargs;
+X    pnleft = MAXPATHLEN - 4;
+X}
+X
+int
+Gmatch(string, pattern)
+X    register Char *string, *pattern;
+X{
+X    register Char stringc, patternc;
+X    int     match;
+X    Char    rangec;
+X
+X    for (;; ++string) {
+X	stringc = *string & TRIM;
+X	/*
+X	 * apollo compiler bug: switch (patternc = *pattern++) { dies
+X	 */
+X	patternc = *pattern++;
+X	switch (patternc) {
+X	case 0:
+X	    return (stringc == 0);
+X	case '?':
+X	    if (stringc == 0)
+X		return (0);
+X	    break;
+X	case '*':
+X	    if (!*pattern)
+X		return (1);
+X	    while (*string)
+X		if (Gmatch(string++, pattern))
+X		    return (1);
+X	    return (0);
+X	case '[':
+X	    match = 0;
+X	    while (rangec = *pattern++) {
+X		if (rangec == ']')
+X		    if (match)
+X			break;
+X		    else
+X			return (0);
+X		if (match)
+X		    continue;
+X		if (rangec == '-' && *(pattern-2) != '[' && *pattern  != ']') {
+X		    match = (stringc <= (*pattern & TRIM) &&
+X			      (*(pattern-2) & TRIM) <= stringc);
+X		    pattern++;
+X		}
+X		else 
+X		    match = (stringc == (rangec & TRIM));
+X	    }
+X	    if (rangec == 0)
+X		stderror(ERR_NAME | ERR_MISSING, ']');
+X	    break;
+X	default:
+X	    if ((patternc & TRIM) != stringc)
+X		return (0);
+X	    break;
+X
+X	}
+X    }
+X}
+X
+void
+Gcat(s1, s2)
+X    Char   *s1, *s2;
+X{
+X    register Char *p, *q;
+X    int     n;
+X
+X    for (p = s1; *p++;);
+X    for (q = s2; *q++;);
+X    n = (p - s1) + (q - s2) - 1;
+X    if (++gargc >= gargsiz) {
+X	gargsiz += GLOBSPACE;
+X	gargv = (Char **) xrealloc((ptr_t) gargv,
+X				   (size_t) gargsiz * sizeof(Char *));
+X    }
+X    gargv[gargc] = 0;
+X    p = gargv[gargc - 1] = (Char *) xmalloc((size_t) n * sizeof(Char));
+X    for (q = s1; *p++ = *q++;);
+X    for (p--, q = s2; *p++ = *q++;);
+X}
+X
+X#ifdef FILEC
+int
+sortscmp(a, b)
+X    register Char **a, **b;
+X{
+X#if defined(NLS) && !defined(NOSTRCOLL)
+X    char    buf[2048];
+X
+X#endif
+X
+X    if (!a)			/* check for NULL */
+X	return (b ? 1 : 0);
+X    if (!b)
+X	return (-1);
+X
+X    if (!*a)			/* check for NULL */
+X	return (*b ? 1 : 0);
+X    if (!*b)
+X	return (-1);
+X
+X#if defined(NLS) && !defined(NOSTRCOLL)
+X    (void) strcpy(buf, short2str(*a));
+X    return ((int) strcoll(buf, short2str(*b)));
+X#else
+X    return ((int) Strcmp(*a, *b));
+X#endif
+X}
+X
+X#endif
+END_OF_FILE
+if test 18771 -ne `wc -c <'sh.glob.c'`; then
+    echo shar: \"'sh.glob.c'\" unpacked with wrong size!
+fi
+# end of 'sh.glob.c'
+fi
+if test -f 'sh.set.c' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'sh.set.c'\"
+else
+echo shar: Extracting \"'sh.set.c'\" \(18217 characters\)
+sed "s/^X//" >'sh.set.c' <<'END_OF_FILE'
+X/* $Header: /home/hyperion/mu/christos/src/sys/tcsh-6.01/RCS/sh.set.c,v 3.7 1991/12/19 22:34:14 christos Exp $ */
+X/*
+X * sh.set.c: Setting and Clearing of variables
+X */
+X/*-
+X * Copyright (c) 1980, 1991 The Regents of the University of California.
+X * All rights reserved.
+X *
+X * Redistribution and use in source and binary forms, with or without
+X * modification, are permitted provided that the following conditions
+X * are met:
+X * 1. Redistributions of source code must retain the above copyright
+X *    notice, this list of conditions and the following disclaimer.
+X * 2. Redistributions in binary form must reproduce the above copyright
+X *    notice, this list of conditions and the following disclaimer in the
+X *    documentation and/or other materials provided with the distribution.
+X * 3. All advertising materials mentioning features or use of this software
+X *    must display the following acknowledgement:
+X *	This product includes software developed by the University of
+X *	California, Berkeley and its contributors.
+X * 4. Neither the name of the University nor the names of its contributors
+X *    may be used to endorse or promote products derived from this software
+X *    without specific prior written permission.
+X *
+X * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+X * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+X * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+X * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+X * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+X * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+X * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+X * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+X * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+X * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+X * SUCH DAMAGE.
+X */
+X#include "sh.h"
+X
+RCSID("$Id: sh.set.c,v 3.7 1991/12/19 22:34:14 christos Exp $")
+X
+X#include "ed.h"
+X#include "tw.h"
+X
+extern Char HistLit;
+extern bool GotTermCaps;
+X
+static	Char		*getinx		__P((Char *, int *));
+static	void		 asx		__P((Char *, int, Char *));
+static	struct varent 	*getvx		__P((Char *, int));
+static	Char		*xset		__P((Char *, Char ***));
+static	Char		*operate	__P((int, Char *, Char *));
+static	void	 	 putn1		__P((int));
+static	struct varent	*madrof		__P((Char *, struct varent *));
+static	void		 unsetv1	__P((struct varent *));
+static	void		 exportpath	__P((Char **));
+static	void		 balance	__P((struct varent *, int, int));
+X
+X/*
+X * C Shell
+X */
+X
+X/*ARGSUSED*/
+void
+doset(v, c)
+X    register Char **v;
+X    struct command *c;
+X{
+X    register Char *p;
+X    Char   *vp, op;
+X    Char  **vecp;
+X    bool    hadsub;
+X    int     subscr;
+X
+X    v++;
+X    p = *v++;
+X    if (p == 0) {
+X	prvars();
+X	return;
+X    }
+X    do {
+X	hadsub = 0;
+X	vp = p;
+X	if (letter(*p))
+X	    for (; alnum(*p); p++)
+X		continue;
+X	if (vp == p || !letter(*vp))
+X	    stderror(ERR_NAME | ERR_VARBEGIN);
+X	if ((p - vp) > MAXVARLEN) {
+X	    stderror(ERR_NAME | ERR_VARTOOLONG);
+X	    return;
+X	}
+X	if (*p == '[') {
+X	    hadsub++;
+X	    p = getinx(p, &subscr);
+X	}
+X	if (op = *p) {
+X	    *p++ = 0;
+X	    if (*p == 0 && *v && **v == '(')
+X		p = *v++;
+X	}
+X	else if (*v && eq(*v, STRequal)) {
+X	    op = '=', v++;
+X	    if (*v)
+X		p = *v++;
+X	}
+X	if (op && op != '=')
+X	    stderror(ERR_NAME | ERR_SYNTAX);
+X	if (eq(p, STRLparen)) {
+X	    register Char **e = v;
+X
+X	    if (hadsub)
+X		stderror(ERR_NAME | ERR_SYNTAX);
+X	    for (;;) {
+X		if (!*e)
+X		    stderror(ERR_NAME | ERR_MISSING, ')');
+X		if (**e == ')')
+X		    break;
+X		e++;
+X	    }
+X	    p = *e;
+X	    *e = 0;
+X	    vecp = saveblk(v);
+X	    set1(vp, vecp, &shvhed);
+X	    *e = p;
+X	    v = e + 1;
+X	}
+X	else if (hadsub)
+X	    asx(vp, subscr, Strsave(p));
+X	else
+X	    set(vp, Strsave(p));
+X	if (eq(vp, STRpath)) {
+X	    exportpath(adrof(STRpath)->vec);
+X	    dohash(NULL, NULL);
+X	}
+X	else if (eq(vp, STRhistchars)) {
+X	    register Char *pn = value(STRhistchars);
+X
+X	    HIST = *pn++;
+X	    HISTSUB = *pn;
+X	}
+X	else if (eq(vp, STRhistlit)) {
+X	    HistLit = 1;
+X	}
+X	else if (eq(vp, STRuser)) {
+X	    Setenv(STRUSER, value(vp));
+X	    Setenv(STRLOGNAME, value(vp));
+X	}
+X	else if (eq(vp, STRwordchars)) {
+X	    word_chars = value(vp);
+X	}
+X	else if (eq(vp, STRterm)) {
+X#ifdef DOESNT_WORK_RIGHT
+X	    register Char *cp;
+X
+X#endif
+X	    Setenv(STRTERM, value(vp));
+X#ifdef DOESNT_WORK_RIGHT
+X	    cp = getenv("TERMCAP");
+X	    if (cp && (*cp != '/'))	/* if TERMCAP and not a path */
+X		Unsetenv(STRTERMCAP);
+X#endif				/* DOESNT_WORK_RIGHT */
+X	    GotTermCaps = 0;
+X	    ed_Init();		/* reset the editor */
+X	}
+X	else if (eq(vp, STRhome)) {
+X	    register Char *cp;
+X
+X	    cp = Strsave(value(vp));	/* get the old value back */
+X
+X	    /*
+X	     * convert to cononical pathname (possibly resolving symlinks)
+X	     */
+X	    cp = dcanon(cp, cp);
+X
+X	    set(vp, Strsave(cp));	/* have to save the new val */
+X
+X	    /* and now mirror home with HOME */
+X	    Setenv(STRHOME, cp);
+X	    /* fix directory stack for new tilde home */
+X	    dtilde();
+X	    xfree((ptr_t) cp);
+X	}
+X	else if (eq(vp, STRedit)) {
+X	    editing = 1;
+X	    /* PWP: add more stuff in here later */
+X	}
+X	else if (eq(vp, STRshlvl)) {
+X	    Setenv(STRSHLVL, value(vp));
+X	}
+X	else if (eq(vp, STRbackslash_quote)) {
+X	    bslash_quote = 1;
+X	}
+X	else if (eq(vp, STRrecognize_only_executables)) {
+X	    tw_clear_comm_list();
+X	}
+X	else if (eq(vp, STRwatch)) {
+X	    resetwatch();
+X	}
+X    } while (p = *v++);
+X}
+X
+static Char *
+getinx(cp, ip)
+X    register Char *cp;
+X    register int *ip;
+X{
+X    *ip = 0;
+X    *cp++ = 0;
+X    while (*cp && Isdigit(*cp))
+X	*ip = *ip * 10 + *cp++ - '0';
+X    if (*cp++ != ']')
+X	stderror(ERR_NAME | ERR_SUBSCRIPT);
+X    return (cp);
+X}
+X
+static void
+asx(vp, subscr, p)
+X    Char   *vp;
+X    int     subscr;
+X    Char   *p;
+X{
+X    register struct varent *v = getvx(vp, subscr);
+X
+X    xfree((ptr_t) v->vec[subscr - 1]);
+X    v->vec[subscr - 1] = globone(p, G_APPEND);
+X}
+X
+static struct varent *
+getvx(vp, subscr)
+X    Char   *vp;
+X    int     subscr;
+X{
+X    register struct varent *v = adrof(vp);
+X
+X    if (v == 0)
+X	udvar(vp);
+X    if (subscr < 1 || subscr > blklen(v->vec))
+X	stderror(ERR_NAME | ERR_RANGE);
+X    return (v);
+X}
+X
+X/*ARGSUSED*/
+void
+dolet(v, dummy)
+X    Char  **v;
+X    struct command *dummy;
+X{
+X    register Char *p;
+X    Char   *vp, c, op;
+X    bool    hadsub;
+X    int     subscr;
+X
+X    v++;
+X    p = *v++;
+X    if (p == 0) {
+X	prvars();
+X	return;
+X    }
+X    do {
+X	hadsub = 0;
+X	vp = p;
+X	if (letter(*p))
+X	    for (; alnum(*p); p++)
+X		continue;
+X	if (vp == p || !letter(*vp))
+X	    stderror(ERR_NAME | ERR_VARBEGIN);
+X	if ((p - vp) > MAXVARLEN)
+X	    stderror(ERR_NAME | ERR_VARTOOLONG);
+X	if (*p == '[') {
+X	    hadsub++;
+X	    p = getinx(p, &subscr);
+X	}
+X	if (*p == 0 && *v)
+X	    p = *v++;
+X	if (op = *p)
+X	    *p++ = 0;
+X	else
+X	    stderror(ERR_NAME | ERR_ASSIGN);
+X
+X	/*
+X	 * if there is no expression after the '=' then print a "Syntax Error"
+X	 * message - strike
+X	 */
+X	if (*p == '\0' && *v == NULL)
+X	    stderror(ERR_NAME | ERR_ASSIGN);
+X
+X	vp = Strsave(vp);
+X	if (op == '=') {
+X	    c = '=';
+X	    p = xset(p, &v);
+X	}
+X	else {
+X	    c = *p++;
+X	    if (any("+-", c)) {
+X		if (c != op || *p)
+X		    stderror(ERR_NAME | ERR_UNKNOWNOP);
+X		p = Strsave(STR1);
+X	    }
+X	    else {
+X		if (any("<>", op)) {
+X		    if (c != op)
+X			stderror(ERR_NAME | ERR_UNKNOWNOP);
+X		    c = *p++;
+X		    stderror(ERR_NAME | ERR_SYNTAX);
+X		}
+X		if (c != '=')
+X		    stderror(ERR_NAME | ERR_UNKNOWNOP);
+X		p = xset(p, &v);
+X	    }
+X	}
+X	if (op == '=')
+X	    if (hadsub)
+X		asx(vp, subscr, p);
+X	    else
+X		set(vp, p);
+X	else if (hadsub) {
+X	    struct varent *gv = getvx(vp, subscr);
+X
+X	    asx(vp, subscr, operate(op, gv->vec[subscr - 1], p));
+X	}
+X	else
+X	    set(vp, operate(op, value(vp), p));
+X	if (eq(vp, STRpath)) {
+X	    exportpath(adrof(STRpath)->vec);
+X	    dohash(NULL, NULL);
+X	}
+X	xfree((ptr_t) vp);
+X	if (c != '=')
+X	    xfree((ptr_t) p);
+X    } while (p = *v++);
+X}
+X
+static Char *
+xset(cp, vp)
+X    Char   *cp, ***vp;
+X{
+X    register Char *dp;
+X
+X    if (*cp) {
+X	dp = Strsave(cp);
+X	--(*vp);
+X	xfree((ptr_t) ** vp);
+X	**vp = dp;
+X    }
+X    return (putn(expr(vp)));
+X}
+X
+static Char *
+operate(op, vp, p)
+X    int     op;
+X    Char    *vp, *p;
+X{
+X    Char    opr[2];
+X    Char   *vec[5];
+X    register Char **v = vec;
+X    Char  **vecp = v;
+X    register int i;
+X
+X    if (op != '=') {
+X	if (*vp)
+X	    *v++ = vp;
+X	opr[0] = op;
+X	opr[1] = 0;
+X	*v++ = opr;
+X	if (op == '<' || op == '>')
+X	    *v++ = opr;
+X    }
+X    *v++ = p;
+X    *v++ = 0;
+X    i = expr(&vecp);
+X    if (*vecp)
+X	stderror(ERR_NAME | ERR_EXPRESSION);
+X    return (putn(i));
+X}
+X
+static Char *putp, nbuf[50];
+X
+Char   *
+putn(n)
+X    register int n;
+X{
+X    int     num;
+X
+X    putp = nbuf;
+X    if (n < 0) {
+X	n = -n;
+X	*putp++ = '-';
+X    }
+X    num = 2;			/* confuse lint */
+X    if (sizeof(int) == num && ((unsigned int) n) == 32768) {
+X	*putp++ = '3';
+X	n = 2768;
+X#ifdef pdp11
+X    }
+X#else
+X    }
+X    else {
+X	num = 4;		/* confuse lint */
+X	if (sizeof(int) == num && ((unsigned int) n) == 2147483648) {
+X	    *putp++ = '2';
+X	    n = 147483648;
+X	}
+X    }
+X#endif
+X    putn1(n);
+X    *putp = 0;
+X    return (Strsave(nbuf));
+X}
+X
+static void
+putn1(n)
+X    register int n;
+X{
+X    if (n > 9)
+X	putn1(n / 10);
+X    *putp++ = n % 10 + '0';
+X}
+X
+int
+getn(cp)
+X    register Char *cp;
+X{
+X    register int n;
+X    int     sign;
+X
+X    if (!cp)			/* PWP: extra error checking */
+X	stderror(ERR_NAME | ERR_BADNUM);
+X
+X    sign = 0;
+X    if (cp[0] == '+' && cp[1])
+X	cp++;
+X    if (*cp == '-') {
+X	sign++;
+X	cp++;
+X	if (!Isdigit(*cp))
+X	    stderror(ERR_NAME | ERR_BADNUM);
+X    }
+X    n = 0;
+X    while (Isdigit(*cp))
+X	n = n * 10 + *cp++ - '0';
+X    if (*cp)
+X	stderror(ERR_NAME | ERR_BADNUM);
+X    return (sign ? -n : n);
+X}
+X
+Char   *
+value1(var, head)
+X    Char   *var;
+X    struct varent *head;
+X{
+X    register struct varent *vp;
+X
+X    if (!var || !head)		/* PWP: extra error checking */
+X	return (STRNULL);
+X
+X    vp = adrof1(var, head);
+X    return (vp == 0 || vp->vec[0] == 0 ? STRNULL : vp->vec[0]);
+X}
+X
+static struct varent *
+madrof(pat, vp)
+X    Char   *pat;
+X    register struct varent *vp;
+X{
+X    register struct varent *vp1;
+X
+X    for (; vp; vp = vp->v_right) {
+X	if (vp->v_left && (vp1 = madrof(pat, vp->v_left)))
+X	    return vp1;
+X	if (Gmatch(vp->v_name, pat))
+X	    return vp;
+X    }
+X    return vp;
+X}
+X
+struct varent *
+adrof1(name, v)
+X    register Char *name;
+X    register struct varent *v;
+X{
+X    register cmp;
+X
+X    v = v->v_left;
+X    while (v && ((cmp = *name - *v->v_name) || (cmp = Strcmp(name, v->v_name))))
+X	if (cmp < 0)
+X	    v = v->v_left;
+X	else
+X	    v = v->v_right;
+X    return v;
+X}
+X
+X/*
+X * The caller is responsible for putting value in a safe place
+X */
+void
+set(var, val)
+X    Char   *var, *val;
+X{
+X    register Char **vec = (Char **) xmalloc((size_t) (2 * sizeof(Char **)));
+X
+X    vec[0] = val;
+X    vec[1] = 0;
+X    set1(var, vec, &shvhed);
+X}
+X
+void
+set1(var, vec, head)
+X    Char   *var, **vec;
+X    struct varent *head;
+X{
+X    register Char **oldv = vec;
+X
+X    gflag = 0;
+X    tglob(oldv);
+X    if (gflag) {
+X	vec = globall(oldv);
+X	if (vec == 0) {
+X	    blkfree(oldv);
+X	    stderror(ERR_NAME | ERR_NOMATCH);
+X	    return;
+X	}
+X	blkfree(oldv);
+X	gargv = 0;
+X    }
+X    setq(var, vec, head);
+X}
+X
+X
+void
+setq(name, vec, p)
+X    Char   *name, **vec;
+X    register struct varent *p;
+X{
+X    register struct varent *c;
+X    register f;
+X
+X    f = 0;			/* tree hangs off the header's left link */
+X    while (c = p->v_link[f]) {
+X	if ((f = *name - *c->v_name) == 0 &&
+X	    (f = Strcmp(name, c->v_name)) == 0) {
+X	    blkfree(c->vec);
+X	    goto found;
+X	}
+X	p = c;
+X	f = f > 0;
+X    }
+X    p->v_link[f] = c = (struct varent *) xmalloc((size_t)sizeof(struct varent));
+X    c->v_name = Strsave(name);
+X    c->v_bal = 0;
+X    c->v_left = c->v_right = 0;
+X    c->v_parent = p;
+X    balance(p, f, 0);
+found:
+X    trim(c->vec = vec);
+X}
+X
+X/*ARGSUSED*/
+void
+unset(v, c)
+X    Char   **v;
+X    struct command *c;
+X{
+X    register bool did_only;
+X
+X    did_only = adrof(STRrecognize_only_executables) != 0;
+X    unset1(v, &shvhed);
+X    if (adrof(STRhistchars) == 0) {
+X	HIST = '!';
+X	HISTSUB = '^';
+X    }
+X    if (adrof(STRhistlit) == 0)
+X	HistLit = 0;
+X    if (adrof(STRwordchars) == 0)
+X	word_chars = STR_WORD_CHARS;
+X    if (adrof(STRedit) == 0)
+X	editing = 0;
+X    if (adrof(STRbackslash_quote) == 0)
+X	bslash_quote = 0;
+X    if (did_only && adrof(STRrecognize_only_executables) == 0)
+X	tw_clear_comm_list();
+X}
+X
+void
+unset1(v, head)
+X    register Char *v[];
+X    struct varent *head;
+X{
+X    register struct varent *vp;
+X    register int cnt;
+X
+X    while (*++v) {
+X	cnt = 0;
+X	while (vp = madrof(*v, head->v_left))
+X	    unsetv1(vp), cnt++;
+X	if (cnt == 0)
+X	    setname(short2str(*v));
+X    }
+X}
+X
+void
+unsetv(var)
+X    Char   *var;
+X{
+X    register struct varent *vp;
+X
+X    if ((vp = adrof1(var, &shvhed)) == 0)
+X	udvar(var);
+X    unsetv1(vp);
+X}
+X
+static void
+unsetv1(p)
+X    register struct varent *p;
+X{
+X    register struct varent *c, *pp;
+X    register f;
+X
+X    /*
+X     * Free associated memory first to avoid complications.
+X     */
+X    blkfree(p->vec);
+X    xfree((ptr_t) p->v_name);
+X    /*
+X     * If p is missing one child, then we can move the other into where p is.
+X     * Otherwise, we find the predecessor of p, which is guaranteed to have no
+X     * right child, copy it into p, and move it's left child into it.
+X     */
+X    if (p->v_right == 0)
+X	c = p->v_left;
+X    else if (p->v_left == 0)
+X	c = p->v_right;
+X    else {
+X	for (c = p->v_left; c->v_right; c = c->v_right);
+X	p->v_name = c->v_name;
+X	p->vec = c->vec;
+X	p = c;
+X	c = p->v_left;
+X    }
+X    /*
+X     * Move c into where p is.
+X     */
+X    pp = p->v_parent;
+X    f = pp->v_right == p;
+X    if (pp->v_link[f] = c)
+X	c->v_parent = pp;
+X    /*
+X     * Free the deleted node, and rebalance.
+X     */
+X    xfree((ptr_t) p);
+X    balance(pp, f, 1);
+X}
+X
+void
+setNS(cp)
+X    Char   *cp;
+X{
+X    set(cp, Strsave(STRNULL));
+X}
+X
+X/*ARGSUSED*/
+void
+shift(v, c)
+X    register Char **v;
+X    struct command *c;
+X{
+X    register struct varent *argv;
+X    register Char *name;
+X
+X    v++;
+X    name = *v;
+X    if (name == 0)
+X	name = STRargv;
+X    else
+X	(void) strip(name);
+X    argv = adrof(name);
+X    if (argv == 0)
+X	udvar(name);
+X    if (argv->vec[0] == 0)
+X	stderror(ERR_NAME | ERR_NOMORE);
+X    lshift(argv->vec, 1);
+X}
+X
+static void
+exportpath(val)
+X    Char  **val;
+X{
+X    Char    exppath[BUFSIZE];
+X
+X    exppath[0] = 0;
+X    if (val)
+X	while (*val) {
+X	    if (Strlen(*val) + Strlen(exppath) + 2 > BUFSIZE) {
+X		xprintf("Warning: ridiculously long PATH truncated\n");
+X		break;
+X	    }
+X	    (void) Strcat(exppath, *val++);
+X	    if (*val == 0 || eq(*val, STRRparen))
+X		break;
+X	    (void) Strcat(exppath, STRcolon);
+X	}
+X    Setenv(STRPATH, exppath);
+X}
+X
+X#ifndef lint
+X /*
+X  * Lint thinks these have null effect
+X  */
+X /* macros to do single rotations on node p */
+X#define rright(p) (\
+X	t = (p)->v_left,\
+X	(t)->v_parent = (p)->v_parent,\
+X	((p)->v_left = t->v_right) ? (t->v_right->v_parent = (p)) : 0,\
+X	(t->v_right = (p))->v_parent = t,\
+X	(p) = t)
+X#define rleft(p) (\
+X	t = (p)->v_right,\
+X	(t)->v_parent = (p)->v_parent,\
+X	((p)->v_right = t->v_left) ? (t->v_left->v_parent = (p)) : 0,\
+X	(t->v_left = (p))->v_parent = t,\
+X	(p) = t)
+X#else
+struct varent *
+rleft(p)
+X    struct varent *p;
+X{
+X    return (p);
+X}
+struct varent *
+rright(p)
+X    struct varent *p;
+X{
+X    return (p);
+X}
+X
+X#endif				/* ! lint */
+X
+X
+X/*
+X * Rebalance a tree, starting at p and up.
+X * F == 0 means we've come from p's left child.
+X * D == 1 means we've just done a delete, otherwise an insert.
+X */
+static void
+balance(p, f, d)
+X    register struct varent *p;
+X    register int f, d;
+X{
+X    register struct varent *pp;
+X
+X#ifndef lint
+X    register struct varent *t;	/* used by the rotate macros */
+X
+X#endif
+X    register ff;
+X
+X    /*
+X     * Ok, from here on, p is the node we're operating on; pp is it's parent; f
+X     * is the branch of p from which we have come; ff is the branch of pp which
+X     * is p.
+X     */
+X    for (; pp = p->v_parent; p = pp, f = ff) {
+X	ff = pp->v_right == p;
+X	if (f ^ d) {		/* right heavy */
+X	    switch (p->v_bal) {
+X	    case -1:		/* was left heavy */
+X		p->v_bal = 0;
+X		break;
+X	    case 0:		/* was balanced */
+X		p->v_bal = 1;
+X		break;
+X	    case 1:		/* was already right heavy */
+X		switch (p->v_right->v_bal) {
+X		case 1:	/* sigle rotate */
+X		    pp->v_link[ff] = rleft(p);
+X		    p->v_left->v_bal = 0;
+X		    p->v_bal = 0;
+X		    break;
+X		case 0:	/* single rotate */
+X		    pp->v_link[ff] = rleft(p);
+X		    p->v_left->v_bal = 1;
+X		    p->v_bal = -1;
+X		    break;
+X		case -1:	/* double rotate */
+X		    (void) rright(p->v_right);
+X		    pp->v_link[ff] = rleft(p);
+X		    p->v_left->v_bal =
+X			p->v_bal < 1 ? 0 : -1;
+X		    p->v_right->v_bal =
+X			p->v_bal > -1 ? 0 : 1;
+X		    p->v_bal = 0;
+X		    break;
+X		default:
+X		    break;
+X		}
+X		break;
+X	    default:
+X		break;
+X	    }
+X	}
+X	else {			/* left heavy */
+X	    switch (p->v_bal) {
+X	    case 1:		/* was right heavy */
+X		p->v_bal = 0;
+X		break;
+X	    case 0:		/* was balanced */
+X		p->v_bal = -1;
+X		break;
+X	    case -1:		/* was already left heavy */
+X		switch (p->v_left->v_bal) {
+X		case -1:	/* single rotate */
+X		    pp->v_link[ff] = rright(p);
+X		    p->v_right->v_bal = 0;
+X		    p->v_bal = 0;
+X		    break;
+X		case 0:	/* signle rotate */
+X		    pp->v_link[ff] = rright(p);
+X		    p->v_right->v_bal = -1;
+X		    p->v_bal = 1;
+X		    break;
+X		case 1:	/* double rotate */
+X		    (void) rleft(p->v_left);
+X		    pp->v_link[ff] = rright(p);
+X		    p->v_left->v_bal =
+X			p->v_bal < 1 ? 0 : -1;
+X		    p->v_right->v_bal =
+X			p->v_bal > -1 ? 0 : 1;
+X		    p->v_bal = 0;
+X		    break;
+X		default:
+X		    break;
+X		}
+X		break;
+X	    default:
+X		break;
+X	    }
+X	}
+X	/*
+X	 * If from insert, then we terminate when p is balanced. If from
+X	 * delete, then we terminate when p is unbalanced.
+X	 */
+X	if ((p->v_bal == 0) ^ d)
+X	    break;
+X    }
+X}
+X
+void
+plist(p)
+X    register struct varent *p;
+X{
+X    register struct varent *c;
+X    register len;
+X
+X    if (setintr)
+X#ifdef BSDSIGS
+X	(void) sigsetmask(sigblock((sigmask_t) 0) & ~sigmask(SIGINT));
+X#else				/* BSDSIGS */
+X	(void) sigrelse(SIGINT);
+X#endif				/* BSDSIGS */
+X
+X    for (;;) {
+X	while (p->v_left)
+X	    p = p->v_left;
+x:
+X	if (p->v_parent == 0)	/* is it the header? */
+X	    return;
+X	len = blklen(p->vec);
+X	xprintf(short2str(p->v_name));
+X	xputchar('\t');
+X	if (len != 1)
+X	    xputchar('(');
+X	blkpr(p->vec);
+X	if (len != 1)
+X	    xputchar(')');
+X	xputchar('\n');
+X	if (p->v_right) {
+X	    p = p->v_right;
+X	    continue;
+X	}
+X	do {
+X	    c = p;
+X	    p = p->v_parent;
+X	} while (p->v_right == c);
+X	goto x;
+X    }
+X}
+END_OF_FILE
+if test 18217 -ne `wc -c <'sh.set.c'`; then
+    echo shar: \"'sh.set.c'\" unpacked with wrong size!
+fi
+# end of 'sh.set.c'
+fi
+echo shar: End of archive 8 \(of 18\).
+cp /dev/null ark8isdone
+MISSING=""
+for I in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 ; do
+    if test ! -f ark${I}isdone ; then
+	MISSING="${MISSING} ${I}"
+    fi
+done
+if test "${MISSING}" = "" ; then
+    echo You have unpacked all 18 archives.
+    rm -f ark[1-9]isdone ark[1-9][0-9]isdone
+else
+    echo You still need to unpack the following archives:
+    echo "        " ${MISSING}
+fi
+##  End of shell archive.
+exit 0

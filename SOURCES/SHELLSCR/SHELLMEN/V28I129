@@ -1,0 +1,1294 @@
+From: how%milhow1@uunet.uu.net (Mike Howard)
+Newsgroups: comp.sources.unix
+Subject: v28i129: simple_menu-3.1 - a simple shell-level menu system, V3.1, Part05/09
+Date: 5 Oct 1994 01:21:15 -0700
+Organization: Vixie Enterprises
+Sender: vixie@vix.com
+Approved: vixie@gw.home.vix.com
+Message-ID: <36tnlr$ud@gw.home.vix.com>
+References: <1.781345221.914@gw.home.vix.com>
+
+Submitted-By: how%milhow1@uunet.uu.net (Mike Howard)
+Posting-Number: Volume 28, Issue 129
+Archive-Name: simple_menu-3.1/part05
+
+#! /bin/sh
+# This is a shell archive.  Remove anything before this line, then unpack
+# it by saving it into a file and typing "sh file".  To overwrite existing
+# files, type "sh file -c".  You can also feed this as standard input via
+# unshar, or by typing "sh <file", e.g..  If this archive is complete, you
+# will see the following message at the end:
+#		"End of archive 5 (of 9)."
+# Contents:  ./doc/s_menu.msaa ./doc/s_menu.msab
+# Wrapped by mike@clove2 on Wed Sep 28 06:55:57 1994
+PATH=/bin:/usr/bin:/usr/ucb ; export PATH
+if test -f './doc/s_menu.msaa' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'./doc/s_menu.msaa'\"
+else
+echo shar: Extracting \"'./doc/s_menu.msaa'\" \(19946 characters\)
+sed "s/^X//" >'./doc/s_menu.msaa' <<'END_OF_FILE'
+X.de iX 
+X.tm \\$1   \\n%
+X..
+X
+X.nr _- 0
+X.ND
+X.tr \(is'
+X.tr \(if`
+X.tr \(pd"
+X
+X.ds St simple_menu
+X.OH '\\*(St''%'
+X.EH '%''\\*(St'
+X.PP
+X.PP
+X.PP
+X.PP
+X.ce
+XSimple_Menu
+X.ce
+Xa\ user\ menu\ interpreter\ to\ simplify\ shell\ script\ maintenance
+X.ce
+XMike\ Howard
+X.PP
+X.bp
+XCopyright \(co 1992, Michael S. Howard
+X.PP
+XPermission is granted to make and distribute verbatim
+Xcopies of this manual provided the copyright notice and
+Xthis permission notice are preserved on all copies.
+X     
+XPermission is granted to copy and distribute modified
+Xversions of this manual under the conditions for
+Xverbatim copying, provided also that the sections
+Xentitled ``Distribution'' and ``General Public License''
+Xare included exactly as in the original, and provided
+Xthat the entire resulting derived work is distributed
+Xunder the terms of a permission notice identical to this
+Xone.
+X     
+XPermission is granted to copy and distribute
+Xtranslations of this manual into another language, under
+Xthe above conditions for modified versions, except that
+Xthe sections entitled ``Distribution'' and ``General
+XPublic License'' may be included in a translation
+Xapproved by the author instead of in the original
+XEnglish.
+X.bp
+X.PP
+X.PP
+X.PP
+X.PP
+X.PP
+X.PP
+X.bp
+X.ds __ Copying
+X.NH 1
+X\&\*(__ 
+X.XS 
+X\&\n(H1	\*(__ 
+X.XE
+X\&\fR
+X.iX "c Copying Conditions"
+X.PP
+X\&\fBSimple_Menu\fR is distributed under the terms and conditions of
+Xthe GNU Public License as described in the last section of this document.
+X.PP
+X.PP
+X.bp
+X.ds __ What\ it\ is
+X.NH 1
+X\&\*(__ 
+X.XS 
+X\&\n(H1	\*(__ 
+X.XE
+X\&\fR
+X.iX "c What Simple_Menu is"
+X.PP
+X\&\fBSimple_Menu\fR is an interactive menu interpreter. The primary
+Xpurpose is provide a simple method for UNIX system adminsitrators to
+Xconstruct and maintain menus for users.  Actions are implemented by
+Xrunning shell scripts, so the full power of the system is available.
+X.PP
+XMenus are described in a \fImenu definition\fR language.  This language
+Xconsists of a (hopefully) minimal set of constructs which are used to
+Xdefine menus of actions with associated descriptions and parameters.
+XThree types of \fIactions\fR are supported:
+X.PP
+X.IP \(bu\ \ 
+XShell Scripts - these are the only actions which \fIdo\fR anything.
+X.IP \(bu\ \ 
+XSub-Menus - a network of menus is supported with arbitrary nesting depth.
+X.IP \(bu\ \ 
+XVariable Instantiation - Simple_Menu supports string valued variables
+Xwhich are defined in the environment of all shell script actions and may
+Xalso be used to modify the text displayed to the user.  Variables may
+Xtake on values from:
+X.RS
+X.IP \-\ \ 
+Xstatic text in the Menu Definition File
+X.IP \-\ \ 
+Xenvironment variables, via the getenv() library call.
+X.IP \-\ \ 
+Xnamed initialization files containing a variety of variable definitions,
+XSee section From File
+X.IP \-\ \ 
+Xthe output of shell scripts
+X.IP \-\ \ 
+Xverified or unverified user input
+X.RE
+X.PP
+X.LP
+XWhy use Simple_Menu?
+X.PP
+X.IP \(bu\ \ 
+XSimple_Menu handles user interaction cleanly so you do not have
+Xto re-write the prompt-read.response-do.it loop
+X.IP \(bu\ \ 
+XShell scripts are encapsulated into discrete chunks, so a change to any
+Xsingle script does not break the rest of the functionality.
+X.IP
+XCorallary: restructuring the menu tends to be less dangerous and easier
+Xto do.
+X.IP
+XCorallary: maintenance is easier because each shell script is isolated,
+Xand therefore smaller than monolithic monsters.
+X.IP \(bu\ \ 
+XMenus can be written in "portable" ways by using variables which are
+Xinitialized from the environment or shell scripts.
+X.IP \(bu\ \ 
+XThe user sees informative text, rather than cryptic command syntax.  You
+Xcan, of course, make the informative text as cryptic as you like, but
+Xyou don't \fIhave\fR to.
+X.IP \(bu\ \ 
+XUser input can be carefully controlled with defaults specified.
+X.PP
+X.PP
+X.bp
+X.ds __ Menu\ Definition\ File
+X.NH 1
+X\&\*(__ 
+X.XS 
+X\&\n(H1	\*(__ 
+X.XE
+X\&\fR
+X.iX "c Menu Definition File"
+X.PP
+XA menu definition file is a plain ascii text file containing one or more
+Xmenu definitions and, optionally, a collection of global variable
+Xdefinitions.
+X.PP
+XThe order of occurrence is:
+X.PP
+X.IP \(bu\ \ 
+XGlobal Variable Definitions - this section is optional.  It consists of
+Xthe definitions and optional initialization of variables which are
+Xavailable to all menus, See section Variables.
+X.IP
+XOnly character-string variables are available.  A variety of
+Xinitialization and re-definition options are available.
+X.IP
+XThe definitions for all of these variables are available within shell
+Xscripts.  This is accomplished by the simple expedient of writing
+Xdefinitions for each of these variables at the beginning of shell script
+Xexecution file, See section How Scripts are Run.
+X.IP \(bu\ \ 
+XMenu Definitions.  At least one menu definition must exist.  The first
+Xmenu definition is the top level menu and is the one which is initially
+Xdisplayed.  All subsequent menus are \fIsub menus\fR and will only be
+Xactivated if they are explicitly named in higher menus and are selected
+Xby the user.  The first menu is implicitly named \fR\&\f(CWMAIN\fR.
+X.IP \(bu\ \ 
+XComments.  Text beginning with a \fR\&\f(CW#\fR sign to the end of line is
+Xignored.  It is used to insert comments into the file.  The only
+Xexception to this is within Text Strings, which are copied verbatim,
+XSee section Text Strings.
+X.IP \(bu\ \ 
+XWhite Space.  White space is ignored.
+X.PP
+XThe following is a complete example menu which illustrates \fImost\fR
+Xof the features available.
+X.ID
+X\&\fR\&\f(CW
+X\&\&
+X# Global Variable Section
+Xfrom-env "EDITOR" = 'vi' ;  #initialize EDITOR from environment or to
+X                            # 'vi' if not defined
+Xfrom-env "USER" ; # userid from environment or null if not defined
+X\&\&
+Xfrom-shell "MAIL" = %(
+X  for x in /bin/Mail /usr/bin/Mail /bin/mail /usr/bin/mail /usr/bin/mh ; do
+X   if [ -x $x ] ; then
+X     echo "$x"
+X     exit
+X   fi
+X  echo "mail"
+X %)
+X ;
+X\&\&
+X# This consists only of the MAIN menu, so the menu statement is not used
+Xtitle 'Friendly Menu'
+X\&\&
+Xbold          # show the title in standout mode
+Xalways-show   # always display the menu options
+Xclear         # clear screen before displaying
+X\&\&
+X# do this before displaying the menu
+Xprelude 'Checking for Mail . . .'
+Xif-not-defined "USER"
+X reset-global from-user "USER" 'What is your UserId?'
+Xshell
+X%(
+X  $MAIL -u $USER
+X%)
+X;
+X\&\&
+X# do this after the user quits
+Xepilogue 'cleaning up . . .'
+X%( find $HOME -name core -exec rm {} \e; %)
+X;
+X\&\&
+X# This is the menu
+Xshell 'Mail something to someone'
+X%(
+X [ -z "$TO" ] && exit
+X if [ -n "$SUBJECT" ] ; then
+X   $MAIL -s $SUBJECT $TO
+X else
+X   $MAIL $TO
+X fi
+X%)
+Xparm "SUBJECT" 'Subject of Mail'    # a parameter initialized to NULL
+Xparm "TO" 'Recipient'    # a parameter initialized to NULL
+X;
+X\&\&
+Xshell 'Read Mail'
+X%( $MAIL %)
+X;
+X\&\&
+Xshell 'Edit A file'
+X%( $THIS_EDITOR $FILE %)
+Xparm "THIS_EDITOR" = "EDITOR" 'Editor to use' # a parameter initialized
+X                                              # to the value of EDITOR
+Xparm "FILE" 'File to edit'    # a parameter initialized to NULL
+X;
+X\&\&
+Xshell 'Print a File'
+X%(
+X [ -n "$FILE" ] && lpr -P$PRT $FILE
+X%)
+Xparm "PRT" = 'lp1' 'Printer to use' # a parameter initialized to static text
+Xparm "FILE" 'File to Print'    # a parameter initialized to NULL
+X;
+X\&\&
+Xaction-list 'Sample Action List'
+Xdo-menu "CHOOSE_EDITOR"
+Xshell
+X%(
+X  $EDITOR $FILE
+X%)
+Xparm "FILE" 'File to Edit'
+X;
+X\&\&
+X# restricted to PRIVILEGED_USER users
+X\&\&
+Xrestricted shell 'Escape to Shell'
+X%(
+X  /bin/csh
+X%)
+X;
+X\&\&
+X# Sample Sub Menu
+X\&\&
+Xmenu "CHOOSE_EDITOR"
+X\&\&
+Xtitle 'Pick An Editor'
+X\&\&
+Xbold clear always-show once
+X\&\&
+Xreset-global 'Choose the ''vi'' Editor'
+Xglobal "EDITOR" = 'vi'
+X;
+X\&\&
+Xreset-global 'Choose the ''ed'' Editor'
+Xglobal "EDITOR" = 'ed'
+X;
+X\&\&
+Xreset-global 'Choose the ''ex'' Editor'
+Xglobal "EDITOR" = 'ex'
+X;
+X\&\&
+Xreset-global 'Choose the ''emacs'' Editor'
+Xglobal "EDITOR" = 'emacs'
+X;
+X.DE
+X\&\fR
+X.PP
+X.PP
+X.bp
+X.ds __ Menus
+X.NH 1
+X\&\*(__ 
+X.XS 
+X\&\n(H1	\*(__ 
+X.XE
+X\&\fR
+X.iX "c How Menus are Defined"
+X.PP
+XA menu consists of formatting information and action definitions.  The
+Xformatting information defines the menu title, screen clearing, etc.
+XActions, as you would expect, actually do things.
+X.PP
+XA \fBmenu\fR consists of the following sections which appear in the
+Xorder given:
+X.PP
+X.IP 1.\ 
+XMenu Title.  This is a \fR\&\f(CWtitle\fR statement for the main menu and a
+X\&\fR\&\f(CWmenu\fR statement followed by a \fR\&\f(CWtitle\fR statement for submenus.
+X.IP 2.\ 
+XMenu Options.  Hints indicating how the menu should be presented.  None
+Xare required.
+X.IP 3.\ 
+XMenu Prelude.  This is an optional shell script or list of actions which
+Xis run prior to displaying the menu.  At most one of these may be
+Xdefined for each menu in the Menu Definition File.  It can actually can
+Xoccur anywhere prior to the next menu definition [or end of file], but,
+Xas a matter of style, should be placed next.
+X.IP 4.\ 
+XMenu Epilogue.  Like the Prelude, this is an optional shell script or
+Xlist of actions.  Only one may be defined per menu.  It is run after the
+Xuser has chosen to exit the menu.  Again, like the prelude, it can occur
+Xanywhere between the Options and the next menu [or end of file], but, as
+Xa matter of style, should follow the prelude and precede the Menu Items.
+X.IP 5.\ 
+XMenu Items.  These are menu actions and format hints.  The actions
+Xconsist of \fR\&\f(CWshell\fR, \fR\&\f(CWdo-menu\fR statements, and variable
+Xreset statements See section Variables.  The hints are \fR\&\f(CWskip\fR statements
+Xwhich insert either text or blank lines between blocks of items.
+X.PP
+XMenu actions occur in the \fBprelude\fR, \fBepilogue\fR, and
+X\&\fBitems\fR.  Actions may either occur singly or in sequences
+XSee section Menu Actions.
+X.PP
+XNote: be careful to distinguish between Text Strings and Prompt Strings,
+XSee section Syntactic Details.  The term Text String refers to static text
+Xwhich is defined in the Menu Definition File and cannot be changed while
+XSimple_Menu is executing.  A Prompt String is composed of the
+Xconcatenation of Text Strings and Global Variables, and is often changed
+Xduring a session.
+X.PP
+X.PP
+X.PP
+X.PP
+X.ds __ Menu\ Title
+X.NH 2
+X\&\*(__ 
+X.XS 
+X\&\n(H1.\n(H2      \*(__ 
+X.XE
+X\&\fR
+X.iX "c the Menu Title Statement"
+X.PP
+XEach menu has two identifying strings: a name and a title.  The
+X\&\fR\&\f(CWname\fR identifies the menu to other menus.  The \fR\&\f(CWtitle\fR
+Xidentifies the menu to the user.
+X.PP
+XThe top level menu in a Menu Definition File is name \fR\&\f(CWMAIN\fR.  This
+Xname is automatically assigned to the first menu in the Menu Definition
+XFile.  Submenus must be explicitly named using the \fImenu\fR command,
+Xas in \fR\&\f(CWmenu "FOO"\fR.  \fINote:\fR the first menu probably should not
+Xbe named explicitly since \fBSimple_Menu\fR does it automatically.
+X.PP
+XAll menus require a title.  The title is defined using the \fR\&\f(CWtitle\fR
+Xcommand, as in \fR\&\f(CWtitle prompt-string\fR, See section Prompt Strings
+X.PP
+XThese examples illustrate the syntax.  Note that the \fR\&\f(CWmenu\fR
+Xstatement must precede the \fR\&\f(CWtitle\fR statement.
+X.ID
+X\&\fR\&\f(CW
+X# the main menu
+Xtitle 'title for the Main Menu'
+X\&\&
+X# a sub-menu
+Xmenu "FOO"
+Xtitle 'Title of the Foo Menu'
+X.DE
+X\&\fR
+X.PP
+X.PP
+X.ds __ Menu\ Options
+X.NH 2
+X\&\*(__ 
+X.XS 
+X\&\n(H1.\n(H2      \*(__ 
+X.XE
+X\&\fR
+X.iX "c Menu Options"
+X.PP
+XMenu options are intended to be rather strong hints as to how to display
+Xthe menu.  They consist of the key words:
+X.PP
+X.IP \(bu\ \ 
+X\&\fR\&\f(CWbold\fR - causes the menu Title and \fR\&\f(CWskip\fR text to be displayed
+Xin the terminal's \fIstandout\fR mode.
+X.IP \(bu\ \ 
+X\&\fR\&\f(CWclear\fR - causes the display to be cleared prior to displaying the
+Xmenu.
+X.IP \(bu\ \ 
+X\&\fR\&\f(CWwait\fR - causes the Simple_Menu to wait for the user to hit the
+Xreturn key before re-displaying the menu after executing a Shell Script.
+XSimple_Menu normally pauses of about 10 seconds and then does the
+Xredisplay.
+X.IP \(bu\ \ 
+X\&\fR\&\f(CWalpha\fR - causes Simple_Menu to use the letters A, B, etc for menu
+Xchoices instead of numbers.
+X.IP \(bu\ \ 
+X\&\fR\&\f(CWonce\fR - cause the menu to be exited after the first legal menu
+Xchoice is made and executed.  This does not have a lot of use.  It was
+Xintroduced to minimize key strokes for menus which are used to set up
+Xthe menu configuration by modifying global variables.
+X.IP \(bu\ \ 
+X\&\fR\&\f(CWscope-variables\fR - causes this menu to be an outer scope for all
+Xglobal variables.  This is done by pushing the current definitions so
+Xthat any changes to made will be undone when this menu returns
+XSee section Variables.
+X.PP
+XMenu options don't always make sense and, if not, are ignored.  For
+Xexample, you cannot clear a dumb terminal, nor can you use standout
+Xmode.  Simple_Menu was written with the idea of having a variety of
+Xdisplay drivers - curses_menu and Xaw_menu, for example.  Some displays
+Xdo not lend themselves to 'numbered' menu choices, so in these cases,
+X\&\fR\&\f(CWalpha\fR is ignored.
+X.PP
+X.PP
+X.ds __ Menu\ Actions
+X.NH 2
+X\&\*(__ 
+X.XS 
+X\&\n(H1.\n(H2      \*(__ 
+X.XE
+X\&\fR
+X.iX "c Menu Actions"
+X.PP
+XThe easiest way to understand the structure of menus is make a mental
+Xseparation between actions and menu ``items''.  An action is something
+Xwhich happens.  An item is a clump of things which can happen and has a
+Xdisplayable prompt associated with it.
+X.PP
+XThree actions are supported:
+X.PP
+X.IP 1.\ 
+Xshell actions.  A shell action is a normal shell script.  It is
+Ximplemented crudely by creating a script file in a specified temporary
+Xfile directory.  The script consists of all menu global variable
+Xdefinitions, followed by any local variable definitions, and finally
+Xfollowed by the shell script contained in the menu definition file.
+XThis script is executed by simply exec'ing a shell with the script as
+Xinput.  During shell script execution, signals are ignored by
+X\&\fBsimple_menu\fR, but can be used to interupt the shell, unless
+Xtrapped.
+X.IP 2.\ 
+Xsub menus.  Sub menus are menus defined within the menu definition file.
+XThey can be thought of as subroutines.  Arbitrary nesting of menu calls
+Xis supported.
+X.IP 3.\ 
+Xreset global variables.  Global variables may have their values changed
+Xin carefully controlled ways.  These include setting values to
+Xconstants, re-acquiring values from a file or as the output of a shell
+Xprocess, and interactively from the user.  User input is acquired by
+Xdirect input and may be processed through a shell script, if desired.
+X.PP
+XClumping of actions can be looked at two ways:
+X.PP
+X.IP 1.\ 
+XWhen the Clumps are Executed.  Here there are three catagories: the
+Xprelude, the epilogue, and normal menu items.  See the relevant sections.
+X.IP 2.\ 
+XWhat does the Clump Consist Of.  Clumps may consist of a single action
+Xor a sequence of actions.  The specific syntax depends upon the section
+Xin which the clump appears.
+X.PP
+XIn all cases, clumps may be restricted to groups of users by preceding
+Xthe clump by the keyword \fR\&\f(CWrestricted\fR and a string containing all
+Xacceptable user id's.  Such clumps [prelude, epilogue, and normal item]
+Xonly appear and are only executable for privileged users.  In a nod
+Xtowards security, the user id is checked against the real user-id of the
+Xinvoker of the menu program.  This feature is ment to cut down on
+Xmaintenance by allowing a single menu definition file to contain
+Xdifferent menus for different users as well as common features.  It is
+Xnot intended to defend against malicious attacks on the system.
+X.PP
+XSequences of actions may be defined by listing the actions in order.
+XAgain the syntax depends on the menu section.  Actions \fIwith a
+Xsequence\fR may be conditioned on the state of any
+Xsingle global variable.  Four conditionings are recognized:
+X.IP \(bu\ \ 
+X\&\fR\&\f(CWif-defined "VARIABLE"\fR - includes the action in the menu if the
+Xnamed variable is defined.  [\fR\&\f(CWifdef\fR is synonymous with
+X\&\fR\&\f(CWif-defined\fR]
+X.IP \(bu\ \ 
+X\&\fR\&\f(CWif-not-defined "VARIABLE"\fR - includes the action in the menu if the
+Xnamed variable is NOT defined.  [\fR\&\f(CWifndef\fR is synonymous with
+X\&\fR\&\f(CWif-defined\fR]
+X.IP \(bu\ \ 
+X\&\fR\&\f(CWif "VARIABLE" equals 'string'\fR - includes the action if the value
+Xof the named variable is equal to the value of the string.  [\fR\&\f(CWeq\fR
+Xand \fR\&\f(CWis\fR are synonymous with \fR\&\f(CWequal\fR]
+X.IP \(bu\ \ 
+X\&\fR\&\f(CWif "VARIABLE" not-equal 'string'\fR - includes the action if the
+Xvalue of the named variable is NOT equal to the value of the string.
+X[\fR\&\f(CWnot-eq\fR, \fR\&\f(CWneq\fR, and \fR\&\f(CWis-not\fR are synonymous with
+X\&\fR\&\f(CWnot-equal\fR]
+X.PP
+XThis can be used to create session sensitive menus.  For example,
+Xactions which are character based may be run in separate windows if
+XDISPLAY is defined.  Similarly, applications which provide both X based
+Xand character based user interfaces can be invoked in the appropriate
+Xmode.
+X.PP
+XSequencing with conditional execution of a sub-menu is illustrated in
+Xsample menu definition file above.  The MAIN menu prologue consists of a
+Xlist of two actions, this first of which is only executed if the global
+Xvariable \fR\&\f(CWUSER\fR was not defined in the environment.  If there is no
+X\&\fR\&\f(CWUSER\fR environment variable, the menu global variable \fR\&\f(CWUSER\fR
+Xis set to the value typed by the user in response to the reset-global
+Xaction.  Irrespective of whether this action is performed, the next
+Xaction in the sequence is executed by executing the shell script between
+Xthe delimiters \fR\&\f(CW%(\fR and \fR\&\f(CW%)\fR.
+X.PP
+X.PP
+X.ds __ Menu\ Prelude
+X.NH 2
+X\&\*(__ 
+X.XS 
+X\&\n(H1.\n(H2      \*(__ 
+X.XE
+X\&\fR
+X.iX "c the Menu Prelude"
+X.PP
+XThe Menu Prelude is a sequence of actions are performed prior to
+Xdisplaying the menu.  All global variables are defined prior to entering
+Xthe menu are defined for all scripts which occur in this sequence.
+X.PP
+X.ID
+X\&\fR\&\f(CW
+Xprelude \fIPrompt String which is Displayed while running\fR\&\f(CW 
+X\&\fIsequence of action\fR\&\f(CW
+X;
+X.DE
+X\&\fR
+X.PP
+XAn older syntax is still supported for backward compatibility.  This
+Xsyntax assumes that the prelude will consist of a single shell script.
+XIn this case, the keyword \fR\&\f(CWshell\fR may be omitted from the single
+Xshell action.  This syntax will probably be dropped in version 4.
+X.PP
+X.PP
+X.ds __ Menu\ Epilogue
+X.NH 2
+X\&\*(__ 
+X.XS 
+X\&\n(H1.\n(H2      \*(__ 
+X.XE
+X\&\fR
+X.iX "c the Menu Epilogue"
+X.PP
+XThe Menu Epilogue is identical in syntax to the Menu Prelude, except
+Xfor the use of the word \fR\&\f(CWepilogue\fR.
+X.PP
+X.PP
+X.ds __ Menu\ Items
+X.NH 2
+X\&\*(__ 
+X.XS 
+X\&\n(H1.\n(H2      \*(__ 
+X.XE
+X\&\fR
+X.iX "c Menu Items"
+X.PP
+XMenu Items are user selectable actions.  They are displayed in the order
+Xin which they occur.  A modicum of format control is available by using
+Xthe \fR\&\f(CWskip\fR pseudo-item to gather items into logical groups.
+X.PP
+XThe following items are supported
+X.PP
+X.IP \(bu\ \ 
+X\&\fR\&\f(CWshell\fR - defines a shell script, with optional user specified
+Xparameters.
+X.IP \(bu\ \ 
+X\&\fR\&\f(CWdo-menu\fR - calls a named sub-menu.
+X.IP \(bu\ \ 
+X\&\fR\&\f(CWskip\fR - instructs the display driver to insert text or a line 
+Xbetween the preceding and following items in the menu display.
+X.IP \(bu\ \ 
+X\&\fR\&\f(CWreset-global\fR - allows changes to global variables
+X\&\(ifVariables\(is.  Changes made here will be retained until the nearest
+Xscoping menu exits.
+X\&\fR\&\f(CWaction-list\fR - permits an arbitrary sequence of \fBshell\fR,
+X\&\fBdo-menu\fR, and \fBreset-global\fR items to be assigned one
+Xchoice.
+X.PP
+X.PP
+X.PP
+X.ds __ Shell\ Item
+X.NH 3
+X\&\*(__ 
+X.XS 
+X\&\n(H1.\n(H2.\n(H3    \*(__ 
+X.XE
+X\&\fR
+X.iX "c the Shell Menu Item"
+X.PP
+XA Shell Item defines an action which is executed by running a shell
+Xscript.
+X.PP
+XA Shell Item begins with the key word \fIshell\fR and is terminated by
+Xa semi-colon [;].  The body of the item consists of three sections:
+X.IP 1.\ 
+Xa Prompt String, identifying text seen by the user which is displayed to
+Xthe user See section Prompt Strings
+X.IP 2.\ 
+Xa Text String, defining the shell script to be executed.  See section Text
+XStrings
+X.IP 3.\ 
+XZero or more Parameter definitions.  Each parameter definition begins
+END_OF_FILE
+if test 19946 -ne `wc -c <'./doc/s_menu.msaa'`; then
+    echo shar: \"'./doc/s_menu.msaa'\" unpacked with wrong size!
+fi
+# end of './doc/s_menu.msaa'
+fi
+if test -f './doc/s_menu.msab' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'./doc/s_menu.msab'\"
+else
+echo shar: Extracting \"'./doc/s_menu.msab'\" \(19951 characters\)
+sed "s/^X//" >'./doc/s_menu.msab' <<'END_OF_FILE'
+Xwith the key word \fIparm\fR, followed by a parameter name,
+XSee section Names, and ends with a prompt string.  Parameters can be
+Xoptionally initialized to the value of either a Text String or a Global
+XVariable.  The three possible variants in syntax are:
+X.RS
+X.IP \(bu\ \ 
+Xparm "NAME"    'user prompt string'
+X.IP \(bu\ \ 
+Xparm "NAME" = 'static text initializer'  'user prompt string'
+X.IP \(bu\ \ 
+Xparm "NAME" = "GLOBAL_NAME"    'user prompt string'
+X.RE
+X.PP
+XParameters are essentially local variables which are defined for the
+XShell Item.  They inhabit a private name-space associated with the shell
+Xitem, so that no conflicts occur if a parameter name duplicates either a
+XGlobal Variable or a Parameter for a different Shell Item in the same or
+Xanother menu.
+X.PP
+XWhen the user selects a Shell Item, each parameter is instantiated by
+Xprompting the user for a value using the supplied prompt string.  If the
+Xparameter has an initializer, that initial value is used by default and
+Xis displayed to the user during this initialization.  Then the shell
+Xscript is run.  See section How Scripts are Run
+X.PP
+XSyntax:
+X.PP
+X.ID
+X\&\fR\&\f(CW
+Xshell \fIprompt string for user\fR\&\f(CW
+X\&\fItext string defining the script\fR\&\f(CW
+X\&\fIparameter definitions\fR\&\f(CW
+X;
+X.DE
+X\&\fR
+X.PP
+X.PP
+X.ds __ Do\ Menu
+X.NH 3
+X\&\*(__ 
+X.XS 
+X\&\n(H1.\n(H2.\n(H3    \*(__ 
+X.XE
+X\&\fR
+X.iX "c the Do-Menu Menu Item"
+X.PP
+XA Menu Item quite simply invokes a sub-menu.  The item consists of the
+Xkey word \fIdo-menu\fR, the Name of the menu See section Names, a Prompt
+XString defining the item to the user, followed by a semi-colon [;].
+X.PP
+XThe action causes the current menu to be suspended and the Named menu to
+Xbe started up.
+X.PP
+X.ID
+X\&\fR\&\f(CW
+Xdo-menu "Menu-Name" \fIprompt string for user\fR\&\f(CW ;
+X.DE
+X\&\fR
+X.PP
+X.PP
+X.ds __ Skip
+X.NH 3
+X\&\*(__ 
+X.XS 
+X\&\n(H1.\n(H2.\n(H3    \*(__ 
+X.XE
+X\&\fR
+X.iX "c the Skip Menu Item"
+X.PP
+XA skip item is used to block groups of items into logic groups by
+Xinserting either a single blank line or the value of a Prompt String
+XSee section Prompt Strings.  It consists of the key word \fIskip\fR,
+Xoptionally followed by a Prompt String, and terminated by a semi-colon
+X[;].  The Prompt String is displayed in standout mode, or equivalent.
+X.PP
+X.ID
+X\&\fR\&\f(CW
+Xskip ;   # inserts a blank line between the preceding and succeeding
+X         # items
+X\&\&
+Xskip 'a prompt string' + "Global_Variable" ; # inserts the value
+X                                             # of the Prompt String
+X                                             # in standout mode
+X.DE
+X\&\fR
+X.PP
+X.PP
+X.PP
+X.ds __ Reset\ Global
+X.NH 3
+X\&\*(__ 
+X.XS 
+X\&\n(H1.\n(H2.\n(H3    \*(__ 
+X.XE
+X\&\fR
+X.iX "c the Reset Global Menu Item"
+X.PP
+XA Reset Global item is used to change the values of Global Variables.
+XThis item consists of the key word \fIreset-globals\fR followed by one
+Xor more variable assignments and finally terminated by a semi-colon
+X[;].  The changed variables retain the new values until they are changed
+Xagain or the menu which defines their scope terminates.  Changed values
+Xdo not persist between sessions.  The default scope for all variables is
+Xthe MAIN menu, but lower scopes can be defined by the
+X\&\fIscope-variables\fR menu option, See section Menu Options.
+X.PP
+XUnfortunately, there is a rich variety of ways in which variables may
+Xbe redefined.  These differ slightly from initial variable assignments
+Xin that:
+X.PP
+X.IP \(bu\ \ 
+XThere are no defaults - the assumption is that you know what to do in
+Xall cases.
+X.IP \(bu\ \ 
+XThere is provision for user interaction with or without validation.
+X.IP \(bu\ \ 
+XThere is no provision for checking in the environment.
+X.IP \(bu\ \ 
+XNo \fInew\fR variables may be defined.
+X.PP
+XThe following example illustrates both syntax and possible entries:
+X.PP
+X.ID
+X\&\fR\&\f(CW
+Xreset-global
+Xglobal "VARIABLE" = 'Text String'  # value of the Text String is
+X                                   # assigned to VARIABLE
+Xfrom-shell "VAR" = %( shell script to run %) # the output of the
+X                                   # shell script is assigned to VAR
+Xfrom-file 'path-to-file' "VARIABLE" # the value associated with VARIABLE
+X                                   # found in the file 'path-to-file' is
+X                                   # assigned to VARIABLE
+X                                   # See section Variables
+Xfrom-user "VAR" 'user prompt'      # user is prompted with 'user prompt'
+X                                   # user input is assigned to VAR
+Xfrom-user "VAR 'user prompt'       # user is prompted with 'user prompt'
+X  validate-through                 # user input is assigned to
+X                %( shell script %) # the variable USER_RESPONSE.
+X				   # shell script is then run and 
+X				   # it's output is assigned to VAR
+X;
+X.DE
+X\&\fR
+X.PP
+XNote: In \fR\&\f(CWfrom-shell\fR and \fR\&\f(CWfrom-user\fR shell scripts, all
+Xglobal variables are defined, including the current value of the one
+Xbeing reset.
+X.PP
+X.PP
+X.ds __ Action\ List
+X.NH 3
+X\&\*(__ 
+X.XS 
+X\&\n(H1.\n(H2.\n(H3    \*(__ 
+X.XE
+X\&\fR
+X.iX "c the Action List Menu Item"
+X.PP
+XAn Action List item is used when you need to combine several actions
+Xwithin a single menu item.  For example, suppose you need initialize a
+Xcollection of variables depending upon the user using the menu and then
+Xexecute a sub-menu.  User keystrokes may be minimized by using an action
+Xsequence which performs the initialization and then calls the menu.  By
+Xconditioning the initialization on some key variable, the initialization
+Xcan be avoided during subsequent calls to the same menu.  For example:
+X.PP
+X.ID
+X\&\fR\&\f(CW
+Xaction-list 'Do Major Work'
+Xif-not-defined "KEY_VARIABLE" do-menu "INITIALIZE_MENU"
+Xdo-menu "WORK_MENU"
+X\&\&
+Xmenu "INITIALIZE_MENU"
+X\&\fIsequence of reset-global actions to set up the environment\fR\&\f(CW
+X\&\&
+Xmenu "WORK_MENU"
+X\&\fIsequence of work related shell scripts configured by variables\fR\&\f(CW
+X.DE
+X\&\fR
+X.PP
+X.PP
+X.bp
+X.ds __ Variables
+X.NH 1
+X\&\*(__ 
+X.XS 
+X\&\n(H1	\*(__ 
+X.XE
+X\&\fR
+X.iX "c Variables in General"
+X.PP
+XOnly String valued variables are supported.  There are no operations on
+Xvariables other than assigning them new values and, implicitly,
+Xrestoring their previous values.  Two types of variables are supported:
+XGlobal Variables and Parameters.
+X.PP
+XGlobal Variables must all be defined prior to the first menu definition.
+XThey persist until the menu session ends and are known to all menus.
+XTheir values may be changed by executing a \fIreset-global\fR Menu Item
+Xwithin a menu.  This permanently changes the value of the effected
+Xvariables within their current scope.  The scope of values is initially
+Xthe MAIN menu, but all variables may be 're-scoped' by executing a menu
+Xwith the 'scope-variables' option, which causes the current values of
+Xall Global Variables to be pushed on the value stack maintained for each
+Xvariable.  Thus, since changes only effect the value on the top of the
+Xstack, the previous values will be restored when the scoping menu exits.
+X.PP
+XGlobal Variables are intended for use in either configuration values
+Xwhich may be dependent on the actual machine the user is using or which
+Xthe user may want to set and retain for a variety of operations - say a
+Xthe name of one of several data-bases.  Examples might be, the user's
+Xfull name, a default printer, selecting a data server which depends on
+Xthe network the user is actually logged onto, etc.
+X.PP
+XGlobal Variables are defined in the environment variable section of the
+XMenu Definition File, See section Menu Definition File.  All of these
+Xassignments create and initialize Global Variables.  Syntactically, they
+Xall begin with a unique key word and are terminated by a semi-colon [;].
+XThe following variations are supported:
+X.PP
+X.IP \(bu\ \ 
+XStatic Text.  'hard coded' Values.
+X.IP \(bu\ \ 
+XFrom Environment.  Value from the environment
+X.IP \(bu\ \ 
+XFrom File.  Value from a configuration file.
+X.IP \(bu\ \ 
+XFrom Shell.  Value obtained by running a shell.
+X.IP \(bu\ \ 
+XSpecial Values.  Special configuration values.
+X.PP
+X.PP
+XParameters are variables which are defined locally for Shell Items,
+XSee section Shell.  They are instantiated immediately prior to running
+Xthe shell by interrogating the user.  These are used for frequently
+Xchanging values which may or may not require defaults.  Examples might
+Xbe a file to edit, a user to send mail to, etc.
+X.PP
+XParameter initialization is covered elsewhere, See section Shell.
+X.PP
+X.PP
+X.ds __ Static\ Text
+X.NH 2
+X\&\*(__ 
+X.XS 
+X\&\n(H1.\n(H2      \*(__ 
+X.XE
+X\&\fR
+X.iX "c Variable Assignment to Static Text"
+X.PP
+XThe simplest assignment is to define and initialize a global variable.
+X.PP
+X.ID
+X\&\fR\&\f(CW
+Xglobal "NAME" ;   # defines a variable and initializes it to the Null
+X                  # Value
+Xglobal "NAME" = 'a Text String' ; # defines a variable named NAME and
+X                                  # assigns it the value of the text
+X.DE
+X\&\fR
+X.PP
+X.PP
+X.ds __ From\ Environment
+X.NH 2
+X\&\*(__ 
+X.XS 
+X\&\n(H1.\n(H2      \*(__ 
+X.XE
+X\&\fR
+X.iX "c Variable Assignment From the Environment"
+X.PP
+XEnvironment variables may be taken from the environment.  This is kind
+Xof a convenience, because the job can be accomplished by using
+X\&'from-shell' initializations, but this is cleaner and faster.
+X.PP
+X.ID
+X\&\fR\&\f(CW
+Xfrom-env "NAME" ;   # defines the variable NAME and looks for it in the
+X                    # user's environment.  If found, that value is
+X                    # assigned, otherwise the Null Value
+Xfrom-env "NAME" = 'a Text String' ; # defines the variable NAME and
+X                    # looks for it in the user's environment.  If found,
+X                    # the environment value is used, otherwise the
+X                    # value of the Text String
+X.DE
+X\&\fR
+X.PP
+X.PP
+X.PP
+X.ds __ From\ File
+X.NH 2
+X\&\*(__ 
+X.XS 
+X\&\n(H1.\n(H2      \*(__ 
+X.XE
+X\&\fR
+X.iX "c Variable Assignment From File"
+X.PP
+XVariables may be set from a configuration file.  The configuration file
+Xconsists of variable definitions and garbage.  A variable definition
+Xconsists of a Name, an equals sign [=], and the rest of the line.  The
+Xvalue returned is the stuff to the right of the equals sign with leading
+Xand trailing white space stripped.   There is no provision for
+Xdefinitions spanning more than one line.
+X.PP
+XNote: if no definition for the named variable is found in the named
+Xfile, the value assigned to the variable depends on the context the
+X\&'from-file' is executed in:
+X.IP \(bu\ \ 
+XDuring initialization with NO default, the variable is assigned the
+Xvalue of the null-value.
+X.IP \(bu\ \ 
+XDuring initialization with a default value, the variable is assigned the
+Xspecified default.
+X.IP \(bu\ \ 
+XDuring a Reset Global menu Item, the variable retains its previous value.
+X.PP
+X.ID
+X\&\fR\&\f(CW
+Xfrom-file 'File-Name' "NAME" ;   # defines the variable NAME and looks
+X                    # for it in the file named File-Name.
+X                    # If found, that value is assigned, otherwise
+X                    #  the Null Value
+Xfrom-file 'File-Name' "NAME" = 'a Text String' ; # defines the variable NAME
+X                    # for it in the file named File-Name.
+X                    # If found, that value is assigned, otherwise
+X                    # the value of the Text String
+X.DE
+X\&\fR
+X.PP
+X.PP
+X.PP
+X.ds __ From\ Shell
+X.NH 2
+X\&\*(__ 
+X.XS 
+X\&\n(H1.\n(H2      \*(__ 
+X.XE
+X\&\fR
+X.iX "c Variable Assignment From Shell Scripts"
+X.PP
+XVariables may initialized by running a shell script.  All previously
+Xdefined variables [in order of definition in the Menu Definition File]
+Xare defined and available within the script.  The output of the script
+Xhas all leading and trailing whitespace stripped and is then assigned to
+Xthe named variable.
+X.PP
+X.ID
+X\&\fR\&\f(CW
+Xfrom-shell "NAME" = %( shell script %) ; # runs the shell script and
+X                    # assigns the output to the the variable NAME
+X.DE
+X\&\fR
+X.PP
+X.PP
+X.PP
+X.ds __ Special\ Values
+X.NH 2
+X\&\*(__ 
+X.XS 
+X\&\n(H1.\n(H2      \*(__ 
+X.XE
+X\&\fR
+X.iX "c Special Values Variables"
+X.PP
+XThree special values can be reset.  The details are discussed elsewhere,
+XSee section Execution Parms.
+X.PP
+X.ID
+X\&\fR\&\f(CW
+Xshell-path = 'full-path-to-shell' ;
+Xasg-fmt = 'new-assignment-format' ;
+Xnull-value = 'string for null values' ;
+X.DE
+X\&\fR
+X.PP
+X.PP
+X.PP
+X.bp
+X.ds __ Invoking\ Simple_Menu
+X.NH 1
+X\&\*(__ 
+X.XS 
+X\&\n(H1	\*(__ 
+X.XE
+X\&\fR
+X.PP
+XSimple_Menu is invoked by typing the appropriate command name on a
+Xcommand line.  There are currently three interfaces:
+X.IP \(bu\ \ 
+Xsimple_menu - the simplest and most robust version.  Displays menus as
+Xnumbered or letter'ed items.  Will work with any ascii terminal -
+Xincluding dumb terminals.
+X.IP \(bu\ \ 
+Xcurses_menu - slightly more complex.  This interface requires a working
+Xcurses implementation.  Menu selections are made by using arrow keys
+Xand/or typing the leading text for menu items.
+X.IP \(bu\ \ 
+XXaw_menu - a version which uses the mit Xaw widget set.  Requires X.
+X.PP
+XThe syntax used to invoke one of these interpreters is:
+X.PP
+X.ID
+X\&\fR\&\f(CW
+XFOO_menu OPTIONS [Menu-Definition-File-Name]
+X.DE
+X\&\fR
+X.PP
+XAll versions take the following command line options:
+X.PP
+X.IP \(bu\ \ 
+X-M path.  Sets the search path for the Menu Definition File.  This is a
+Xcolon separated list of directories in the format of the PATH variable.
+XBy default, the search path is \fR\&\f(CW$HOME:/usr/local/lib/simple_menu\fR.
+X.IP \(bu\ \ 
+X-v.  Sets verbose mode by adding the command `set -xv' to the beginning
+Xof each Menu Execution file, See section How Scripts are Run
+X.IP \(bu\ \ 
+X-D.  Turns on and increments debugging.  Up to three D's are significant.
+XDebugging mode is used to correct errors in a Menu Definition File.
+XDebugging output is somewhat cryptic, but inasmuch as the menu language
+Xis quite small, this does not seem to be a significant disadvantage.  It
+Xwould be nice if better diagnostics were available and more than one bug
+Xat at time could be shown, but so far I have not found it particularly
+Xpainful.
+X.IP \(bu\ \ 
+X-t 20.  Set the `wait' time to 20 seconds.  This is the amount of time
+XSimple_Menu pauses after a shell script has completed before repainting
+Xthe screen.  This only applies to menus which do not have the
+X\&\fR\&\f(CWwait\fR option set.
+X.IP \(bu\ \ 
+X-V.  Display version/patchlevel and exit.
+X.IP \(bu\ \ 
+X-h.  Display a help summary of command line options.
+X.PP
+XThe Menu Definition File name is searched for according to the following
+Xrules: 
+X.PP
+X.IP \(bu\ \ 
+XIf no file is named, the file \fR\&\f(CWmenu.def\fR is searched for along the
+Xvalue of the MENU_PATH variable.
+X.IP \(bu\ \ 
+XIf the file name is `-', then input is assumed to come from a pipe on
+X\&\fIstdin\fR. 
+X.IP \(bu\ \ 
+XIf a file is explicitly named and does \fInot\fR begin with a slash [/]
+Xor a dot-slash [./], then a file of that name is searched for along the
+XMENU_PATH. 
+X.IP \(bu\ \ 
+XIf a file is explicitly named and begins with a slash [/], then that
+Xabsolute file name is used.
+X.IP \(bu\ \ 
+XIf a file is explicitly named and begins with a dot-slash [./], then
+Xthat relative file name is used.
+X.PP
+XThe MENU_PATH is similar to the PATH environment variable.  It is
+Xassumed to be a colon [:] separated list of directory names.  It is set
+Xaccording to the following rules:
+X.IP \(bu\ \ 
+Xif the -M option is used on the command line, MENU_PATH is set to the
+Xargument of the -M option
+X.IP \(bu\ \ 
+XOtherwise, if the environment variable MENU_PATH is defined, then
+XMENU_PATH is set to the value of that variable.
+X.IP \(bu\ \ 
+XOtherwise, MENU_PATH is set to \fR\&\f(CW$HOME:/usr/local/lib/simple_menu\fR,
+Xor whatever installation directory the system administrator chooses at
+Xcompile time.
+X.PP
+X.PP
+X.bp
+X.ds __ How\ Scripts\ are\ Run
+X.NH 1
+X\&\*(__ 
+X.XS 
+X\&\n(H1	\*(__ 
+X.XE
+X\&\fR
+X.iX "c How Shell Scripts are Run"
+X.iX "c How Simple_Menu implements System Actions"
+X.PP
+XScripts are run in by brute force: an execution file is written to a
+Xtemporary file in the /tmp directory and then is fed to the shell.  The
+Xexecution file is then deleted.
+X.PP
+XThe execution file is constructed as follows:
+X.PP
+X.IP 1.\ 
+XAssignment statements are written for \fIall\fR global variables.  This
+Xis done by copying the current value of \fIasg-fmt\fR to the file,
+Xsubstituting the \fIName\fR of each global variable for \fR\&\f(CW$ID$\fR and
+Xthe \fIcurrent\fR value of the variable [or the value of
+X\&\fR\&\f(CWnull-value\fR if it has no value] for each instance of
+X\&\fR\&\f(CW$VALUE$\fR.
+X.IP 2.\ 
+XAssignment statements are written for \fIall\fR parameters for the Shell
+XItem.  The procedure is the same as that used for global variables.
+X.IP 3.\ 
+XThe shell script for the Shell Item is then copied \fIverbatim\fR to the
+Xfile. 
+X.PP
+X\&\fBSimple_Menu\fR does whatever is necessary to the terminal to
+Xreturn it to a normal state, sets itself to ignore signals and then forks
+Xand execs \fR\&\f(CWshell-path\fR with the name of the execution file as the
+Xsingle argument.  \fBSimple_Menu\fR simply waits for the child to
+Xdie, then re-establishes signals and terminal i/o, removes the execution
+Xfile, and prompts the user for more input.
+X.PP
+XNote: this simple method does not exclude running background processes.
+X.PP
+XNote: this execution model was designed for terminal operation.  The X
+XWindow System adds additional possibilities because additional virtual
+Xterminals can be spawned to run processes.  There is no direct support
+Xfor this at present, but it can be hacked by scripts such as:
+X.PP
+X.ID
+X\&\fR\&\f(CW
+X# run a process in an xterm window
+Xshell 'log onto a remote machine'
+X%(
+X  [ -z "$HOST" ] && exit
+X  if [ -z "$USER_ID" ] ; then
+X    xterm -title "rlogin-$HOST" -e rlogin $HOST &
+X  else
+X    xterm -title "rlogin-$HOST" -e rlogin $HOST -l $USER_ID &
+X  fi
+X%)
+Xparm "HOST" 'Host to Log On to'
+X# assume USER is a Global Variable which has been set via 'get-env "USER" ;
+Xparm "USER_ID" = "USER" 'User Id to Use'
+X.DE
+X\&\fR
+X.PP
+XThis does two things: runs the command in the background and uses the -e
+Xoption of xterm to run the following command.  If Simple_Menu is
+Xexecuting on a remote host, then this may need to be modified by
+Xincluding the user's DISPLAY variable for the user's local machine.  I
+Xhave written which gathers this information 'on the fly' on SunOS 4.1.1,
+Xbut, inasmuch as it depends on the 'ut_host' and 'ut_line' values in the
+Xutmp file, it is probably not very portable [I know it does not work for
+XSCO Xenix].  Anyway, there are quite a few possibilities and room for
+Xsupport, rather than 'allowance'.
+X.PP
+X.PP
+X.bp
+X.ds __ Syntactic\ Details
+X.NH 1
+X\&\*(__ 
+X.XS 
+X\&\n(H1	\*(__ 
+X.XE
+X\&\fR
+X.iX "c Syntactic Details"
+X.PP
+XThis section gets into various uglinesses of syntax.
+X.PP
+X.PP
+X.PP
+X.ds __ Names
+X.NH 2
+X\&\*(__ 
+X.XS 
+X\&\n(H1.\n(H2      \*(__ 
+X.XE
+X\&\fR
+X.iX "c The Syntax of Variable and Menu Names"
+X.PP
+XNames consist of characters from the set: [ A-Z a-z 0-9 _ ].  Within the
+XMenu Definition File Names are recognized by being enclosed in
+Xdouble quote marks: \fR\&\f(CW"FOO"\fR, \fR\&\f(CW"FROG_MENU_1"\fR, \fR\&\f(CW"PARM"\fR.
+X.PP
+XNames are used within the Menu Definition File to refer to
+X.PP
+X.IP \(bu\ \ 
+XMenus
+X.IP \(bu\ \ 
+XGlobal Variables
+X.IP \(bu\ \ 
+XShell Item Parameters
+X.PP
+X.PP
+X.ds __ Text\ Strings
+X.NH 2
+X\&\*(__ 
+X.XS 
+X\&\n(H1.\n(H2      \*(__ 
+X.XE
+X\&\fR
+X.iX "c The Syntax of static Text Strings"
+X.PP
+X\&\fIText strings\fR are used to define static text within the Menu
+XDefinition File.  Text strings can consist of any characters
+Xwhatsoever and may be written in one of two different ways.  The syntax
+Xused is more stylistic than inherent.
+X.PP
+XText Style 1: Text is enclosed in single quote marks.  The single
+Xquote mark may be included by doubling it.  This is the old FORTRAN
+Xstyle literal text and is convenient for menu titles, parameter prompts,
+Xand etc.
+X.PP
+XText Style 2: Text is enclosed in matching \fR\&\f(CW%(\fR and \fR\&\f(CW%)\fR
+Xsymbols.  This style is convenient for writing shell scripts, where the
+Xsingle quote mark is used extensively, making it painful to 'double' it.
+XIn this style, the only sequence which needs to be 'escaped' is the
+Xterminating \fR\&\f(CW%)\fR.  This can be done by prefixing it by a percent
+END_OF_FILE
+if test 19951 -ne `wc -c <'./doc/s_menu.msab'`; then
+    echo shar: \"'./doc/s_menu.msab'\" unpacked with wrong size!
+fi
+# end of './doc/s_menu.msab'
+fi
+echo shar: End of archive 5 \(of 9\).
+cp /dev/null ark5isdone
+MISSING=""
+for I in 1 2 3 4 5 6 7 8 9 ; do
+    if test ! -f ark${I}isdone ; then
+	MISSING="${MISSING} ${I}"
+    fi
+done
+if test "${MISSING}" = "" ; then
+    echo You have unpacked all 9 archives.
+    rm -f ark[1-9]isdone ark[1-9][0-9]isdone
+else
+    echo You still need to unpack the following archives:
+    echo "        " ${MISSING}
+fi
+##  End of shell archive.
+exit 0
+

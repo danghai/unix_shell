@@ -1,0 +1,88 @@
+This complete release contains the following files.  However, it has been
+split into two files (the binary release which contains all the files needed
+to run the shell; and the source release which contains the full sources).
+Some files are duplicated in both archives, mainly the documentation files.
+
+    Manifest		This file.
+    ReadMe		The readme file.
+    bin/shdos16.exe	The Release 2.xx 16-bit executable for MSDOS.
+    bin/shdos32.exe	The Release 2.xx 32-bit executable for MSDOS.
+    bin/shos216.exe	The Release 2.xx 16-bit executable for OS/2.
+    bin/shos232.exe	The Release 2.xx 32-bit executable for OS/2.
+    bin/shemx.exe	The Release 2.xx 32-bit executable for OS/2 using
+			the EMX sub-system.
+    bin/ps.exe		A version of ps for OS/2.  Used by shos232.exe.
+    bin/showkeyd.exe	A little program to display the ASCII and SCAN codes
+			associated with a keystroke.  MSDOS version
+    bin/showkey2.exe	A little program to display the ASCII and SCAN codes
+			associated with a keystroke.  OS/2 16bit version
+    bin/dos4gw.exe	DOS 32-bit binary support executable.
+    sh.ini		The shell initialisation file
+    sh.pif		The Windows 3.0 pif file
+    sh.1		The *roff source for the manual page (if included)
+    sh.man		The shell manual page (if included)
+    dos4gw.doc		The MSDOS 32-bit extender documentation
+    Notes		Some notes from the author for this release
+    MEM.err		XMS and EMS error codes
+    Install		The installation instructions
+    bin/shell.ico	OS/2 1.x and Windows 3.1 ICON file
+    bin/shell2.ico	OS/2 2.x ICON file
+
+The following samples are provided from the author's system.  These MUST be
+modified to match your requirements and the programs you use.
+
+    extend.lst		A sample EXTENDED_LINE file
+    profile.etc		A sample /etc/profile.sh
+    profile.sh		A sample ${HOME}/profile.sh
+    sh.rc		A sample ${ENV} file
+    sh.vmc		A sample DOS/4GW configuration file
+
+The following sources file:
+
+    Changes			A list of changes required to the standard
+				Microsoft C5.1/C6.0 headers.
+    include/dirent.h		The include files for the DIRECTORY (3C)
+    include/sys/dirent.h	functions for MSDOS and OS/2
+    include/glob.h		The include files for the GLOB (3C) functions
+				for MSDOS and OS/2
+    include/sys/types.h		System independent types file
+    include/sys/proto.h		Prototype macros
+    include/sys/null.h		NULL macros
+    include/unistd.h		The unistd.h include file for MSDOS and OS/2
+    include/limits.h		A new limits file for MSDOS and OS/2
+
+    emxinc/dirent.h		A version of dirent for using with EMX under
+    emxinc/sys/dirent.h		OS/2.  Note that the shell does not use the
+				standard EMX opendir functions.
+
+    src/director.c		DIRECTORY (3C) for MSDOS & OS/2
+    src/glob.c			GLOB (3C) for MSDOS, OS2 and UNIX
+    src/stdargv.c		A replacement for part of the Microsoft C
+				Runtime start up which builds the argv array.
+				It has UNIX wild cards and EXTENDED_LINE
+				support.
+    src/system.c		A replacement for SYSTEM (3C) with swapping
+				and shell EXTENDED_LINE support.
+    src/swap.asm		Front-end for the swaping version of SYSTEM
+				(3C)
+    src/showkey.c		A program for displaying the scan codes for
+				keystrokes (DOS only at the moment).
+    src/ps.c			A version of ps for OS/2 2.x 
+
+    The sources for the shell itself:
+
+    Patch.lib			How to Patch C5.1/C6 Microsoft C libraries
+    src/sh??.c			The Shell source files 1 through 12
+    src/sh.h			The Shell header
+    src/sh0.asm			The Shell swapper front end
+    src/Makefile		The Makefile
+    src/sh.def			The OS/2 def file.
+    src/msh??.lnk		MicroSoft linker response file
+    src/tsh.lnk			Borland linker response file
+    src/wsh??.lnk		WATCOM linker response file 
+    bin/sh0_msc.obj		Shell Swapper Object for Microsoft
+    bin/sh0_tc.obj		Shell Swapper Object for Borland
+    src/sh.bnd			OS/2 2.x msgbind command file for IBM C/Set 2
+    src/emx.imp			The EMX import library definitions
+    src/emx.def			The EMX linker definitions
+    src/nt.mak			A make file for Win NT and nmake

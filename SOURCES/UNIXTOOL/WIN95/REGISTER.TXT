@@ -1,0 +1,44 @@
+
+			    WinXs Version 1.4
+		      Copyright	(C) 1996 Mick Meaden
+			   All Rights Reserved
+
+			    Registration Form
+
+       Following is a form you may use	to  register  one  or  more
+       copies  of  WinXs.   Fill  in  the  fields as applicable	and
+       return the form,	complete with a	cheque or postal order	for
+       the  indicated  amount,	to  the	 address  given	in the file
+       LICENSE.TXT.  Your registration number will  be	emailed	 to
+       you  immediately	 (if  possible),  or will be sent to you by
+       return of post.
+
+       As a registered user of WinXs, you will	be  notified  about
+       future  product	updates	 as  soon  as  they  become  avail-
+       able. You can download these free of any	additional software
+       charges.
+
+       ____________________________________________________________
+      |	Product:		 |  WinXs Version 1.4		  |
+      |__________________________|________________________________|
+      |	Name:			 |				  |
+      |__________________________|________________________________|
+      |	Address1:		 |				  |
+      |	Address2:		 |				  |
+      |	City/State:		 |				  |
+      |	Postcode:		 |				  |
+      |	Country:		 |				  |
+      |__________________________|________________________________|
+      |	Email:			 |				  |
+      |__________________________|________________________________|
+      |	Fee per	Copy (UK pounds):|  10.00			  |
+      |	Number of Copies:	 |				  |
+      |	Total Amount:		 |				  |
+      |__________________________|________________________________|
+
+       If you have any problems, queries  or  comments	on   WinXs,
+       please  do  not	hesitate  to  contact  me  at the following
+       address:
+
+	    From CompuServe:   100345,2641
+	    From the Internet: 100345.2641@compuserve.com

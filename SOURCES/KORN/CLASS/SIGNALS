@@ -1,0 +1,40 @@
+                                  signals
+
+HUP     1        hangup
+INT     2        interrupt (rubout)
+QUIT    3        quit (ASCII FS)
+ILL     4        illegal instruction (not reset when caught)
+TRAP    5        trace trap (not reset when caught)
+IOT     6        IOT instruction
+ABRT    6        used by abort, replace SIGIOT in the future
+EMT     7        EMT instruction
+FPE     8        floating point exception
+KILL    9        kill (cannot be caught or ignored)
+BUS     10       bus error
+SEGV    11       segmentation violation
+SYS     12       bad argument to system call
+PIPE    13       write on a pipe with no one to read it
+ALRM    14       alarm clock
+TERM    15       software termination signal from kill
+USR1    16       user defined signal 1
+USR2    17       user defined signal 2
+CLD     18       child status change
+CHLD    18       child status change alias (POSIX)
+PWR     19       power-fail restart
+WINCH   20       window size change
+URG     21       urgent socket condition
+POLL    22       pollable event occured
+IO      SIGPOLL  socket I/O possible (SIGPOLL alias)
+STOP    23       stop (cannot be caught or ignored)
+TSTP    24       user stop requested from tty
+CONT    25       stopped process has been continued
+TTIN    26       background tty read attempted
+TTOU    27       background tty write attempted
+VTALRM  28       virtual timer expired
+PROF    29       profiling timer expired
+XCPU    30       exceeded cpu limit
+XFSZ    31       exceeded file size limit
+WAITING 32       process's lwps are blocked
+LWP     33       special signal used by thread library
+FREEZE  34       special signal used by CPR
+THAW    35       special signal used by CPR

@@ -1,0 +1,42 @@
+                                 tool: SKsh
+
+---------------------------------------------------------------------------
+ Language:    Korn Shell
+ Version:     2.1
+ Parts:       interpreter, utilities
+ Author:      Steve Koren <koren@hpfcogv.fc.hp.com>
+ Location:    ftp://hubcap.clemson.edu/pub/amiga/incom*/utils/SKsh021.lzh
+              SKsh is a Unix ksh-like shell which runs under AmigaDos. it
+              provides a Unix like environment but supports many AmigaDos
+ Description: features such as resident commands, ARexx, etc. Scripts can
+              be written to run under either ksh or SKsh, and many of the
+              useful Unix commands such as xargs, grep, find, etc. are
+              provided.
+ Ports:       Amiga
+ Updated:     December 16th, 1992
+
+---------------------------------------------------------------------------
+
+                               Related Items
+
+language: Korn Shell
+
+category: command shells summary, or expanded.
+
+category: glue summary, or expanded.
+
+category: scripting languages summary, or expanded.
+
+---------------------------------------------------------------------------
+---------------------------------------------------------------------------
+This work supported by Idiom Consulting. Idiom Consulting         [ aqui ]
+provides Internet access and perl programming in the SF Bay
+Area.
+
+Please send updates to free-compilers@idiom.com
+
+The HTML is maintained by David Muir Sharnoff and the entries themselves
+are maintained by Steve Robenalt.
+
+Copyright (c) 1992, 1993, 1994, David Muir Sharnoff, All Rights Reserved
+Copyright (c) 1994, 1995, 1996, Steven Allen Robenalt, All Rights Reserved

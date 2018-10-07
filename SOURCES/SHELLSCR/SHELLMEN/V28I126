@@ -1,0 +1,1604 @@
+From: how%milhow1@uunet.uu.net (Mike Howard)
+Newsgroups: comp.sources.unix
+Subject: v28i126: simple_menu-3.1 - a simple shell-level menu system, V3.1, Part02/09
+Date: 5 Oct 1994 01:21:06 -0700
+Organization: Vixie Enterprises
+Sender: vixie@vix.com
+Approved: vixie@gw.home.vix.com
+Message-ID: <36tnli$t1@gw.home.vix.com>
+References: <1.781345221.914@gw.home.vix.com>
+
+Submitted-By: how%milhow1@uunet.uu.net (Mike Howard)
+Posting-Number: Volume 28, Issue 126
+Archive-Name: simple_menu-3.1/part02
+
+#! /bin/sh
+# This is a shell archive.  Remove anything before this line, then unpack
+# it by saving it into a file and typing "sh file".  To overwrite existing
+# files, type "sh file -c".  You can also feed this as standard input via
+# unshar, or by typing "sh <file", e.g..  If this archive is complete, you
+# will see the following message at the end:
+#		"End of archive 2 (of 9)."
+# Contents:  ./README ./common_src/scanner.c ./doc/s_menu.msad
+#   ./doc/s_menu.texiac ./incl/simple_menu.h
+# Wrapped by mike@clove2 on Wed Sep 28 06:55:57 1994
+PATH=/bin:/usr/bin:/usr/ucb ; export PATH
+if test -f './README' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'./README'\"
+else
+echo shar: Extracting \"'./README'\" \(6593 characters\)
+sed "s/^X//" >'./README' <<'END_OF_FILE'
+X  I wrote this program to make it easier to create, maintain, modify,
+Xand extend menus of common operating system tasks for our users.
+XTypically, our users need to run fairly complex pipelines and/or shell
+Xscripts.  Command line execution is not an option, especially for
+Xclerical personnel [even more so for executive personnel].  This is
+Xespecially true for infrequently executed tasks.  Writing menus in
+Xshell script did not prove satisfactory because:
+X  -  writing the prompt-request-response-execute/Error loop for the
+X     zillionth time is a drag
+X  -  modifying a shell script menu often breaks the code
+X  -  The shell menus become excessively large, so that I found I had
+X     to actually read and understand the old code in order to make
+X     modifications. 
+X
+X  This programs addresses those problems by:
+X  -  implementing the prompt-request-response-execute loop in a pretty
+X     clean way.
+X  -  embeds the shell script which does the work in a higher level
+X     language.
+X     -  This keeps the individual shell scripts small.
+X     -  It isolates individual tasks from each other and makes them
+X        easier to find.
+X     -  each shell script executes in its own isolated environment, so
+X        that modifying one script does not break another [unless you
+X        really want to, of course.  but you have to work at it a bit]
+X     -  The menus still work even if you break a script
+X   -  supports modifying and setting shell variables in controlled
+X      ways.  Each settable variable has a user displayed prompt
+X      associated with it and may have a default value, so that *users*
+X      never have to deal with the shell or options in any cryptic way
+X   -  supports sub-menus
+X   -  supports a minimal set of menu cosmetics
+X
+X  The use of a menu language is unavoidable.  I've tried to keep it
+Xminmal so that it is easly learn, re-learn, and relatively non-cryptic.
+X
+X  This program is known to compile and run on SCO Xenix 2.3.x, SCO
+XUNIX ?, IBM AIX/RS-6000 3.2.5, and on Sun SPARC's SUNOS 4.1.3.  Please
+Xsend patches, fixes, and comments and suggestions to me.
+X
+X  It is now distributed under the conditions of GNU Public Licence, see
+XGPL-2, enclosed.
+X
+XNote: two previous versions of this program were distributed in
+Xcomp.sources.misc.  A previous version was submitted to
+Xcomp.sources.reviewed, but the revised version was not resubmitted.  I
+Xhave attempted to address all of the issues raised by the reviewers
+Xand, consequently, this is a much better program than it was
+Xpreviously.  I have decided not to re-submit to comp.sources because
+Xthe group appears to be relatively inactive.
+X
+XINSTALLATION: the package now uses GNU autoconf to produce automatic
+Xconfigurations.
+X  1. unpack the archives
+X  2. type `./configure'
+X  3. type 'make'
+X  4. to test and play with samples: `./tty_src/simple_menu ./samples/menu.def'
+X  5. type `make install' to install
+X  6. read the doc.
+X
+XDOCUMENTATION: This distribution includes a manual page
+X`simple_menu.1' and a texinfo tutorial `simple_menu.texi'.  Both are
+Xfound in the `doc' subdirectory.  Also included is an ms-macro version
+Xof `simple_menu.texi' which was produced by running `texi2roff'.  As
+Xdistributed, both `simple_menu.texi' and `simple_menu.ms' are broken
+Xinto several pieces.  They may be reconstructed by `cd doc ; make
+Xsimple_menu.texi simple_menu.ms'.
+X
+XMike Howard
+Xhow%milhow1@uunet.uu.net
+X
+XExamples:
+X
+X  The menu the user sees a set of choices.  Each choice is identified
+Xby either a number or a letter.  Each choice is identified by text.
+XThe menu is titled and chioces may be grouped by separating them with
+Xblank lines or text.  Multi-screen menus are now supported.
+X
+XFor example:
+X
+XWhat the User sees:
+X
+XThis is the menu title
+X1. List the current Directory: /usr/username
+X2. Change Current Directory
+X3. Reset to Home Directory
+X
+X4. List the Names of the Machines known to UUCP
+X5. Get a Fortune
+XQ) to End - choice?
+X
+XWhat the Programmer sees:
+X
+Xfrom-shell "CUR_DIR" = %( echo $HOME %) ;
+X
+Xtitle 'This is a menu title'
+X
+Xalways-show
+X
+Xshell 'List the current Directory:' + "CUR_DIR"
+X%(
+X cd $CUR_DIR
+X ls -l | more
+X%)
+X;
+X
+Xreset-global 'Change Current Directory'
+Xfrom-user "CUR_DIR" 'New Directory?'
+X;
+X
+Xreset-global 'Reset to Home Directory'
+Xfrom-shell "CUR_DIR" = %( echo $HOME %)
+X;
+X
+Xskip ;
+X
+Xshell 'List the Names of the Machines known to UUCP'
+X%(
+X  uuname -l
+X%)
+X;
+X
+Xshell 'Get a Fortune'
+X%(  fortune %)
+X;
+X
+X---------------------------------------------------------------
+XIn order to add a menu item to read mail, add the following:
+X
+Xshell 'Read your Mail'
+X%( mail %)
+X;
+X
+Xto add an item to mail something to someone, add:
+X
+Xshell 'Send Mail to a user'
+X%( mail $SENDTO %)
+Xparm "SENDTO" 'User-Id to Send Mail to'
+X;
+X
+Xthe user then sees:
+X
+XThis is the menu title
+X1. List the current Directory: /usr/username
+X2. Change Current Directory
+X3. Reset to Home Directory
+X
+X4. List the Names of the Machines known to UUCP
+X5. Get a Fortune
+X6. Read your Mail
+X7. Send Mail to a user
+XQ) to End - choice?
+X
+X------------------------------------------------------------------
+XTo structure as a heirarchic menu with sub-menus for directory listing
+Xand mail, re-write as follows:
+X
+Xfrom-shell "CUR_DIR" = %( echo $HOME %) ;
+X
+Xtitle 'This is a menu title'
+X
+Xalways-show
+Xdo-menu "DIR_MENU" 'Directory Listing Submenu'
+X;
+X
+Xskip ;
+X
+Xshell 'List the Names of the Machines known to UUCP'
+X%(
+X  uuname -l
+X%)
+X;
+X
+Xshell 'Get a Fortune'
+X%(  fortune %)
+X;
+X
+Xdo-menu "MAIL_MENU" 'E-Mail menu'
+X;
+X
+X# Directory mucking menu
+X
+Xmenu "DIR_MENU"
+X
+Xtitle 'Directory Listing Submenu'
+X
+Xalways-show clear
+X
+Xshell 'List the current Directory:' + "CUR_DIR"
+X%(
+X cd $CUR_DIR
+X ls -l | more
+X%)
+X;
+X
+Xreset-global 'Change Current Directory'
+Xfrom-user "CUR_DIR" 'New Directory?'
+X  through %(
+X    cd $CUR_DIR
+X    if [ -z "$USER_RESPONSE" ] ; then
+X      echo "$CUR_DIR"
+X    elif [ ! -d "$USER_RESPONSE" ] ; then
+X      echo "$CUR_DIR"
+X    else
+X      echo "$CUR_DIR $USER_RESPONSE" |
+X      awk '
+X       substr($2, 1, 1) == "/" { print $2 ; exit }
+X       substr($1, length($1), 1) == "/" { print $1 $2 ; exit }
+X       { print $1 "/" $2 }
+X      ' -
+X    fi
+X  %)
+X;
+X
+Xreset-global 'Reset to Home Directory'
+Xfrom-shell "CUR_DIR" = %( echo $HOME %)
+X;
+X
+X# Mail menu
+X
+Xmenu "MAIL_MENU"
+X
+Xtitle 'Mail Submenu'
+X
+Xalways-show clear
+X
+Xshell 'Read your Mail'
+X%( mail %)
+X;
+X
+Xshell 'Mail to a user'
+X%( mail $SENDTO %)
+Xparm "SENDTO" 'User-Id to Send Mail to'
+X;
+X
+XThen the user sees:
+X
+XThis is a menu title
+X1. Directory Listing Submenu
+X
+X2. List the Names of the Machines known to UUCP
+X3. Get a Fortune
+X4. E-Mail menu
+XQ) to End - choice?
+X
+X----------------------------------------------------------------
+X
+Xthese menus are readme[123].menu
+END_OF_FILE
+if test 6593 -ne `wc -c <'./README'`; then
+    echo shar: \"'./README'\" unpacked with wrong size!
+fi
+# end of './README'
+fi
+if test -f './common_src/scanner.c' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'./common_src/scanner.c'\"
+else
+echo shar: Extracting \"'./common_src/scanner.c'\" \(9675 characters\)
+sed "s/^X//" >'./common_src/scanner.c' <<'END_OF_FILE'
+X/*
+X  $Id: scanner.c,v 3.2 1994/09/21 18:19:26 mike Exp $
+X  $Author: mike $
+X  $Date: 1994/09/21 18:19:26 $
+X  $Log: scanner.c,v $
+X * Revision 3.2  1994/09/21  18:19:26  mike
+X * changed VOID to VOID_TYPE to avoid clash with curses def on SunOS
+X *
+X * Revision 3.1  1994/01/27  20:36:00  mike
+X * added support for if-defined, if equal, if not-equal conditioning.
+X * cleaned up conditioning code a bit.
+X * added reasonable printing for conditioned items
+X *
+X * Revision 3.0  1993/11/10  20:29:46  mike
+X * revision 3.0
+X *
+X*/
+X
+Xstatic char *cpy_str =
+X  "Copyright (c), Mike Howard, 1990,1991, 1992 all rights reserved";
+X
+X/* 
+X  simple_menu - a script based menu program for encapsulating shell
+X  commands in a in simple to use and simple to maintain scripts
+X
+X  Copyright (C) 1990,1991, 1992  Mike Howard
+X
+X  This program is free software; you can redistribute it and/or modify
+X  it under the terms of the GNU General Public License as published by
+X  the Free Software Foundation; either version 2 of the License, or
+X  (at your option) any later version.
+X  
+X  This program is distributed in the hope that it will be useful,
+X  but WITHOUT ANY WARRANTY; without even the implied warranty of
+X  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+X  GNU General Public License for more details.
+X
+X  You should have received a copy of the GNU General Public License
+X  along with this program; if not, write to the Free Software
+X  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+X*/
+X
+X#include <includes.h>
+X#ifdef HAVE_RESTARTABLE_SYSCALLS
+X/* this stuff is included so we can use select() in next_char() in order
+X   to make timeouts work */
+X# include <sys/types.h>
+X# include <sys/time.h>
+X#endif /* HAVE_RESTARTABLE_SYSCALLS */
+X#include "y.tab.h"
+X
+Xextern int debug_mode;
+Xextern int lex_errors;
+Xextern int line_number;
+X
+Xchar *saved_text;
+Xchar *Malloc();
+Xchar *Realloc();
+X
+Xstruct word_cell {
+X  char *name;
+X  int value;
+X};
+X
+Xstruct word_cell word_list[] =  {
+X"ERROR", ERROR,
+X"item", SHELL,       /* left over dinosaur */
+X"shell", SHELL,
+X"parm", PARM,
+X"title", TITLE,
+X"clear", CLEAR,
+X"bold", BOLD,
+X"always-show", ALWAYS_SHOW,
+X"once", ONCE,
+X"prelude", PRELUDE,
+X"epilogue", EPILOGUE,
+X"menu", MENU,
+X"do-menu", DO_MENU,
+X"skip", SKIP,
+X"reset-global", RESET_GLOBAL,
+X"alpha", ALPHA,
+X"wait", WAIT,
+X"shell-path", SHELL_PATH,
+X"asg-fmt", ASG_FMT,
+X"null-value", NULL_VALUE,
+X"from-env", FROM_ENV,
+X"from-file", FROM_FILE,
+X"global", GLOBAL,
+X"from-shell", FROM_SHELL,
+X"from-user", FROM_USER,
+X"validate-through", VALIDATE_THROUGH,
+X"validate-thru", VALIDATE_THROUGH,
+X"through", VALIDATE_THROUGH,
+X"interactive", FROM_USER,
+X"scope-variables", SCOPE_VARIABLES,
+X"action-list", ACTION,
+X"restricted", RESTRICTED,
+X"if-not-defined", IFNDEF,
+X"ifndef", IFNDEF,
+X"if-defined", IFDEF,
+X"ifdef", IFDEF,
+X"if", IF,
+X"equals", EQ,
+X"is", EQ,
+X"eq", EQ,
+X"not-equal", NEQ,
+X"is-not", NEQ,
+X"not-eq", NEQ,
+X"neq", NEQ,
+X(char *)0, -1 };
+X
+Xint
+Xmatch_token(s)
+X     char *s;
+X{
+X  int i;
+X
+X  for (i=1;word_list[i].name;i++) {
+X    if (*s == word_list[i].name[0] && !strcmp(s, word_list[i].name))
+X      return i;
+X  }
+X
+X  lex_errors++;
+X  return 0;
+X}
+X
+Xint
+Xmake_lower(c)
+Xchar c;
+X{
+X  return isupper(c) ? tolower(c) : c;
+X}
+X
+X/* this thing is a state machine - of sorts.  */
+X
+Xint
+Xyylex()
+X{
+X  char c;
+X
+X  while (1) {
+X    while (isspace(c = next_char(0)))
+X      ;
+X    switch (c) {
+X    case '"':
+X      return scan_in_name_state();
+X    case '{':
+X      return scan_in_old_text_state();
+X    case '\0':
+X      return 0;
+X    case '%':
+X      if ((c = next_char(0)) == '(')
+X	return scan_in_text_state();
+X      unget_char(c);
+X      unget_char('%');
+X      return scan_in_token_state();
+X    case '\'':
+X      return scan_in_string_state();
+X    case '#':
+X      while (c && c != '\n')
+X	c = next_char(0);
+X      break;
+X    case '+':
+X      if ((c = next_char(0)) == 'n')
+X	return PLUS_NL;
+X      unget_char(c);
+X      return '+';
+X    case ';':
+X    case '=':
+X    case '|':
+X      VDEBUG2("scanner: line %d - returning %c\n", line_number, c);
+X      return c;
+X    default:
+X      unget_char(c);
+X      return scan_in_token_state();
+X    }
+X  }
+X}
+X
+Xint
+Xscan_in_token_state()
+X{
+X  char c;
+X  int ret;
+X
+X  while (isalpha(c = make_lower(next_char(0))) || c == '-')
+X    add_char(c);
+X
+X  unget_char(c);
+X  if (!saved_text) {
+X    fprintf(stderr, "illegal characters, flushing - around line %d\n",
+X	    line_number);
+X    while ((c = next_char(0)) && !isspace(c))
+X      ;
+X    unget_char(c);
+X    ret = 0;
+X
+X    return word_list[0].value;
+X  }
+X  else if ((ret = match_token(saved_text)) == 0)
+X    fprintf(stderr, "unknown token: %s - around line %d\n",
+X	    saved_text, line_number);
+X  VDEBUG3("scanner: line %d: token: %s matches %s\n", line_number,
+X	 saved_text, word_list[ret].name);
+X  Free(saved_text);
+X  saved_text = (char *)0;
+X
+X  return word_list[ret].value;
+X}
+X
+Xint
+Xscan_in_name_state()
+X{
+X  char c;
+X
+X  while (1) {
+X    c = next_char(0);
+X    if (isalnum(c) || c == '_')
+X      add_char(c);
+X    else if (c == '"') {
+X      strip_white_space();
+X      yylval.txt = take_saved_text();
+X      VDEBUG2("scanner: line %d - found Name: \"%s\"\n", line_number,
+X	     yylval.txt);
+X      return NAME;
+X    }
+X    else {
+X      fprintf(stderr, "error in line %d - bad character (%c) in name\n",
+X	     line_number, c);
+X      while (c && !isspace(c))
+X	c = next_char(0);
+X      unget_char(c);
+X      lex_errors++;
+X      return ERROR;
+X    }
+X  }
+X}
+X
+X/* scans for ' delimited plain text - translates '' into ' */
+X
+Xint scan_in_string_state()
+X{
+X  char c;
+X
+X  while (1) {
+X    switch (c = next_char(0)) {
+X    case 0:
+X      fprintf(stderr, "error in line %d - premature end of text\n",
+X	      line_number);
+X      lex_errors++;
+X      return ERROR;
+X    case '\'':
+X      if ((c = next_char(0)) != '\'') {
+X	strip_white_space();
+X	yylval.txt = take_saved_text();
+X	VDEBUG2("scanner: line %d - found Text-String\n'%s'\n",
+X	       line_number, yylval.txt);
+X	return TEXT;
+X      }
+X      add_char('\'');
+X      break;
+X    default:
+X      add_char(c);
+X      break;
+X    }
+X  }
+X}
+X
+X/* scans for %( %) delimited text - a %) may be embedded if written %%) */
+X
+Xint scan_in_text_state()
+X{
+X  char c;
+X
+X  while (1) {
+X    switch (c = next_char(0)) {
+X    case 0:
+X      fprintf(stderr, "error in line %d - premature end of text\n",
+X	      line_number);
+X      lex_errors++;
+X      return ERROR;
+X    case '%':
+X      if ((c = next_char(0)) == ')') {
+X	strip_white_space();
+X	yylval.txt = take_saved_text();
+X	VDEBUG2("scanner: line %d - found Text-String\n%(\n%s\n%)\n",
+X		line_number, yylval.txt);
+X	return TEXT;
+X      }
+X      if (c == '%') {
+X	if ((c = next_char(0)) == ')' || c == '(') {
+X	  add_char('%');
+X	  add_char(c);
+X	  break;
+X	}
+X	/* back up two characters and restart */
+X	unget_char(c);
+X	c = '%';
+X	break;
+X      }
+X      unget_char(c);
+X      add_char('%');
+X      break;
+X    default:
+X      add_char(c);
+X      break;
+X    }
+X  }
+X}
+X
+Xint
+Xscan_in_old_text_state()
+X{
+X  char c;
+X
+X  while (1) {
+X    switch (c = next_char(0)) {
+X    case 0:
+X      fprintf(stderr, "error in line %d - premature end of text\n",
+X	      line_number);
+X      lex_errors++;
+X      return ERROR;
+X    case '\\':
+X      switch(c = next_char(0)) {
+X      case '\\':
+X      case '}':
+X	add_char(c);
+X	break;
+X      default:
+X	add_char('\\');
+X	add_char(c);
+X	break;
+X      }
+X      break;
+X    case '}':
+X      strip_white_space();
+X      yylval.txt = take_saved_text();
+X      VDEBUG2("scanner: line %d - found old style Text-String\n{\n%s\n}\n",
+X	      line_number, yylval.txt);
+X      return TEXT;
+X    default:
+X      add_char(c);
+X      break;
+X    }
+X  }
+X}
+X
+X#define CHAR_BUFSIZE  1024
+Xunsigned char char_buf[CHAR_BUFSIZE];
+Xint chars_left;
+Xunsigned char *nxt_char;
+X#define UNGET_BUFSIZE 128
+Xchar unget_buf[UNGET_BUFSIZE];
+Xint unget_len;
+X
+XVOID_TYPE
+Xunget_char(c)
+X     char c;
+X{
+X  if ((unget_buf[unget_len++] = c) == '\n')
+X    line_number--;
+X}
+X
+Xint
+Xnext_char(fd)
+Xint fd;
+X{
+X  int c;
+X
+X  if (unget_len > 0) {
+X    c = unget_buf[--unget_len];
+X  }
+X  else {
+X    if (chars_left <= 0) {
+X#ifdef HAVE_RESTARTABLE_SYSCALLS
+X      fd_set readfds;
+X      FD_ZERO(&readfds);
+X      FD_SET(fd, &readfds);
+X      if (select(fd+1, &readfds, (fd_set *)0, (fd_set *)0,
+X		 (struct timeval *)0) <= 0)
+X	return 0;
+X#endif /* HAVE_RESTARTABLE_SYSCALLS */
+X      if ((chars_left = read(fd, char_buf, CHAR_BUFSIZE)) <= 0)
+X	return 0;
+X      nxt_char = char_buf;
+X    }
+X
+X    c = *nxt_char++;
+X    chars_left--;
+X  }
+X
+X  if (c == '\n')
+X    line_number++;
+X
+X  return c;
+X}
+X
+XVOID_TYPE flush_char_input()
+X{
+X  chars_left =
+X    unget_len = 0;
+X}
+X
+X#define INIT_SIZE	256
+X#define INC_SIZE	64
+X
+X
+XVOID_TYPE
+Xadd_char(c)
+X     char c;
+X{
+X  static int saved_length;
+X  static int room_left;
+X  static int saved_size;
+X
+X  if (!saved_text) {
+X    memset(saved_text = Malloc(INIT_SIZE), '\0', INIT_SIZE);
+X    room_left = INIT_SIZE;
+X    saved_size = INIT_SIZE;
+X    saved_length = 0;
+X  }
+X
+X  if (room_left < 2) {
+X    saved_text = Realloc(saved_text, saved_size += INC_SIZE);
+X    room_left += INC_SIZE;
+X  }
+X
+X  saved_text[saved_length++] = c;
+X  saved_text[saved_length] = '\0';
+X  room_left--;
+X}
+X
+X
+XVOID_TYPE
+Xstrip_white_space()
+X{
+X  char *cp;
+X  char *sp;
+X
+X  if (!saved_text)
+X    return;
+X
+X  for (cp = saved_text + strlen(saved_text) - 1;cp > saved_text;cp--) {
+X    if (!isspace(*cp))
+X      break;
+X  }
+X  *++cp = '\0';
+X
+X  for (cp=saved_text;*cp && isspace(*cp);cp++)
+X    ;
+X
+X  /* is it all white? */
+X  if (!*cp && cp > saved_text) {
+X    saved_text = Realloc(saved_text, 1);
+X    *saved_text = '\0';
+X    return;
+X  }
+X
+X  /* is there any leading white space? */
+X  if (cp > saved_text) {
+X    char *tmp;
+X    int len;
+X
+X    tmp = Malloc(len = strlen(cp) + 1);
+X    memcpy(tmp, cp, len);
+X    Free(saved_text);
+X    saved_text = tmp;
+X
+X    return;
+X  }
+X
+X  saved_text = Realloc(saved_text, strlen(saved_text) + 1);
+X}
+X
+Xchar *
+Xtake_saved_text()
+X{
+X  char *cp = saved_text;
+X
+X  saved_text = (char *)0;
+X
+X  return cp;
+X}
+END_OF_FILE
+if test 9675 -ne `wc -c <'./common_src/scanner.c'`; then
+    echo shar: \"'./common_src/scanner.c'\" unpacked with wrong size!
+fi
+# end of './common_src/scanner.c'
+fi
+if test -f './doc/s_menu.msad' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'./doc/s_menu.msad'\"
+else
+echo shar: Extracting \"'./doc/s_menu.msad'\" \(6480 characters\)
+sed "s/^X//" >'./doc/s_menu.msad' <<'END_OF_FILE'
+Xsystem; it is up to the author/donor to decide if he or she is willing
+Xto distribute software through any other system and a licensee cannot
+Ximpose that choice.
+X.IP
+XThis section is intended to make thoroughly clear what is believed to
+Xbe a consequence of the rest of this License.
+X.IP
+X.IP 9.\ 
+XIf the distribution and/or use of the Program is restricted in
+Xcertain countries either by patents or by copyrighted interfaces, the
+Xoriginal copyright holder who places the Program under this License
+Xmay add an explicit geographical distribution limitation excluding
+Xthose countries, so that distribution is permitted only in or among
+Xcountries not thus excluded.  In such case, this License incorporates
+Xthe limitation as if written in the body of this License.
+X.IP
+X.IP 10.\ 
+XThe Free Software Foundation may publish revised and/or new versions
+Xof the General Public License from time to time.  Such new versions will
+Xbe similar in spirit to the present version, but may differ in detail to
+Xaddress new problems or concerns.
+X.IP
+XEach version is given a distinguishing version number.  If the Program
+Xspecifies a version number of this License which applies to it and ``any
+Xlater version'', you have the option of following the terms and conditions
+Xeither of that version or of any later version published by the Free
+XSoftware Foundation.  If the Program does not specify a version number of
+Xthis License, you may choose any version ever published by the Free Software
+XFoundation.
+X.IP
+X.IP 11.\ 
+XIf you wish to incorporate parts of the Program into other free
+Xprograms whose distribution conditions are different, write to the author
+Xto ask for permission.  For software which is copyrighted by the Free
+XSoftware Foundation, write to the Free Software Foundation; we sometimes
+Xmake exceptions for this.  Our decision will be guided by the two goals
+Xof preserving the free status of all derivatives of our free software and
+Xof promoting the sharing and reuse of software generally.
+X.IP
+X.bp
+X.ds __ NO\ WARRANTY
+X.XS 
+X\&\*(__ 
+X.XE
+X.SH 
+X\&\*(__ 
+X\&\fR
+X.IP
+X.IP 12.\ 
+XBECAUSE THE PROGRAM IS LICENSED FREE OF CHARGE, THERE IS NO WARRANTY
+XFOR THE PROGRAM, TO THE EXTENT PERMITTED BY APPLICABLE LAW.  EXCEPT WHEN
+XOTHERWISE STATED IN WRITING THE COPYRIGHT HOLDERS AND/OR OTHER PARTIES
+XPROVIDE THE PROGRAM ``AS IS'' WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED
+XOR IMPLIED, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+XMERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.  THE ENTIRE RISK AS
+XTO THE QUALITY AND PERFORMANCE OF THE PROGRAM IS WITH YOU.  SHOULD THE
+XPROGRAM PROVE DEFECTIVE, YOU ASSUME THE COST OF ALL NECESSARY SERVICING,
+XREPAIR OR CORRECTION.
+X.IP
+X.IP 13.\ 
+XIN NO EVENT UNLESS REQUIRED BY APPLICABLE LAW OR AGREED TO IN WRITING
+XWILL ANY COPYRIGHT HOLDER, OR ANY OTHER PARTY WHO MAY MODIFY AND/OR
+XREDISTRIBUTE THE PROGRAM AS PERMITTED ABOVE, BE LIABLE TO YOU FOR DAMAGES,
+XINCLUDING ANY GENERAL, SPECIAL, INCIDENTAL OR CONSEQUENTIAL DAMAGES ARISING
+XOUT OF THE USE OR INABILITY TO USE THE PROGRAM (INCLUDING BUT NOT LIMITED
+XTO LOSS OF DATA OR DATA BEING RENDERED INACCURATE OR LOSSES SUSTAINED BY
+XYOU OR THIRD PARTIES OR A FAILURE OF THE PROGRAM TO OPERATE WITH ANY OTHER
+XPROGRAMS), EVEN IF SUCH HOLDER OR OTHER PARTY HAS BEEN ADVISED OF THE
+XPOSSIBILITY OF SUCH DAMAGES.
+X.PP
+X.bp
+X.ds __ END\ OF\ TERMS\ AND\ CONDITIONS
+X.XS 
+X\&\*(__ 
+X.XE
+X.SH 
+X\&\*(__ 
+X\&\fR
+X.PP
+X.bp
+X.ds __ How\ to\ Apply\ These\ Terms\ to\ Your\ New\ Programs
+X.XS 
+X\&\*(__ 
+X.XE
+X.SH 
+X\&\*(__ 
+X\&\fR
+X.PP
+X  If you develop a new program, and you want it to be of the greatest
+Xpossible use to the public, the best way to achieve this is to make it
+Xfree software which everyone can redistribute and change under these terms.
+X.PP
+X  To do so, attach the following notices to the program.  It is safest
+Xto attach them to the start of each source file to most effectively
+Xconvey the exclusion of warranty; and each file should have at least
+Xthe ``copyright'' line and a pointer to where the full notice is found.
+X.PP
+X.ID
+X\&\fR\&\f(CW
+X\&\fIone line to give the program's name and a brief idea of what it does.\fR\&\f(CW
+XCopyright (C) 19\fIyy\fR\&\f(CW  \fIname of author\fR\&\f(CW
+X\&\&
+XThis program is free software; you can redistribute it and/or modify
+Xit under the terms of the GNU General Public License as published by
+Xthe Free Software Foundation; either version 2 of the License, or
+X(at your option) any later version.
+X\&\&
+XThis program is distributed in the hope that it will be useful,
+Xbut WITHOUT ANY WARRANTY; without even the implied warranty of
+XMERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+XGNU General Public License for more details.
+X\&\&
+XYou should have received a copy of the GNU General Public License
+Xalong with this program; if not, write to the Free Software
+XFoundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+X.DE
+X\&\fR
+X.PP
+XAlso add information on how to contact you by electronic and paper mail.
+X.PP
+XIf the program is interactive, make it output a short notice like this
+Xwhen it starts in an interactive mode:
+X.PP
+X.ID
+X\&\fR\&\f(CW
+XGnomovision version 69, Copyright (C) 19\fIyy\fR\&\f(CW \fIname of author\fR\&\f(CW
+XGnomovision comes with ABSOLUTELY NO WARRANTY; for details type `show w'.
+XThis is free software, and you are welcome to redistribute it
+Xunder certain conditions; type `show c' for details.
+X.DE
+X\&\fR
+X.PP
+XThe hypothetical commands \fR\&\f(CW\(ifshow w\(is\fR and \fR\&\f(CW\(ifshow c\(is\fR should show
+Xthe appropriate parts of the General Public License.  Of course, the
+Xcommands you use may be called something other than \fR\&\f(CW\(ifshow w\(is\fR and
+X\&\fR\&\f(CW\(ifshow c\(is\fR; they could even be mouse-clicks or menu items---whatever
+Xsuits your program.
+X.PP
+XYou should also get your employer (if you work as a programmer) or your
+Xschool, if any, to sign a ``copyright disclaimer'' for the program, if
+Xnecessary.  Here is a sample; alter the names:
+X.PP
+X.ID
+X\&\fR\&\f(CW
+XYoyodyne, Inc., hereby disclaims all copyright interest in the program
+X`Gnomovision' (which makes passes at compilers) written by James Hacker.
+X\&\&
+X\&\fIsignature of Ty Coon\fR\&\f(CW, 1 April 1989
+XTy Coon, President of Vice
+X.DE
+X\&\fR
+X.PP
+XThis General Public License does not permit incorporating your program into
+Xproprietary programs.  If your program is a subroutine library, you may
+Xconsider it more useful to permit linking proprietary applications with the
+Xlibrary.  If this is what you want to do, use the GNU Library General
+XPublic License instead of this License.
+X.PP
+X.PP
+END_OF_FILE
+if test 6480 -ne `wc -c <'./doc/s_menu.msad'`; then
+    echo shar: \"'./doc/s_menu.msad'\" unpacked with wrong size!
+fi
+# end of './doc/s_menu.msad'
+fi
+if test -f './doc/s_menu.texiac' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'./doc/s_menu.texiac'\"
+else
+echo shar: Extracting \"'./doc/s_menu.texiac'\" \(10150 characters\)
+sed "s/^X//" >'./doc/s_menu.texiac' <<'END_OF_FILE'
+Xfor this at present, but it can be hacked by scripts such as:
+X
+X@example
+X# run a process in an xterm window
+Xshell 'log onto a remote machine'
+X%(
+X  [ -z "$HOST" ] && exit
+X  if [ -z "$USER_ID" ] ; then
+X    xterm -title "rlogin-$HOST" -e rlogin $HOST &
+X  else
+X    xterm -title "rlogin-$HOST" -e rlogin $HOST -l $USER_ID &
+X  fi
+X%)
+Xparm "HOST" 'Host to Log On to'
+X# assume USER is a Global Variable which has been set via 'get-env "USER" ;
+Xparm "USER_ID" = "USER" 'User Id to Use'
+X@end example
+X
+XThis does two things: runs the command in the background and uses the -e
+Xoption of xterm to run the following command.  If Simple_Menu is
+Xexecuting on a remote host, then this may need to be modified by
+Xincluding the user's DISPLAY variable for the user's local machine.  I
+Xhave written which gathers this information 'on the fly' on SunOS 4.1.1,
+Xbut, inasmuch as it depends on the 'ut_host' and 'ut_line' values in the
+Xutmp file, it is probably not very portable [I know it does not work for
+XSCO Xenix].  Anyway, there are quite a few possibilities and room for
+Xsupport, rather than 'allowance'.
+X
+X@node Syntactic Details, Concept Index, How Scripts are Run, Top
+X@comment  node-name,  next,  previous,  up
+X
+X@chapter Syntactic Details
+X@cindex Syntactic Details
+X
+XThis section gets into various uglinesses of syntax.
+X
+X@menu
+X* Names::           Identifiers used for Menus & Variables
+X* Text Strings::    Static Text Strings
+X* Prompt Strings::  Concatenations of Text & Variable values
+X* Execution Parms:: Execution Environment Details
+X* Grammar::         Menu Definition File Grammar
+X@end menu
+X
+X@node     Names, Text Strings,       , Syntactic Details
+X@comment  node-name,  next,  previous,  up
+X
+X@section Names
+X@cindex The Syntax of Variable and Menu Names
+X
+XNames consist of characters from the set: [ A-Z a-z 0-9 _ ].  Within the
+XMenu Definition File Names are recognized by being enclosed in
+Xdouble quote marks: @code{"FOO"}, @code{"FROG_MENU_1"}, @code{"PARM"}.
+X
+XNames are used within the Menu Definition File to refer to
+X
+X@itemize @bullet
+X@item
+XMenus
+X@item
+XGlobal Variables
+X@item
+XShell Item Parameters
+X@end itemize
+X
+X@node     Text Strings, Prompt Strings, Names, Syntactic Details
+X@comment  node-name,  next,  previous,  up
+X
+X@section Text Strings
+X@cindex The Syntax of static Text Strings
+X
+X@emph{Text strings} are used to define static text within the Menu
+XDefinition File.  Text strings can consist of any characters
+Xwhatsoever and may be written in one of two different ways.  The syntax
+Xused is more stylistic than inherent.
+X
+XText Style 1: Text is enclosed in single quote marks.  The single
+Xquote mark may be included by doubling it.  This is the old FORTRAN
+Xstyle literal text and is convenient for menu titles, parameter prompts,
+Xand etc.
+X
+XText Style 2: Text is enclosed in matching @code{%(} and @code{%)}
+Xsymbols.  This style is convenient for writing shell scripts, where the
+Xsingle quote mark is used extensively, making it painful to 'double' it.
+XIn this style, the only sequence which needs to be 'escaped' is the
+Xterminating @code{%)}.  This can be done by prefixing it by a percent
+Xsign, as in @code{%%)}.  This escape feature makes it possible to write
+Xscripts which construct Menu Definition Files dynamically and feed them
+Xto @strong{Simple_Menu}.  This sort of thing is useful in constructing
+X'print a file which matches a pattern' menus where the pattern is known,
+Xbut neither exact files nor the number are known except at run time.
+X
+XNote that leading and trailing white-space is stripped from Text
+XStrings.  This is done to ensure that the prompts which are displayed
+Xare relatively compact and neat.  It is arguable that this is an error,
+Xbut it is consistent with the philosophy behind Simple_Menu:
+Xthe intent here is to make the job of creating menus easy by taking care
+Xof the details of format, user interrogation, and running the scripts.
+XGiving too detailed a control to the format of the displayed menu leans
+Xtoward @strong{Complicated_Menu}.
+X
+XNote: an obsolete 3rd style of static text is supported.  Text is
+Xdelimited by curly braces: @{ and @}.  The closing brace may be escaped
+Xby preceding it with a back-slash, as in \@}.  The back-slash must be
+Xdoubled: \\.  This is the result of an initial bad design and should not
+Xbe used.  Eventually it will go away.
+X
+X@node     Prompt Strings, Execution Parms, Text Strings, Syntactic Details
+X@comment  node-name,  next,  previous,  up
+X
+X@section Prompt Strings
+X@cindex The Syntax of Prompt Strings
+X@cindex The Syntax of Dynamic text Strings
+X
+XPrompt strings consist of @emph{Static Text} and @emph{Variable Names}
+Xconcatenated together using any of three concatenation operators.
+X
+X@itemize @bullet
+X@item
+X@code{+} operator - inserts a single space between the strings.
+X@item
+X@code{|} operator - concatenates the two strings
+X@item
+X@code{+n} operator - inserts a 'new line' between the strings
+X@end itemize
+X
+XPrompt strings provide a way to provide context dependent prompts to the
+Xuser.  This is accomplished by evaluating all @emph{Global Variables}
+Xused in the Prompt string each time it is displayed.
+X
+XIn the following examples, assume that "FOO" has the value 'foo foo'
+X
+X@enumerate
+X@item
+X'string 1' + "FOO" + 'string 2' evaluates to:
+X
+Xstring 1 foo foo string 2
+X@item
+X' string 1 ' | "FOO" | ' string 2 ' evaluates to:
+X
+Xstring 1foo foostring 2
+X@item
+X'string 1' + "FOO" +n 'string 2' evaluates to:
+X
+Xstring 1 foo foo
+Xstring 2
+X@end enumerate
+X
+X@node Execution Parms, Grammar, Prompt Strings, Syntactic Details
+X@comment  node-name,  next,  previous,  up
+X
+X@section Execution Parms
+X@cindex Execution Parms 
+X@cindex Special Variables - in detail
+X
+XThree statements can be used to modify the default execution
+Xenvironment.
+X
+X@code{shell-path = 'new path' ;} is used to define the path to the shell
+Xwhich executes shell scripts.  The default value is @emph{/bin/sh}.
+X
+X@code{asg-fmt = 'new fmt' ;} is used to change the assignment format used
+Xto initialized variables and parameters in the shell execution files,
+X@xref{How Scripts are Run}.  The 'new fmt' string must contain instances
+Xof the following two special symbols: @code{$ID$} and @code{$VALUE$}.
+XThe symbol @code{$ID$} is replaced by the @emph{Name} of the variable or
+Xparameter.  The symbol @code{$VALUE$} is replaced by the current value
+Xof the variable or parameter at the time the shell execution file is
+Xwritten.  The default value for 'new fmt' is @code{$ID$=$VALUE$ ; export
+X$ID$}
+X
+X@code{null-value = 'string' ;} is used to define the string to use for
+X@code{$VALUE$} for variables and parameters which do not have values.
+XBy default it is the Null string, @code{""}.
+X
+X@node       Grammar,      , Execution Parms, Syntactic Details
+X@comment  node-name,  next,  previous,  up
+X
+X@section Grammar
+X@cindex Menu Definition File Grammar
+X
+XThe following grammar was extracted from the yacc source 'grammar.y'.
+XKey words in this text which correspond to symbols in the grammar should be
+Xeasily discernible: generally dashes '-' have been replaced by
+Xunderscores '_' and the key words are written in CAPITAL letters.
+X
+XTEXT refers to Text Strings.
+X
+XMenu Definition File Grammar:
+X
+X@example
+Xmenu_def_file : ev_list menu_list
+X	| menu_list
+X	;
+X
+Xev_list : ev_var
+X	| ev_list ev_var
+X	;
+X
+Xev_var : SHELL_PATH '=' TEXT ';'
+X	| ASG_FMT '=' TEXT ';'
+X	| NULL_VALUE '=' TEXT ';'
+X	| FROM_ENV NAME ';'
+X	| FROM_ENV NAME '=' TEXT ';'
+X	| GLOBAL NAME ';'
+X	| GLOBAL NAME '=' TEXT ';'
+X	| FROM_FILE TEXT NAME ';'
+X	| FROM_FILE TEXT NAME '=' TEXT ';'
+X	| FROM_SHELL NAME '=' TEXT ';'
+X	;
+X
+Xmenu_list : menu
+X	| menu_list menu
+X	;
+X
+Xmenu : title menu_flags item
+X	| title menu_flags RESTRICTED TEXT item
+X	| menu item
+X	| menu RESTRICTED TEXT item
+X	;
+X
+Xtitle : TITLE prompt_string
+X	| MENU NAME TITLE prompt_string
+X	;
+X
+Xprompt_string : prompt_item
+X	| prompt_string '|' prompt_item
+X	| prompt_string '+' prompt_item
+X	| prompt_string PLUS_NL prompt_item
+X	;
+X
+Xprompt_item : NAME
+X	| TEXT
+X	;
+X
+Xmenu_flags :
+X	| menu_flags menu_flag
+X	;
+X
+Xmenu_flag : CLEAR
+X	| BOLD
+X	| ALWAYS_SHOW
+X	| ONCE
+X	| ALPHA
+X	| WAIT
+X	| SCOPE_VARIABLES
+X	;
+X
+Xitem : ACTION prompt_string action_list ';'
+X	| SHELL prompt_string  TEXT  parms ';'
+X	| PRELUDE  prompt_string  TEXT  parms ';'
+X	| PRELUDE  prompt_string  action_list ';'
+X	| EPILOGUE  prompt_string  TEXT  parms ';'
+X	| EPILOGUE  prompt_string  action_list ';'
+X	| DO_MENU NAME prompt_string ';'
+X	| RESET_GLOBAL prompt_string ev_vals ';'
+X	| SKIP ';'
+X	| SKIP prompt_string ';'
+X	;
+X
+Xaction_list : conditioned_item
+X	| action_list conditioned_item
+X	;
+X
+Xconditioned_item : action_item
+X	| IFDEF NAME action_item
+X	| IFNDEF NAME action_item
+X	| IF NAME EQ TEXT action_item
+X	| IF NAME NEQ TEXT action_item
+X	;
+X
+Xaction_item : SHELL TEXT parms
+X	| RESET_GLOBAL ev_vals
+X	| DO_MENU NAME
+X	;
+X
+Xev_vals : /* empty */
+X	| ev_vals  GLOBAL NAME '=' TEXT
+X	| ev_vals  FROM_SHELL NAME '=' TEXT
+X	| ev_vals  FROM_FILE TEXT NAME
+X	| ev_vals FROM_USER NAME TEXT
+X	| ev_vals FROM_USER NAME TEXT VALIDATE_THROUGH TEXT
+X	;
+X
+Xparms : /* empty */
+X	| parms parm
+X	;
+X
+Xparm : PARM NAME prompt_string
+X	| PARM NAME '=' TEXT prompt_string
+X	| PARM NAME '=' NAME prompt_string
+X	;
+X
+X@end example
+X
+XThe Terminal Symbols used in the grammar are associated with the
+Xfollowing key words:
+X
+X@example
+XACTION - action-list
+XALPHA - alpha
+XALWAYS_SHOW - always-show
+XASG_FMT - asg-fmt
+XBOLD - bold
+XCLEAR - clear
+XDO_MENU - do-menu
+XEPILOGUE - epilogue
+XEQ - equals, eq, is
+XERROR - ERROR
+XFROM_ENV - from-env
+XFROM_FILE - from-file
+XFROM_SHELL - from-shell
+XFROM_USER - from-user, interactive
+XGLOBAL - global
+XIF - if
+XIFDEF - if-defined, ifdef
+XIFNDEF - if-not-defined, ifndef
+XMENU - menu
+XNEQ - is-not, neq, not-equal, not-eq
+XNULL_VALUE - null-value
+XONCE - once
+XPARM - parm
+XPRELUDE - prelude
+XRESET_GLOBAL - reset-global
+XRESTRICTED - restricted
+XSCOPE_VARIABLES - scope-variables
+XSHELL - item, shell
+XSHELL_PATH - shell-path
+XSKIP - skip
+XTITLE - title
+XVALIDATE_THROUGH - through, validate-through, validate-thru
+XWAIT - wait
+X@end example
+X
+X@node Concept Index,  Copying Conditions, Syntactic Details, Top
+X@comment  node-name,  next,  previous,  up
+X
+X@chapter Concept Index
+X
+X@printindex cp
+X
+X@node Copying Conditions,  , Concept Index, Top
+X@comment  node-name,  next,  previous,  up
+X
+X@chapter Copying Conditions
+X
+X@include gpl.texinfo
+X
+X@comment @contents
+X
+X@bye
+END_OF_FILE
+if test 10150 -ne `wc -c <'./doc/s_menu.texiac'`; then
+    echo shar: \"'./doc/s_menu.texiac'\" unpacked with wrong size!
+fi
+# end of './doc/s_menu.texiac'
+fi
+if test -f './incl/simple_menu.h' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'./incl/simple_menu.h'\"
+else
+echo shar: Extracting \"'./incl/simple_menu.h'\" \(6936 characters\)
+sed "s/^X//" >'./incl/simple_menu.h' <<'END_OF_FILE'
+X/*
+X  $Id: simple_menu.h,v 3.2 1994/09/21 18:26:04 mike Exp $
+X  $Author: mike $
+X  $Date: 1994/09/21 18:26:04 $
+X  $Log: simple_menu.h,v $
+X * Revision 3.2  1994/09/21  18:26:04  mike
+X * changed VOID to VOID_TYPE to avoid conflict with SunOS curses
+X * added get_user_rsp() returns for next/previous page
+X *
+X * Revision 3.1  1994/09/20  20:27:05  mike
+X * *** empty log message ***
+X *
+X * Revision 3.2  1994/01/30  12:45:00  mike
+X * eliminated tty_fname, tty_id, char*)ttyfname() definitions and declarations
+X * inasmuch as they are no longer used
+X *
+X * Revision 3.1  1994/01/29  20:23:43  mike
+X * added conditioning on existance and value of variables for items.
+X * added support for user_id so that restricted' keyword now checks
+X * real userid rather than the stupid environment variable.
+X *
+X * Revision 3.0  1993/11/10  20:32:23  mike
+X * version 3.0
+X *
+X * Revision 1.1  1992/10/16  16:41:22  mike
+X * Initial revision
+X *
+X*/
+X
+X/* 
+X  simple_menu - a script based menu program for encapsulating shell
+X  commands in a in simple to use and simple to maintain scripts
+X
+X  Copyright (C) 1990,1991, 1992  Mike Howard
+X
+X  This program is free software; you can redistribute it and/or modify
+X  it under the terms of the GNU General Public License as published by
+X  the Free Software Foundation; either version 2 of the License, or
+X  (at your option) any later version.
+X  
+X  This program is distributed in the hope that it will be useful,
+X  but WITHOUT ANY WARRANTY; without even the implied warranty of
+X  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+X  GNU General Public License for more details.
+X
+X  You should have received a copy of the GNU General Public License
+X  along with this program; if not, write to the Free Software
+X  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+X*/
+X
+X/* #define VOID  void or int is expected to occur in the compilation line */
+X#ifndef VOID_TYPE
+X# define VOID_TYPE void
+X#endif
+X
+X/* include some common stuff */
+X#ifndef FILE
+X# include <stdio.h>
+X#endif
+X#include <setjmp.h>
+X
+X#define EV_FROM_FILE          'F'
+X#define EV_FROM_ENV           'E'
+X#define EV_GLOBAL             'G'
+X#define EV_FROM_SHELL         'S'
+X#define EV_FROM_USER          'U'
+X#define EV_FROM_USER_VALIDATE 'V'
+X
+Xstruct ev_var {
+X  struct ev_var *next;
+X  struct ev_var *stack;
+X  struct menu   *context;   /* menu in which 'value' has been defined */
+X  char *identifier;
+X  char *value;
+X  char *deflt;
+X  char *file_name;
+X  int   flag;
+X};
+X
+Xstruct ev_var_val {
+X  struct ev_var_val *next;
+X  char *identifier;
+X  char *value;
+X  char *script;
+X  int flag;
+X};
+X
+X#define PROMPT_TEXT       'T'
+X#define PROMPT_EV_VAR     'V'
+X#define PROMPT_STATIC_VAR 'S'
+Xstruct prompt_string {
+X  struct prompt_string *next;
+X  char  segment_type;
+X  char  concat_char;
+X  char *value;
+X  char *fragment;    /* holds either static text or an ev_var identifier */
+X};
+X
+X#define PARM_NO_DEFAULT       0
+X#define PARM_STATIC_DEFAULT   1
+X#define PARM_ENV_DEFAULT      2
+X
+Xstruct parm {
+X  struct parm *next;
+X  struct prompt_string *prompt;
+X  char *identifier;
+X  char *value;
+X  char *deflt;
+X  char *ev_name;
+X  int   flag;
+X};
+X
+X#define ITEM_NONITEM          0
+X#define ITEM_SHELL            1
+X#define ITEM_MENU             2
+X#define ITEM_SKIP             3
+X#define ITEM_RESET_GLOBAL     4
+X#define ITEM_ACTION           5
+X
+X#define CATAGORY_PRELUDE      1
+X#define CATAGORY_EPILOGUE     2
+X#define CATAGORY_ITEM         3
+X
+X#define CONDITION_NONE        0
+X#define CONDITION_IFDEF       'E'
+X#define CONDITION_IFNDEF      'N'
+X#define CONDITION_EQ          '='
+X#define CONDITION_NEQ         '~'
+X
+Xstruct action_list {
+X  struct item* head;
+X  struct item* tail;
+X};
+X
+Xstruct item {
+X  struct item *next;
+X  int catagory;
+X  int action;
+X  int item_idx;
+X  int conditioning;
+X  struct prompt_string *prompt;
+X  char *command;
+X  char* conditioning_variable;
+X  char* conditioning_value;
+X  struct parm *parms;
+X};
+X
+X#define CLEAR_FLAG                1
+X#define BOLD_FLAG                 2
+X#define ALWAYS_DISPLAY_FLAG       4
+X#define ONCE_FLAG                 8
+X#define ALPHA_FLAG               16
+X#define WAIT_FLAG                32
+X#define SCOPE_FLAG               64
+X#define Clear_Flag	(clear_flag&&(active_menu->flags&CLEAR_FLAG))
+X#define Bold_Flag	(bold_flag&&(active_menu->flags&BOLD_FLAG))
+X#define Always_Display_Flag	(active_menu->flags&ALWAYS_DISPLAY_FLAG)
+X#define Once_Flag       (active_menu->flags&ONCE_FLAG)
+X#define Alpha_Flag      (active_menu->flags&ALPHA_FLAG)
+X#define Wait_Flag       (active_menu->flags&WAIT_FLAG)
+X#define Scope_Flag      (active_menu->flags&SCOPE_FLAG)
+X
+Xstruct menu {
+X  struct menu *next;
+X  struct menu *menu_stack_ptr;
+X  struct item *item_head;
+X  struct item *item_tail;
+X  struct item *prelude;
+X  struct item *epilogue;
+X  char *menu_name;
+X  struct prompt_string *menu_title;
+X  char *short_title;
+X  int max_item;
+X  int flags;
+X};
+X
+X/* debug (-DD) */
+X#define DEBUG0(fmt)	if(debug_mode>1)printf(fmt);
+X#define DEBUG1(fmt,aa)	if(debug_mode>1)printf(fmt,aa);
+X#define DEBUG2(fmt,aa,bb)	if(debug_mode>1)printf(fmt,aa,bb);
+X#define DEBUG3(fmt,aa,bb,cc)	if(debug_mode>1)printf(fmt,aa,bb,cc);
+X
+X/* verbose debug (-DDD) */
+X#define VDEBUG0(fmt)	if(debug_mode>2)printf(fmt);
+X#define VDEBUG1(fmt,aa)	if(debug_mode>2)printf(fmt,aa);
+X#define VDEBUG2(fmt,aa,bb)	if(debug_mode>2)printf(fmt,aa,bb);
+X#define VDEBUG3(fmt,aa,bb,cc)	if(debug_mode>2)printf(fmt,aa,bb,cc);
+X
+X/* data declarations and initializations */
+X#ifdef MAIN
+X# define EXTERN
+X#else
+X# define EXTERN extern
+X#endif
+X
+X/* capability flags - set by init_terminal */
+XEXTERN int clear_flag;
+XEXTERN int bold_flag;
+X
+XEXTERN struct menu *menu_list_head;
+XEXTERN struct menu *menu_list_tail;
+XEXTERN struct menu *active_menu;
+X
+XEXTERN struct parm *parm_list;
+XEXTERN struct ev_var *environment_list;
+X
+XEXTERN char *user_rsp;
+XEXTERN int default_timeout;
+X
+XEXTERN int lex_errors;
+XEXTERN int yacc_errors;
+XEXTERN int line_number;
+X
+X
+X
+Xextern char *optarg;
+Xextern int optind, opterr;
+XEXTERN int argcc;
+XEXTERN char **argvv;
+XEXTERN char *progname;
+XEXTERN char *in_fname;
+XEXTERN char *menu_fname;
+X#define MENU_FNAME "menu.def"
+XEXTERN char *menu_path;
+X#ifndef DEFAULT_MENU_PATH
+X# define DEFAULT_MENU_PATH \
+X   "/usr/local/lib/simple_menu:/usr/local/lib/dumb_menu"
+X#endif /* DEFAULT_MENU_PATH */
+XEXTERN char *cmd_path;
+XEXTERN char *asg_fmt;
+XEXTERN char *null_value;
+XEXTERN char *cmd_name;
+X
+XEXTERN struct item *selected_item;
+XEXTERN struct parm *selected_parms;
+XEXTERN FILE *tmp_file;
+XEXTERN char *tmp_fname;
+X
+X/* flags */
+XEXTERN int verbose;
+XEXTERN int debug_mode;
+XEXTERN char* user_id;  /* user id */
+X
+XEXTERN int display_menu_flag;
+XEXTERN jmp_buf env;
+X#define SIGS_FOR_JMP   1
+X#define SIGS_FOR_CHILD 2
+X
+X/* get_user_rsp() return codes */
+X#define MENU_ILLEGAL   -1
+X#define MENU_QUIT      -2
+X#define MENU_REDISPLAY -3
+X#define MENU_NOP       -4
+X#define MENU_NEXT_PAGE -5
+X#define MENU_PREV_PAGE -6
+X#define MENU_EOINPUT    0
+X
+X#ifdef MAIN
+X
+Xchar *use_msg = "usage: %s [%d.%d] [-h | option(s)] [menu-file | -]\n";
+X#else
+Xextern char *use_msg;
+X#endif
+X
+X#include "prototypes.h"
+END_OF_FILE
+if test 6936 -ne `wc -c <'./incl/simple_menu.h'`; then
+    echo shar: \"'./incl/simple_menu.h'\" unpacked with wrong size!
+fi
+# end of './incl/simple_menu.h'
+fi
+echo shar: End of archive 2 \(of 9\).
+cp /dev/null ark2isdone
+MISSING=""
+for I in 1 2 3 4 5 6 7 8 9 ; do
+    if test ! -f ark${I}isdone ; then
+	MISSING="${MISSING} ${I}"
+    fi
+done
+if test "${MISSING}" = "" ; then
+    echo You have unpacked all 9 archives.
+    rm -f ark[1-9]isdone ark[1-9][0-9]isdone
+else
+    echo You still need to unpack the following archives:
+    echo "        " ${MISSING}
+fi
+##  End of shell archive.
+exit 0
+

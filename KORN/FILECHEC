@@ -1,0 +1,26 @@
+#!/bin/ksh
+# Scriptname: filecheck filename
+# Purpose: Check to see if a file exists, what type it is, and its permissions
+
+	file=$1
+if [[ ! -a $file ]]
+	then
+		print "$file does not exist"
+		exit 1
+	fi
+if [[ -d $file ]] 
+	then
+		print "$file is a directory" 
+elif [[ -f $file ]]
+	then 
+if [[  -r $file && -w $file && -x $file ]]      # nested if command
+		then 
+			print "You have read, write, and execute permission on file $file
+		else
+print "You don't have the correct permissions"
+			exit 2
+		fi
+	else
+print "$file is neither a file nor a directory.  "
+		exit 3
+fi 

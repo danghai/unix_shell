@@ -1,0 +1,3748 @@
+Newsgroups: comp.sources.unix
+From: christos@ee.cornell.edu (Christos Zoulas)
+Subject: v25i062: tcsh6.01 - a csh replacement with lots of extra goodies, Part09/18
+Message-ID: <1991Dec20.214235.7149@PA.dec.com>
+Date: Fri, 20 Dec 91 21:42:35 GMT
+Approved: vixie@pa.dec.com
+
+Submitted-By: christos@ee.cornell.edu (Christos Zoulas)
+Posting-Number: Volume 25, Issue 62
+Archive-Name: tcsh-6.01/part09
+
+#! /bin/sh
+# This is a shell archive.  Remove anything before this line, then unpack
+# it by saving it into a file and typing "sh file".  To overwrite existing
+# files, type "sh file -c".  You can also feed this as standard input via
+# unshar, or by typing "sh <file", e.g..  If this archive is complete, you
+# will see the following message at the end:
+#		"End of archive 9 (of 18)."
+# Contents:  sh.dol.c sh.file.c sh.sem.c tc.bind.c
+# Wrapped by vixie@cognition.pa.dec.com on Fri Dec 20 13:29:27 1991
+PATH=/bin:/usr/bin:/usr/ucb ; export PATH
+if test -f 'sh.dol.c' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'sh.dol.c'\"
+else
+echo shar: Extracting \"'sh.dol.c'\" \(21278 characters\)
+sed "s/^X//" >'sh.dol.c' <<'END_OF_FILE'
+X/* $Header: /home/hyperion/mu/christos/src/sys/tcsh-6.01/RCS/sh.dol.c,v 3.9 1991/12/19 22:34:14 christos Exp $ */
+X/*
+X * sh.dol.c: Variable substitutions
+X */
+X/*-
+X * Copyright (c) 1980, 1991 The Regents of the University of California.
+X * All rights reserved.
+X *
+X * Redistribution and use in source and binary forms, with or without
+X * modification, are permitted provided that the following conditions
+X * are met:
+X * 1. Redistributions of source code must retain the above copyright
+X *    notice, this list of conditions and the following disclaimer.
+X * 2. Redistributions in binary form must reproduce the above copyright
+X *    notice, this list of conditions and the following disclaimer in the
+X *    documentation and/or other materials provided with the distribution.
+X * 3. All advertising materials mentioning features or use of this software
+X *    must display the following acknowledgement:
+X *	This product includes software developed by the University of
+X *	California, Berkeley and its contributors.
+X * 4. Neither the name of the University nor the names of its contributors
+X *    may be used to endorse or promote products derived from this software
+X *    without specific prior written permission.
+X *
+X * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+X * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+X * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+X * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+X * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+X * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+X * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+X * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+X * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+X * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+X * SUCH DAMAGE.
+X */
+X#include "sh.h"
+X
+RCSID("$Id: sh.dol.c,v 3.9 1991/12/19 22:34:14 christos Exp $")
+X
+X/*
+X * C shell
+X */
+X
+X/*
+X * These routines perform variable substitution and quoting via ' and ".
+X * To this point these constructs have been preserved in the divided
+X * input words.  Here we expand variables and turn quoting via ' and " into
+X * QUOTE bits on characters (which prevent further interpretation).
+X * If the `:q' modifier was applied during history expansion, then
+X * some QUOTEing may have occurred already, so we dont "trim()" here.
+X */
+X
+static int Dpeekc, Dpeekrd;	/* Peeks for DgetC and Dreadc */
+static Char *Dcp, **Dvp;	/* Input vector for Dreadc */
+X
+X#define	DEOF	-1
+X
+X#define	unDgetC(c)	Dpeekc = c
+X
+X#define QUOTES		(_Q|_Q1|_ESC)	/* \ ' " ` */
+X
+X/*
+X * The following variables give the information about the current
+X * $ expansion, recording the current word position, the remaining
+X * words within this expansion, the count of remaining words, and the
+X * information about any : modifier which is being applied.
+X */
+X#define MAXWLEN (BUFSIZE - 4)
+X#ifndef COMPAT
+X#define MAXMOD MAXWLEN		/* This cannot overflow	*/
+X#endif /* COMPAT */
+static Char *dolp;		/* Remaining chars from this word */
+static Char **dolnxt;		/* Further words */
+static int dolcnt;		/* Count of further words */
+X#ifdef COMPAT
+static Char dolmod;		/* : modifier character */
+X#else
+static Char dolmod[MAXMOD];	/* : modifier character */
+static int dolnmod;		/* Number of modifiers */
+X#endif /* COMPAT */
+static int dolmcnt;		/* :gx -> 10000, else 1 */
+static int dolwcnt;		/* :ax -> 10000, else 1 */
+X
+static	void	 Dfix2		__P((Char **));
+static	Char 	*Dpack		__P((Char *, Char *));
+static	int	 Dword		__P((void));
+static	void	 dolerror	__P((Char *));
+static	int	 DgetC		__P((int));
+static	void	 Dgetdol	__P((void));
+static	void	 fixDolMod	__P((void));
+static	void	 setDolp	__P((Char *));
+static	void	 unDredc	__P((int));
+static	int	 Dredc		__P((void));
+static	void	 Dtestq		__P((int));
+X
+X/*
+X * Fix up the $ expansions and quotations in the
+X * argument list to command t.
+X */
+void
+Dfix(t)
+X    register struct command *t;
+X{
+X    register Char **pp;
+X    register Char *p;
+X
+X    if (noexec)
+X	return;
+X    /* Note that t_dcom isn't trimmed thus !...:q's aren't lost */
+X    for (pp = t->t_dcom; p = *pp++;)
+X	for (; *p; p++) {
+X	    if (cmap(*p, _DOL | QUOTES)) {	/* $, \, ', ", ` */
+X		Dfix2(t->t_dcom);	/* found one */
+X		blkfree(t->t_dcom);
+X		t->t_dcom = gargv;
+X		gargv = 0;
+X		return;
+X	    }
+X	}
+X}
+X
+X/*
+X * $ substitute one word, for i/o redirection
+X */
+Char   *
+Dfix1(cp)
+X    register Char *cp;
+X{
+X    Char   *Dv[2];
+X
+X    if (noexec)
+X	return (0);
+X    Dv[0] = cp;
+X    Dv[1] = NULL;
+X    Dfix2(Dv);
+X    if (gargc != 1) {
+X	setname(short2str(cp));
+X	stderror(ERR_NAME | ERR_AMBIG);
+X    }
+X    cp = Strsave(gargv[0]);
+X    blkfree(gargv), gargv = 0;
+X    return (cp);
+X}
+X
+X/*
+X * Subroutine to do actual fixing after state initialization.
+X */
+static void
+Dfix2(v)
+X    Char  **v;
+X{
+X    ginit();			/* Initialize glob's area pointers */
+X    Dvp = v;
+X    Dcp = STRNULL;		/* Setup input vector for Dreadc */
+X    unDgetC(0);
+X    unDredc(0);			/* Clear out any old peeks (at error) */
+X    dolp = 0;
+X    dolcnt = 0;			/* Clear out residual $ expands (...) */
+X    while (Dword())
+X	continue;
+X}
+X
+X/*
+X * Pack up more characters in this word
+X */
+static Char *
+Dpack(wbuf, wp)
+X    Char   *wbuf, *wp;
+X{
+X    register int c;
+X    register int i = MAXWLEN - (wp - wbuf);
+X
+X    for (;;) {
+X	c = DgetC(DODOL);
+X	if (c == '\\') {
+X	    c = DgetC(0);
+X	    if (c == DEOF) {
+X		unDredc(c);
+X		*wp = 0;
+X		Gcat(STRNULL, wbuf);
+X		return (NULL);
+X	    }
+X	    if (c == '\n')
+X		c = ' ';
+X	    else
+X		c |= QUOTE;
+X	}
+X	if (c == DEOF) {
+X	    unDredc(c);
+X	    *wp = 0;
+X	    Gcat(STRNULL, wbuf);
+X	    return (NULL);
+X	}
+X	if (cmap(c, _SP | _NL | _Q | _Q1)) {	/* sp \t\n'"` */
+X	    unDgetC(c);
+X	    if (cmap(c, QUOTES))
+X		return (wp);
+X	    *wp++ = 0;
+X	    Gcat(STRNULL, wbuf);
+X	    return (NULL);
+X	}
+X	if (--i <= 0)
+X	    stderror(ERR_WTOOLONG);
+X	*wp++ = c;
+X    }
+X}
+X
+X/*
+X * Get a word.  This routine is analogous to the routine
+X * word() in sh.lex.c for the main lexical input.  One difference
+X * here is that we don't get a newline to terminate our expansion.
+X * Rather, DgetC will return a DEOF when we hit the end-of-input.
+X */
+static int
+Dword()
+X{
+X    register int c, c1;
+X    Char    wbuf[BUFSIZE];
+X    register Char *wp = wbuf;
+X    register int i = MAXWLEN;
+X    register bool dolflg;
+X    bool    sofar = 0, done = 0;
+X
+X    while (!done) {
+X	done = 1;
+X	c = DgetC(DODOL);
+X	switch (c) {
+X
+X	case DEOF:
+X	    if (sofar == 0)
+X		return (0);
+X	    /* finish this word and catch the code above the next time */
+X	    unDredc(c);
+X	    /* fall into ... */
+X
+X	case '\n':
+X	    *wp = 0;
+X	    Gcat(STRNULL, wbuf);
+X	    return (1);
+X
+X	case ' ':
+X	case '\t':
+X	    done = 0;
+X	    break;
+X
+X	case '`':
+X	    /* We preserve ` quotations which are done yet later */
+X	    *wp++ = c, --i;
+X	case '\'':
+X	case '"':
+X	    /*
+X	     * Note that DgetC never returns a QUOTES character from an
+X	     * expansion, so only true input quotes will get us here or out.
+X	     */
+X	    c1 = c;
+X	    dolflg = c1 == '"' ? DODOL : 0;
+X	    for (;;) {
+X		c = DgetC(dolflg);
+X		if (c == c1)
+X		    break;
+X		if (c == '\n' || c == DEOF)
+X		    stderror(ERR_UNMATCHED, c1);
+X		if ((c & (QUOTE | TRIM)) == ('\n' | QUOTE))
+X		    --wp, ++i;
+X		if (--i <= 0)
+X		    stderror(ERR_WTOOLONG);
+X		switch (c1) {
+X
+X		case '"':
+X		    /*
+X		     * Leave any `s alone for later. Other chars are all
+X		     * quoted, thus `...` can tell it was within "...".
+X		     */
+X		    *wp++ = c == '`' ? '`' : c | QUOTE;
+X		    break;
+X
+X		case '\'':
+X		    /* Prevent all further interpretation */
+X		    *wp++ = c | QUOTE;
+X		    break;
+X
+X		case '`':
+X		    /* Leave all text alone for later */
+X		    *wp++ = c;
+X		    break;
+X
+X		default:
+X		    break;
+X		}
+X	    }
+X	    if (c1 == '`')
+X		*wp++ = '`' /* i--; eliminated */;
+X	    sofar = 1;
+X	    if ((wp = Dpack(wbuf, wp)) == NULL)
+X		return (1);
+X	    else {
+X		i = MAXWLEN - (wp - wbuf);
+X		done = 0;
+X	    }
+X	    break;
+X
+X	case '\\':
+X	    c = DgetC(0);	/* No $ subst! */
+X	    if (c == '\n' || c == DEOF) {
+X		done = 0;
+X		break;
+X	    }
+X	    c |= QUOTE;
+X	    break;
+X
+X	default:
+X	    break;
+X	}
+X	if (done) {
+X	    unDgetC(c);
+X	    sofar = 1;
+X	    if ((wp = Dpack(wbuf, wp)) == NULL)
+X		return (1);
+X	    else {
+X		i = MAXWLEN - (wp - wbuf);
+X		done = 0;
+X	    }
+X	}
+X    }
+X    /* Really NOTREACHED */
+X    return (0);
+X}
+X
+X
+X/*
+X * Get a character, performing $ substitution unless flag is 0.
+X * Any QUOTES character which is returned from a $ expansion is
+X * QUOTEd so that it will not be recognized above.
+X */
+static int
+DgetC(flag)
+X    register int flag;
+X{
+X    register int c;
+X
+top:
+X    if (c = Dpeekc) {
+X	Dpeekc = 0;
+X	return (c);
+X    }
+X    if (lap) {
+X	c = *lap++ & (QUOTE | TRIM);
+X	if (c == 0) {
+X	    lap = 0;
+X	    goto top;
+X	}
+quotspec:
+X	if (cmap(c, QUOTES))
+X	    return (c | QUOTE);
+X	return (c);
+X    }
+X    if (dolp) {
+X	if (c = *dolp++ & (QUOTE | TRIM))
+X	    goto quotspec;
+X	if (dolcnt > 0) {
+X	    setDolp(*dolnxt++);
+X	    --dolcnt;
+X	    return (' ');
+X	}
+X	dolp = 0;
+X    }
+X    if (dolcnt > 0) {
+X	setDolp(*dolnxt++);
+X	--dolcnt;
+X	goto top;
+X    }
+X    c = Dredc();
+X    if (c == '$' && flag) {
+X	Dgetdol();
+X	goto top;
+X    }
+X    return (c);
+X}
+X
+static Char *nulvec[] = {0};
+static struct varent nulargv = {nulvec, STRargv, 0};
+X
+static void
+dolerror(s)
+X    Char   *s;
+X{
+X    setname(short2str(s));
+X    stderror(ERR_NAME | ERR_RANGE);
+X}
+X
+X/*
+X * Handle the multitudinous $ expansion forms.
+X * Ugh.
+X */
+static void
+Dgetdol()
+X{
+X    register Char *np;
+X    register struct varent *vp = NULL;
+X    Char    name[4 * MAXVARLEN + 1];
+X    int     c, sc;
+X    int     subscr = 0, lwb = 1, upb = 0;
+X    bool    dimen = 0, bitset = 0;
+X    char    tnp;
+X    Char    wbuf[BUFSIZE];
+X    static Char *dolbang = NULL;
+X
+X#ifdef COMPAT
+X    dolmod = dolmcnt = dolwcnt = 0;
+X#else
+X    dolnmod = dolmcnt = dolwcnt = 0;
+X#endif /* COMPAT */
+X    c = sc = DgetC(0);
+X    if (c == '{')
+X	c = DgetC(0);		/* sc is { to take } later */
+X    if ((c & TRIM) == '#')
+X	dimen++, c = DgetC(0);	/* $# takes dimension */
+X    else if (c == '?')
+X	bitset++, c = DgetC(0);	/* $? tests existence */
+X    switch (c) {
+X
+X    case '!':
+X	if (dimen || bitset)
+X	    stderror(ERR_SYNTAX);
+X	if (backpid != 0) {
+X	    if (dolbang) 
+X		xfree((ptr_t) dolbang);
+X	    setDolp(dolbang = putn(backpid));
+X	}
+X	goto eatbrac;
+X
+X    case '$':
+X	if (dimen || bitset)
+X	    stderror(ERR_SYNTAX);
+X	setDolp(doldol);
+X	goto eatbrac;
+X
+X    case '<' | QUOTE:
+X	if (bitset)
+X	    stderror(ERR_NOTALLOWED, "$?<");
+X	if (dimen)
+X	    stderror(ERR_NOTALLOWED, "$?#");
+X	for (np = wbuf; read(OLDSTD, &tnp, 1) == 1; np++) {
+X	    *np = tnp;
+X	    if (np >= &wbuf[BUFSIZE - 1])
+X		stderror(ERR_LTOOLONG);
+X	    if (SIGN_EXTEND_CHAR(tnp) <= 0 || tnp == '\n')
+X		break;
+X	}
+X	*np = 0;
+X	/*
+X	 * KLUDGE: dolmod is set here because it will cause setDolp to call
+X	 * domod and thus to copy wbuf. Otherwise setDolp would use it
+X	 * directly. If we saved it ourselves, no one would know when to free
+X	 * it. The actual function of the 'q' causes filename expansion not to
+X	 * be done on the interpolated value.
+X	 */
+X#ifdef COMPAT
+X	dolmod = 'q';
+X#else
+X	dolmod[dolnmod++] = 'q';
+X#endif /* COMPAT */
+X	dolmcnt = 10000;
+X	setDolp(wbuf);
+X	goto eatbrac;
+X
+X    case DEOF:
+X    case '\n':
+X	stderror(ERR_SYNTAX);
+X	/* NOTREACHED */
+X	break;
+X
+X    case '*':
+X	(void) Strcpy(name, STRargv);
+X	vp = adrof(STRargv);
+X	subscr = -1;		/* Prevent eating [...] */
+X	break;
+X
+X    default:
+X	np = name;
+X	if (Isdigit(c)) {
+X	    if (dimen)
+X		stderror(ERR_NOTALLOWED, "$#<num>");
+X	    subscr = 0;
+X	    do {
+X		subscr = subscr * 10 + c - '0';
+X		c = DgetC(0);
+X	    } while (Isdigit(c));
+X	    unDredc(c);
+X	    if (subscr < 0) {
+X		dolerror(vp->v_name);
+X		return;
+X	    }
+X	    if (subscr == 0) {
+X		if (bitset) {
+X		    dolp = ffile ? STR1 : STR0;
+X		    goto eatbrac;
+X		}
+X		if (ffile == 0)
+X		    stderror(ERR_DOLZERO);
+X		fixDolMod();
+X		setDolp(ffile);
+X		goto eatbrac;
+X	    }
+X	    if (bitset)
+X		stderror(ERR_DOLQUEST);
+X	    vp = adrof(STRargv);
+X	    if (vp == 0) {
+X		vp = &nulargv;
+X		goto eatmod;
+X	    }
+X	    break;
+X	}
+X	if (!alnum(c))
+X	    stderror(ERR_VARALNUM);
+X	for (;;) {
+X	    *np++ = c;
+X	    c = DgetC(0);
+X	    if (!alnum(c))
+X		break;
+X	    if (np >= &name[MAXVARLEN])
+X		stderror(ERR_VARTOOLONG);
+X	}
+X	*np++ = 0;
+X	unDredc(c);
+X	vp = adrof(name);
+X    }
+X    if (bitset) {
+X	dolp = (vp || getenv(short2str(name))) ? STR1 : STR0;
+X	goto eatbrac;
+X    }
+X    if (vp == 0) {
+X	np = str2short(getenv(short2str(name)));
+X	if (np) {
+X	    fixDolMod();
+X	    setDolp(np);
+X	    goto eatbrac;
+X	}
+X	udvar(name);
+X	/* NOTREACHED */
+X    }
+X    c = DgetC(0);
+X    upb = blklen(vp->vec);
+X    if (dimen == 0 && subscr == 0 && c == '[') {
+X	np = name;
+X	for (;;) {
+X	    c = DgetC(DODOL);	/* Allow $ expand within [ ] */
+X	    if (c == ']')
+X		break;
+X	    if (c == '\n' || c == DEOF)
+X		stderror(ERR_INCBR);
+X	    if (np >= &name[sizeof(name) / sizeof(Char) - 2])
+X		stderror(ERR_VARTOOLONG);
+X	    *np++ = c;
+X	}
+X	*np = 0, np = name;
+X	if (dolp || dolcnt)	/* $ exp must end before ] */
+X	    stderror(ERR_EXPORD);
+X	if (!*np)
+X	    stderror(ERR_SYNTAX);
+X	if (Isdigit(*np)) {
+X	    int     i;
+X
+X	    for (i = 0; Isdigit(*np); i = i * 10 + *np++ - '0')
+X		continue;
+X	    if ((i < 0 || i > upb) && !any("-*", *np)) {
+X		dolerror(vp->v_name);
+X		return;
+X	    }
+X	    lwb = i;
+X	    if (!*np)
+X		upb = lwb, np = STRstar;
+X	}
+X	if (*np == '*')
+X	    np++;
+X	else if (*np != '-')
+X	    stderror(ERR_MISSING, '-');
+X	else {
+X	    register int i = upb;
+X
+X	    np++;
+X	    if (Isdigit(*np)) {
+X		i = 0;
+X		while (Isdigit(*np))
+X		    i = i * 10 + *np++ - '0';
+X		if (i < 0 || i > upb) {
+X		    dolerror(vp->v_name);
+X		    return;
+X		}
+X	    }
+X	    if (i < lwb)
+X		upb = lwb - 1;
+X	    else
+X		upb = i;
+X	}
+X	if (lwb == 0) {
+X	    if (upb != 0) {
+X		dolerror(vp->v_name);
+X		return;
+X	    }
+X	    upb = -1;
+X	}
+X	if (*np)
+X	    stderror(ERR_SYNTAX);
+X    }
+X    else {
+X	if (subscr > 0)
+X	    if (subscr > upb)
+X		lwb = 1, upb = 0;
+X	    else
+X		lwb = upb = subscr;
+X	unDredc(c);
+X    }
+X    if (dimen) {
+X	Char   *cp = putn(upb - lwb + 1);
+X
+X	addla(cp);
+X	xfree((ptr_t) cp);
+X    }
+X    else {
+eatmod:
+X	fixDolMod();
+X	dolnxt = &vp->vec[lwb - 1];
+X	dolcnt = upb - lwb + 1;
+X    }
+eatbrac:
+X    if (sc == '{') {
+X	c = Dredc();
+X	if (c != '}')
+X	    stderror(ERR_MISSING, '}');
+X    }
+X}
+X
+static void
+fixDolMod()
+X{
+X    register int c;
+X
+X    c = DgetC(0);
+X    if (c == ':') {
+X#ifndef COMPAT
+X	do {
+X#endif /* COMPAT */
+X	    c = DgetC(0), dolmcnt = 1, dolwcnt = 1;
+X	    if (c == 'g' || c == 'a') {
+X		if (c == 'g')
+X		    dolmcnt = 10000;
+X		else
+X		    dolwcnt = 10000;
+X		c = DgetC(0);
+X	    }
+X	    if ((c == 'g' && dolmcnt != 10000) || 
+X		(c == 'a' && dolwcnt != 10000)) {
+X		if (c == 'g')
+X		    dolmcnt = 10000;
+X		else
+X		    dolwcnt = 10000;
+X		c = DgetC(0); 
+X	    }
+X
+X	    if (c == 's') {	/* [eichin:19910926.0755EST] */
+X		int delimcnt = 2;
+X		int delim = DgetC(0);
+X		dolmod[dolnmod++] = c;
+X		dolmod[dolnmod++] = delim;
+X		
+X		if (!delim || letter(delim)
+X		    || Isdigit(delim) || any(" \t\n", delim)) {
+X		    seterror(ERR_BADSUBST);
+X		    break;
+X		}	
+X		while ((c = DgetC(0)) != (-1)) {
+X		    dolmod[dolnmod++] = c;
+X		    if(c == delim) delimcnt--;
+X		    if(!delimcnt) break;
+X		}
+X		if(delimcnt) {
+X		    seterror(ERR_BADSUBST);
+X		    break;
+X		}
+X		continue;
+X	    }
+X	    if (!any("htrqxes", c))
+X		stderror(ERR_BADMOD, c);
+X#ifndef COMPAT
+X	    dolmod[dolnmod++] = c;
+X#else
+X	    dolmod = c;
+X#endif /* COMPAT */
+X	    if (c == 'q')
+X		dolmcnt = 10000;
+X#ifndef COMPAT
+X	}
+X	while ((c = DgetC(0)) == ':');
+X	unDredc(c);
+X#endif /* COMPAT */
+X    }
+X    else
+X	unDredc(c);
+X}
+X
+static void
+setDolp(cp)
+X    register Char *cp;
+X{
+X    register Char *dp;
+X#ifndef COMPAT
+X    int i;
+X#endif /* COMPAT */
+X
+X#ifdef COMPAT
+X    if (dolmod == 0 || dolmcnt == 0) {
+X#else
+X    if (dolnmod == 0 || dolmcnt == 0) {
+X#endif /* COMPAT */
+X	dolp = cp;
+X	return;
+X    }
+X#ifdef COMPAT
+X    dp = domod(cp, dolmod);
+X#else
+X    dp = cp = Strsave(cp);
+X    for (i = 0; i < dolnmod; i++) {
+X	/* handle s// [eichin:19910926.0510EST] */
+X	if(dolmod[i] == 's') {
+X	    int delim;
+X	    Char *lhsub, *rhsub, *np;
+X	    size_t lhlen = 0, rhlen = 0;
+X	    int didmod = 0;
+X		
+X	    delim = dolmod[++i];
+X	    if (!delim || letter(delim)
+X		|| Isdigit(delim) || any(" \t\n", delim)) {
+X		seterror(ERR_BADSUBST);
+X		break;
+X	    }
+X	    lhsub = &dolmod[++i];
+X	    while(dolmod[i] != delim && dolmod[++i]) {
+X		lhlen++;
+X	    }
+X	    dolmod[i] = 0;
+X	    rhsub = &dolmod[++i];
+X	    while(dolmod[i] != delim && dolmod[++i]) {
+X		rhlen++;
+X	    }
+X	    dolmod[i] = 0;
+X
+X	    do {
+X		dp = Strstr(cp, lhsub);
+X		if (dp) {
+X		    np = (Char *) xmalloc((size_t)
+X					  ((Strlen(cp) + 1 - lhlen + rhlen) *
+X					  sizeof(Char)));
+X		    (void) Strncpy(np, cp, dp - cp);
+X		    (void) Strcpy(np + (dp - cp), rhsub);
+X		    (void) Strcpy(np + (dp - cp) + rhlen, dp + lhlen);
+X
+X		    xfree((ptr_t) cp);
+X		    dp = cp = np;
+X		    didmod = 1;
+X		} else {
+X		    /* should this do a seterror? */
+X		    break;
+X		}
+X	    }
+X	    while (dolwcnt == 10000);
+X	    /*
+X	     * restore dolmod for additional words
+X	     */
+X	    dolmod[i] = rhsub[-1] = delim;
+X	    if (didmod)
+X		dolmcnt--;
+X	    else
+X		break;
+X        } else {
+X	    int didmod = 0;
+X
+X	    do {
+X		if ((dp = domod(cp, dolmod[i]))) {
+X		    didmod = 1;
+X		    if (Strcmp(cp, dp) == 0) {
+X			xfree((ptr_t) cp);
+X			cp = dp;
+X			break;
+X		    }
+X		    else {
+X			xfree((ptr_t) cp);
+X			cp = dp;
+X		    }
+X		}
+X		else
+X		    break;
+X	    }
+X	    while (dolwcnt == 10000);
+X	    dp = cp;
+X	    if (didmod)
+X		dolmcnt--;
+X	    else
+X		break;
+X	}
+X    }
+X#endif /* COMPAT */
+X
+X    if (dp) {
+X#ifdef COMPAT
+X	dolmcnt--;
+X#endif /* COMPAT */
+X	addla(dp);
+X	xfree((ptr_t) dp);
+X    }
+X#ifndef COMPAT
+X    else
+X	addla(cp);
+X#endif /* COMPAT */
+X
+X    dolp = STRNULL;
+X    if (seterr)
+X	stderror(ERR_OLD);
+X}
+X
+static void
+unDredc(c)
+X    int     c;
+X{
+X
+X    Dpeekrd = c;
+X}
+X
+static int
+Dredc()
+X{
+X    register int c;
+X
+X    if (c = Dpeekrd) {
+X	Dpeekrd = 0;
+X	return (c);
+X    }
+X    if (Dcp && (c = *Dcp++))
+X	return (c & (QUOTE | TRIM));
+X    if (*Dvp == 0) {
+X	Dcp = 0;
+X	return (DEOF);
+X    }
+X    Dcp = *Dvp++;
+X    return (' ');
+X}
+X
+static void
+Dtestq(c)
+X    register int c;
+X{
+X
+X    if (cmap(c, QUOTES))
+X	gflag = 1;
+X}
+X
+X/*
+X * Form a shell temporary file (in unit 0) from the words
+X * of the shell input up to EOF or a line the same as "term".
+X * Unit 0 should have been closed before this call.
+X */
+void
+heredoc(term)
+X    Char   *term;
+X{
+X    register int c;
+X    Char   *Dv[2];
+X    Char    obuf[BUFSIZE], lbuf[BUFSIZE], mbuf[BUFSIZE];
+X    int     ocnt, lcnt, mcnt;
+X    register Char *lbp, *obp, *mbp;
+X    Char  **vp;
+X    bool    quoted;
+X    char   *tmp;
+X
+X    if (creat(tmp = short2str(shtemp), 0600) < 0)
+X	stderror(ERR_SYSTEM, tmp, strerror(errno));
+X    (void) close(0);
+X    if (open(tmp, O_RDWR) < 0) {
+X	int     oerrno = errno;
+X
+X	(void) unlink(tmp);
+X	errno = oerrno;
+X	stderror(ERR_SYSTEM, tmp, strerror(errno));
+X    }
+X    (void) unlink(tmp);		/* 0 0 inode! */
+X    Dv[0] = term;
+X    Dv[1] = NULL;
+X    gflag = 0;
+X    trim(Dv);
+X    rscan(Dv, Dtestq);
+X    quoted = gflag;
+X    ocnt = BUFSIZE;
+X    obp = obuf;
+X    for (;;) {
+X	/*
+X	 * Read up a line
+X	 */
+X	lbp = lbuf;
+X	lcnt = BUFSIZE - 4;
+X	for (;;) {
+X	    c = readc(1);	/* 1 -> Want EOF returns */
+X	    if (c < 0 || c == '\n')
+X		break;
+X	    if (c &= TRIM) {
+X		*lbp++ = c;
+X		if (--lcnt < 0) {
+X		    setname("<<");
+X		    stderror(ERR_NAME | ERR_OVERFLOW);
+X		}
+X	    }
+X	}
+X	*lbp = 0;
+X
+X	/*
+X	 * Check for EOF or compare to terminator -- before expansion
+X	 */
+X	if (c < 0 || eq(lbuf, term)) {
+X	    (void) write(0, short2str(obuf), (size_t) (BUFSIZE - ocnt));
+X	    (void) lseek(0, 0l, L_SET);
+X	    return;
+X	}
+X
+X	/*
+X	 * If term was quoted or -n just pass it on
+X	 */
+X	if (quoted || noexec) {
+X	    *lbp++ = '\n';
+X	    *lbp = 0;
+X	    for (lbp = lbuf; c = *lbp++;) {
+X		*obp++ = c;
+X		if (--ocnt == 0) {
+X		    (void) write(0, short2str(obuf), BUFSIZE);
+X		    obp = obuf;
+X		    ocnt = BUFSIZE;
+X		}
+X	    }
+X	    continue;
+X	}
+X
+X	/*
+X	 * Term wasn't quoted so variable and then command expand the input
+X	 * line
+X	 */
+X	Dcp = lbuf;
+X	Dvp = Dv + 1;
+X	mbp = mbuf;
+X	mcnt = BUFSIZE - 4;
+X	for (;;) {
+X	    c = DgetC(DODOL);
+X	    if (c == DEOF)
+X		break;
+X	    if ((c &= TRIM) == 0)
+X		continue;
+X	    /* \ quotes \ $ ` here */
+X	    if (c == '\\') {
+X		c = DgetC(0);
+X		if (!any("$\\`", c))
+X		    unDgetC(c | QUOTE), c = '\\';
+X		else
+X		    c |= QUOTE;
+X	    }
+X	    *mbp++ = c;
+X	    if (--mcnt == 0) {
+X		setname("<<");
+X		stderror(ERR_NAME | ERR_OVERFLOW);
+X	    }
+X	}
+X	*mbp++ = 0;
+X
+X	/*
+X	 * If any ` in line do command substitution
+X	 */
+X	mbp = mbuf;
+X	if (any(short2str(mbp), '`')) {
+X	    /*
+X	     * 1 arg to dobackp causes substitution to be literal. Words are
+X	     * broken only at newlines so that all blanks and tabs are
+X	     * preserved.  Blank lines (null words) are not discarded.
+X	     */
+X	    vp = dobackp(mbuf, 1);
+X	}
+X	else
+X	    /* Setup trivial vector similar to return of dobackp */
+X	    Dv[0] = mbp, Dv[1] = NULL, vp = Dv;
+X
+X	/*
+X	 * Resurrect the words from the command substitution each separated by
+X	 * a newline.  Note that the last newline of a command substitution
+X	 * will have been discarded, but we put a newline after the last word
+X	 * because this represents the newline after the last input line!
+X	 */
+X	for (; *vp; vp++) {
+X	    for (mbp = *vp; *mbp; mbp++) {
+X		*obp++ = *mbp & TRIM;
+X		if (--ocnt == 0) {
+X		    (void) write(0, short2str(obuf), BUFSIZE);
+X		    obp = obuf;
+X		    ocnt = BUFSIZE;
+X		}
+X	    }
+X	    *obp++ = '\n';
+X	    if (--ocnt == 0) {
+X		(void) write(0, short2str(obuf), BUFSIZE);
+X		obp = obuf;
+X		ocnt = BUFSIZE;
+X	    }
+X	}
+X	if (pargv)
+X	    blkfree(pargv), pargv = 0;
+X    }
+X}
+END_OF_FILE
+if test 21278 -ne `wc -c <'sh.dol.c'`; then
+    echo shar: \"'sh.dol.c'\" unpacked with wrong size!
+fi
+# end of 'sh.dol.c'
+fi
+if test -f 'sh.file.c' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'sh.file.c'\"
+else
+echo shar: Extracting \"'sh.file.c'\" \(19846 characters\)
+sed "s/^X//" >'sh.file.c' <<'END_OF_FILE'
+X/* $Header: /home/hyperion/mu/christos/src/sys/tcsh-6.01/RCS/sh.file.c,v 3.3 1991/12/19 22:34:14 christos Exp $ */
+X/*
+X * sh.file.c: File completion for csh. This file is not used in tcsh.
+X */
+X/*-
+X * Copyright (c) 1980, 1991 The Regents of the University of California.
+X * All rights reserved.
+X *
+X * Redistribution and use in source and binary forms, with or without
+X * modification, are permitted provided that the following conditions
+X * are met:
+X * 1. Redistributions of source code must retain the above copyright
+X *    notice, this list of conditions and the following disclaimer.
+X * 2. Redistributions in binary form must reproduce the above copyright
+X *    notice, this list of conditions and the following disclaimer in the
+X *    documentation and/or other materials provided with the distribution.
+X * 3. All advertising materials mentioning features or use of this software
+X *    must display the following acknowledgement:
+X *	This product includes software developed by the University of
+X *	California, Berkeley and its contributors.
+X * 4. Neither the name of the University nor the names of its contributors
+X *    may be used to endorse or promote products derived from this software
+X *    without specific prior written permission.
+X *
+X * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+X * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+X * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+X * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+X * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+X * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+X * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+X * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+X * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+X * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+X * SUCH DAMAGE.
+X */
+X#ifdef FILEC
+X#include "sh.h"
+X
+RCSID("$Id: sh.file.c,v 3.3 1991/12/19 22:34:14 christos Exp $")
+X
+X/*
+X * Tenex style file name recognition, .. and more.
+X * History:
+X *	Author: Ken Greer, Sept. 1975, CMU.
+X *	Finally got around to adding to the Cshell., Ken Greer, Dec. 1981.
+X */
+X
+X#define ON	1
+X#define OFF	0
+X#ifndef TRUE
+X#define TRUE 1
+X#endif
+X#ifndef FALSE
+X#define FALSE 0
+X#endif
+X
+X#define ESC	'\033'
+X
+typedef enum {
+X    LIST, RECOGNIZE
+X}       COMMAND;
+X
+static	void	 setup_tty		__P((int));
+static	void	 back_to_col_1		__P((void));
+static	void	 pushback		__P((Char *));
+static	void	 catn			__P((Char *, Char *, int));
+static	void	 copyn			__P((Char *, Char *, int));
+static	Char	 filetype		__P((Char *, Char *));
+static	void	 print_by_column	__P((Char *, Char *[], int));
+static	Char 	*tilde			__P((Char *, Char *));
+static	void	 retype			__P((void));
+static	void	 beep			__P((void));
+static	void 	 print_recognized_stuff	__P((Char *));
+static	void	 extract_dir_and_name	__P((Char *, Char *, Char *));
+static	Char	*getentry		__P((DIR *, int));
+static	void	 free_items		__P((Char **));
+static	int	 tsearch		__P((Char *, COMMAND, int));
+static	int	 recognize		__P((Char *, Char *, int, int));
+static	int	 is_prefix		__P((Char *, Char *));
+static	int	 is_suffix		__P((Char *, Char *));
+static	int	 ignored		__P((Char *));
+X
+X
+X/*
+X * Put this here so the binary can be patched with adb to enable file
+X * completion by default.  Filec controls completion, nobeep controls
+X * ringing the terminal bell on incomplete expansions.
+X */
+bool    filec = 0;
+X
+static void
+setup_tty(on)
+X    int     on;
+X{
+X#ifdef TERMIO
+X# ifdef POSIX
+X    static struct termios tchars;
+X# else
+X    static struct termio tchars;
+X# endif /* POSIX */
+X
+X    if (on) {
+X# ifdef POSIX
+X	(void) tcgetattr(SHIN, &tchars);
+X# else
+X        (void) ioctl(SHIN, TCGETA, (ioctl_t) &tchars);
+X# endif /* POSIX */
+X	tchars.c_cc[VEOL] = ESC;
+X	if (tchars.c_lflag & ICANON)
+X# ifdef POSIX
+X	    on = TCSANOW;
+X# else
+X	    on = TCSETAW;
+X# endif /* POSIX */
+X	else {
+X# ifdef POSIX
+X	    on = TCSAFLUSH;
+X# else
+X	    on = TCSETAF;
+X# endif /* POSIX */
+X	    tchars.c_lflag |= ICANON;
+X    
+X	}
+X#ifdef POSIX
+X        (void) tcsetattr(SHIN, on, &tchars);
+X#else
+X        (void) ioctl(SHIN, on, (ioctl_t) &tchars);
+X#endif /* POSIX */
+X    }
+X    else {
+X	tchars.c_cc[VEOL] = _POSIX_VDISABLE;
+X# ifdef POSIX
+X	(void) tcsetattr(SHIN, TCSANOW, &tchars);
+X# else
+X        (void) ioctl(SHIN, TCSETAW, (ioctl_t) &tchars);
+X# endif /* POSIX */
+X    }
+X#else
+X    struct sgttyb sgtty;
+X    static struct tchars tchars;/* INT, QUIT, XON, XOFF, EOF, BRK */
+X
+X    if (on) {
+X	(void) ioctl(SHIN, TIOCGETC, (ioctl_t) & tchars);
+X	tchars.t_brkc = ESC;
+X	(void) ioctl(SHIN, TIOCSETC, (ioctl_t) & tchars);
+X	/*
+X	 * This must be done after every command: if the tty gets into raw or
+X	 * cbreak mode the user can't even type 'reset'.
+X	 */
+X	(void) ioctl(SHIN, TIOCGETP, (ioctl_t) & sgtty);
+X	if (sgtty.sg_flags & (RAW | CBREAK)) {
+X	    sgtty.sg_flags &= ~(RAW | CBREAK);
+X	    (void) ioctl(SHIN, TIOCSETP, (ioctl_t) & sgtty);
+X	}
+X    }
+X    else {
+X	tchars.t_brkc = -1;
+X	(void) ioctl(SHIN, TIOCSETC, (ioctl_t) & tchars);
+X    }
+X#endif /* TERMIO */
+X}
+X
+X/*
+X * Move back to beginning of current line
+X */
+static void
+back_to_col_1()
+X{
+X#ifdef TERMIO
+X# ifdef POSIX
+X    struct termios tty, tty_normal;
+X# else
+X    struct termio tty, tty_normal;
+X# endif /* POSIX */
+X#else
+X    struct sgttyb tty, tty_normal;
+X#endif /* TERMIO */
+X
+X# ifdef BSDSIGS
+X    sigmask_t omask = sigblock(sigmask(SIGINT));
+X# else
+X    sighold(SIGINT);
+X# endif /* BSDSIGS */
+X
+X#ifdef TERMIO
+X# ifdef POSIX
+X    (void) tcgetattr(SHOUT, &tty);
+X# else
+X    (void) ioctl(SHOUT, TCGETA, (ioctl_t) &tty_normal);
+X# endif /* POSIX */
+X    tty_normal = tty;
+X    tty.c_iflag &= ~INLCR;
+X    tty.c_oflag &= ~ONLCR;
+X# ifdef POSIX
+X    (void) tcsetattr(SHOUT, TCSANOW, &tty);
+X# else
+X    (void) ioctl(SHOUT, TCSETAW, (ioctl_t) &tty);
+X# endif /* POSIX */
+X    (void) write(SHOUT, "\r", 1);
+X# ifdef POSIX
+X    (void) tcsetattr(SHOUT, TCSANOW, &tty_normal);
+X# else
+X    (void) ioctl(SHOUT, TCSETAW, (ioctl_t) &tty_normal);
+X# endif /* POSIX */
+X#else
+X    (void) ioctl(SHIN, TIOCGETP, (ioctl_t) & tty);
+X    tty_normal = tty;
+X    tty.sg_flags &= ~CRMOD;
+X    (void) ioctl(SHIN, TIOCSETN, (ioctl_t) & tty);
+X    (void) write(SHOUT, "\r", 1);
+X    (void) ioctl(SHIN, TIOCSETN, (ioctl_t) & tty_normal);
+X#endif /* TERMIO */
+X
+X# ifdef BSDSIGS
+X    (void) sigsetmask(omask);
+X# else
+X    (void) sigrelse(SIGINT);
+X# endif /* BSDISGS */
+X}
+X
+X/*
+X * Push string contents back into tty queue
+X */
+static void
+pushback(string)
+X    Char   *string;
+X{
+X    register Char *p;
+X    char    c;
+X#ifdef TERMIO
+X# ifdef POSIX
+X    struct termios tty, tty_normal;
+X# else
+X    struct termio tty, tty_normal;
+X# endif /* POSIX */
+X#else
+X    struct sgttyb tty, tty_normal;
+X#endif /* TERMIO */
+X
+X#ifdef BSDSIGS
+X    sigmask_t omask = sigblock(sigmask(SIGINT));
+X#else
+X    sighold(SIGINT);
+X#endif /* BSDSIGS */
+X
+X#ifdef TERMIO
+X# ifdef POSIX
+X    (void) tcgetattr(SHOUT, &tty);
+X# else
+X    (void) ioctl(SHOUT, TCSETAW, (ioctl_t) &tty);
+X# endif /* POSIX */
+X    tty_normal = tty;
+X    tty.c_lflag &= ~(ECHOKE | ECHO | ECHOE | ECHOK | ECHONL | ECHOPRT | ECHOCTL);
+X# ifdef POSIX
+X    (void) tcsetattr(SHOUT, TCSANOW, &tty);
+X# else
+X    (void) ioctl(SHOUT, TCSETAW, (ioctl_t) &tty);
+X# endif /* POSIX */
+X
+X    for (p = string; c = *p; p++)
+X	(void) ioctl(SHOUT, TIOCSTI, (ioctl_t) & c);
+X# ifdef POSIX
+X    (void) tcsetattr(SHOUT, TCSANOW, &tty_normal);
+X# else
+X    (void) ioctl(SHOUT, TCSETAW, (ioctl_t) &tty_normal);
+X# endif /* POSIX */
+X    (void) sigsetmask(omask);
+X#else
+X    (void) ioctl(SHOUT, TIOCGETP, (ioctl_t) & tty);
+X    tty_normal = tty;
+X    tty.sg_flags &= ~ECHO;
+X    (void) ioctl(SHOUT, TIOCSETN, (ioctl_t) & tty);
+X
+X    for (p = string; c = *p; p++)
+X	(void) ioctl(SHOUT, TIOCSTI, (ioctl_t) & c);
+X    (void) ioctl(SHOUT, TIOCSETN, (ioctl_t) & tty_normal);
+X#endif /* TERMIO */
+X
+X# ifdef BSDSIGS
+X    (void) sigsetmask(omask);
+X# else
+X    (void) sigrelse(SIGINT);
+X# endif /* BSDISGS */
+X}
+X
+X/*
+X * Concatenate src onto tail of des.
+X * Des is a string whose maximum length is count.
+X * Always null terminate.
+X */
+static void
+catn(des, src, count)
+X    register Char *des, *src;
+X    register count;
+X{
+X    while (--count >= 0 && *des)
+X	des++;
+X    while (--count >= 0)
+X	if ((*des++ = *src++) == 0)
+X	    return;
+X    *des = '\0';
+X}
+X
+X/*
+X * Like strncpy but always leave room for trailing \0
+X * and always null terminate.
+X */
+static void
+copyn(des, src, count)
+X    register Char *des, *src;
+X    register count;
+X{
+X    while (--count >= 0)
+X	if ((*des++ = *src++) == 0)
+X	    return;
+X    *des = '\0';
+X}
+X
+static  Char
+filetype(dir, file)
+X    Char   *dir, *file;
+X{
+X    Char    path[MAXPATHLEN];
+X    struct stat statb;
+X
+X    catn(Strcpy(path, dir), file, sizeof(path) / sizeof(Char));
+X    if (lstat(short2str(path), &statb) == 0) {
+X	switch (statb.st_mode & S_IFMT) {
+X	case S_IFDIR:
+X	    return ('/');
+X
+X	case S_IFLNK:
+X	    if (stat(short2str(path), &statb) == 0 &&	/* follow it out */
+X		S_ISDIR(statb.st_mode))
+X		return ('>');
+X	    else
+X		return ('@');
+X
+X	case S_IFSOCK:
+X	    return ('=');
+X
+X	default:
+X	    if (statb.st_mode & 0111)
+X		return ('*');
+X	}
+X    }
+X    return (' ');
+X}
+X
+static struct winsize win;
+X
+X/*
+X * Print sorted down columns
+X */
+static void
+print_by_column(dir, items, count)
+X    Char   *dir, *items[];
+X    int     count;
+X{
+X    register int i, rows, r, c, maxwidth = 0, columns;
+X
+X    if (ioctl(SHOUT, TIOCGWINSZ, (ioctl_t) & win) < 0 || win.ws_col == 0)
+X	win.ws_col = 80;
+X    for (i = 0; i < count; i++)
+X	maxwidth = maxwidth > (r = Strlen(items[i])) ? maxwidth : r;
+X    maxwidth += 2;		/* for the file tag and space */
+X    columns = win.ws_col / maxwidth;
+X    if (columns == 0)
+X	columns = 1;
+X    rows = (count + (columns - 1)) / columns;
+X    for (r = 0; r < rows; r++) {
+X	for (c = 0; c < columns; c++) {
+X	    i = c * rows + r;
+X	    if (i < count) {
+X		register int w;
+X
+X		xprintf("%s", short2str(items[i]));
+X		xputchar(dir ? filetype(dir, items[i]) : ' ');
+X		if (c < columns - 1) {	/* last column? */
+X		    w = Strlen(items[i]) + 1;
+X		    for (; w < maxwidth; w++)
+X			xputchar(' ');
+X		}
+X	    }
+X	}
+X	xputchar('\r');
+X	xputchar('\n');
+X    }
+X}
+X
+X/*
+X * Expand file name with possible tilde usage
+X *	~person/mumble
+X * expands to
+X *	home_directory_of_person/mumble
+X */
+static Char *
+tilde(new, old)
+X    Char   *new, *old;
+X{
+X    register Char *o, *p;
+X    register struct passwd *pw;
+X    static Char person[40];
+X
+X    if (old[0] != '~')
+X	return (Strcpy(new, old));
+X
+X    for (p = person, o = &old[1]; *o && *o != '/'; *p++ = *o++);
+X    *p = '\0';
+X    if (person[0] == '\0')
+X	(void) Strcpy(new, value(STRhome));
+X    else {
+X	pw = getpwnam(short2str(person));
+X	if (pw == NULL)
+X	    return (NULL);
+X	(void) Strcpy(new, str2short(pw->pw_dir));
+X    }
+X    (void) Strcat(new, o);
+X    return (new);
+X}
+X
+X/*
+X * Cause pending line to be printed
+X */
+static void
+retype()
+X{
+X#ifdef TERMIO
+X# ifdef POSIX
+X    struct termios tty;
+X
+X    (void) tcgetattr(SHOUT, &tty);
+X# else
+X    struct termio tty;
+X
+X    (void) ioctl(SHOUT, TCGETA, (ioctl_t) &tty);
+X# endif /* POSIX */
+X
+X    tty.c_lflag |= PENDIN;
+X
+X# ifdef POSIX
+X    (void) tcsetattr(SHOUT, TCSANOW, &tty);
+X# else
+X    (void) ioctl(SHOUT, TCSETAW, (ioctl_t) &tty);
+X# endif /* POSIX */
+X#else
+X    int     pending_input = LPENDIN;
+X
+X    (void) ioctl(SHOUT, TIOCLBIS, (ioctl_t) & pending_input);
+X#endif /* TERMIO */
+X}
+X
+static void
+beep()
+X{
+X    if (adrof(STRnobeep) == 0)
+X	(void) write(SHOUT, "\007", 1);
+X}
+X
+X/*
+X * Erase that silly ^[ and
+X * print the recognized part of the string
+X */
+static void
+print_recognized_stuff(recognized_part)
+X    Char   *recognized_part;
+X{
+X    /* An optimized erasing of that silly ^[ */
+X    putraw('\b');
+X    putraw('\b');
+X    switch (Strlen(recognized_part)) {
+X
+X    case 0:			/* erase two Characters: ^[ */
+X	putraw(' ');
+X	putraw(' ');
+X	putraw('\b');
+X	putraw('\b');
+X	break;
+X
+X    case 1:			/* overstrike the ^, erase the [ */
+X	xprintf("%s", short2str(recognized_part));
+X	putraw(' ');
+X	putraw('\b');
+X	break;
+X
+X    default:			/* overstrike both Characters ^[ */
+X	xprintf("%s", short2str(recognized_part));
+X	break;
+X    }
+X    flush();
+X}
+X
+X/*
+X * Parse full path in file into 2 parts: directory and file names
+X * Should leave final slash (/) at end of dir.
+X */
+static void
+extract_dir_and_name(path, dir, name)
+X    Char   *path, *dir, *name;
+X{
+X    register Char *p;
+X
+X    p = Strrchr(path, '/');
+X    if (p == NULL) {
+X	copyn(name, path, MAXNAMLEN);
+X	dir[0] = '\0';
+X    }
+X    else {
+X	copyn(name, ++p, MAXNAMLEN);
+X	copyn(dir, path, p - path);
+X    }
+X}
+X
+static Char *
+getentry(dir_fd, looking_for_lognames)
+X    DIR    *dir_fd;
+X    int     looking_for_lognames;
+X{
+X    register struct passwd *pw;
+X    register struct dirent *dirp;
+X
+X    if (looking_for_lognames) {
+X	if ((pw = getpwent()) == NULL)
+X	    return (NULL);
+X	return (str2short(pw->pw_name));
+X    }
+X    if (dirp = readdir(dir_fd))
+X	return (str2short(dirp->d_name));
+X    return (NULL);
+X}
+X
+static void
+free_items(items)
+X    register Char **items;
+X{
+X    register int i;
+X
+X    for (i = 0; items[i]; i++)
+X	xfree((ptr_t) items[i]);
+X    xfree((ptr_t) items);
+X}
+X
+X#ifdef BSDSIGS
+X# define FREE_ITEMS(items) { \
+X	sigmask_t omask;\
+X\
+X	omask = sigblock(sigmask(SIGINT));\
+X	free_items(items);\
+X	items = NULL;\
+X	(void) sigsetmask(omask);\
+X}
+X#else
+X# define FREE_ITEMS(items) { \
+X	(void) sighold(SIGINT);\
+X	free_items(items);\
+X	items = NULL;\
+X	(void) sigrelse(SIGINT);\
+X}
+X#endif /* BSDSIGS */
+X
+X/*
+X * Perform a RECOGNIZE or LIST command on string "word".
+X */
+static int
+tsearch(word, command, max_word_length)
+X    Char   *word;
+X    int     max_word_length;
+X    COMMAND command;
+X{
+X    static Char **items = NULL;
+X    register DIR *dir_fd;
+X    register numitems = 0, ignoring = TRUE, nignored = 0;
+X    register name_length, looking_for_lognames;
+X    Char    tilded_dir[MAXPATHLEN + 1], dir[MAXPATHLEN + 1];
+X    Char    name[MAXNAMLEN + 1], extended_name[MAXNAMLEN + 1];
+X    Char   *entry;
+X
+X#define MAXITEMS 1024
+X
+X    if (items != NULL)
+X	FREE_ITEMS(items);
+X
+X    looking_for_lognames = (*word == '~') && (Strchr(word, '/') == NULL);
+X    if (looking_for_lognames) {
+X	(void) setpwent();
+X	copyn(name, &word[1], MAXNAMLEN);	/* name sans ~ */
+X	dir_fd = NULL;
+X    }
+X    else {
+X	extract_dir_and_name(word, dir, name);
+X	if (tilde(tilded_dir, dir) == 0)
+X	    return (0);
+X	dir_fd = opendir(*tilded_dir ? short2str(tilded_dir) : ".");
+X	if (dir_fd == NULL)
+X	    return (0);
+X    }
+X
+again:				/* search for matches */
+X    name_length = Strlen(name);
+X    for (numitems = 0; entry = getentry(dir_fd, looking_for_lognames);) {
+X	if (!is_prefix(name, entry))
+X	    continue;
+X	/* Don't match . files on null prefix match */
+X	if (name_length == 0 && entry[0] == '.' &&
+X	    !looking_for_lognames)
+X	    continue;
+X	if (command == LIST) {
+X	    if (numitems >= MAXITEMS) {
+X		xprintf("\nYikes!! Too many %s!!\n",
+X			looking_for_lognames ?
+X			"names in password file" : "files");
+X		break;
+X	    }
+X	    if (items == NULL)
+X		items = (Char **) xcalloc(sizeof(items[0]), MAXITEMS);
+X	    items[numitems] = (Char *) xmalloc((size_t) (Strlen(entry) + 1) *
+X					       sizeof(Char));
+X	    copyn(items[numitems], entry, MAXNAMLEN);
+X	    numitems++;
+X	}
+X	else {			/* RECOGNIZE command */
+X	    if (ignoring && ignored(entry))
+X		nignored++;
+X	    else if (recognize(extended_name,
+X			       entry, name_length, ++numitems))
+X		break;
+X	}
+X    }
+X    if (ignoring && numitems == 0 && nignored > 0) {
+X	ignoring = FALSE;
+X	nignored = 0;
+X	if (looking_for_lognames)
+X	    (void) setpwent();
+X	else
+X	    rewinddir(dir_fd);
+X	goto again;
+X    }
+X
+X    if (looking_for_lognames)
+X	(void) endpwent();
+X    else
+X	(void) closedir(dir_fd);
+X    if (numitems == 0)
+X	return (0);
+X    if (command == RECOGNIZE) {
+X	if (looking_for_lognames)
+X	    copyn(word, STRtilde, 1);
+X	else
+X	    /* put back dir part */
+X	    copyn(word, dir, max_word_length);
+X	/* add extended name */
+X	catn(word, extended_name, max_word_length);
+X	return (numitems);
+X    }
+X    else {			/* LIST */
+X	qsort((ptr_t) items, numitems, sizeof(items[0]), sortscmp);
+X	print_by_column(looking_for_lognames ? NULL : tilded_dir,
+X			items, numitems);
+X	if (items != NULL)
+X	    FREE_ITEMS(items);
+X    }
+X    return (0);
+X}
+X
+X/*
+X * Object: extend what user typed up to an ambiguity.
+X * Algorithm:
+X * On first match, copy full entry (assume it'll be the only match)
+X * On subsequent matches, shorten extended_name to the first
+X * Character mismatch between extended_name and entry.
+X * If we shorten it back to the prefix length, stop searching.
+X */
+static int
+recognize(extended_name, entry, name_length, numitems)
+X    Char   *extended_name, *entry;
+X    int     name_length, numitems;
+X{
+X    if (numitems == 1)		/* 1st match */
+X	copyn(extended_name, entry, MAXNAMLEN);
+X    else {			/* 2nd & subsequent matches */
+X	register Char *x, *ent;
+X	register int len = 0;
+X
+X	x = extended_name;
+X	for (ent = entry; *x && *x == *ent++; x++, len++);
+X	*x = '\0';		/* Shorten at 1st Char diff */
+X	if (len == name_length)	/* Ambiguous to prefix? */
+X	    return (-1);	/* So stop now and save time */
+X    }
+X    return (0);
+X}
+X
+X/*
+X * Return true if check matches initial Chars in template.
+X * This differs from PWB imatch in that if check is null
+X * it matches anything.
+X */
+static int
+is_prefix(check, template)
+X    register Char *check, *template;
+X{
+X    do
+X	if (*check == 0)
+X	    return (TRUE);
+X    while (*check++ == *template++);
+X    return (FALSE);
+X}
+X
+X/*
+X *  Return true if the Chars in template appear at the
+X *  end of check, I.e., are it's suffix.
+X */
+static int
+is_suffix(check, template)
+X    Char   *check, *template;
+X{
+X    register Char *c, *t;
+X
+X    for (c = check; *c++;);
+X    for (t = template; *t++;);
+X    for (;;) {
+X	if (t == template)
+X	    return 1;
+X	if (c == check || *--t != *--c)
+X	    return 0;
+X    }
+X}
+X
+int
+tenex(inputline, inputline_size)
+X    Char   *inputline;
+X    int     inputline_size;
+X{
+X    register int numitems, num_read;
+X    char    tinputline[BUFSIZE];
+X
+X
+X    setup_tty(ON);
+X
+X    while ((num_read = read(SHIN, tinputline, BUFSIZE)) > 0) {
+X	int     i;
+X	static Char delims[] = {' ', '\'', '"', '\t', ';', '&', '<',
+X	'>', '(', ')', '|', '^', '%', '\0'};
+X	register Char *str_end, *word_start, last_Char, should_retype;
+X	register int space_left;
+X	COMMAND command;
+X
+X	for (i = 0; i < num_read; i++)
+X	    inputline[i] = (unsigned char) tinputline[i];
+X	last_Char = inputline[num_read - 1] & ASCII;
+X
+X	if (last_Char == '\n' || num_read == inputline_size)
+X	    break;
+X	command = (last_Char == ESC) ? RECOGNIZE : LIST;
+X	if (command == LIST)
+X	    xputchar('\n');
+X	str_end = &inputline[num_read];
+X	if (last_Char == ESC)
+X	    --str_end;		/* wipeout trailing cmd Char */
+X	*str_end = '\0';
+X	/*
+X	 * Find LAST occurence of a delimiter in the inputline. The word start
+X	 * is one Character past it.
+X	 */
+X	for (word_start = str_end; word_start > inputline; --word_start)
+X	    if (Strchr(delims, word_start[-1]))
+X		break;
+X	space_left = inputline_size - (word_start - inputline) - 1;
+X	numitems = tsearch(word_start, command, space_left);
+X
+X	if (command == RECOGNIZE) {
+X	    /* print from str_end on */
+X	    print_recognized_stuff(str_end);
+X	    if (numitems != 1)	/* Beep = No match/ambiguous */
+X		beep();
+X	}
+X
+X	/*
+X	 * Tabs in the input line cause trouble after a pushback. tty driver
+X	 * won't backspace over them because column positions are now
+X	 * incorrect. This is solved by retyping over current line.
+X	 */
+X	should_retype = FALSE;
+X	if (Strchr(inputline, '\t')) {	/* tab Char in input line? */
+X	    back_to_col_1();
+X	    should_retype = TRUE;
+X	}
+X	if (command == LIST)	/* Always retype after a LIST */
+X	    should_retype = TRUE;
+X	if (should_retype)
+X	    printprompt();
+X	pushback(inputline);
+X	if (should_retype)
+X	    retype();
+X    }
+X    setup_tty(OFF);
+X    return (num_read);
+X}
+X
+static int
+ignored(entry)
+X    register Char *entry;
+X{
+X    struct varent *vp;
+X    register Char **cp;
+X
+X    if ((vp = adrof(STRfignore)) == NULL || (cp = vp->vec) == NULL)
+X	return (FALSE);
+X    for (; *cp != NULL; cp++)
+X	if (is_suffix(entry, *cp))
+X	    return (TRUE);
+X    return (FALSE);
+X}
+X#endif	/* FILEC */
+END_OF_FILE
+if test 19846 -ne `wc -c <'sh.file.c'`; then
+    echo shar: \"'sh.file.c'\" unpacked with wrong size!
+fi
+# end of 'sh.file.c'
+fi
+if test -f 'sh.sem.c' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'sh.sem.c'\"
+else
+echo shar: Extracting \"'sh.sem.c'\" \(22796 characters\)
+sed "s/^X//" >'sh.sem.c' <<'END_OF_FILE'
+X/* $Header: /home/hyperion/mu/christos/src/sys/tcsh-6.01/RCS/sh.sem.c,v 3.14 1991/12/19 22:34:14 christos Exp $ */
+X/*
+X * sh.sem.c: I/O redirections and job forking. A touchy issue!
+X *	     Most stuff with builtins is incorrect
+X */
+X/*-
+X * Copyright (c) 1980, 1991 The Regents of the University of California.
+X * All rights reserved.
+X *
+X * Redistribution and use in source and binary forms, with or without
+X * modification, are permitted provided that the following conditions
+X * are met:
+X * 1. Redistributions of source code must retain the above copyright
+X *    notice, this list of conditions and the following disclaimer.
+X * 2. Redistributions in binary form must reproduce the above copyright
+X *    notice, this list of conditions and the following disclaimer in the
+X *    documentation and/or other materials provided with the distribution.
+X * 3. All advertising materials mentioning features or use of this software
+X *    must display the following acknowledgement:
+X *	This product includes software developed by the University of
+X *	California, Berkeley and its contributors.
+X * 4. Neither the name of the University nor the names of its contributors
+X *    may be used to endorse or promote products derived from this software
+X *    without specific prior written permission.
+X *
+X * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+X * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+X * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+X * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+X * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+X * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+X * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+X * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+X * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+X * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+X * SUCH DAMAGE.
+X */
+X#include "sh.h"
+X
+RCSID("$Id: sh.sem.c,v 3.14 1991/12/19 22:34:14 christos Exp $")
+X
+X#include "tc.h"
+X
+X#ifdef FIOCLEX
+X# ifndef SUNOS4
+X#  ifndef CLEX_DUPS
+X#   define CLEX_DUPS
+X#  endif /* CLEX_DUPS */
+X# endif /* !SUNOS4 */
+X#endif /* FIOCLEX */
+X
+X#ifdef sparc
+X# include <vfork.h>
+X#endif /* sparc */
+X
+X#ifdef VFORK
+static	sigret_t	vffree	__P((int));
+X#endif 
+static	Char		*splicepipe	__P((struct command *, Char *));
+static	void		 doio		__P((struct command *, int *, int *));
+static	void		 chkclob	__P((char *));
+X
+X/*
+X * C shell
+X */
+X
+X/*
+X * For SVR4, there are problems with pipelines having the first process as
+X * the group leader.  The problem occurs when the first process exits before
+X * the others have a chance to setpgid().  This is because in SVR4 you can't
+X * have a zombie as a group leader.  The solution I have used is to reverse
+X * the order in which pipelines are started, making the last process the
+X * group leader.  (Note I am not using 'pipeline' in the generic sense -- I
+X * mean processes connected by '|'.)  I don't know yet if this causes other
+X * problems.
+X *
+X * All the changes for this are in execute(), and are enclosed in 
+X * '#ifdef BACKPIPE'
+X *
+X * David Dawes (dawes@physics.su.oz.au) Oct 1991
+X */
+X
+X/*VARARGS 1*/
+void
+execute(t, wanttty, pipein, pipeout)
+X    register struct command *t;
+X    int     wanttty, *pipein, *pipeout;
+X{
+X#if defined(convex) || defined(__convex__)
+X    extern bool use_fork;	/* use fork() instead of vfork()? */
+X#endif 
+X
+X    bool    forked = 0;
+X    struct biltins *bifunc;
+X    int     pid = 0;
+X    int     pv[2];
+X
+X#ifdef BSDSIGS
+X    static sigmask_t csigmask;
+X# ifdef VFORK
+X    static sigmask_t ocsigmask;
+X# endif /* VFORK */
+X#endif /* BSDSIGS */
+X#ifdef VFORK
+X    static int onosigchld = 0;
+X#endif /* VFORK */
+X    static int nosigchld = 0;
+X
+X    if (t == 0)
+X	return;
+X    /*
+X     * From: Michael Schroeder <mlschroe@immd4.informatik.uni-erlangen.de>
+X     * Don't check for wantty > 0...
+X     */
+X    if (t->t_dflg & F_AMPERSAND)
+X	wanttty = 0;
+X    switch (t->t_dtyp) {
+X
+X    case NODE_COMMAND:
+X	if ((t->t_dcom[0][0] & (QUOTE | TRIM)) == QUOTE)
+X	    (void) Strcpy(t->t_dcom[0], t->t_dcom[0] + 1);
+X	if ((t->t_dflg & F_REPEAT) == 0)
+X	    Dfix(t);		/* $ " ' \ */
+X	if (t->t_dcom[0] == 0)
+X	    return;
+X	/* fall into... */
+X
+X    case NODE_PAREN:
+X#ifdef BACKPIPE
+X	if (t->t_dflg & F_PIPEIN)
+X	    mypipe(pipein);
+X#else /* !BACKPIPE */
+X	if (t->t_dflg & F_PIPEOUT)
+X	    mypipe(pipeout);
+X#endif /* BACKPIPE */
+X	/*
+X	 * Must do << early so parent will know where input pointer should be.
+X	 * If noexec then this is all we do.
+X	 */
+X	if (t->t_dflg & F_READ) {
+X	    (void) close(0);
+X	    heredoc(t->t_dlef);
+X	    if (noexec)
+X		(void) close(0);
+X	}
+X
+X	set(STRstatus, Strsave(STR0));
+X
+X	/*
+X	 * This mess is the necessary kludge to handle the prefix builtins:
+X	 * nice, nohup, time.  These commands can also be used by themselves,
+X	 * and this is not handled here. This will also work when loops are
+X	 * parsed.
+X	 */
+X	while (t->t_dtyp == NODE_COMMAND)
+X	    if (eq(t->t_dcom[0], STRnice))
+X		if (t->t_dcom[1])
+X		    if (strchr("+-", t->t_dcom[1][0]))
+X			if (t->t_dcom[2]) {
+X			    setname("nice");
+X			    t->t_nice =
+X				getn(t->t_dcom[1]);
+X			    lshift(t->t_dcom, 2);
+X			    t->t_dflg |= F_NICE;
+X			}
+X			else
+X			    break;
+X		    else {
+X			t->t_nice = 4;
+X			lshift(t->t_dcom, 1);
+X			t->t_dflg |= F_NICE;
+X		    }
+X		else
+X		    break;
+X	    else if (eq(t->t_dcom[0], STRnohup))
+X		if (t->t_dcom[1]) {
+X		    t->t_dflg |= F_NOHUP;
+X		    lshift(t->t_dcom, 1);
+X		}
+X		else
+X		    break;
+X	    else if (eq(t->t_dcom[0], STRtime))
+X		if (t->t_dcom[1]) {
+X		    t->t_dflg |= F_TIME;
+X		    lshift(t->t_dcom, 1);
+X		}
+X		else
+X		    break;
+X#ifdef F_VER
+X	    else if (eq(t->t_dcom[0], STRver))
+X		if (t->t_dcom[1] && t->t_dcom[2]) {
+X		    setname("ver");
+X		    t->t_systype = getv(t->t_dcom[1]);
+X		    lshift(t->t_dcom, 2);
+X		    t->t_dflg |= F_VER;
+X		}
+X		else
+X		    break;
+X#endif  /* F_VER */
+X	    else
+X		break;
+X
+X	/* is it a command */
+X	if (t->t_dtyp == NODE_COMMAND) {
+X	    /*
+X	     * Check if we have a builtin function and remember which one.
+X	     */
+X	    bifunc = isbfunc(t);
+X 	    if (noexec) {
+X		/*
+X		 * Continue for builtins that are part of the scripting language
+X		 */
+X		if (bifunc->bfunct != (void (*)())dobreak	&&
+X		    bifunc->bfunct != (void (*)())docontin	&&
+X		    bifunc->bfunct != (void (*)())doelse	&&
+X		    bifunc->bfunct != (void (*)())doend	&&
+X		    bifunc->bfunct != (void (*)())doforeach	&&
+X		    bifunc->bfunct != (void (*)())dogoto	&&
+X		    bifunc->bfunct != (void (*)())doif	&&
+X		    bifunc->bfunct != (void (*)())dorepeat	&&
+X		    bifunc->bfunct != (void (*)())doswbrk	&&
+X		    bifunc->bfunct != (void (*)())doswitch	&&
+X		    bifunc->bfunct != (void (*)())dowhile	&&
+X		    bifunc->bfunct != (void (*)())dozip)
+X		    break;
+X	    }
+X	}
+X	else {			/* not a command */
+X	    bifunc = NULL;
+X	    if (noexec)
+X		break;
+X	}
+X
+X	/*
+X	 * We fork only if we are timed, or are not the end of a parenthesized
+X	 * list and not a simple builtin function. Simple meaning one that is
+X	 * not pipedout, niced, nohupped, or &'d. It would be nice(?) to not
+X	 * fork in some of these cases.
+X	 */
+X	/*
+X	 * Prevent forking cd, pushd, popd, chdir cause this will cause the
+X	 * shell not to change dir!
+X	 */
+X#ifdef BACKPIPE
+X	/*
+X	 * Can't have NOFORK for the tail of a pipe - because it is not the
+X	 * last command spawned (even if it is at the end of a parenthesised
+X	 * list).
+X	 */
+X	if (t->t_dflg & F_PIPEIN)
+X	    t->t_dflg &= ~(F_NOFORK);
+X#endif /* BACKPIPE */
+X	if (bifunc && (bifunc->bfunct == (void(*)())dochngd ||
+X		       bifunc->bfunct == (void(*)())dopushd ||
+X		       bifunc->bfunct == (void(*)())dopopd))
+X	    t->t_dflg &= ~(F_NICE);
+X	if (((t->t_dflg & F_TIME) || ((t->t_dflg & F_NOFORK) == 0 &&
+X	     (!bifunc || t->t_dflg &
+X	      (F_PIPEOUT | F_AMPERSAND | F_NICE | F_NOHUP)))) ||
+X	/*
+X	 * We have to fork for eval too.
+X	 */
+X	    (bifunc && (t->t_dflg & F_PIPEIN) != 0 &&
+X	     bifunc->bfunct == (void(*)())doeval))
+X#ifdef VFORK
+X	    if (t->t_dtyp == NODE_PAREN ||
+X		t->t_dflg & (F_REPEAT | F_AMPERSAND) || bifunc)
+X#endif /* VFORK */
+X	    {
+X		forked++;
+X		/*
+X		 * We need to block SIGCHLD here, so that if the process does
+X		 * not die before we can set the process group
+X		 */
+X		if (wanttty >= 0 && !nosigchld) {
+X#ifdef BSDSIGS
+X		    csigmask = sigblock(sigmask(SIGCHLD));
+X#else /* !BSDSIGS */
+X		    sighold(SIGCHLD);
+X#endif /* BSDSIGS */
+X
+X		    nosigchld = 1;
+X		}
+X
+X		pid = pfork(t, wanttty);
+X		if (pid == 0 && nosigchld) {
+X#ifdef BSDSIGS
+X		    (void) sigsetmask(csigmask);
+X#else /* !BSDSIGS */
+X		    (void) sigrelse(SIGCHLD);
+X#endif /* BSDSIGS */
+X		    nosigchld = 0;
+X		}
+X		else if (pid != 0 && (t->t_dflg & F_AMPERSAND))
+X		    backpid = pid;
+X	    }
+X
+X#ifdef VFORK
+X	    else {
+X		int     ochild, osetintr, ohaderr, odidfds;
+X		int     oSHIN, oSHOUT, oSHDIAG, oOLDSTD, otpgrp;
+X		int     oisoutatty, oisdiagatty;
+X
+X# ifndef FIOCLEX
+X		int     odidcch;
+X
+X# endif  /* !FIOCLEX */
+X# ifdef BSDSIGS
+X		sigmask_t omask;
+X# endif /* BSDSIGS */
+X
+X		/*
+X		 * Prepare for the vfork by saving everything that the child
+X		 * corrupts before it exec's. Note that in some signal
+X		 * implementations which keep the signal info in user space
+X		 * (e.g. Sun's) it will also be necessary to save and restore
+X		 * the current sigvec's for the signals the child touches
+X		 * before it exec's.
+X		 */
+X# ifdef BSDSIGS
+X
+X		/*
+X		 * Sooooo true... If this is a Sun, save the sigvec's. (Skip
+X		 * Gilbrech - 11/22/87)
+X		 */
+X#  ifdef SAVESIGVEC
+X		sigvec_t savesv[NSIGSAVED];
+X		sigmask_t savesm;
+X
+X#  endif /* SAVESIGVEC */
+X		if (wanttty >= 0 && !nosigchld && !noexec) {
+X		    csigmask = sigblock(sigmask(SIGCHLD));
+X		    nosigchld = 1;
+X		}
+X		omask = sigblock(sigmask(SIGCHLD) | sigmask(SIGINT));
+X# else /* !BSDSIGS */
+X		(void) sighold(SIGCHLD);
+X		(void) sighold(SIGINT);
+X# endif  /* !BSDSIGS */
+X		ochild = child;
+X		osetintr = setintr;
+X		ohaderr = haderr;
+X		odidfds = didfds;
+X# ifndef FIOCLEX
+X		odidcch = didcch;
+X# endif /* !FIOCLEX */
+X		oSHIN = SHIN;
+X		oSHOUT = SHOUT;
+X		oSHDIAG = SHDIAG;
+X		oOLDSTD = OLDSTD;
+X		otpgrp = tpgrp;
+X		oisoutatty = isoutatty;
+X		oisdiagatty = isdiagatty;
+X# ifdef BSDSIGS
+X		ocsigmask = csigmask;
+X# endif /* BSDSIGS */
+X		onosigchld = nosigchld;
+X		Vsav = Vdp = 0;
+X		Vexpath = 0;
+X		Vt = 0;
+X# ifdef SAVESIGVEC
+X		savesm = savesigvec(savesv);
+X# endif /* SAVESIGVEC */
+X# if defined(convex) || defined(__convex__)
+X		if (use_fork)
+X		    pid = fork();
+X		else
+X		    pid = vfork();
+X# else /* !convex && !__convex__ */
+X		pid = vfork();
+X# endif /* convex || __CONVEX__ */
+X
+X		if (pid < 0) {
+X# ifdef BSDSIGS
+X#  ifdef SAVESIGVEC
+X		    restoresigvec(savesv, savesm);
+X#  endif /* SAVESIGVEC */
+X		    (void) sigsetmask(omask);
+X# else /* !BSDSIGS */
+X		    (void) sigrelse(SIGCHLD);
+X		    (void) sigrelse(SIGINT);
+X#endif  /* BSDSIGS */
+X		    stderror(ERR_NOPROC);
+X		}
+X		forked++;
+X		if (pid) {	/* parent */
+X# ifdef BSDSIGS
+X#  ifdef SAVESIGVEC
+X		    restoresigvec(savesv, savesm);
+X#  endif /* SAVESIGVEC */
+X# endif /* BSDSIGS */
+X		    child = ochild;
+X		    setintr = osetintr;
+X		    haderr = ohaderr;
+X		    didfds = odidfds;
+X		    SHIN = oSHIN;
+X# ifndef FIOCLEX
+X		    didcch = odidcch;
+X# endif /* !FIOCLEX */
+X		    SHOUT = oSHOUT;
+X		    SHDIAG = oSHDIAG;
+X		    OLDSTD = oOLDSTD;
+X		    tpgrp = otpgrp;
+X		    isoutatty = oisoutatty;
+X		    isdiagatty = oisdiagatty;
+X# ifdef BSDSIGS
+X		    csigmask = ocsigmask;
+X# endif /* BSDSIGS */
+X		    nosigchld = onosigchld;
+X
+X		    xfree((ptr_t) Vsav);
+X		    Vsav = 0;
+X		    xfree((ptr_t) Vdp);
+X		    Vdp = 0;
+X		    xfree((ptr_t) Vexpath);
+X		    Vexpath = 0;
+X		    blkfree((Char **) Vt);
+X		    Vt = 0;
+X		    /* this is from pfork() */
+X		    palloc(pid, t);
+X# ifdef BSDSIGS
+X		    (void) sigsetmask(omask);
+X# else /* !BSDSIGS */
+X		    (void) sigrelse(SIGCHLD);
+X		    (void) sigrelse(SIGINT);
+X# endif  /* BSDSIGS */
+X		}
+X		else {		/* child */
+X		    /* this is from pfork() */
+X		    int     pgrp;
+X		    bool    ignint = 0;
+X
+X		    if (nosigchld) {
+X# ifdef BSDSIGS
+X			(void) sigsetmask(csigmask);
+X# else /* !BSDSIGS */
+X			(void) sigrelse(SIGCHLD);
+X# endif /* BSDSIGS */
+X			nosigchld = 0;
+X		    }
+X
+X		    if (setintr)
+X			ignint = (tpgrp == -1 && (t->t_dflg & F_NOINTERRUPT))
+X				|| (gointr && eq(gointr, STRminus));
+X		    pgrp = pcurrjob ? pcurrjob->p_jobid : getpid();
+X		    child++;
+X		    if (setintr) {
+X			setintr = 0;
+X# ifdef notdef
+X			(void) signal(SIGCHLD, SIG_DFL);
+X# endif 
+X/*
+X * casts made right for SunOS 4.0 by Douglas C. Schmidt
+X * <schmidt%sunshine.ics.uci.edu@ROME.ICS.UCI.EDU>
+X * (thanks! -- PWP)
+X *
+X * ignint ifs cleaned by Johan Widen <mcvax!osiris.sics.se!jw@uunet.UU.NET>
+X * (thanks again)
+X */
+X			if (ignint) {
+X			    (void) signal(SIGINT, SIG_IGN);
+X			    (void) signal(SIGQUIT, SIG_IGN);
+X			}
+X			else {
+X			    (void) signal(SIGINT,  vffree);
+X			    (void) signal(SIGQUIT, SIG_DFL);
+X			}
+X# ifdef BSDJOBS
+X			if (wanttty >= 0) {
+X			    (void) signal(SIGTSTP, SIG_DFL);
+X			    (void) signal(SIGTTIN, SIG_DFL);
+X			    (void) signal(SIGTTOU, SIG_DFL);
+X			}
+X# endif /* BSDJOBS */
+X
+X			(void) signal(SIGTERM, parterm);
+X		    }
+X		    else if (tpgrp == -1 &&
+X			     (t->t_dflg & F_NOINTERRUPT)) {
+X			(void) signal(SIGINT, SIG_IGN);
+X			(void) signal(SIGQUIT, SIG_IGN);
+X		    }
+X
+X# ifdef _SEQUENT_
+X		    /*
+X		     * On some machines (POSIX) the process group leader
+X		     * cannot be a zombie. On those machines, the following
+X		     * might help. Note that BACKPIPE will break if the
+X		     * last process exits too soon.
+X		     * (From Jaap)
+X		     */
+X		    pgetty(wanttty ? wanttty : 1, pgrp);
+X# else /* _SEQUENT_ */
+X		    pgetty(wanttty, pgrp);
+X# endif /* _SEQUENT_ */
+X
+X		    if (t->t_dflg & F_NOHUP)
+X			(void) signal(SIGHUP, SIG_IGN);
+X		    if (t->t_dflg & F_NICE)
+X# ifdef BSDNICE
+X			(void) setpriority(PRIO_PROCESS,
+X					   0, t->t_nice);
+X# else /* !BSDNICE */
+X			(void) nice(t->t_nice);
+X# endif /* BSDNICE */
+X# ifdef F_VER
+X		    if (t->t_dflg & F_VER) {
+X			Setenv(STRSYSTYPE, t->t_systype ? STRbsd43 : STRsys53);
+X			dohash(NULL, NULL);
+X		    }
+X# endif /* F_VER */
+X		}
+X
+X	    }
+X#endif /* VFORK */
+X	if (pid != 0) {
+X	    /*
+X	     * It would be better if we could wait for the whole job when we
+X	     * knew the last process had been started.  Pwait, in fact, does
+X	     * wait for the whole job anyway, but this test doesn't really
+X	     * express our intentions.
+X	     */
+X#ifdef BACKPIPE
+X	    if (didfds == 0 && t->t_dflg & F_PIPEOUT) {
+X		(void) close(pipeout[0]);
+X		(void) close(pipeout[1]);
+X	    }
+X	    if ((t->t_dflg & F_PIPEIN) != 0)
+X		break;
+X#else /* !BACKPIPE */
+X	    if (didfds == 0 && t->t_dflg & F_PIPEIN) {
+X		(void) close(pipein[0]);
+X		(void) close(pipein[1]);
+X	    }
+X	    if ((t->t_dflg & F_PIPEOUT) != 0)
+X		break;
+X#endif /* BACKPIPE */
+X
+X	    if (nosigchld) {
+X#ifdef BSDSIGS
+X		(void) sigsetmask(csigmask);
+X#else /* !BSDSIGS */
+X		(void) sigrelse(SIGCHLD);
+X#endif /* BSDSIGS */
+X		nosigchld = 0;
+X	    }
+X	    if ((t->t_dflg & F_AMPERSAND) == 0)
+X		pwait();
+X	    break;
+X	}
+X
+X	doio(t, pipein, pipeout);
+X#ifdef BACKPIPE
+X	if (t->t_dflg & F_PIPEIN) {
+X	    (void) close(pipein[0]);
+X	    (void) close(pipein[1]);
+X	}
+X#else /* !BACKPIPE */
+X	if (t->t_dflg & F_PIPEOUT) {
+X	    (void) close(pipeout[0]);
+X	    (void) close(pipeout[1]);
+X	}
+X#endif /* BACKPIPE */
+X	/*
+X	 * Perform a builtin function. If we are not forked, arrange for
+X	 * possible stopping
+X	 */
+X	if (bifunc) {
+X	    func(t, bifunc);
+X	    if (forked)
+X		exitstat();
+X	    break;
+X	}
+X	if (t->t_dtyp != NODE_PAREN) {
+X	    doexec(t);
+X	    /* NOTREACHED */
+X	}
+X	/*
+X	 * For () commands must put new 0,1,2 in FSH* and recurse
+X	 */
+X	OLDSTD = dcopy(0, FOLDSTD);
+X	SHOUT = dcopy(1, FSHOUT);
+X	isoutatty = isatty(SHOUT);
+X	SHDIAG = dcopy(2, FSHDIAG);
+X	isdiagatty = isatty(SHDIAG);
+X	(void) close(SHIN);
+X	SHIN = -1;
+X#ifndef FIOCLEX
+X	didcch = 0;
+X#endif /* !FIOCLEX */
+X	didfds = 0;
+X	wanttty = -1;
+X	t->t_dspr->t_dflg |= t->t_dflg & F_NOINTERRUPT;
+X	execute(t->t_dspr, wanttty, NULL, NULL);
+X	exitstat();
+X
+X    case NODE_PIPE:
+X#ifdef BACKPIPE
+X	t->t_dcdr->t_dflg |= F_PIPEIN | (t->t_dflg &
+X			(F_PIPEOUT | F_AMPERSAND | F_NOFORK | F_NOINTERRUPT));
+X	execute(t->t_dcdr, wanttty, pv, pipeout);
+X	t->t_dcar->t_dflg |= F_PIPEOUT |
+X	    (t->t_dflg & (F_PIPEIN | F_AMPERSAND | F_STDERR | F_NOINTERRUPT));
+X	if (wanttty > 0)
+X	    wanttty = 0;	/* got tty already */
+X	execute(t->t_dcar, wanttty, pipein, pv);
+X#else /* !BACKPIPE */
+X	t->t_dcar->t_dflg |= F_PIPEOUT |
+X	    (t->t_dflg & (F_PIPEIN | F_AMPERSAND | F_STDERR | F_NOINTERRUPT));
+X	execute(t->t_dcar, wanttty, pipein, pv);
+X	t->t_dcdr->t_dflg |= F_PIPEIN | (t->t_dflg &
+X			(F_PIPEOUT | F_AMPERSAND | F_NOFORK | F_NOINTERRUPT));
+X	if (wanttty > 0)
+X	    wanttty = 0;	/* got tty already */
+X	execute(t->t_dcdr, wanttty, pv, pipeout);
+X#endif /* BACKPIPE */
+X	break;
+X
+X    case NODE_LIST:
+X	if (t->t_dcar) {
+X	    t->t_dcar->t_dflg |= t->t_dflg & F_NOINTERRUPT;
+X	    execute(t->t_dcar, wanttty, NULL, NULL);
+X	    /*
+X	     * In strange case of A&B make a new job after A
+X	     */
+X	    if (t->t_dcar->t_dflg & F_AMPERSAND && t->t_dcdr &&
+X		(t->t_dcdr->t_dflg & F_AMPERSAND) == 0)
+X		pendjob();
+X	}
+X	if (t->t_dcdr) {
+X	    t->t_dcdr->t_dflg |= t->t_dflg &
+X		(F_NOFORK | F_NOINTERRUPT);
+X	    execute(t->t_dcdr, wanttty, NULL, NULL);
+X	}
+X	break;
+X
+X    case NODE_OR:
+X    case NODE_AND:
+X	if (t->t_dcar) {
+X	    t->t_dcar->t_dflg |= t->t_dflg & F_NOINTERRUPT;
+X	    execute(t->t_dcar, wanttty, NULL, NULL);
+X	    if ((getn(value(STRstatus)) == 0) !=
+X		(t->t_dtyp == NODE_AND))
+X		return;
+X	}
+X	if (t->t_dcdr) {
+X	    t->t_dcdr->t_dflg |= t->t_dflg &
+X		(F_NOFORK | F_NOINTERRUPT);
+X	    execute(t->t_dcdr, wanttty, NULL, NULL);
+X	}
+X	break;
+X
+X    default:
+X	break;
+X    }
+X    /*
+X     * Fall through for all breaks from switch
+X     * 
+X     * If there will be no more executions of this command, flush all file
+X     * descriptors. Places that turn on the F_REPEAT bit are responsible for
+X     * doing donefds after the last re-execution
+X     */
+X    if (didfds && !(t->t_dflg & F_REPEAT))
+X	donefds();
+X}
+X
+X#ifdef VFORK
+static sigret_t
+X/*ARGSUSED*/
+vffree(snum)
+int snum;
+X{
+X    register Char **v;
+X
+X    if (v = gargv) {
+X	gargv = 0;
+X	xfree((ptr_t) v);
+X    }
+X    if (v = pargv) {
+X	pargv = 0;
+X	xfree((ptr_t) v);
+X    }
+X    _exit(1);
+X#ifndef SIGVOID
+X    /*NOTREACHED*/
+X    return(0);
+X#endif /* SIGVOID */
+X}
+X#endif /* VFORK */
+X
+X/*
+X * Expand and glob the words after an i/o redirection.
+X * If more than one word is generated, then update the command vector.
+X *
+X * This is done differently in all the shells:
+X * 1. in the bourne shell and ksh globbing is not performed
+X * 2. Bash/csh say ambiguous
+X * 3. zsh does i/o to/from all the files
+X * 4. itcsh concatenates the words.
+X *
+X * I don't know what is best to do. I think that Ambiguous is better
+X * than restructuring the command vector, because the user can get
+X * unexpected results. In any case, the command vector restructuring 
+X * code is present and the user can choose it by setting noambiguous
+X */
+static Char *
+splicepipe(t, cp)
+X    register struct command *t;
+X    Char *cp;	/* word after < or > */
+X{
+X    Char *blk[2];
+X
+X    if (adrof(STRnoambiguous)) {
+X	Char **pv;
+X
+X	blk[0] = Dfix1(cp); /* expand $ */
+X	blk[1] = NULL;
+X
+X	gflag = 0, tglob(blk);
+X	if (gflag) {
+X	    pv = globall(blk);
+X	    if (pv == NULL) {
+X		setname(short2str(blk[0]));
+X		xfree((ptr_t) blk[0]);
+X		stderror(ERR_NAME | ERR_NOMATCH);
+X	    }
+X	    gargv = NULL;
+X	    if (pv[1] != NULL) { /* we need to fix the command vector */
+X		Char **av = blkspl(t->t_dcom, &pv[1]);
+X		xfree((ptr_t) t->t_dcom);
+X		t->t_dcom = av;
+X	    }
+X	    xfree((ptr_t) blk[0]);
+X	    blk[0] = pv[0];
+X	    xfree((ptr_t) pv);
+X	}
+X    }
+X    else {
+X	Char buf[BUFSIZE];
+X
+X	(void) Strcpy(buf, blk[1] = Dfix1(cp));
+X	xfree((ptr_t) blk[1]);
+X	blk[0] = globone(buf, G_ERROR);
+X    }
+X    return(blk[0]);
+X}
+X    
+X/*
+X * Perform io redirection.
+X * We may or maynot be forked here.
+X */
+static void
+doio(t, pipein, pipeout)
+X    register struct command *t;
+X    int    *pipein, *pipeout;
+X{
+X    register int fd;
+X    register Char *cp;
+X    register int flags = t->t_dflg;
+X
+X    if (didfds || (flags & F_REPEAT))
+X	return;
+X    if ((flags & F_READ) == 0) {/* F_READ already done */
+X	if (t->t_dlef) {
+X	    char    tmp[MAXPATHLEN+1];
+X
+X	    /*
+X	     * so < /dev/std{in,out,err} work
+X	     */
+X	    (void) dcopy(SHIN, 0);
+X	    (void) dcopy(SHOUT, 1);
+X	    (void) dcopy(SHDIAG, 2);
+X	    cp = splicepipe(t, t->t_dlef);
+X	    (void) strncpy(tmp, short2str(cp), MAXPATHLEN);
+X	    tmp[MAXPATHLEN] = '\0';
+X	    xfree((ptr_t) cp);
+X	    if ((fd = open(tmp, O_RDONLY)) < 0)
+X		stderror(ERR_SYSTEM, tmp, strerror(errno));
+X	    (void) dmove(fd, 0);
+X	}
+X	else if (flags & F_PIPEIN) {
+X	    (void) close(0);
+X	    (void) dup(pipein[0]);
+X	    (void) close(pipein[0]);
+X	    (void) close(pipein[1]);
+X	}
+X	else if ((flags & F_NOINTERRUPT) && tpgrp == -1) {
+X	    (void) close(0);
+X	    (void) open(_PATH_DEVNULL, O_RDONLY);
+X	}
+X	else {
+X	    (void) close(0);
+X	    (void) dup(OLDSTD);
+X#ifdef FIOCLEX
+X# ifdef CLEX_DUPS
+X	    /*
+X	     * PWP: Unlike Bezerkeley 4.3, FIONCLEX for Pyramid is preserved
+X	     * across dup()s, so we have to UNSET it here or else we get a
+X	     * command with NO stdin, stdout, or stderr at all (a bad thing
+X	     * indeed)
+X	     */
+X	    (void) ioctl(0, FIONCLEX, NULL);
+X# endif /* CLEX_DUPS */
+X#endif /* FIONCLEX */
+X	}
+X    }
+X    if (t->t_drit) {
+X	char    tmp[MAXPATHLEN+1];
+X
+X	cp = splicepipe(t, t->t_drit);
+X	(void) strncpy(tmp, short2str(cp), MAXPATHLEN);
+X	tmp[MAXPATHLEN] = '\0';
+X	xfree((ptr_t) cp);
+X	/*
+X	 * so > /dev/std{out,err} work
+X	 */
+X	(void) dcopy(SHOUT, 1);
+X	(void) dcopy(SHDIAG, 2);
+X	if ((flags & F_APPEND) &&
+X#ifdef O_APPEND
+X	    (fd = open(tmp, O_WRONLY | O_APPEND)) >= 0);
+X#else /* !O_APPEND */
+X	    (fd = open(tmp, O_WRONLY)) >= 0)
+X	    (void) lseek(1, (off_t) 0, L_XTND);
+X#endif /* O_APPEND */
+X	else {
+X	    if (!(flags & F_OVERWRITE) && adrof(STRnoclobber)) {
+X		if (flags & F_APPEND)
+X		    stderror(ERR_SYSTEM, tmp, strerror(errno));
+X		chkclob(tmp);
+X	    }
+X	    if ((fd = creat(tmp, 0666)) < 0)
+X		stderror(ERR_SYSTEM, tmp, strerror(errno));
+X	}
+X	(void) dmove(fd, 1);
+X	is1atty = isatty(1);
+X    }
+X    else if (flags & F_PIPEOUT) {
+X	(void) close(1);
+X	(void) dup(pipeout[1]);
+X	is1atty = 0;
+X    }
+X    else {
+X	(void) close(1);
+X	(void) dup(SHOUT);
+X	is1atty = isoutatty;
+X#ifdef FIOCLEX
+X# ifdef CLEX_DUPS
+X	(void) ioctl(1, FIONCLEX, NULL);
+X# endif /* CLEX_DUPS */
+X#endif /* FIONCLEX */
+X    }
+X
+X    (void) close(2);
+X    if (flags & F_STDERR) {
+X	(void) dup(1);
+X	is2atty = is1atty;
+X    }
+X    else {
+X	(void) dup(SHDIAG);
+X	is2atty = isdiagatty;
+X#ifdef FIOCLEX
+X# ifdef CLEX_DUPS
+X	(void) ioctl(2, FIONCLEX, NULL);
+X# endif /* CLEX_DUPS */
+X#endif /* FIONCLEX */
+X    }
+X    didfds = 1;
+X}
+X
+void
+mypipe(pv)
+X    register int *pv;
+X{
+X
+X    if (pipe(pv) < 0)
+X	goto oops;
+X    pv[0] = dmove(pv[0], -1);
+X    pv[1] = dmove(pv[1], -1);
+X    if (pv[0] >= 0 && pv[1] >= 0)
+X	return;
+oops:
+X    stderror(ERR_PIPE);
+X}
+X
+static void
+chkclob(cp)
+X    register char *cp;
+X{
+X    struct stat stb;
+X
+X    if (stat(cp, &stb) < 0)
+X	return;
+X    if (S_ISCHR(stb.st_mode))
+X	return;
+X    stderror(ERR_EXISTS, cp);
+X}
+END_OF_FILE
+if test 22796 -ne `wc -c <'sh.sem.c'`; then
+    echo shar: \"'sh.sem.c'\" unpacked with wrong size!
+fi
+# end of 'sh.sem.c'
+fi
+if test -f 'tc.bind.c' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'tc.bind.c'\"
+else
+echo shar: Extracting \"'tc.bind.c'\" \(20487 characters\)
+sed "s/^X//" >'tc.bind.c' <<'END_OF_FILE'
+X/* $Header: /home/hyperion/mu/christos/src/sys/tcsh-6.01/RCS/tc.bind.c,v 3.6 1991/12/19 21:40:06 christos Exp $ */
+X/*
+X * tc.bind.c: Key binding functions
+X */
+X/*-
+X * Copyright (c) 1980, 1991 The Regents of the University of California.
+X * All rights reserved.
+X *
+X * Redistribution and use in source and binary forms, with or without
+X * modification, are permitted provided that the following conditions
+X * are met:
+X * 1. Redistributions of source code must retain the above copyright
+X *    notice, this list of conditions and the following disclaimer.
+X * 2. Redistributions in binary form must reproduce the above copyright
+X *    notice, this list of conditions and the following disclaimer in the
+X *    documentation and/or other materials provided with the distribution.
+X * 3. All advertising materials mentioning features or use of this software
+X *    must display the following acknowledgement:
+X *	This product includes software developed by the University of
+X *	California, Berkeley and its contributors.
+X * 4. Neither the name of the University nor the names of its contributors
+X *    may be used to endorse or promote products derived from this software
+X *    without specific prior written permission.
+X *
+X * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+X * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+X * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+X * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+X * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+X * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+X * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+X * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+X * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+X * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+X * SUCH DAMAGE.
+X */
+X#include "sh.h"
+X
+RCSID("$Id: tc.bind.c,v 3.6 1991/12/19 21:40:06 christos Exp $")
+X
+X#include "ed.h"
+X#include "ed.defns.h"
+X
+static	int    str7cmp		__P((char *, char *));
+static	int    tocontrol	__P((int));
+static	char  *unparsekey	__P((int));
+static	KEYCMD getkeycmd	__P((Char **));
+static	int    parsekey		__P((Char **));
+static	void   printkey		__P((KEYCMD *, Char *));
+static	KEYCMD parsecmd		__P((Char *));
+static	Char  *parsestring	__P((Char *, Char *));
+static	void   print_all_keys	__P((void));
+static	void   printkeys	__P((KEYCMD *, int, int));
+static	void   bindkey_usage	__P((void));
+static	void   list_functions	__P((void));
+static	void   pkeys		__P((int, int));
+X
+extern int MapsAreInited;
+X
+X/* like strcmp, but comparisons are striped to 7 bits
+X   (due to shell stupidness) */
+static int
+str7cmp(a, b)
+X    register char *a, *b;
+X{
+X    while ((*a & TRIM) == (*b++ & TRIM))
+X	if (!*a++)
+X	    return (0);
+X    b--;
+X    return ((*a & TRIM) - (*b & TRIM));
+X}
+static int
+tocontrol(c)
+X    int    c;
+X{
+X    c &= CHAR;
+X    if (Islower(c))
+X	c = Toupper(c);
+X    else if (c == ' ')
+X	c = '@';
+X    if (c == '?')
+X	c = 0177;
+X    else
+X	c &= 037;
+X    return (c);
+X}
+X
+static char *
+unparsekey(c)			/* 'c' -> "c", '^C' -> "^" + "C" */
+X    register int c;
+X{
+X    register char *cp;
+X    static char tmp[10];
+X
+X    cp = tmp;
+X
+X    if (c & 0400) {
+X	*cp++ = 'A';
+X	*cp++ = '-';
+X	c &= 0377;
+X    }
+X    if ((c & META) && !(Isprint(c) || (Iscntrl(c) && Isprint(c | 0100)))) {
+X	*cp++ = 'M';
+X	*cp++ = '-';
+X	c &= ASCII;
+X    }
+X    if (Isprint(c)) {
+X	*cp++ = c;
+X	*cp = '\0';
+X	return (tmp);
+X    }
+X    switch (c) {
+X    case ' ':
+X	(void) strcpy(cp, "Spc");
+X	return (tmp);
+X    case '\n':
+X	(void) strcpy(cp, "Lfd");
+X	return (tmp);
+X    case '\r':
+X	(void) strcpy(cp, "Ret");
+X	return (tmp);
+X    case '\t':
+X	(void) strcpy(cp, "Tab");
+X	return (tmp);
+X    case '\033':
+X	(void) strcpy(cp, "Esc");
+X	return (tmp);
+X    case '\177':
+X	(void) strcpy(cp, "Del");
+X	return (tmp);
+X    default:
+X	*cp++ = '^';
+X	if (c == '\177') {
+X	    *cp++ = '?';
+X	}
+X	else {
+X	    *cp++ = c | 0100;
+X	}
+X	*cp = '\0';
+X	return (tmp);
+X    }
+X}
+X
+static  KEYCMD
+getkeycmd(sp)
+X    Char  **sp;
+X{
+X    register Char *s = *sp;
+X    register char c;
+X    register KEYCMD keycmd = F_UNASSIGNED;
+X    KEYCMD *map;
+X    int     meta = 0;
+X    Char   *ret_sp = s;
+X
+X    map = CcKeyMap;
+X
+X    while (*s) {
+X	if (*s == '^' && s[1]) {
+X	    s++;
+X	    c = tocontrol(*s++);
+X	}
+X	else
+X	    c = *s++;
+X
+X	if (*s == '\0')
+X	    break;
+X
+X	switch (map[c | meta]) {
+X	case F_METANEXT:
+X	    meta = META;
+X	    keycmd = F_METANEXT;
+X	    ret_sp = s;
+X	    break;
+X
+X	case F_XKEY:
+X	    keycmd = F_XKEY;
+X	    ret_sp = s;
+X	    /* FALLTHROUGH */
+X
+X	default:
+X	    *sp = ret_sp;
+X	    return (keycmd);
+X
+X	}
+X    }
+X    *sp = ret_sp;
+X    return (keycmd);
+X}
+X
+static int
+parsekey(sp)
+X    Char  **sp;			/* Return position of first unparsed character
+X				 * for return value -2 (xkeynext) */
+X{
+X    register int c, meta = 0, control = 0, ctrlx = 0;
+X    Char   *s = *sp;
+X    KEYCMD  keycmd;
+X
+X    if (s == NULL) {
+X	xprintf("bad key specification -- null string\n");
+X	return -1;
+X    }
+X    if (*s == 0) {
+X	xprintf("bad key specification -- empty string\n");
+X	return -1;
+X    }
+X
+X    (void) strip(s);		/* trim to 7 bits. */
+X
+X    if (s[1] == 0)		/* single char */
+X	return (s[0] & 0377);
+X
+X    if ((s[0] == 'F' || s[0] == 'f') && s[1] == '-') {
+X	if (s[2] == 0) {
+X	    xprintf("Bad function-key specification.  Null key not allowed\n");
+X	    return (-1);
+X	}
+X	*sp = s + 2;
+X	return (-2);
+X    }
+X
+X    if (s[0] == '0' && s[1] == 'x') {	/* if 0xn, then assume number */
+X	c = 0;
+X	for (s += 2; *s; s++) {	/* convert to hex; skip the first 0 */
+X	    c *= 16;
+X	    if (!Isxdigit(*s)) {
+X		xprintf("bad key specification -- malformed hex number\n");
+X		return -1;	/* error */
+X	    }
+X	    if (Isdigit(*s))
+X		c += *s - '0';
+X	    else if (*s >= 'a' && *s <= 'f')
+X		c += *s - 'a' + 0xA;
+X	    else if (*s >= 'F' && *s <= 'F')
+X		c += *s - 'A' + 0xA;
+X	}
+X    }
+X    else if (s[0] == '0' && Isdigit(s[1])) {	/* if 0n, then assume number */
+X	c = 0;
+X	for (s++; *s; s++) {	/* convert to octal; skip the first 0 */
+X	    if (!Isdigit(*s) || *s == '8' || *s == '9') {
+X		xprintf("bad key specification -- malformed octal number\n");
+X		return -1;	/* error */
+X	    }
+X	    c = (c * 8) + *s - '0';
+X	}
+X    }
+X    else if (Isdigit(s[0]) && Isdigit(s[1])) {	/* decimal number */
+X	c = 0;
+X	for (; *s; s++) {	/* convert to octal; skip the first 0 */
+X	    if (!Isdigit(*s)) {
+X		xprintf("bad key specification -- malformed decimal number\n");
+X		return -1;	/* error */
+X	    }
+X	    c = (c * 10) + *s - '0';
+X	}
+X    }
+X    else {
+X	keycmd = getkeycmd(&s);
+X
+X	if ((s[0] == 'X' || s[0] == 'x') && s[1] == '-') {	/* X- */
+X	    ctrlx++;
+X	    s += 2;
+X	    keycmd = getkeycmd(&s);
+X	}
+X	if ((*s == 'm' || *s == 'M') && s[1] == '-') {	/* meta */
+X	    meta++;
+X	    s += 2;
+X	    keycmd = getkeycmd(&s);
+X	}
+X	else if (keycmd == F_METANEXT && *s) {	/* meta */
+X	    meta++;
+X	    keycmd = getkeycmd(&s);
+X	}
+X	if (*s == '^' && s[1]) {
+X	    control++;
+X	    s++;
+X	    keycmd = getkeycmd(&s);
+X	}
+X	else if ((*s == 'c' || *s == 'C') && s[1] == '-') {	/* control */
+X	    control++;
+X	    s += 2;
+X	    keycmd = getkeycmd(&s);
+X	}
+X
+X	if (keycmd == F_XKEY) {
+X	    if (*s == 0) {
+X		xprintf("Bad function-key specification.\n");
+X		xprintf("Null key not allowed\n");
+X		return (-1);
+X	    }
+X	    *sp = s;
+X	    return (-2);
+X	}
+X
+X	if (s[1] != 0) {	/* if symbolic name */
+X	    char   *ts;
+X
+X	    ts = short2str(s);
+X	    if (!str7cmp(ts, "space") || !str7cmp(ts, "Spc"))
+X		c = ' ';
+X	    else if (!str7cmp(ts, "return") || !str7cmp(ts, "Ret"))
+X		c = '\r';
+X	    else if (!str7cmp(ts, "newline") || !str7cmp(ts, "Lfd"))
+X		c = '\n';
+X	    else if (!str7cmp(ts, "linefeed"))
+X		c = '\n';
+X	    else if (!str7cmp(ts, "tab"))
+X		c = '\t';
+X	    else if (!str7cmp(ts, "escape") || !str7cmp(ts, "Esc"))
+X		c = '\033';
+X	    else if (!str7cmp(ts, "backspace"))
+X		c = '\b';
+X	    else if (!str7cmp(ts, "delete"))
+X		c = '\177';
+X	    else {
+X		xprintf("bad key specification -- unknown name \"%s\"\n", s);
+X		return -1;	/* error */
+X	    }
+X	}
+X	else
+X	    c = *s;		/* just a single char */
+X
+X	if (control)
+X	    c = tocontrol(c);
+X	if (meta)
+X	    c |= META;
+X	if (ctrlx)
+X	    c |= 0400;
+X    }
+X    return (c & 0777);
+X}
+X
+X
+X/*ARGSUSED*/
+void
+dobindkey(v, c)
+X    Char  **v;
+X    struct command *c;
+X{
+X    KEYCMD *map;
+X    int     ntype, no, remove;
+X    Char   *par;
+X    Char    p;
+X    Char    inbuf[200];
+X    Char    outbuf[200];
+X    Char   *in;
+X    Char   *out;
+X    KEYCMD  cmd;
+X
+X    if (!MapsAreInited)
+X	ed_InitMaps();
+X
+X    map = CcKeyMap;
+X    ntype = XK_CMD;
+X    remove = 0;
+X    for (no = 1, par = v[no]; 
+X	 par != NULL && (*par++ & CHAR) == '-'; no++, par = v[no]) {
+X	if ((p = (*par & CHAR)) == '-')
+X	    break;
+X	else 
+X	    switch (p) {
+X	    case 'a':
+X		map = CcAltMap;
+X		break;
+X	    case 's':
+X		ntype = XK_STR;
+X		break;
+X	    case 'c':
+X		ntype = XK_EXE;
+X		break;
+X	    case 'r':
+X		remove = 1;
+X		break;
+X	    case 'v':
+X		ed_InitVIMaps();
+X		return;
+X	    case 'e':
+X		ed_InitEmacsMaps();
+X		return;
+X	    case 'd':
+X#ifdef VIDEFAULT
+X		ed_InitVIMaps();
+X#else /* EMACSDEFAULT */
+X		ed_InitEmacsMaps();
+X#endif /* VIDEFAULT */
+X		return;
+X	    case 'l':
+X		list_functions();
+X		return;
+X	    default:
+X		bindkey_usage();
+X		return;
+X	    }
+X    }
+X
+X    if (!v[no]) {
+X	print_all_keys();
+X	return;
+X    }
+X
+X    if ((in = parsestring(v[no++], inbuf)) == NULL)
+X	return;
+X    if (remove) {
+X	if (in[1]) {
+X	    (void) DeleteXkey(in);
+X	}
+X	else if (map[(unsigned char) *in] == F_XKEY) {
+X	    (void) DeleteXkey(in);
+X	    map[(unsigned char) *in] = F_UNASSIGNED;
+X	}
+X	else {
+X	    map[(unsigned char) *in] = F_UNASSIGNED;
+X	}
+X	return;
+X    }
+X    if (!v[no]) {
+X	printkey(map, in);
+X	return;
+X    }
+X    if (v[no + 1]) {
+X	bindkey_usage();
+X	return;
+X    }
+X    switch (ntype) {
+X    case XK_STR:
+X    case XK_EXE:
+X	if ((out = parsestring(v[no], outbuf)) == NULL)
+X	    return;
+X	AddXkey(in, XmapStr(out), ntype);
+X	map[(unsigned char) *in] = F_XKEY;
+X	break;
+X    case XK_CMD:
+X	if ((cmd = parsecmd(v[no])) == 0)
+X	    return;
+X	if (in[1]) {
+X	    AddXkey(in, XmapCmd((int) cmd), ntype);
+X	    map[(unsigned char) *in] = F_XKEY;
+X	}
+X	else {
+X	    (void) ClearXkey(map, in);
+X	    map[(unsigned char) *in] = cmd;
+X	}
+X	break;
+X    default:
+X	abort();
+X	break;
+X    }
+X}
+X
+static void
+printkey(map, in)
+X    KEYCMD *map;
+X    Char   *in;
+X{
+X    unsigned char outbuf[100];
+X    register struct KeyFuncs *fp;
+X
+X    if (in[0] == 0 || in[1] == 0) {
+X	(void) unparsestring(in, outbuf, STRQQ);
+X	for (fp = FuncNames; fp->name; fp++) {
+X	    if (fp->func == map[(unsigned char) *in]) {
+X		xprintf("%s\t->\t%s\n", outbuf, fp->name);
+X	    }
+X	}
+X    }
+X    else {
+X	(void) PrintXkey(in);
+X    }
+X}
+X
+static  KEYCMD
+parsecmd(str)
+X    Char   *str;
+X{
+X    register struct KeyFuncs *fp;
+X
+X    for (fp = FuncNames; fp->name; fp++) {
+X	if (str7cmp(short2str(str), fp->name) == 0) {
+X	    return fp->func;
+X	}
+X    }
+X    xprintf("Bad command name: %s\n", short2str(str));
+X    return 0;
+X}
+X
+int
+parseescape(ptr)
+X    Char  **ptr;
+X{
+X    Char   *p, c;
+X
+X    p = *ptr;
+X
+X    if ((p[1] & CHAR) == 0) {
+X	xprintf("Something must follow: %c\n", *p);
+X	return 0;
+X    }
+X    if ((*p & CHAR) == '\\') {
+X	p++;
+X	switch (*p & CHAR) {
+X	case 'a':
+X	    c = '\007';		/* Bell */
+X	    break;
+X	case 'b':
+X	    c = '\010';		/* Backspace */
+X	    break;
+X	case 't':
+X	    c = '\011';		/* Horizontal Tab */
+X	    break;
+X	case 'n':
+X	    c = '\012';		/* New Line */
+X	    break;
+X	case 'v':
+X	    c = '\013';		/* Vertical Tab */
+X	    break;
+X	case 'f':
+X	    c = '\014';		/* Form Feed */
+X	    break;
+X	case 'r':
+X	    c = '\015';		/* Carriage Return */
+X	    break;
+X	case 'e':
+X	    c = '\033';		/* Escape */
+X	    break;
+X	case '0':
+X	case '1':
+X	case '2':
+X	case '3':
+X	case '4':
+X	case '5':
+X	case '6':
+X	case '7':
+X	    {
+X		register int cnt, val, ch;
+X
+X		for (cnt = 0, val = 0; cnt < 3; cnt++) {
+X		    ch = *p++ & CHAR;
+X		    if (ch < '0' || ch > '7') {
+X			p--;
+X			break;
+X		    }
+X		    val = (val << 3) | (ch - '0');
+X		}
+X		if ((val & 0xffffff00) != 0) {
+X		    xprintf("Octal constant does not fit in a char.\n");
+X		    return 0;
+X		}
+X		c = val;
+X		--p;
+X	    }
+X	    break;
+X	default:
+X	    c = *p;
+X	    break;
+X	}
+X    }
+X    else if ((*p & CHAR) == '^') {
+X	p++;
+X	c = (*p == '?') ? '\177' : ((*p & CHAR) & 0237);
+X    }
+X    else
+X	c = *p;
+X    *ptr = p;
+X    return (c);
+X}
+X
+static Char *
+parsestring(str, buf)
+X    Char   *str;
+X    Char   *buf;
+X{
+X    Char   *b;
+X    Char   *p;
+X
+X    b = buf;
+X    if (*str == 0) {
+X	xprintf("Null string specification\n");
+X	return 0;
+X    }
+X
+X    for (p = str; *p != 0; p++) {
+X	if ((*p & CHAR) == '\\' || (*p & CHAR) == '^') {
+X	    if ((*b++ = parseescape(&p)) == 0)
+X		return 0;
+X	}
+X	else {
+X	    *b++ = *p & CHAR;
+X	}
+X    }
+X    *b = 0;
+X    return buf;
+X}
+X
+unsigned char *
+unparsestring(str, buf, sep)
+X    Char   *str;
+X    unsigned char *buf;
+X    Char   *sep;
+X{
+X    unsigned char *b;
+X    Char   *p;
+X
+X    b = buf;
+X    *b++ = sep[0];
+X    if (*str == 0) {
+X	*b++ = '^';
+X	*b++ = '@';
+X	*b++ = sep[1];
+X	*b++ = 0;
+X	return buf;
+X    }
+X
+X    for (p = str; *p != 0; p++) {
+X	if (Iscntrl(*p)) {
+X	    *b++ = '^';
+X	    if (*p == '\177')
+X		*b++ = '?';
+X	    else
+X		*b++ = *p | 0100;
+X	}
+X	else if (*p == '^' || *p == '\\') {
+X	    *b++ = '\\';
+X	    *b++ = *p;
+X	}
+X	else if (*p == ' ' || (Isprint(*p) && !Isspace(*p))) {
+X	    *b++ = *p;
+X	}
+X	else {
+X	    *b++ = '\\';
+X	    *b++ = ((*p >> 6) & 7) + '0';
+X	    *b++ = ((*p >> 3) & 7) + '0';
+X	    *b++ = (*p & 7) + '0';
+X	}
+X    }
+X    *b++ = sep[1];
+X    *b++ = 0;
+X    return buf;			/* should check for overflow */
+X}
+X
+static void
+print_all_keys()
+X{
+X    int     prev, i;
+X
+X    xprintf("Standard key bindings\n");
+X    prev = 0;
+X    for (i = 0; i < 256; i++) {
+X	if (CcKeyMap[prev] == CcKeyMap[i])
+X	    continue;
+X	printkeys(CcKeyMap, prev, i - 1);
+X	prev = i;
+X    }
+X    printkeys(CcKeyMap, prev, i - 1);
+X
+X    xprintf("Alternative key bindings\n");
+X    prev = 0;
+X    for (i = 0; i < 256; i++) {
+X	if (CcAltMap[prev] == CcAltMap[i])
+X	    continue;
+X	printkeys(CcAltMap, prev, i - 1);
+X	prev = i;
+X    }
+X    printkeys(CcAltMap, prev, i - 1);
+X    xprintf("Multi-character bindings\n");
+X    (void) PrintXkey(STRNULL);	/* print all Xkey bindings */
+X}
+X
+static void
+printkeys(map, first, last)
+X    KEYCMD *map;
+X    int     first, last;
+X{
+X    register struct KeyFuncs *fp;
+X    Char    firstbuf[2], lastbuf[2];
+X    unsigned char unparsbuf[10], extrabuf[10];
+X
+X    firstbuf[0] = first;
+X    firstbuf[1] = 0;
+X    lastbuf[0] = last;
+X    lastbuf[1] = 0;
+X    if (map[first] == F_UNASSIGNED) {
+X	if (first == last)
+X	    xprintf("%-15s->  is undefined\n",
+X		    unparsestring(firstbuf, unparsbuf, STRQQ));
+X	return;
+X    }
+X
+X    for (fp = FuncNames; fp->name; fp++) {
+X	if (fp->func == map[first]) {
+X	    if (first == last) {
+X		xprintf("%-15s->  %s\n",
+X			unparsestring(firstbuf, unparsbuf, STRQQ), fp->name);
+X	    }
+X	    else {
+X		xprintf("%-4s to %-7s->  %s\n",
+X			unparsestring(firstbuf, unparsbuf, STRQQ),
+X			unparsestring(lastbuf, extrabuf, STRQQ), fp->name);
+X	    }
+X	    return;
+X	}
+X    }
+X    if (map == CcKeyMap) {
+X	xprintf("BUG!!! %s isn't bound to anything.\n",
+X		unparsestring(firstbuf, unparsbuf, STRQQ));
+X	xprintf("CcKeyMap[%d] == %d\n", first, CcKeyMap[first]);
+X    }
+X    else {
+X	xprintf("BUG!!! %s isn't bound to anything.\n",
+X		unparsestring(firstbuf, unparsbuf, STRQQ));
+X	xprintf("CcAltMap[%d] == %d\n", first, CcAltMap[first]);
+X    }
+X}
+X
+static void
+bindkey_usage()
+X{
+X    xprintf(
+X	"Usage: bindkey [options] [--] [in-string [out-string | command]]\n");
+X    xprintf("    -a   bind key in alternative key binding\n");
+X    xprintf("    -s   bind an out-string instead of a command\n");
+X    xprintf("    -c   bind a unix-command instead of a command\n");
+X    xprintf("    -v   initialized maps to default vi bindings\n");
+X    xprintf("    -e   initialized maps to default emacs bindings\n");
+X    xprintf("    -d   initialized maps to default bindings\n");
+X    xprintf("    -l   list available functions with descriptions\n");
+X    xprintf("    -r   remove the binding of in-string\n");
+X    xprintf(
+X       "\nIn no out-string or command is given, the binding for in-string\n");
+X    xprintf("is printed or all bindings if in-strings is not given.\n");
+X}
+X
+static void
+list_functions()
+X{
+X    register struct KeyFuncs *fp;
+X
+X    for (fp = FuncNames; fp->name; fp++) {
+X	xprintf("%s\n          %s\n", fp->name, fp->description);
+X    }
+X}
+X
+X/*ARGSUSED*/
+void
+dobind(v, dummy)
+X    register Char **v;
+X    struct command *dummy;
+X{
+X    register int c;
+X    register struct KeyFuncs *fp;
+X    register int i, prev;
+X    Char   *p, *l;
+X    Char    buf[1000];
+X
+X    /*
+X     * Assume at this point that i'm given 2 or 3 args - 'bind', the f-name,
+X     * and the key; or 'bind' key to print the func for that key.
+X     */
+X
+X    if (!MapsAreInited)
+X	ed_InitMaps();
+X
+X    if (v[1] && v[2] && v[3]) {
+X	xprintf(
+X	   "usage: bind [KEY | COMMAND KEY | \"emacs\" | \"vi\" | \"-a\"]\n");
+X	return;
+X    }
+X
+X    if (v[1] && v[2]) {		/* if bind FUNCTION KEY */
+X	for (fp = FuncNames; fp->name; fp++) {
+X	    if (str7cmp(short2str(v[1]), fp->name) == 0) {
+X		Char   *s = v[2];
+X
+X		if ((c = parsekey(&s)) == -1)
+X		    return;
+X		if (c == -2) {	/* extented key */
+X		    for (i = 0; i < 256; i++) {
+X			if (i != 033 && (CcKeyMap[i] == F_XKEY ||
+X					 CcAltMap[i] == F_XKEY)) {
+X			    p = buf;
+X			    if (i > 0177) {
+X				*p++ = 033;
+X				*p++ = i & ASCII;
+X			    }
+X			    else {
+X				*p++ = i;
+X			    }
+X			    for (l = s; *l != 0; l++) {
+X				*p++ = *l;
+X			    }
+X			    *p = 0;
+X			    AddXkey(buf, XmapCmd(fp->func), XK_CMD);
+X			}
+X		    }
+X		    return;
+X		}
+X		if (c & 0400) {
+X		    if (VImode) {
+X			CcAltMap[c & 0377] = fp->func;	
+X			/* bind the vi cmd mode key */
+X			if (c & META) {
+X			    buf[0] = 033;
+X			    buf[1] = c & ASCII;
+X			    buf[2] = 0;
+X			    AddXkey(buf, XmapCmd(fp->func), XK_CMD);
+X			}
+X		    }
+X		    else {
+X			buf[0] = 030;	/* ^X */
+X			buf[1] = c & 0377;
+X			buf[2] = 0;
+X			AddXkey(buf, XmapCmd(fp->func), XK_CMD);
+X			CcKeyMap[030] = F_XKEY;
+X		    }
+X		}
+X		else {
+X		    CcKeyMap[c] = fp->func;	/* bind the key */
+X		    if (c & META) {
+X			buf[0] = 033;
+X			buf[1] = c & ASCII;
+X			buf[2] = 0;
+X			AddXkey(buf, XmapCmd(fp->func), XK_CMD);
+X		    }
+X		}
+X		return;
+X	    }
+X	}
+X	stderror(ERR_NAME | ERR_STRING, "Invalid function");
+X    }
+X    else if (v[1]) {
+X	char   *cv = short2str(v[1]);
+X
+X	if (str7cmp(cv, "list") == 0) {
+X	    for (fp = FuncNames; fp->name; fp++) {
+X		xprintf("%s\n", fp->name);
+X	    }
+X	    return;
+X	}
+X	if ((str7cmp(cv, "emacs") == 0) ||
+X#ifndef VIDEFAULT
+X	    (str7cmp(cv, "defaults") == 0) ||
+X	    (str7cmp(cv, "default") == 0) ||
+X#endif
+X	    (str7cmp(cv, "mg") == 0) ||
+X	    (str7cmp(cv, "gnumacs") == 0)) {
+X	    /* reset keys to default */
+X	    ed_InitEmacsMaps();
+X#ifdef VIDEFAULT
+X	}
+X	else if ((str7cmp(cv, "vi") == 0)
+X		 || (str7cmp(cv, "default") == 0)
+X		 || (str7cmp(cv, "defaults") == 0)) {
+X#else
+X	}
+X	else if (str7cmp(cv, "vi") == 0) {
+X#endif
+X	    ed_InitVIMaps();
+X	}
+X	else {			/* want to know what this key does */
+X	    Char   *s = v[1];
+X
+X	    if ((c = parsekey(&s)) == -1)
+X		return;
+X	    if (c == -2) {	/* extended key */
+X		(void) PrintXkey(s);
+X		return;
+X	    }
+X	    pkeys(c, c);	/* must be regular key */
+X	}
+X    }
+X    else {			/* list all the bindings */
+X	prev = 0;
+X	for (i = 0; i < 256; i++) {
+X	    if (CcKeyMap[prev] == CcKeyMap[i])
+X		continue;
+X	    pkeys(prev, i - 1);
+X	    prev = i;
+X	}
+X	pkeys(prev, i - 1);
+X	prev = 0;
+X	for (i = 256; i < 512; i++) {
+X	    if (CcAltMap[prev & 0377] == CcAltMap[i & 0377])
+X		continue;
+X	    pkeys(prev, i - 1);
+X	    prev = i;
+X	}
+X	pkeys(prev, i - 1);
+X	(void) PrintXkey(STRNULL);	/* print all Xkey bindings */
+X    }
+X    return;
+X}
+X
+static void
+pkeys(first, last)
+X    register int first, last;
+X{
+X    register struct KeyFuncs *fp;
+X    register KEYCMD *map;
+X    char    buf[8];
+X
+X    if (last & 0400) {
+X	map = CcAltMap;
+X	first &= 0377;
+X	last &= 0377;
+X    }
+X    else {
+X	map = CcKeyMap;
+X    }
+X    if (map[first] == F_UNASSIGNED) {
+X	if (first == last)
+X	    xprintf(" %s\t\tis undefined\n",
+X		    unparsekey(map == CcAltMap ? first | 0400 : first));
+X	return;
+X    }
+X
+X    for (fp = FuncNames; fp->name; fp++) {
+X	if (fp->func == map[first]) {
+X	    if (first == last) {
+X		xprintf(" %s\t\t%s\n",
+X		    unparsekey((first & 0377) | (map == CcAltMap ? 0400 : 0)),
+X			fp->name);
+X	    }
+X	    else {
+X		(void) strcpy(buf, unparsekey((first & 0377) |
+X					      (map == CcAltMap ? 0400 : 0)));
+X		xprintf(" %s..%s\t\t%s\n", buf,
+X		     unparsekey((last & 0377) | (map == CcAltMap ? 0400 : 0)),
+X			fp->name);
+X	    }
+X	    return;
+X	}
+X    }
+X    if (map == CcKeyMap) {
+X	xprintf("BUG!!! %s isn't bound to anything.\n", unparsekey(first));
+X	xprintf("CcKeyMap[%d] == %d\n", first, CcKeyMap[first]);
+X    }
+X    else {
+X	xprintf("BUG!!! %s isn't bound to anything.\n",
+X		unparsekey(first & 0400));
+X	xprintf("CcAltMap[%d] == %d\n", first, CcAltMap[first]);
+X    }
+X}
+END_OF_FILE
+if test 20487 -ne `wc -c <'tc.bind.c'`; then
+    echo shar: \"'tc.bind.c'\" unpacked with wrong size!
+fi
+# end of 'tc.bind.c'
+fi
+echo shar: End of archive 9 \(of 18\).
+cp /dev/null ark9isdone
+MISSING=""
+for I in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 ; do
+    if test ! -f ark${I}isdone ; then
+	MISSING="${MISSING} ${I}"
+    fi
+done
+if test "${MISSING}" = "" ; then
+    echo You have unpacked all 18 archives.
+    rm -f ark[1-9]isdone ark[1-9][0-9]isdone
+else
+    echo You still need to unpack the following archives:
+    echo "        " ${MISSING}
+fi
+##  End of shell archive.
+exit 0

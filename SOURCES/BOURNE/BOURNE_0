@@ -1,0 +1,2673 @@
+Relay-Version: version B 2.10.3 4.3bsd-beta 6/6/85; site seismo.UUCP
+Posting-Version: version B 2.10.2 9/3/84; site genrad.UUCP
+Path: seismo!harvard!talcott!panda!grkermi!genrad!sources-request
+From: sources-request@genrad.UUCP
+Newsgroups: mod.sources
+Subject: Bourne shell history + tilde + job control + more (Part 1 of 9)
+Message-ID: <879@genrad.UUCP>
+Date: 9 Jun 85 15:05:46 GMT
+Sender: john@genrad.UUCP
+Lines: 2661
+Approved: john@genrad.UUCP
+
+From: Arnold Robbins <gatech!arnold>
+
+This and the following eight postings consist of files and context diffs
+to add many long-desired features into the Bourne shell. The details of
+the new features are listed below in README.gt.sh.  This is a list of
+what each article contains
+
+Part 1	-- README.gt.sh, new .c files needed for the shell, miscellany
+
+Part 2	-- Context diffs of C code for 4.2 BSD /bin/sh
+Part 3	-- Context diffs of C code for 4.2 BSD /bin/sh
+Part 4	-- Context diffs of sh.1 for 4.2 BSD /bin/sh
+
+Part 5	-- Context diffs of C code for System V Release 2 /bin/sh
+Part 6	-- Context diffs of C code for System V Release 2 /bin/sh
+Part 7	-- Context diffs of sh.1 for System V Release 2 /bin/sh
+
+Part 8	-- Context diffs of C code for BRL Unix /usr/5bin/sh
+Part 9	-- Context diffs of sh.1 for BRL Unix /usr/5bin/sh
+
+I am sorry that there are so many articles; I had to do it this way to
+insure that each one would be less that 64K in size.
+
+Arnold Robbins
+arnold@gatech.{CSNET, UUCP}
+------------------ tear along perforations ------------
+#!/bin/sh
+# This is a shell archive, meaning:
+# 1. Remove everything above the #!/bin/sh line.
+# 2. Save the resulting text in a file.
+# 3. Execute the file with /bin/sh (not csh) to create the files:
+#	README.gt.sh
+#	Bugs
+#	signal.c
+#	ulimit.c
+#	jobs.c
+#	homedir.c
+#	history.c
+#	sample.shrc
+#	aliases.sh
+# This archive created: Fri Jun  7 13:49:23 1985
+# By:	Arnold Robbins (Pr1mebusters!)
+export PATH; PATH=/bin:$PATH
+echo shar: extracting "'README.gt.sh'" '(7022 characters)'
+if test -f 'README.gt.sh'
+then
+	echo shar: over-writing existing file "'README.gt.sh'"
+fi
+cat << \SHAR_EOF > 'README.gt.sh'
+README.gt.sh --- README file for Georgia Tech mods to the shell
+
+This and the following eight postings should be all you need to add the
+following features to the Bourne shell:
+
+1.  BSD style job control on Berkeley Systems. Code to outwit symbolic
+    links for shells which have 'pwd' built in.  Also code to print a
+    resource usage summary after every command on BSD systems.  These are
+    courtesy of the folks at BRL, who gave me permission to post their
+    code.
+
+2.  The ability to catch Control-D's, and force you to use "exit", also
+    courtesy of BRL.  This will work whether or not you are on a BSD system.
+
+3.  The <> I/O redirecter is now documented, and also works (courtesy of
+    ihnp4!trwrb!lcc!brian's recent posting in net.unix-wizards).
+
+4.  The shell parameter $+ gives you the parent process id of the shell.
+    It will track the value of the getppid() system call.
+
+5.  The shell will read in $HOME/.shrc on startup, if that file exists.
+    This file is read *after* /etc/profile and $HOME/.profile (unlike the
+    csh, which readc ~/.cshrc before ~/.login).
+
+6.  The ~ and ~person notation is understood, both for command line arguments,
+    and in the PATH and CDPATH shell variables.
+ 
+7.  Special sequences in PS1 (the shell's prompt string) will print useful
+    info at the prompt.  Currently, you can get or all or some or none of:
+	the time of day
+	your current directory (if the shell has pwd is built in)
+	your machine's hostname
+	your login name
+	the current 'event' number for the ...
+
+8.  History mechanism.  The history mechanism is powerful, yet easy to use.
+    Although different from the csh's, it is somewhat more general and
+    orthogonal.  The shell will save history across login sessions,
+    automatically restoring on login, and saving on exit or on the exec builtin.
+
+On a Pyramid, the shell has some additional capabilities:
+
+9.  The 'att', 'ucb' and 'universe' commands are built in.
+
+10. The $UNIVERSE shell variable tracks the current universe.
+
+11. An additional sequence for the prompt to print the current universe.
+
+*****************
+
+I am posting diffs for the versions of the Bourne shell listed below.
+Here are the instructions for setting up the makefile for each shell,
+depending on your target machine and OS.  For all versions, you will need
+the files history.c and homedir.c; these have been added to the makefile,
+but will only be posted once.
+
+It will help if you have the 'patch' program.  It was just reposted around
+the middle of May, 1985 (Version 1.3). If you don't have it, someone at your
+site or someone you know probably does.
+
+First, unshar this article.  You wil have the following files:
+
+README.gt.sh		# this file
+Bugs			# some known bugs in what I've added
+signal.c		# courtesy of BRL
+ulimit.c		# courtesy of BRL
+jobs.c			# courtesy of BRL
+homedir.c
+history.c
+sam leshrc
+aliases.sh
+
+Next, make a new directory, and copy the source for the version of the shell
+that you are going to modify, into it.
+Copy the *unformatted* man page for that shell into the directory also.
+Move history.c and homedir.c into the directory.
+
+Find which version of the shell you have, and follow the supplementary
+instructions below.
+
+1. The Berkeley /bin/sh as distributed with 4.2, for 4.2BSD.
+	Add the files signal.c and jobs.c to the directory.
+	Get parts 2, 3 and 4, and run patch on them.
+	Run make.
+
+	On a Pyramid, follow the previous paragraph but don't run make yet.
+	First, make sure you are in the 'ucb' universe.
+	Remove all references to signal.c and signal.o from the makefile.
+	Now run make.
+
+2. The System V Release 2 shell as distributed from ATT (for the vax).
+	On System V systems, the job stuff is conditionally compiled in.
+	Get parts 5, 6, and 7, and run patch on them.
+	Remove the -DJOBS and all references to signal.c, ulimit.c,
+	jobs.c, and their .o files, from the makefile (sh.mk).
+	Run make (make -f sh.mk).
+	The sh.1 file will need editing to remove any reference to the 'J'
+	flag, the 'I' flag, and to all the job control features.
+
+	On BSD systems, copy signal.c, ulimit.c, and jobs.c into the directory.
+	Get parts 5, 6, and 7, and run patch on them.
+	Run make. (make -f sh.mk)
+
+	On a Pyramid, copy ulimit.c, and jobs.c into the directory.
+	Run patch.  Remove signal.o and signal.c from the makefile,
+	and the testing for u370 for xec.c. Be sure to be in the ucb
+	universe, and then run make. (make -f sh.mk)
+
+3. The System V Release 2 shell as modified at BRL, for BRL Unix.
+	Get parts 8 and 9, and run patch on them.
+
+	There are two ways to compile this version under BRL Unix.
+
+	A. Use the standard BSD make and cc. In this case, all you will need
+	   is history.c and homedir.c.  Run make.
+
+	B. Use the System V emulation, /usr/5bin/make and /usr/5bin/cc.
+	   In this case, make sure your PATH is set properly. Remove the
+	   -DBSD from the makefile, and also any references to signal.c,
+	   and ulimit.c, and their .o files.  Now run /usr/5bin/make.
+	
+	On a Pyramid, run patch.  Edit the makefile to exclude signal.c
+	and signal.o.  Be sure to be in the ucb universe, and then run make.
+
+**********
+
+Aliases.sh is a bunch of useful shell functions --- only of value for one
+or the other of the System V Release 2 Versions of the shell.
+
+Sam .shrc is a samle .shrc file.  In particular, it gives you some
+compatibility with the Korn shell.  It sets PPID=$+, and if the ENV
+environment variable is set to a file name, it will source that file
+(that is how the ksh does ~/.shrc).
+
+If you want job control to be turned on automatically (on a BSD system),
+add the line
+	set -J
+to /etc/profile (or /usr/5lib/profile, depending).  This will turn job
+control on for login shells.
+
+***************************************
+
+I have tested the shells on the following systems:
+
+		Vax (BRL Unix) |  Pyramid  | 3B2 (S5R2)  | 3B20A (S5R2)
+BSD shell		x	     x
+S5R2 shell		x	     x		x		x
+BRL/S5R2 shell		x	     x		x
+
+As should be clear from the above table, I have only had access to four
+different kinds of machines.  If you are running on some other kind of
+hardware, and/or another flavor of Unix (V7, Xenix, Perkin Elmer, whatever),
+and you successfully add these mods to the shell,  ase let me know.  Also
+send me any diff listings you may have had to generate.  I am particularly
+interested to know if it will still fit on a PDP-11.
+
+***************************************
+
+Please don't send me any flames to the effect "You should use the C-shell".
+Here is a case where I can have my cake and eat it too, and this should be
+a big win for peo  who only have System V and don't have the ksh.
+
+I hope that these modifications to the shell help to meet a need out there
+in the real world.  If you find any bugs, please let me know.
+
+Arnold Robbins
+CSNET:	arnold@gatech	ARPA:	arnold%gatech.csnet@csnet-relay.arpa
+UUCP:	{ akgua, allegra, hplabs, ihnp4, seismo, ut-sally }!gatech!arnold
+
+School of Information and Computer Science
+Georgia Institute of Technology
+225 North Avenue, N.W.
+Atlanta, Georgia  30332
+(404) 894-3658
+SHAR_EOF
+echo shar: extracting "'Bugs'" '(2013 characters)'
+if test -f 'Bugs'
+then
+	echo shar: over-writing existing file "'Bugs'"
+fi
+cat << \SHAR_EOF > 'Bugs'
+Bugs -- known problems in the shell.
+
+The "suspend" built-in command is *very* naive.  E.g. cranking up a
+subshell from vi, and then suspending it, will leave you sort of in limbo.
+A control-Z will then suspend the vi.  Then a 'fg' command foregrounds the
+stopped sub-shell. Control-D'ing the subshell puts you back in vi.
+
+If the shell is being run from a terminal, and you interrupt it in the
+middle of doing a here document (cat << FOO ..., interrupt before the FOO),
+then if history was turned on, you will be left with history turned off.
+Use set +H to turn it back on.
+
+I do not have access to a PDP-11, so there will probably be problems
+trying to move this stuff to a small address space machine.  Let me know
+what you encounter, and I will encorporate any diffs that peo  send back
+to me.
+
+A recent posting in net.micro.att indicated that the Unix PC's window
+manager uses $HOME/.history to save things. This is also the default for
+where this history mechanism keeps things -- change the value of HISTFILE in
+your .profile to be something different, and export it, if you're on a Unix PC.
+
+****************
+
+There are probably bugs in the code I have added to the shell.
+I think I have caught everything, but I can't guarantee.  If you discover
+any problems,  ase let me know, so that I can track them down and fix
+them.
+
+I regard this as a "first iteration."  In other words, I will not be suprised
+if there are bugs.  I am counting on the net to be friendly enough to let
+me know about any that may be discovered.  I am also oen to suggestions for
+other fixes or additions to the shell.  As things come in to me, I will
+incorporate what I can, and hopefully post a new set of revisions.
+
+Meanwhile, enjoy!
+
+Arnold Robbins
+CSNET:	arnold@gatech	ARPA:	arnold%gatech.csnet@csnet-relay.arpa
+UUCP:	{ akgua, allegra, hplabs, ihnp4, seismo, ut-sally }!gatech!arnold
+
+School of Information and Computer Science
+Georgia Institute of Technology
+225 North Avenue, N.W.
+Atlanta, Georgia  30332
+(404) 894-3658
+SHAR_EOF
+echo shar: extracting "'signal.c'" '(3896 characters)'
+if test -f 'signal.c'
+then
+	echo shar: over-writing existing file "'signal.c'"
+fi
+cat << \SHAR_EOF > 'signal.c'
+/*
+	signal -- old system call emulation for 4.2BSD (VAX version)
+		(adapted from BRL UNIX System V emulation for 4.2BSD)
+
+	last edit:	25-Aug-1984	D A Gwyn
+
+	NOTE:  Although this module is VAX-specific, it should be
+	possible to adapt it to other fairly clean im mentations of
+	4.2BSD.  The difficulty lies in avoiding the automatic restart
+	of certain system calls when the signal handler returns.  I use
+	here a trick first described by Donn Seeley of UCSD Chem. Dept.
+*/
+
+#include	<errno.h>
+#include	<signal.h>
+#include	<syscall.h>
+
+extern int	sigvec();
+extern int	sigsetmask();
+
+extern		etext;
+extern int	errno;
+
+static int	(*handler[NSIG])() =	/* "current handler" memory */
+	{
+	BADSIG				/* initially, unknown state */
+	};
+static int	inited = 0;		/* for initializing above */
+
+static int	catchsig();
+static int	ret_eintr();
+
+int	(*
+signal( sig, func )			/* returns previous handler */
+	)()
+	register int	sig;		/* signal affected */
+	register int	(*func)();	/* new handler */
+	{
+	register int	(*retval)();	/* previous handler value */
+	struct sigvec	oldsv;		/* previous state */
+	struct sigvec	newsv;		/* state being set */
+
+	if ( func >= (int (*)())&etext )	/* "lint" hates this */
+		{
+		errno = EFAULT;
+		return BADSIG;		/* error */
+		}
+
+	/* cancel pending signals */
+	newsv.sv_handler = SIG_IGN;
+	newsv.sv_mask = newsv.sv_onstack = 0;
+	if ( sigvec( sig, &newsv, &oldsv ) != 0 )
+		return BADSIG;		/* error */
+
+	/* C language provides no good way to initialize handler[] */
+	if ( !inited )			/* once only */
+		{
+		register int	i;
+
+		for ( i = 1; i < NSIG; ++i )
+			handler[i] = BADSIG;	/* initialize */
+
+		++inited;
+		}
+
+	/* the first time for this sig, get state from the system */
+	if ( (retval = handler[sig-1]) == BADSIG )
+		retval = oldsv.sv_handler;
+
+	handler[sig-1] = func;	/* keep track of state */
+
+	if ( func == SIG_DFL )
+		newsv.sv_handler = SIG_DFL;
+	else if ( func != SIG_IGN )
+		newsv.sv_handler = catchsig;	/* actual sig catcher */
+
+	if ( func != SIG_IGN		/* sig already being ignored */
+	  && sigvec( sig, &newsv, (struct sigvec *)0 ) != 0
+	   )
+		return BADSIG;		/* error */
+
+	return retval;			/* previous handler */
+	}
+
+
+/* # bytes to skip at the beginning of C ret_eintr() function code: */
+#define	OFFSET	2			/* for VAX .word reg_mask */
+
+/* PC will be pointing at a syscall if it is to be restarted: */
+typedef unsigned char	opcode;		/* one byte long */
+#define	SYSCALL		((opcode)0xBC)	/* VAX CHMK instruction */
+#define	IMMEDIATE	((opcode)0x8F)	/* VAX immediate addressing */
+
+
+/*ARGSUSED*/
+static int
+catchsig( sig, code, scp )		/* signal interceptor */
+	register int		sig;	/* signal number */
+	int			code;	/* code for SIGILL, SIGFPE */
+	register struct sigcontext	*scp;	/* -> interrupted context */
+	{
+	register int		(*uhandler)();	/* user handler */
+	register ocode		*pc;	/* for snooing instructions */
+	struct sigvec		newsv;	/* state being set */
+
+	/* at this point, sig is blocked */
+
+	uhandler = handler[sig - 1];
+
+	/* most UNIXes usually want the state reset to SIG_DFL */
+	if ( sig != SIGILL && sig != SIGTRAP )
+		{
+		handler[sig-1] = newsv.sv_handler = SIG_DFL;
+		newsv.sv_mask = newsv.sv_onstack = 0;
+		(void)sigvec( sig, &newsv, (struct sigvec *)0 );
+		}
+
+	(void)sigsetmask( scp->sc_mask );	/* restore old mask */
+
+	/* at this point, sig is not blocked, usually have SIG_DFL;
+	   a longjmp may safely be taken by the user signal handler */
+
+	(void)(*uhandler)( sig );	/* user signal handler */
+
+	/* must now avoid restarting certain system calls */
+	pc = (opcode *)scp->sc_pc;
+	if ( *pc++ == SYSCALL
+	  && (*pc == SYS_read || *pc == SYS_write || *pc == SYS_ioctl
+	   || *pc++ == IMMEDIATE
+	   && (*pc == SYS_wait || *pc == SYS_readv || *pc == SYS_writev)
+	     )
+	   )
+		scp->sc_pc = (int)ret_eintr + OFFSET;
+
+	/* return here restores interrupted context */
+	}
+
+
+static int
+ret_eintr()				/* substitute for system call */
+{
+	errno = EINTR;
+	return -1;
+}
+SHAR_EOF
+echo shar: extracting "'ulimit.c'" '(855 characters)'
+if test -f 'ulimit.c'
+then
+	echo shar: over-writing existing file "'ulimit.c'"
+fi
+cat << \SHAR_EOF > 'ulimit.c'
+/*
+	ulimit -- system call emulation for Bourne shell on 4.2BSD
+
+	last edit:	22-Aug-1983	D A Gwyn
+*/
+
+#include	<errno.h>
+
+extern int	getrlimit(), setrlimit();
+extern int	errno;
+
+long
+ulimit( cmd, newlimit )
+	int	cmd;			/* subcommand */
+	long	newlimit;		/* desired new limit */
+	{
+	struct	{
+		long	rlim_cur;
+		long	rlim_max;
+		}	limit;		/* data being gotten/set */
+
+	switch ( cmd )
+		{
+	case 1: 			/* get file size limit */
+		if ( getrlimit( 1, &limit ) != 0 )
+			return -1L;	/* errno is already set */
+		return limit.rlim_max / 512L;
+
+	case 2: 			/* set file size limit */
+		limit.rlim_cur = limit.rlim_max = newlimit * 512L;
+		return setrlimit( 1, &limit );
+
+	case 3: 			/* get maximum break value */
+		if ( getrlimit( 2, &limit ) != 0 )
+			return -1L;	/* errno is already set */
+		return limit.rlim_max;
+
+	default:
+		errno = EINVAL;
+		return -1L;
+		}
+	}
+SHAR_EOF
+echo shar: extracting "'jobs.c'" '(11717 characters)'
+if test -f 'jobs.c'
+then
+	echo shar: over-writing existing file "'jobs.c'"
+fi
+cat << \SHAR_EOF > 'jobs.c'
+/*
+ *  JOBS.C -- job control for Bourne shell
+ *
+ *  created by Ron Natalie, BRL
+ *  slight changes by Doug Gwyn
+ *  some more slight changes by Arnold Robbins (mainly for the BSD /bin/sh)
+ */
+
+#include "defs.h"
+#include "sym.h"
+
+#ifndef TAB	/* very original, early /bin/sh */
+#include <signal.h>
+#define comptr(x)	((COMPTR) x)
+#define lstptr(x)	((LSTPTR) x)
+#define forkptr(x)	((FORKPTR) x)
+#define parptr(x)	((PARPTR) x)
+#define forptr(x)	((FORPTR) x)
+#define whptr(x)	((WHPTR) x)
+#define ifptr(x)	((IFPTR) x)
+#define swptr(x)	((SWPTR) x)
+#endif
+
+#if BSD || (JOBS && ! BRL)	/* native /bin/sh */
+#include <sys/ioctl.h>
+#else	/* /usr/5bin/sh */
+#include	<sys/_ioctl.h>
+#define	ioctl	_ioctl
+#define	killpg	_killpg
+#define	setpgrp	_setpgrp
+#define	TIOCSETD	_IOW( 't', 1, int )
+#define	TIOCSPGRP	_IOW( 't', 118, int )
+#define	NTTYDISC	2
+#endif
+
+#define	NJCH	30
+#define	JCOMSIZE 50
+static struct	j_child  {
+	int	j_pgid;
+	int	j_status;
+	int	j_info;
+	char	j_com[JCOMSIZE];
+	int	j_jobnum;
+} j_children[NJCH];
+
+static int	j_number = 1;
+static int	j_current = 0;
+
+#define	JEMPTY	0
+#define	JALIVE	1
+#define	JSTOP	2
+#define	JBG	3
+
+BOOL		j_top_level = TRUE;
+int		j_default_pg = 0;
+int		j_original_pg = 0;
+static int	j_last_pgrp = 0;
+static int	j_do(), j_getnumber(), j_stuff();
+static void	j_backoff(), j_print_ent(), j_really_reset_pg(), j_setcommand();
+	
+j_child_post(p, bg, pin, t)
+	int		p;
+	int		bg;
+	register int	pin;
+	struct trenod	***t;
+{
+	register struct j_child *j = j_children;
+
+	if((flags & jobflg) == 0)
+		return;
+	if(!j_top_level)
+		return;
+
+	if(!pin)  {
+		setpgrp(p, );
+		j_last_pgrp = p;
+		if(!bg)  {
+			ioctl(1, TIOCSPGRP, &p);
+			setpgrp(0, );
+		}
+	}
+	else
+		setpgrp(p, j_last_pgrp);
+
+	for(j=j_children; j < &j_children[NJCH]; j++)  {
+		if(pin && j->j_pgid == j_last_pgrp)  {
+			j_setcommand(j, t);
+			return;
+		}
+
+		if(!pin &&j->j_status == JEMPTY)  {
+			j->j_com[0] = 0;
+			j->j_status = bg ? JBG : JALIVE;
+			j->j_pgid = p;
+			j_setcommand(j, t);
+			if(bg)  {
+				post(p);
+				j->j_jobnum = j_getnumber();
+				j_print_ent(j);
+			}
+			else
+				j->j_jobnum = 0;
+			return;
+		}
+	}
+	prn(p);
+	prs(cjpostr);			/* DAG -- made strings sharable */
+}
+
+j_child_clear(p)
+	register int	p;
+{
+	register struct j_child *j = j_children;
+
+	if(p == 0 || p == -1)
+		return;
+
+	for(; j < &j_children[NJCH]; j++)
+		if(j->j_status == JALIVE && j->j_pgid == p)  {
+			j->j_status = JEMPTY;
+			if(j->j_jobnum && j->j_jobnum == j_current)
+				j_backoff();
+			break;
+		}
+}
+
+j_child_sto(p, sig)
+	register int	p;
+	int		sig;
+{
+	register struct j_child *j = j_children; 
+
+	for(; j < &j_children[NJCH]; j++)
+		if((j->j_status == JALIVE || j->j_status == JBG) && j->j_pgid == p)  {
+			j->j_status = JSTOP;
+			j->j_info = sig;
+			if(j->j_jobnum == 0)
+				j->j_jobnum = j_getnumber();
+			j_current = j->j_jobnum;
+			prc(NL);
+			j_print_ent(j);
+			fault(SIGSTOP);
+			break;
+		}
+}
+
+j_child_die(p)
+	register int	p;
+{
+	register struct j_child *j = j_children; 
+
+	if(p == 0 || p == -1)
+		return;
+
+	for(; j < &j_children[NJCH]; j++)
+		if( j->j_status != JEMPTY && j->j_pgid == p)  {
+			j->j_status = JEMPTY;
+			if(j->j_jobnum && j->j_jobnum == j_current)
+				j_backoff();
+			break;
+		}
+}
+
+j_print()
+{
+	register struct j_child *j = j_children; 
+
+	if((flags & jobflg) == 0)  {
+		prs(jcoffstr);		/* DAG */
+		return;
+	}
+
+	await(-2, 1);
+	for(; j < &j_children[NJCH]; j++)
+		j_print_ent(j);
+}
+
+static void
+j_print_ent(j)
+	register struct j_child *j;
+{
+	if(j->j_status == JEMPTY)
+		return;
+
+	if(j->j_jobnum == 0) {
+		prs(jpanstr);		/* DAG */
+		prn(j->j_pgid);
+		prc(NL);
+	}
+	prc('[');
+	prn(j->j_jobnum);
+	prs(rsqbrk);			/* DAG */
+	if(j_current == j->j_jobnum)
+		prs(execpmsg);		/* DAG */
+	else
+		prs(spspstr);		/* DAG */
+	prn(j->j_pgid);
+	prc(' ');
+
+	switch(j->j_status)  {
+	case JALIVE:
+		prs(fgdstr);		/* DAG */
+		break;
+	case JSTOP:
+		prs(stpdstr);		/* DAG */
+		switch(j->j_info)  {
+		case SIGTSTP:
+			prs(lotspstr);	/* DAG */
+			break;
+		case SIGSTOP:
+			prs(psgpstr);	/* DAG */
+			break;
+		case SIGTTIN:
+			prs(ptinstr);	/* DAG */
+			break;
+		case SIGTTOU:
+			prs(ptoustr);	/* DAG */
+			break;
+		}
+		break;
+	case JBG:
+		prs(bgdstr);		/* DAG */
+		break;
+	}
+	prc(' ');
+	prs(j->j_com);
+	prc(NL);
+}
+
+j_resume(cp, bg)
+	char	*cp;
+	BOOL	bg;
+{
+	register struct j_child *j = j_children; 
+	int	p;
+	
+	if((flags & jobflg) == 0)  {
+		prs(jcoffstr);		/* DAG */
+		return;
+	}
+
+	if(cp)  {
+		p = atoi(cp);
+		if(p == 0)  {
+			prs(jinvstr);	/* DAG */
+			return;
+		}
+	}
+	else
+		p = 0;
+		
+	await(-2, 1);
+	if(p == 0 && j_current == 0)  {
+		prs(ncjstr);		/* DAG */
+		return;
+	}
+
+	for(; j < &j_children[NJCH]; j++)
+		if(j->j_status != JEMPTY)
+			if(
+			   (p != 0 && j->j_pgid == p) ||
+			   (p == 0 && j->j_jobnum == j_current)
+			)  {
+				p = j->j_pgid;
+				if(!bg)  {
+					ioctl(1, TIOCSPGRP, &p);
+					setpgrp(0, );
+				}
+				j->j_status = bg ? JBG : JALIVE;
+				j_print_ent(j);
+				if(killpg(p, SIGCONT) == -1)  {
+					j->j_status = JEMPTY;
+					break;
+				}
+				if(bg)
+					post(p);
+				else
+					await(p, 0);
+				j_reset_pg();
+				return;
+			}
+	prn(p);
+	prs(nstpstr);			/* DAG */
+}
+
+char	*
+j_macro()
+{
+	static char	digbuf[40];
+	register char	*c;
+	register int	i;
+	register struct j_child *j = j_children; 
+
+	c = digbuf;
+	*c++ = '%';
+
+	for(;;) {
+		*c = readc();
+		if( c==(digbuf+1) && *c == '%')  {
+			i = j_current;
+			break;
+		}
+		if(!digchar(*c))  {
+			peekc = *c | MARK;
+			*c = 0;
+			i = stoi(digbuf+1);
+			break;
+		}
+		c++;
+	}
+
+	if(i != 0)
+		for(; j < &j_children[NJCH]; j++)
+			if(j->j_status != JEMPTY && j->j_jobnum == i)  {
+				itos(j->j_pgid);
+				movstr(numbuf, digbuf);	/* DAG */
+				break;
+			}
+
+	return digbuf;
+}
+
+j_reset_pg()
+{
+	if((flags & jobflg) == 0)
+		return;
+	if(j_to_level)  {
+		ioctl(0, TIOCSPGRP, &j_default_pg);
+		setpgrp(0, j_default_pg);
+	}
+}
+
+static void
+j_really_reset_pg()
+{
+	ioctl(0, TIOCSPGRP, &j_original_pg);
+	setpgrp(0, j_original_pg);
+}
+
+
+#include "ctype.h"
+extern BOOL trapflg[];
+
+j_init()
+{
+	static int	ldisc = NTTYDISC;	/* BSD ioctl brain damage */
+
+	if(flags & jobflg)
+		return;
+	j_reset_pg();
+	trapflg[SIGTTIN] = SIGMOD | 1;
+	trapflg[SIGTTOU] = SIGMOD | 1;
+	trapflg[SIGTSTP] = SIGMOD | 1;
+	trapflg[SIGSTOP] = SIGMOD | 1;
+	ignsig(SIGTSTP);
+	ignsig(SIGSTOP);	/*  Just to make sure  */
+	(void)ioctl( 0, TIOCSETD, &ldisc );	/* DAG -- require "new tty" handler */
+/*	flags |= jobflg;	*/
+}
+
+BOOL
+j_finish(force)
+	BOOL	force;
+{
+	register struct j_child *j = j_children; 
+
+	if((flags & jobflg) == 0)
+		return FALSE;
+
+	await(-2, 1);
+	for(; j < &j_children[NJCH]; j++)
+		if(j->j_status == JSTOP )
+			if(force)  {
+				killpg(j->j_pgid, SIGHUP);
+				killpg(j->j_pgid, SIGCONT);
+			}
+			else  {
+				prs(tasjstr);	/* DAG */
+				return TRUE;
+			}
+	if(force)  {
+		await(-2, 1);		
+		return FALSE;
+	}
+	trapflg[SIGTTIN] = SIGMOD;
+	trapflg[SIGTTOU] = SIGMOD;
+	trapflg[SIGTSTP] = SIGMOD;
+	trapflg[SIGSTOP] = SIGMOD;
+	flags &= ~jobflg;
+	j_really_reset_pg();
+	return FALSE;
+}
+
+
+static int	j_numbers = 0;
+
+static int
+j_getnumber()
+{
+	register struct j_child *j = j_children; 
+	
+	for(; j < &j_children[NJCH]; j++)
+		if(j->j_status != JEMPTY && j->j_jobnum)
+			return j_numbers++;
+	j_numbers = 2;
+	return 1;
+}
+
+static void
+j_backoff()
+{
+	register struct j_child *j = j_children; 
+	
+	j_current = 0;
+	for(; j < &j_children[NJCH]; j++)
+		if(j->j_status != JEMPTY && j->j_jobnum)
+			if(j->j_jobnum > j_current)
+				j_current = j->j_jobnum;
+}
+
+static	int	jcleft;
+static  char	*jcp;
+
+static void
+j_setcommand(j, t)
+	register struct j_child	*j;
+	struct trenod		*t;
+{
+	jcleft = strlen(j->j_com);
+	jcp = j->j_com + jcleft;
+	jcleft = JCOMSIZE - 1  - jcleft;
+
+	if(j->j_com[0] == '\0' || !j_stuff(pipestr))	/* DAG */
+		j_do(t);
+}
+
+static int
+j_do_chain(a)
+	register struct argnod *a;
+{
+	while(a)  {
+		if(j_stuff(a->argval))
+			return 1;
+		a = a->argnxt;
+		if(a)
+			j_stuff(spcstr);	/* DAG */
+	}
+	return 0;
+}
+
+#define IOGET 0
+static int
+j_do_redir(t)
+	register struct ionod	*t;
+{
+	register int	iof;	/* DAG -- added for speed */
+	register int	i;
+
+	while(t)  {
+		if(t->ioname)  {
+			if(j_stuff(spcstr))	/* DAG */
+				return 1;
+			iof = t->iofile;
+			i = iof & IOUFD;
+			if(
+			    ((iof&IOPUT) && (i != 1)) ||
+			    (((iof&IOPUT)==0) && (i!= 0))
+			)  {
+				itos(i);
+				if(j_stuff(numbuf))
+					return 1;
+			}
+			switch(iof & (IODOC|IOPUT|IOMOV|IOAPP|IORDW))  {
+			case IOGET:
+				if(j_stuff(rdinstr))	/* DAG */
+					return 1;
+				break;
+			case IOPUT:
+				if(j_stuff(readmsg))	/* DAG */
+					return 1;
+				break;
+			case IOAPP|IOPUT:
+				if(j_stuff(appdstr))	/* DAG */
+					return 1;
+				break;
+			case IODOC:
+				if(j_stuff(inlnstr))	/* DAG */
+					return 1;
+				break;
+			case IOMOV|IOPUT:
+				if(j_stuff(toastr))	/* DAG */
+					return 1;
+				break; 
+			case IOMOV|IOGET:
+				if(j_stuff(fromastr))	/* DAG */
+					return 1;
+				break;
+			case IORDW:
+				if(j_stuff(rdwstr))	/* ADR */
+					return 1;
+				break;
+			}
+			if(j_stuff(t->ioname))
+				return 1;
+		}
+		t = t->ionxt;
+	}
+	return 0;
+}
+				
+				
+static int
+j_do(t)	
+	register struct trenod *t;
+{
+	int	type;
+
+	if (t == (struct trenod *)0)	/* DAG -- added safety check */
+		return 0;
+
+	type = t->tretyp & COMMSK;
+	switch(type)  {
+#ifdef TFND	/* ADR --- don't put this stuff in the plain BSD /bin/sh */
+	case	TFND:	/* added by DAG for System V Release 2 shell */
+		return j_stuff(fndptr(t)->fndnam)
+		    || j_stuff(sfnstr)	/* DAG */
+		    || j_do(fndptr(t)->fndval)
+		    || j_stuff(efnstr);	/* DAG */
+#endif
+
+	case	TCOM:
+		if(comptr(t)->comset)  {
+			if(j_do_chain(comptr(t)->comset)
+			|| j_stuff(spcstr))
+				return 1;			
+		}
+		return j_do_chain(comptr(t)->comarg)
+		    || j_do_redir(comptr(t)->comio);
+
+	case	TLST:
+	case	TAND:
+	case	TORF:
+	case	TFIL:	/* DAG -- merged */
+		if(j_do(lstptr(t)->lstlef))
+			return 1;
+		switch(type)  {
+		case TLST:
+			if(j_stuff(semspstr))	/* DAG */
+				return 1;
+			break;
+		case TAND:
+			if(j_stuff(andstr))	/* DAG */
+				return 1;
+			break;
+		case TORF:
+			if(j_stuff(orstr))	/* DAG */
+				return 1;
+			break;
+		case TFIL:
+			if(j_stuff(pipestr))	/* DAG */
+				return 1;
+			break;
+		}
+		return j_do(lstptr(t)->lstrit);
+
+	case	TFORK:
+		return j_do(forkptr(t)->forktre)
+		    || j_do_redir(forkptr(t)->forkio)
+		    || (forkptr(t)->forktyp & FAMP) && j_stuff(amerstr);	/* DAG */
+
+	case	TPAR:
+		return j_stuff(lpnstr)	/* DAG */
+		    || j_do(parptr(t)->partre)
+		    || j_stuff(rpnstr);	/* DAG */
+
+	case	TFOR:
+	case	TWH:
+	case	TUN:
+	{
+		struct trenod *c;
+
+		switch(type)  {
+		case TFOR:
+			if(j_stuff(forstr)	/* DAG */
+			|| j_stuff(forptr(t)->fornam))
+				return 1;
+			if(forptr(t)->forlst)  {
+				if(j_stuff(insstr)	/* DAG */
+				|| j_do_chain(forptr(t)->forlst->comarg))
+					return 1;
+			}
+			c = forptr(t)->fortre;
+			break;
+
+		case TWH:
+			if(j_stuff(whilestr)	/* DAG */
+			|| j_do(whptr(t)->whtre))
+				return 1;
+			c = whptr(t)->dotre;
+			break;
+
+		case TUN:
+			if(j_stuff(untilstr)	/* DAG */
+			|| j_do(whptr(t)->whtre))
+				return 1;
+			c = whptr(t)->dotre;
+			break;
+		}
+		return j_stuff(sdostr)	/* DAG */
+		    || j_do(c)
+		    || j_stuff(sdonstr);	/* DAG */
+	}
+	case	TIF:
+		if(j_stuff(ifstr)	/* DAG */
+		|| j_do(ifptr(t)->iftre)
+		|| j_stuff(sthnstr)	/* DAG */
+		|| j_do(ifptr(t)->thtre))
+			return 1;
+		if(ifptr(t)->eltre)  {
+			if(j_stuff(selsstr)	/* DAG */
+			|| j_do(ifptr(t)->eltre))
+				return 1;
+		}
+		return j_stuff(sfistr);	/* DAG -- bug fix (was "; done") */
+
+	case	TSW:
+		return j_stuff(casestr)	/* DAG */
+		    || j_stuff(swptr(t)->swarg)
+		    || j_stuff(iesacstr);	/* DAG */
+
+	default:
+/*		printf("sh bug: j_do--unknown type %d\n", type);	*/
+		return 0;
+	}
+}
+
+static int
+j_stuff(f)
+	char	*f;
+{
+	register int	i;
+	register int	runover;
+
+	i = strlen(f);
+	runover = i > jcleft;
+	if(runover)
+		i = jcleft;
+	strncpy(jcp, f, i);
+	jcleft -= i;
+	jcp += i;
+	*jcp = 0;
+	if(runover)  {
+		jcp[-1] = '.';
+		jcp[-2] = '.';
+		jcp[-3] = '.';
+	}
+	return runover;
+}
+SHAR_EOF
+echo shar: extracting "'homedir.c'" '(3036 characters)'
+if test -f 'homedir.c'
+then
+	echo shar: over-writing existing file "'homedir.c'"
+fi
+cat << \SHAR_EOF > 'homedir.c'
+/*
+ * homedir.c
+ *
+ * find a person's login directory, for use by the shell
+ * also find the current user's login name.
+ *
+ * Arnold Robbins
+ */
+
+#include "defs.h"
+
+/* validtilde --- indicate whether or not a ~ is valid */
+
+int validtilde (start, argp)
+register char *start, *argp;
+{
+	return (
+	start == argp - 1 ||			/* ~ at beginning of argument */
+	argp[-2] == '=' ||			/* ~ after an assignment */
+	(*start == '-' && argp - 3 == start)	/* in middle of an otion */
+						/* CSH does not do that one */
+	);
+}
+
+/* homedir --- return the person's login directory */
+
+char *homedir (person)
+register char *person;
+{
+	register int count, i, j, fd;
+	static char dir[150];
+	char buf[300], name[100], rest[100];
+
+	if (person[0] == '\0')	/* just a plain ~ */
+		return (homenod.namval);
+	else if (person[0] == '/')	/* e.g. ~/bin */
+	{
+		/* sprintf (dir, "%s%s", homenod.namval, erson); */
+		movstr (movstr (homenod.namval, dir), person);
+		return (dir);
+	}
+
+	if ((fd = oen ("/etc/passwd", 0)) < 0)
+		return (nullstr);
+	
+	/*
+	 * this stuff is to handle the ~person/bin sort of thing
+	 * for catpath()
+	 */
+	movstr (person, name);
+	*rest = '\0';
+	for (i = 0; person[i]; i++)
+		if (person[i] == '/')
+		{
+			movstr (& person[i], rest);
+			name[i] = '\0';
+			break;
+		}
+
+	while ((count = read (fd, buf, sizeof(buf))) > 0)
+	{
+		for (i = 0; i < count; i++)
+			if (buf[i] == '\n')
+			{
+				i++;
+				lseek (fd, (long) (- (count - i)), 1);
+				break;
+			}
+		buf[i] = '\0';
+		for (j = 0; name[j] && buf[j] == name[j]; j++)
+			;
+		if (buf[j] == ':' && name[j] == '\0')
+			break;	/* found it */
+	}
+	if (count == 0)
+	{
+		close (fd);
+		return (nullstr);
+	}
+
+	j--;
+	for (i = 1; i <= 5; i++)
+	{
+		for (; buf[j] != ':'; j++)
+			;
+		j++;
+	}
+	for (i = 0; buf[j] != ':'; i++, j++)
+		dir[i] = buf[j];
+	if (rest[0])
+		for (j = 0; rest[j]; j++)
+			dir[i++] = rest[j];
+	dir[i] = '\0';
+	close (fd);
+	return (dir);
+}
+
+/* username --- return the user's login name */
+
+/*
+ * this routine returns the first user name in /etc/passwd that matches the
+ * real uid.  This could be a problem on some systems, but we don't want to
+ * call getlogin(), since it uses stdio, and the shell does not.
+ */
+
+char *username ()
+{
+	register int count, i, j, fd;
+	static char logname[50];
+	static int foundname = FALSE;
+	char buf[300];
+
+	if (foundname)
+		return (logname);
+
+	if ((fd = open ("/etc/passwd", 0)) < 0)
+		return (nullstr);
+	
+	itos (getuid());
+	while ((count = read (fd, buf, sizeof(buf))) > 0)
+	{
+		for (i = 0; i < count; i++)
+			if (buf[i] == '\n')
+			{
+				i++;
+				lseek (fd, (long) (- (count - i)), 1);
+				break;
+			}
+		buf[i] = '\0';
+		for (j = 0, i = 1; i <= 2; i++)
+		{
+			for (; buf[j] != ':'; j++)
+				;	/* skip name && passwd */
+			j++;
+		}
+			
+		for (i = 0; numbuf[i] && buf[j] == numbuf[i]; i++, j++)
+			;
+		if (buf[j] == ':' && numbuf[i] == '\0')
+			break;	/* found it */
+	}
+	if (count == 0)
+	{
+		close (fd);
+		return (nullstr);
+	}
+
+	for (i = 0; buf[i] != ':'; i++)
+		logname[i] = buf[i];
+	logname[i] = '\0';
+	foundname = TRUE;
+	close (fd);
+	return (logname);
+}
+SHAR_EOF
+echo shar: extracting "'history.c'" '(23486 characters)'
+if test -f 'history.c'
+then
+	echo shar: over-writing existing file "'history.c'"
+fi
+cat << \SHAR_EOF > 'history.c'
+/* history.c --- interacterive history mechanism for the Bourne shell */
+
+/*
+ * Original design by Jeff Lee for the Software Tools Subsystem,
+ * This imlementation by Arnold Robbins, based on Jeff's, but
+ * a little bit more capable.
+ */
+
+#include "defs.h"	/* defines HISTSIZE */
+#include "sym.h"
+
+#define MAXHIST		256		/* max no. saved commands */
+#define MAXLINE		257
+#define BIGBUF		(MAXLINE * 2)
+
+#define HISTCHAR	'!'		/* history flag character */
+#define HISTLOOK	'?'		/* history global search command */
+#define HISTARG		'`'		/* history argument character */
+#define HISTSUB		'^'		/* history substitution character */
+
+#define YES	(1)
+#define NO	(0)
+
+#ifndef TAB	/* earlier version of the shell */
+#define	TAB	'\t'
+#endif
+
+static char	Histbuf[HISTSIZE];	/* queue holding actual history */
+static int	Histptr[MAXHIST];	/* queue of pointers into buffer */
+static int	Hbuffirst = 0;		/* First pointer into Histbuf */
+static int	Hbuflast = 0;		/* Last pointer into Histbuf */
+static int	Hptrfirst = 0;		/* First pointer into Histptr */
+static int	Hptrlast = 0;		/* Last pointer into Histptr */
+static int	Histline = 0;		/* no. of cmd pointed to by Histptr[Hptrlast] */
+
+static char h_badot[] =	" unrecognized history otion";
+static char badarg[] =	" illegal argument history";
+static char nohist[] =	" no history exists, yet";
+static char h_illegal[] =	" illegal history construct";
+static char bufover[] =	" history buffer overflow";
+static char bigtok[] =	" history token too large";
+static char internal[] =	" history internal error";
+static char badtoken[] =	" illegal history token";
+static char h_notfound[] =	" history item not found";
+static char bigexp[] =	" history expansion too big";
+
+extern int	histsub ();		/* do a history substitution */
+static void	histinit ();		/* reinitialize history mechanism */
+static int	histexp ();		/* do a history expansion */
+static int	histque ();		/* save a command in the buffers */
+static void	histfree ();		/* free up some buffer storage */
+static int	histfind ();		/* find a history command */
+static int	histlook ();		/* get a previous command */
+static int	histget ();		/* get a string from the buffers */
+static void	histarg ();		/* get individual arguments */
+extern int	histrest ();		/* restore saved history */
+extern int	histsave ();		/* save current history */
+
+static int	Bquote = 0;		/* count grave accents */
+static int	Dquote = 0;		/* count single quotes */
+static int	Squote = 0;		/* count double quotes */
+
+#define errmsg(x, s)	{ prs(x); prc(COLON); prs(s); newline(); return (FALSE); }
+
+#define repeat		do	/* repeat ... until is easier to read */
+#define until(cond)	while (!(cond))
+
+/* histsub --- perform a history substitution */
+
+int histsub (in, out, outsize)
+char *in, *out;
+int outsize;
+{
+	if ((flags&prompt) == 0 || in == 0 || *in == '\0')
+		return (TRUE);	/* no history, retend all ok */
+	
+	return (histexp (in, out, outsize) && histque (out));
+}
+
+/* histexp --- perform history expansion on a command line */
+
+static int histexp (in, out, outsize)
+char *in, *out;
+int outsize;
+{
+	int i;
+	int istart, ilen, ostart;
+	char buf[MAXLINE], result[BIGBUF];
+	auto int bangseen = NO;
+
+	if (in[0] == NL || in[0] == '\0')
+		return (FALSE);
+
+	istart = ostart = ilen = 0;
+	while (in[istart] && in[istart] != HISTCHAR)
+	{
+		if (ostart >= outsize)
+			errmsg (in, bigexp);
+		switch (in[istart]) {
+		case ESCAPE:
+			out[ostart++] = in[istart++];
+			if (in[istart] == HISTCHAR)
+			{
+				bangseen = YES;
+				if (Squote)
+					out[ostart++] = in[istart++];
+				else
+					out[ostart - 1] = in[istart++];
+					/* no quotes, nuke \ */
+				continue;
+			}
+			break;
+		case '`':
+			if (Dquote == 0 && Squote == 0)
+				Bquote = 1 - Bquote;
+			break;
+		case '\'':
+			if (Bquote == 0 && Dquote == 0)
+				Squote = 1 - Squote;
+			break;
+		case '"':
+			if (Bquote == 0 && Squote == 0)
+				Dquote = 1 - Dquote;
+			break;
+		}
+		if (ostart >= outsize)
+			errmsg (in, bigexp);
+		out[ostart++] = in[istart++];
+		if (Squote && in[istart] == HISTCHAR)
+			if (ostart >= outsize)
+			{
+				errmsg (in, bigexp);
+			}
+			else
+				out[ostart++] = in[istart++];
+	}
+
+	if (in[istart] == '\0')
+	{
+		out[ostart] = '\0';
+		if (bangseen)
+			expanded = YES;		/* see comment below */
+		return (TRUE);	/* no history to do */
+	}
+
+	expanded = NO;	/* this is a global flag */
+	while (histfind (in, &istart, &ilen))	/* we found something to do */
+	{
+		if (ilen >= MAXLINE)
+			errmsg (&in[istart], bigtok);
+
+		/* save the history part */
+		strncpy (buf, & in[istart], ilen);
+		buf[ilen] = '\0';
+		istart += ilen;
+		if (buf[ilen-1] == HISTCHAR)
+			buf[--ilen] = '\0';
+		
+		/* actually make the substitution */
+		if (! histlook (buf, result))
+			return (FALSE);
+		
+		/* put it into generated line */
+		i = length (result) - 2;
+		if (result[i] == NL)
+			result[i] = '\0';
+		if (ostart + i + 1 >= outsize)
+			errmsg (&in[istart], bigexp);
+		movstr (result, & out[ostart]);
+		ostart += length (result) - 1;
+		expanded = YES;
+		while (in[istart] && in[istart] != HISTCHAR)
+		{
+			if (ostart >= outsize)
+				errmsg (&in[istart], bigexp);
+			switch (in[istart]) {
+			case ESCAPE:
+				out[ostart++] = in[istart++];
+				if (in[istart] == HISTCHAR)
+				{
+					bangseen = YES;
+					if (Squote)
+						out[ostart++] = in[istart++];
+					else
+						out[ostart - 1] = in[istart++];
+						/* no quotes, nuke \ */
+					continue;
+				}
+				break;
+			case '`':
+				if (Dquote == 0 && Squote == 0)
+					Bquote = 1 - Bquote;
+				break;
+			case '\'':
+				if (Bquote == 0 && Dquote == 0)
+					Squote = 1 - Squote;
+				break;
+			case '"':
+				if (Bquote == 0 && Squote == 0)
+					Dquote = 1 - Dquote;
+				break;
+			}
+			if (ostart >= outsize)
+				errmsg (&in[istart], bigexp);
+			out[ostart++] = in[istart++];
+			if (Squote && in[istart] == HISTCHAR)
+				if (ostart >= outsize)
+				{
+					errmsg (&in[istart], bigexp);
+				}
+				else
+					out[ostart++] = in[istart++];
+		}
+	}
+
+	out[ostart] = '\0';
+
+	if (expanded)
+		prs (out);	/* should contain newline */
+	else if (bangseen)
+		expanded = YES;
+
+	/*
+	 * This is a KLUDGE, so that escaped !s work;
+	 * it depends on knowledge of how readb() in word.c
+	 * works, i.e., if expanded, use the generated buffer.
+	 * This way, only expanded is needed as a global variable.
+	 */
+
+	return (TRUE);
+}
+
+/* histque --- place the given command in the history queue */
+
+static int histque (command)
+char *command;
+{
+	int c;
+	char *p;
+	static int Inaquote = FALSE;	/* in a quote across commands */
+
+	for (; *command && (*command == SP || *command == TAB); command++)
+		; /* skip leading white space */
+
+	if (*command == NL && *(command+1) == '\0')
+		return (TRUE);	/* don't queue empty commands */
+				/* or increment event_count */
+
+	if (Inaquote)
+	{
+		/* clobber trailing \0 */
+		if (Hbuffirst == 0)
+			Hbuffirst = HISTSIZE - 1;
+		else
+			Hbuffirst--;
+
+		event_count--;
+	}
+
+	Histptr[Hptrfirst] = Hbuffirst;
+	if (! Inaquote)
+		Hptrfirst = (Hptrfirst + 1) % MAXHIST;
+
+	if (Hptrfirst == Hptrlast)
+		histfree ();
+
+	p = command;
+	c = *p++;
+	while (c != '\0' && Hptrfirst != Hptrlast)
+	{
+		repeat
+		{
+			Histbuf[Hbuffirst] = c;
+			c = *p++;
+			Hbuffirst = (Hbuffirst + 1) % HISTSIZE;
+		} until (c == '\0' || Hbuffirst == Hbuflast);
+
+		if (Hbuffirst == Hbuflast)
+			histfree ();
+	}
+
+	if (Hptrfirst != Hptrlast)
+	{
+		Histbuf[Hbuffirst] = '\0';
+		Hbuffirst = (Hbuffirst + 1) % HISTSIZE;
+
+		if (Hbuffirst == Hbuflast)
+			histfree ();
+	}
+
+	Inaquote = (Bquote || Dquote || Squote);
+
+	if (Hptrfirst == Hptrlast)
+	{
+		histinit ();
+		errmsg (nullstr, bufover);
+		/* errmsg returns FALSE */
+	}
+
+	event_count++;
+	return (TRUE);
+}
+
+/* histfree --- free the next queue pointer */
+
+static void histfree ()
+{
+	Hptrlast = (Hptrlast + 1) % MAXHIST;
+
+	Hbuflast = Histptr[Hptrlast];
+	Histline++;
+}
+
+/* histfind --- find the start and length of a history pattern */
+
+static int histfind (command, start, len)
+char *command;
+int *start, *len;
+{
+	char *p, c;
+	int subseen;
+
+	p = command + *start;
+	c = *p++;
+
+	*len = 0;
+	if (c == NL || c == '\0')
+		return (FALSE);
+
+	/* skip leading non-history */
+	while (c && c != HISTCHAR)
+	{
+		if (c == ESCAPE)
+		{
+			c = *p++;
+			*start += 1;
+		}
+
+		if (c != '\0')
+		{
+			c = *p++;
+			*start += 1;
+		}
+	}
+
+	if (c == NL || c == '\0')
+		return (FALSE);
+	
+	*len = 1;
+	c = *p++;
+	if (c == HISTLOOK)	/* !?...? */
+	{
+		*len += 1;
+		c = *p++;
+		while (c && c != HISTLOOK && c != NL)
+		{
+			if (c == ESCAPE)
+			{
+				c = *p++;
+				*len += 1;
+			}
+
+			if (c != '\0')
+			{
+				c = *p++;
+				*len += 1;
+			}
+		}
+		if (c == HISTLOOK)
+		{
+			c = *p++;
+			*len += 1;
+		}
+	}
+	else if (digit (c) || c == '-')	/* !<num> */
+	{
+		if (c == '-')
+		{
+			c = *p++;
+			*len += 1;
+
+			if (! digit(c))
+				errmsg (command + *start, h_illegal);
+		}
+
+		while (digit (c))
+		{
+			c = *p++;
+			*len += 1;
+		}
+	}
+	else	/* !<str> */
+		while (c && c != HISTARG && c != HISTSUB && c != SP &&
+				c != TAB && c != NL && c != HISTCHAR)
+		{
+			if (c == ESCAPE)
+			{
+				c = *p++;
+				*len += 1;
+			}
+
+			if (c != '\0')
+			{
+				c = *p++;
+				*len += 1;
+			}
+		}
+
+	if (c == HISTARG)
+	{
+		*len += 1;
+		c = *p++;
+		while (c && digit (c))
+		{
+			*len += 1;
+			c = *p++;
+		}
+		if (c == '-')
+		{
+			*len += 1;
+			c = *p++;
+		}
+		if (c == '$')
+		{
+			*len += 1;
+			c = *p++;
+		}
+		else
+		{
+			while (c && digit (c))
+			{
+				*len += 1;
+				c = *p++;
+			}
+		}
+	}
+
+	while (c == HISTSUB)
+	{
+		*len += 1;
+		subseen = 0;
+		c = *p++;
+
+		while (subseen < 2 && c != NL && c != '\0')
+		{
+			if (c == ESCAPE)
+			{
+				c = *p++;
+				*len += 1;
+			}
+
+			if (c != '\0')
+			{
+				c = *p++;
+				*len += 1;
+			}
+
+			if (c == HISTSUB)
+				subseen++;
+		}
+
+		if (c == HISTSUB)
+		{
+			*len += 1;
+			c = *p++;
+			if (c == 'g' || c == 'G')
+			{
+				*len += 1;
+				c = *p++;
+			}
+		}
+	}
+
+	if (c == HISTCHAR)
+		*len += 1;
+	
+	return (TRUE);
+}
+
+/* histlook --- lookup the value of a history string */
+
+static int histlook (str, sub)
+char *str, *sub;
+{
+	char c;
+	char *save, *p, *sp;
+	char buf[BIGBUF], rep[BIGBUF];
+	char new[BIGBUF];
+	int i, j, val, si, flag, len, last;
+	static int ctoi();
+
+	save = sub;
+	/*
+	 * first attempt to find which command on which we are to operate
+	 *
+	 * the entire hstory format is as follows
+	 *
+	 * ! [<str> | <num> | ?<str>?] [`<num> [- [<num>]]] {^<str>^<str>^ [g]}
+	 */
+	
+	si = 0;
+
+	if (str[si] == HISTCHAR)
+		si++;
+
+	switch (str[si]) {
+	case '\0':	/* ! */
+	case NL:
+	case HISTARG:	/* on these, retrive previous line, then break */
+	case HISTSUB:
+		if (Hptrfirst == Hptrlast)
+			errmsg (nullstr, nohist);
+
+		val = (Hptrfirst - Hptrlast + MAXHIST) % MAXHIST + Histline - 1;
+		if (! histget (val, sub))
+			errmsg (nullstr, internal);
+		break;
+
+	case '-':
+	case '0':	/* !<num> */
+	case '1':
+	case '2':
+	case '3':
+	case '4':
+	case '5':
+	case '6':
+	case '7':
+	case '8':
+	case '9':
+		val = ctoi (str, &si) - 1;	/* for 0-based indexing */
+		if (! histget(val, sub))
+			errmsg (str, h_notfound);
+		break;
+	
+	case HISTLOOK:	/* ?<str>? */
+		i = 0;
+		si++;
+		while (str[si] && str[si] != HISTLOOK)
+		{
+			if (str[si] == ESCAPE)
+				si++;
+			
+			if (str[si])
+				buf[i++] = str[si++];
+		}
+		buf [i] = '\0';
+		if (str[si] == HISTLOOK)
+			si++;
+		if (buf[i-1] == NL)
+			buf[--i] = '\0';
+		
+		flag = FALSE;
+		val = (Hptrfirst - Hptrlast + MAXHIST) % MAXHIST + Histline - 1;
+		*sub = '\0';
+		while (histget (val, sub))
+		{
+			p = sub;
+			c = *p++;
+			while (c)
+			{
+				i = 0;
+				while (c != '\0' && buf[i] != '\0' && c != buf[i])
+				{
+					/* skip non matching */
+					c = *p++;
+					if (*p == '\0')
+						break;
+				}
+				
+				sp = p;
+
+				while (c && buf[i] && c == buf[i])
+				{
+					/* possibly matching */
+					c = *p++;
+					i++;
+				}
+
+				if (buf[i] == '\0')
+				{
+					/* did match */
+					flag = TRUE;
+					goto out;
+				}
+
+				p = sp;
+				c = *p++;
+			}
+			val--;	/* search further back, next time around */
+			*sub = '\0';
+		}
+
+	out:
+		if (flag == FALSE)
+			errmsg (str, h_notfound);
+		break;
+
+	default:	/* !<str> */
+		i = 0;
+		while (str[si] && str[si] != HISTARG && str[si] != HISTSUB)
+		{
+			if (str[si] == ESCAPE)
+				si++;
+			
+			if (str[si])
+				buf[i++] = str[si++];
+		}
+		buf[i] = '\0';
+
+		flag = FALSE;
+		val = (Hptrfirst - Hptrlast + MAXHIST) % MAXHIST + Histline - 1;
+		while (histget (val, sub))
+		{
+			p = sub;
+			c = *p++;
+			while (c == SP || c == TAB)
+				c = *p++;
+
+			i = 0;
+			while (buf[i] && buf[i] == c)
+			{
+				c = *p++;
+				i++;
+			}
+
+			if (buf[i] == '\0')
+			{
+				flag = TRUE;	/* found it */
+				break;	/* while */
+			}
+			val--;
+		}
+		if (flag == FALSE)
+			errmsg (str, h_notfound);
+		break;
+	} /* end switch */
+
+	j = length (sub) - 2;
+	if (sub[j] == NL)
+		sub[j] = '\0';
+
+	/*
+	 * ! [<str> | <num> | ? <str> ?] has now been parsed and the command
+	 * line has been placed in "sub". Now see if the next character is a
+	 * legal following character
+	 */
+	
+	if (str[si] && str[si] != HISTARG && str[si] != HISTSUB && str[si] != NL)
+		errmsg (str, badtoken);
+
+	/* if there is no more to the history string, we are done */
+	if (str[si] == NL || str[si] == '\0')
+		return (TRUE);
+	
+	/*
+	 * now check for possible argument substitution. This section parses
+	 * [` <num>] and turns "sub" into the appropriate argument
+	 */
+	
+	if (str[si] == HISTARG)		/* `<num>-<num> */
+	{
+		si++;
+
+		if (! digit(str[si]) && str[si] != '-' && str[si] != '$')
+			errmsg (str, badarg);
+		
+		/* determine the last argument */
+		p = sub;
+		last = -1;
+		/* count arguments, last will be val of $ */
+		histarg (p, &len);
+		while (len > 0)
+		{
+			last++;
+			p += len;
+			histarg (p, &len);
+		}
+
+		if (str[si] == '-')	/* default to arg 1 */
+			val = 1;
+		else if (digit(str[si]))
+			val = min (ctoi(str, &si), last + 1);
+		else
+		{
+			/* $ */
+			val = last;
+
+			if (str[si] != '$')
+			{
+				errmsg (str, internal);
+			}
+			else
+				si++;
+		}
+
+		p = sub;
+		for (i = val; i > 0; i--)	/* delete preceding arguments */
+		{
+			histarg (p, & len);
+			p += len;
+		}
+
+		/* p points to beginning of first wanted arg */
+		/* remove leading blanks */
+		c = *p++;
+		while (c == SP || c == TAB)
+			c = *p++;
+		
+		sub = p - 1;
+
+
+		if (str[si] == '-')
+		{
+			si++;
+			if (digit(str[si]))
+				val = min (ctoi (str, &si), last) - val + 1;
+			else
+			{
+				val = last - val + 1;
+
+				if (str[si] != '\0')
+					si++;
+			}
+
+			p = sub;
+			histarg (p, & len);
+			while (val > 0 && len > 0)
+			{
+				val--;
+				p += len;
+				histarg (p, &len);
+			}
+			*p = '\0';
+		}
+		else
+		{
+			histarg (sub, & len);
+			sub [len] = '\0';
+		}
+	}
+
+	/* move everything to beginning of buffer */
+	if (save != sub)
+	{
+		movstr (sub, save);
+		sub = save;
+	}
+
+
+	/*
+	 * check that the remaining characters represent
+	 * legal following characters
+	 */
+
+	if (str[si] && str[si] != HISTSUB && str[si] != NL)
+		errmsg (str, badtoken);
+	
+	/* check for no substitutions and return if we are done */
+	if (str[si] && str[si] != HISTSUB)
+		return (TRUE);
+	
+	/* keep performing substitutions until there are no more */
+
+	while (str[si] == HISTSUB)
+	{
+		i = 0;
+		si++;
+		flag = FALSE;
+		/* buf is what to look for */
+		while (str[si] && str[si] != HISTSUB)
+		{
+			if (str[si] == ESCAPE)
+				si++;
+			
+			if (str[si])
+				buf[i++] = str[si++];
+		}
+		buf[i] = '\0';
+
+		i = 0;
+		if (str[si])
+			si++;
+		
+		/* rep is replacement */
+		while (str[si] && str[si] != HISTSUB)
+		{
+			if (str[si] == ESCAPE)
+				si++;
+			
+			if (str[si])
+				rep[i++] = str[si++];
+		}
+		rep[i] = '\0';
+
+		if (str[si] == HISTSUB)
+			si++;
+		
+		if (str[si] == 'g' || str[si] == 'G')
+		{
+			flag = TRUE;
+			si++;
+		}
+
+		j = 0;		/* j indexes new */
+		p = sub;
+		c = *p++;
+		sp = p;		/* save position for backing up */
+		while (c != '\0')
+		{
+			i = 0;
+			while (c && c != buf[i])
+			{
+				/* copy what doesn't match */
+				new[j++] = c;
+				c = *p++;
+				sp = p;
+			}
+
+			while (c && buf[i] && c == buf[i])
+			{
+				/* partial matching */
+				c = *p++;
+				i++;
+			}
+
+			if (buf[i] == '\0')
+			{
+				/* successful match */
+				char *cp = rep;
+
+				while (*cp)
+					new[j++] = *cp++;
+					/* put in replacement text */
+
+				if (flag == FALSE)	/* just 1 replacement */
+				{
+					new[j++] = c;
+					while (*p)
+						new[j++] = *p++;
+						/* coy the rest */
+					break;
+				}
+			}
+			else if (c != '\0')
+			{
+				/* back up and try again */
+				new[j++] = *(sp - 1);
+				p = sp;
+				c = *p++;
+				sp = p;
+			}
+		}
+		new[j] = '\0';
+		movstr (new, sub);
+		/* now look for next substitution */
+	}
+
+	if (save != sub)
+	{
+		movstr (sub, save);
+		sub = save;
+	}
+	
+	j = length (sub) - 2;
+	if (sub[j] == NL)
+		sub[j] = '\0';
+
+	return (TRUE);
+}
+
+/* histget --- get a specified string from the history buffers */
+
+static int histget (hp, sub)
+int hp;
+char *sub;
+{
+	char buf[BIGBUF];
+	int i, j, maxinx, hval;
+
+	*sub = '\0';
+	maxinx = (Hptrfirst - Hptrlast + MAXHIST) % MAXHIST + Histline - 1;
+	if (hp < Histline || hp > maxinx)		/* out of range */
+		return (FALSE);
+	
+	hval = ((hp - Histline + Hptrlast - 1) % MAXHIST) + 1;
+	for (i = Histptr[hval]; Histbuf[i] != '\0'; )
+	{
+		int k; 
+
+		j = 0;
+		while (Histbuf[i] != '\0' && j < sizeof(buf) - 1)
+		{
+			buf[j] = Histbuf[i];
+			i = (i + 1) % HISTSIZE;
+			j++;
+		}
+
+		buf[j] = '\0';
+		/* strcat (sub, buf); */
+		movstr (buf,
+			sub + (((k = length (sub) - 1) <= 0 ? 0 : k)));
+	}
+
+	return (TRUE);
+}
+
+/* histarg --- return the last position of the next argument */
+
+static void histarg (ptr, len)
+char *ptr;
+int *len;
+{
+	char *p;
+	char c;
+	int bracket, aren, brace, squote, dquote, bquote, skip;
+
+	p = ptr;
+	*len = 0;
+	skip = FALSE;
+	bracket = paren = brace = squote = dquote = bquote = 0;
+
+	repeat
+	{
+		*len += 1;
+		c = *p++;
+		while (skip == FALSE && (c == SP || c == TAB))
+		{
+			c = *p++;
+			*len += 1;
+		}
+
+		skip = TRUE;
+		switch (c) {
+		case ESCAPE:
+			c = *p++;
+			*len += 1;
+			break;
+
+		case '[':
+			if (squote == 0 && dquote == 0 && bquote == 0)
+				bracket++;
+			break;
+
+		case ']':
+			if (squote == 0 && dquote == 0 && bquote == 0)
+				bracket--;
+			break;
+
+		case '(':
+			if (squote == 0 && dquote == 0 && bquote == 0)
+				paren++;
+			break;
+
+		case ')':
+			if (squote == 0 && dquote == 0 && bquote == 0)
+				paren--;
+			break;
+
+		case '{':
+			if (squote == 0 && dquote == 0 && bquote == 0)
+				brace++;
+			break;
+
+		case '}':
+			if (squote == 0 && dquote == 0 && bquote == 0)
+				brace--;
+			break;
+
+		case '\'':
+			if (dquote == 0 && bquote == 0)
+				squote = 1 - squote;
+			break;
+
+		case '"':
+			if (squote == 0 && bquote == 0)
+				dquote = 1 - dquote;
+			break;
+
+		case '`':
+			if (dquote == 0 && squote == 0)
+				bquote = 1 - bquote;
+			break;
+
+		}
+	} until (c == '\0' ||
+		((c == SP || c == TAB) && paren == 0 && brace == 0 &&
+		bracket == 0 && squote == 0 && dquote == 0 && bquote == 0));
+
+	*len -= 1;
+	return;
+}
+
+/* ctoi --- character to integer conversion, updates indices ala Fortrash */
+
+static int ctoi (str, inx)
+register char *str;
+register int *inx;
+{
+	register int ret = 0;
+	int neg = 0;
+
+	if (str[*inx] == '-')
+	{
+		neg = 1;
+		*inx += 1;
+	}
+
+	while (digit (str[*inx]))
+	{
+		ret = 10 * ret + str[*inx] - '0';
+		*inx += 1;
+	}
+
+	return (neg ? -ret : ret);
+}
+
+/* min --- real function to return min of two numbers */
+
+static int min (a, b)
+register int a, b;
+{
+	return (a < b ? a : b);
+}
+
+/* histinit --- reinitialize history buffers */
+
+static void histinit ()
+{
+	Hbuffirst = Hbuflast = Hptrfirst = Hptrlast = Histline = 0;
+	event_count = 1;
+}
+
+/* histsave --- save history command lines */
+
+histsave (file)
+char *file;
+{
+	int fd, status, junk;
+
+	if ((flags&nohistflg) != 0)
+		return (FALSE);
+
+	if ((flags&prompt) == 0)
+		return (FALSE);
+
+	if ((fd = creat (file, 0600)) < 0)	/* delete previous contents */
+		return (FALSE);
+	
+	status = TRUE;
+
+	junk = MAXHIST;
+	if (write (fd, & junk, sizeof (junk)) != sizeof (junk))
+		status = FALSE;
+
+	junk = HISTSIZE;
+	if (status == TRUE &&
+		write (fd, & junk, sizeof (junk)) != sizeof (junk))
+		status = FALSE;
+
+	if (status == TRUE &&
+		write (fd, &Hbuffirst, sizeof(Hbuffirst)) != sizeof (Hbuffirst))
+		status = FALSE;
+
+	if (status == TRUE &&
+		write (fd, & Hbuflast, sizeof (Hbuflast)) != sizeof (Hbuflast))
+		status = FALSE;
+
+	if (status == TRUE &&
+		write (fd, &Hptrfirst, sizeof(Hptrfirst)) != sizeof (Hptrfirst))
+		status = FALSE;
+
+	if (status == TRUE &&
+		write (fd, & Hptrlast, sizeof (Hptrlast)) != sizeof (Hptrlast))
+		status = FALSE;
+
+	if (status == TRUE &&
+		write (fd, Histptr, sizeof(Histptr)) != sizeof (Histptr))
+		status = FALSE;
+
+	if (status == TRUE &&
+		write (fd, Histbuf, sizeof(Histbuf)) != sizeof (Histbuf))
+		status = FALSE;
+	
+	close (fd);
+
+	if (status == FALSE)
+		unlink (file);	/* remove entirely */
+	
+	return (status);
+}
+
+/* histrest --- restore a history save file */
+
+int histrest (file)
+char *file;
+{
+	int fd, status, junk;
+
+	if (flags&nohistflg)
+		return (FALSE);
+
+	if ((flags&prompt) == 0)
+		return (FALSE);
+
+	if ((fd = open (file, 0)) < 0)	/* oen for reading */
+		return (FALSE);
+
+	status = TRUE;
+	if (read (fd, & junk, sizeof (junk)) != sizeof (junk) ||
+			junk != MAXHIST)
+		status = FALSE;
+
+	if (status == TRUE && read (fd, & junk, sizeof (junk)) != sizeof (junk)
+			|| junk != HISTSIZE)
+		status = FALSE;
+
+	if (status == TRUE &&
+		read (fd, &Hbuffirst, sizeof (Hbuffirst)) != sizeof (Hbuffirst))
+		status = FALSE;
+
+	if (status == TRUE &&
+		read (fd, & Hbuflast, sizeof (Hbuflast)) != sizeof (Hbuflast))
+		status = FALSE;
+
+	if (status == TRUE &&
+		read (fd, &Hptrfirst, sizeof (Hptrfirst)) != sizeof (Hptrfirst))
+		status = FALSE;
+
+	if (status == TRUE &&
+		read (fd, & Hptrlast, sizeof (Hptrlast)) != sizeof (Hptrlast))
+		status = FALSE;
+
+	if (status == TRUE &&
+		read (fd, Histptr, sizeof(Histptr)) != sizeof (Histptr))
+		status = FALSE;
+
+	if (status == TRUE &&
+		read (fd, Histbuf, sizeof(Histbuf)) != sizeof (Histbuf))
+		status = FALSE;
+	
+	Histline = - (Hptrfirst - Hptrlast + MAXHIST) % MAXHIST;
+	event_count = 1;
+	close (fd);
+	return (status);
+}
+
+/* history --- print history buffer, or save or restore buffer to file */
+
+int history (argc, argv)
+int argc;
+char **argv;
+{
+	int i;
+	char *hf;
+	int (*hfp)();
+
+	if ((flags&nohistflg) != 0)
+	{
+		if (flags&prompt)
+			prs ("history processing not enabled\n");
+		return 1;	/* failure */
+	}
+
+	if ((flags & prompt) == 0)	/* shell file */
+		return 1;
+
+	if (argc == 1)
+	{
+		int j = Histline + 1;
+		int k, l, m; 
+		int neg;
+		char *cp;
+
+#define outstr(s)	for (cp = s; *cp; cp++) \
+				if (*cp == NL && *(cp+1))  \
+					prs_buff ("\\n"); \
+				else \
+					prc_buff (*cp)
+
+
+		for (i = Hptrlast; i != Hptrfirst; i = (i + 1) % MAXHIST)
+		{
+			neg = FALSE;
+
+			k = j++;
+			if (k < 0)
+			{
+				neg = TRUE;
+				k = -k;
+			}
+			itos (k);
+			l = length (numbuf) - 1;
+			for (m = 3 - l; m > 0; m--)
+				prc_buff (SP);
+			prc_buff (neg ? '-' : SP);
+			prs_buff (numbuf);
+			prc_buff (COLON);
+			prc_buff (SP);
+			/*
+			 * make sure that what we're printing
+			 * doesn't wrap around the history buffer.
+			 */
+			k = (i % MAXHIST) + 1;
+			if ((k != Hptrfirst && Histptr[i] < Histptr[k]) ||
+				(k == Hptrfirst && Histptr[i] < Hbuffirst))
+				outstr (& Histbuf[Histptr[i]]);
+			else
+			{
+				/* saved text wraps around */
+				for (l = Histptr[i]; l <= HISTSIZE - 1 &&
+						Histbuf[l] != '\0'; l++)
+					if (Histbuf[l] == NL
+			&& Histbuf[l + 1 <= HISTSIZE - 1 ? l + 1 : 0] != '\0')
+						prs_buff ("\\n");
+					else
+						prc_buff (Histbuf[l]);
+				
+				if (Histbuf[HISTSIZE - 1] != '\0')
+					outstr (Histbuf);
+			}
+		}
+		return 0;
+	}
+	else if (eq (argv[1], dashi))
+	{
+		histinit ();
+		return 0;
+	}
+	else if (eq (argv[1], dashr))
+		hfp = histrest;
+	else if (eq (argv[1], dashs))
+		hfp = histsave;
+	else
+	{
+		prs(argv[1]);
+		prc(COLON);
+		prs(h_badot);
+		newline();
+		return 1;
+	}
+
+	if (argc >= 3)
+		hf = argv[2];
+	else
+		hf = histfnod.namval;
+	
+	return ((*hfp)(hf) != 0);	/* do a save or restore */
+}
+SHAR_EOF
+echo shar: extracting "'saml leshrc'" '(443 characters)'
+if test -f 'samle.shrc'
+then
+	echo shar: over-writing existing file "'saml .shrc'"
+fi
+cat << \SHAR_EOF > 'saml leshrc'
+# .shrc file --- this file will be read every time the shell cranks up
+# if it is in the $HOME directory
+
+# this is a saml , currently set up to do some Korn shell emulation
+
+PPID=$+			# set the Parent Process Id
+
+# source file name given by ENV environment variable
+# and only if $ENV is not this file.
+
+if [ "$ENV" != "" -a "$ENV" != "$HOME/.shrc" ]
+then
+	. $ENV
+fi
+
+# put any useful shell functions here, or source a file with them in it.
+SHAR_EOF
+echo shar: extracting "'aliases.sh'" '(1027 characters)'
+if test -f 'aliases.sh'
+then
+	echo shar: over-writing existing file "'aliases.sh'"
+fi
+cat << \SHAR_EOF > 'aliases.sh'
+# aliases.sh --- saml  shell functions which do some of what the csh does
+
+# pushd, popd, and dirs --- written by Chris Bertin
+# Pixel Computer Inc. ...!wjh12!pixel!pixutl!chris
+# as modified by Patrick Elam of GTRI
+
+pushd () {
+	SAVE=`pwd`
+	DSTACK="$SAVE $DSTACK"
+	if [ "$1" = "" ] 
+	then
+		if [ "$DSTACK" = "$SAVE " ]
+		then
+			echo "pushd: directory stack empty."
+			DSTACK=""
+			return 1
+		fi
+		set $DSTACK
+		cd $2
+		shift 2
+		DSTACK="$SAVE $*"
+	else
+		if (cd $1)
+		then
+			cd $1 >&-
+		else
+			popd > /dev/null
+			return 1
+		fi
+	fi
+	dirs
+	return 0
+}
+
+popd () {
+	if [ "$DSTACK" = "" ] 
+	then
+		echo "pod: Directory statck empty"
+		return 1
+	fi
+	set $DSTACK
+	cd $1
+	shift
+	DSTACK=$*
+	dirs
+	return 0
+}
+
+dirs () {
+	echo "`pwd` $DSTACK"
+	return 0
+}
+
+xchng () {	# exchanged top two entries on the stack
+	if [ "$DSTACK" = "" ]
+	then
+		echo exchange directory stack empty
+		return 1
+	else
+		pushd
+		return 0
+	fi
+}
+
+source () {	# have the shell read a file in the current shell
+	. $*
+}
+
+bye () { logout ; }
+
+logout () { exit 0 ; }
+SHAR_EOF
+#	End of shell archive
+exit 0

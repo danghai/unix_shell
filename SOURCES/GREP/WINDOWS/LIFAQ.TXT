@@ -1,0 +1,30 @@
+Frequently Asked Questions
+
+Q: What does "LI" stand for?
+A: LI was born as a DOS program, where a short name was an advantage (you
+   had to type it in). I didn't think to change its name when it moved to
+   Windows. "LI" is short for "list".
+
+Q: Sometimes LI will ask to switch into hex mode only after I've scrolled
+   down into a file a ways.
+A: This is typically due to the format of the file. If LI finds a line longer
+   than 256 characters, it will not display it in normal text mode. The 
+   choices will be to wrap every line a 77 characters or view the file in
+   hex mode. Read the Technical Info in Help for more details.
+
+Q: Do you plan to view files in their "native" format? e.g. WinWord, Write,
+   etc.
+A: This is not high on my priority list of future enhancements. There are
+   just too many formats and too little of me.
+
+Q: Do you plan to add some file management features, such as copy, move,
+   rename.
+A: This is higher on my priority list than the "native" viewer stuff, but
+   may still be a ways in the future.
+
+Q: The editor should handle bigger files.
+A: The built in editor is based upon the same Windows capabilities as NOTEPAD,
+   and therefore suffers from the same limits. If I can dream up a method
+   of providing this capability without greatly increasing the size of the 
+   LI executable file, I'll do it. (Win32 supports this, feature will be
+   added.)

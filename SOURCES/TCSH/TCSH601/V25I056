@@ -1,0 +1,3219 @@
+Newsgroups: comp.sources.unix
+From: christos@ee.cornell.edu (Christos Zoulas)
+Subject: v25i056: tcsh6.01 - a csh replacement with lots of extra goodies, Part03/18
+Message-ID: <1991Dec20.213943.6408@PA.dec.com>
+Date: Fri, 20 Dec 91 21:39:43 GMT
+Approved: vixie@pa.dec.com
+
+Submitted-By: christos@ee.cornell.edu (Christos Zoulas)
+Posting-Number: Volume 25, Issue 56
+Archive-Name: tcsh-6.01/part03
+
+#! /bin/sh
+# This is a shell archive.  Remove anything before this line, then unpack
+# it by saving it into a file and typing "sh file".  To overwrite existing
+# files, type "sh file -c".  You can also feed this as standard input via
+# unshar, or by typing "sh <file", e.g..  If this archive is complete, you
+# will see the following message at the end:
+#		"End of archive 3 (of 18)."
+# Contents:  Ported config/config.aix config/config.sequent config_f.h
+#   eight-bit.me sh.char.h sh.hist.c sh.print.c sh.proc.h tc.disc.c
+#   tc.printf.c tc.sig.h tc.wait.h tw.h tw.help.c tw.spell.c
+# Wrapped by vixie@cognition.pa.dec.com on Fri Dec 20 13:29:24 1991
+PATH=/bin:/usr/bin:/usr/ucb ; export PATH
+if test -f 'Ported' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'Ported'\"
+else
+echo shar: Extracting \"'Ported'\" \(6846 characters\)
+sed "s/^X//" >'Ported' <<'END_OF_FILE'
+X
+Hello,
+X
+This file contains a list of machines used, libraries compiler etc. If you
+find it out-of-date, or you have additions or changes, please let me know.
+X
+christos
+X
+X
+VENDOR	:	sun
+MODELS	:	sun3, sun4, sun386i
+COMPILER:	cc, gcc
+CFLAGS	:	normal
+LIBES	:	-ltermcap
+OS	:	sunos 3.5, 4.0, 4.1, 4.1.1
+CONFIG	:	config.sunos*
+XENVIRON	:	n/a
+NOTES	:	Don't compile with /usr/5bin/cc
+VERSION	:	6.00.01
+X
+VENDOR	:	hp
+MODELS	:	apollo
+COMPILER:	cc
+CFLAGS	:	-U__STDC__ -I. -O
+LIBES	:	-ltermcap
+OS	:	domain 10.4.3
+CONFIG	:	config.bsd
+XENVIRON	:	bsd4.3
+NOTES	:	Don't use gcc; breaks tc.os.c
+VERSION	:	6.00.01
+X
+VENDOR	:	hp
+MODELS	:	hp9000s300, hp9000s700, hp9000s800
+COMPILER:	cc, gcc
+CFLAGS	:	normal (-Aa -O3 hpux 8.0)
+LIBES	:	-ltermcap
+OS	:	hpux 6.5, 7.0.x, 8.0
+CONFIG	:	config.hpux
+XENVIRON	:	n/a
+NOTES	:	Don't use -lBSD; breaks getpgrp(). Config.hp-3.2 obsolete?
+VERSION	:	6.00.04
+X
+VENDOR	:	hp
+MODELS	:	hp9000s500
+COMPILER:	cc
+CFLAGS	:	-I. -O
+LIBES	:	-ltermcap
+OS	:	hpux 5.2
+CONFIG	:	config.hp-5.2
+XENVIRON	:	n/a
+NOTES	:	very slow in executing commands (I think the reason is
+NOTES	:	a very slow fork)
+VERSION	:	6.00.01
+X
+VENDOR	:	digital
+MODELS	:	vax
+COMPILER:	cc, gcc
+CFLAGS	:	normal
+LIBES	:	-ltermcap
+OS	:	bsd4.3, bsd4.4
+CONFIG	:	config.bsd*
+XENVIRON	:	n/a
+NOTES	:	cc broken: typedef void sigret_t;
+VERSION	:	6.00.03
+X
+VENDOR	:	digital
+MODELS	:	vax
+COMPILER:	cc, gcc
+CFLAGS	:	normal
+LIBES	:	-ltermcap
+OS	:	mtXinu 4.3
+CONFIG	:	config.mtxinu 
+XENVIRON	:	n/a
+NOTES	:	cc broken: typedef void sigret_t;
+VERSION	:	6.00.00
+X
+VENDOR	:	digital
+MODELS	:	vax, decstation
+COMPILER:	cc
+CFLAGS	:	normal
+LIBES	:	-ltermcap
+OS	:	ultrix 3.0 (vax), 3.5, 4.0, 4.1, 4.2
+CONFIG	:	config.ultrix 
+XENVIRON	:	n/a
+NOTES	:	pcc broken: typedef void sigret_t (vax); 
+NOTES	:	mips compiler on ultrix 3.5 needs -Dvoid=int
+NOTES	:	vax compiler on ultrix 3.0 needs -Dvoid=int
+NOTES	:	Does Ultrix 4.x still need YPBUGS?
+VERSION	:	6.00.01
+X
+VENDOR	:	apple
+MODELS	:	macII
+COMPILER:	cc
+CFLAGS	:	normal		(-ZP)
+LIBES	:	-ltermcap 	(-lposix -ltermcap)
+OS	:	aux 2.0
+CONFIG	:	config.mac2	(-DPOSIX -DPOSIXJOBS)
+XENVIRON	:	n/a
+NOTES	:	Tcsh can compile both in non POSIX and POSIX mode. The
+NOTES	:	default configuration is non POSIX. The flags in parentheses
+NOTES	:	are the changes that are needed to compile in POSIX mode
+VERSION	:	6.00.01
+X
+VENDOR	:	ibm
+MODELS	:	ps/2, rs6000, ibm370, ibmESA
+COMPILER:	cc
+CFLAGS	:	normal
+LIBES	:	-lcurses -lbsd
+OS	:	aix 3.1 (rs6000) aix 1.1 (ps/2) aix G9.9 (ibm370)
+X	:	aix (ibmESA)
+CONFIG	:	config.aix
+XENVIRON	:	n/a
+NOTES	:	aix G9.9 sfname() frees bad pointers. Use TCF with care!
+VERSION	:	6.00.02
+X
+VENDOR	:	ibm
+MODELS	:	rt
+COMPILER:	hc
+CFLAGS	:	-I. -U__STDC__
+LIBES	:	-ltermcap
+OS	:	aos 4.3
+CONFIG	:	config.bsd
+XENVIRON	:	n/a
+NOTES	:	Old versions of the compiler break with -O. No ansi include
+NOTES	:	files so we have to undef __STDC__
+VERSION	:	6.00.01
+X
+VENDOR	:	ibm
+MODELS	:	rt
+COMPILER:	cc
+CFLAGS	:	-I. -Nd4000 -Nn3000
+LIBES	:	-lcurses
+OS	:	aix 2.2.1
+CONFIG	:	config.aix
+XENVIRON	:	n/a
+NOTES	:	Stacksize limit is 1K off?
+VERSION	:	6.00.03
+X
+VENDOR	:	sequent
+MODELS	:	balance, symmetry
+COMPILER:	cc
+CFLAGS	:	normal
+LIBES	:	-ltermcap -lseq
+OS	:	Dynix 3.1, ptx 1.2
+CONFIG	:	config.sequent
+XENVIRON	:	universe on Dynix 3.1: ucb
+NOTES	:	none
+VERSION	:	6.00.03
+X
+VENDOR	:	encore
+MODELS	:	multimax
+COMPILER:	gcc
+CFLAGS	:	normal
+LIBES	:	-ltermcap
+OS	:	umax 4.2
+CONFIG	:	config.bsd
+XENVIRON	:	n/a
+NOTES	:	none
+VERSION	:	6.00.00
+X
+VENDOR	:	sony
+MODELS	:	news 1850, 1750
+COMPILER:	gcc
+CFLAGS	:	normal
+LIBES	:	-ltermcap
+OS	:	bsd 4.3, news-os 3.3
+CONFIG	:	config.bsd
+XENVIRON	:	n/a
+NOTES	:	none
+VERSION	:	6.00.00
+X
+VENDOR	:	ibm + compatibles
+MODELS	:	i386,i286
+COMPILER:	cc
+CFLAGS	:	normal
+LIBES	:	-ltermcap -ldir -lx
+OS	:	xenix
+CONFIG	:	config.xenix
+XENVIRON	:	n/a
+NOTES	:	none
+VERSION	:	6.00.01
+X
+VENDOR	:	hp
+MODELS	:	hp300
+COMPILER:	gcc/cc
+CFLAGS	:	normal
+LIBES	:	-ltermcap
+OS	:	MORE/bsd 4.3+
+CONFIG	:	config.mtxinu
+XENVIRON	:	n/a
+NOTES	:	none
+VERSION	:	6.00.02
+X
+VENDOR	:	digital
+MODELS	:	vax
+COMPILER:	gcc
+CFLAGS	:	normal
+LIBES	:	-ltermcap
+OS	:	bsd 4.3reno
+CONFIG	:	config.bsdreno
+NOTES	:	ttyname() is buggy. calls closedir() twice. See README
+XENVIRON	:	n/a
+VERSION	:	6.00.04
+X
+VENDOR	:	Cray Research
+MODELS	:	Y-MP
+COMPILER:	cc
+CFLAGS	:	normal
+LIBES	:	-ltermcap
+OS	:	Unicos 6.0
+CONFIG	:	config.cray
+XENVIRON	:	n/a
+NOTES	:	none
+VERSION	:	6.00.01
+X
+VENDOR	:	pyramid
+MODELS	:	MIS4/2T 
+COMPILER:	cc
+CFLAGS	:	-I. -O -DBSD
+LIBES	:	-ltermcap
+OS	:	OSx5.1
+CONFIG	:	config.bsd
+XENVIRON	:	n/a
+NOTES	:	none
+VERSION	:	6.00.02
+X
+VENDOR	:	alliant
+MODELS	:	FX/8X series
+COMPILER:	pcc
+CFLAGS	:	normal
+LIBES	:	-ltermcap
+OS	:	Concentrix 5.7.00
+CONFIG	:	config.bsd
+XENVIRON	:	n/a
+NOTES	:	n/a
+VERSION	:	6.00.01
+X
+VENDOR	:	next
+MODELS	:	any
+COMPILER:	cc
+CFLAGS	:	normal
+LIBES	:	-ltermcap -lcs
+OS	:	next os 2.x
+CONFIG	:	config.mach
+XENVIRON	:	n/a
+NOTES	:	n/a
+VERSION	:	6.00.01
+X
+VENDOR	:	Heurikon
+MODELS	:	HK68
+COMPILER:	gcc (Green Hills C-68000)
+CFLAGS	:	-ga -X138 -X25 -I.
+LDFLAGS	:	-n
+LIBES	:	-lcurses -ltermcap -ldirent
+OS	:	UniPlus+ 5.0
+CONFIG	:	config.hk68
+XENVIRON	:	n/a
+NOTES	:	Need Doug Gwyn's POSIX directory library (libdirent.a)
+VERSION	:	6.00.01
+X
+VENDOR	:	Amdahl
+MODELS	:	n/a
+COMPILER:	cc/gcc
+CFLAGS	:	normal
+LIBES	: 	-lcurses -lsocket -lbsd	
+CONFIG	:	config.amdahl
+XENVIRON	:	n/a
+VERSION	:	6.00.01
+X
+VENDOR	:	prime
+MODELS	:	exl 300 series
+COMPILER:	cc
+CFLAGS	:	-O -s -I.
+LIBES	:	-lcurses -lstcp
+OS	:	system v.3.1.2
+CONFIG	:	config.sysv
+XENVIRON	:	sysv
+NOTES	:	Is libstcp.a on all exl 300s?
+VERSION	:	6.00.01
+X
+VENDOR  :       convex
+MODELS  :       c220
+COMPILER:       cc
+CFLAGS  :       normal
+LIBES   :       -ltermcap
+OS      :       9.0.6 (bsd 4.3)
+CONFIG  :       config.convex
+XENVIRON :       n/a
+NOTES   :       Dont use the -pcc flag.
+X	:	Use setty to fix the default tty settings.
+VERSION :       6.00.01
+X
+VENDOR  :       Norsk Data
+MODELS  :       nd5000
+COMPILER:       cc
+CFLAGS  :       normal
+LIBES   :       -ltermcap
+OS      :       Ndix Version C
+CONFIG  :       config.bsd
+XENVIRON :       n/a
+NOTES   :       The -O option makes the compiler run for ages!
+VERSION :       6.00.03
+X
+VENDOR	:	SGI
+MODELS	:	4D, 3000
+COMPILER:	cc
+CFLAGS	:	-D__STDC__
+LIBES	:	-lcurses -lsun -lbsd -lc_s
+OS	:	IRIX (3.?) 3.2 3.3 4.0
+CONFIG	:	config.sgi
+XENVIRON	:	n/a
+NOTES	:	AUTOLOGOUT is probably best undef'ed
+NOTES	:	For 4.0, the NLS define in config.h can be enabled.
+VERSION	:	6.00.03
+X
+VENDOR	:	ibm + compatibles
+MODELS	:	i386,i486
+COMPILER:	/bin/cc
+CFLAGS	:	normal
+LIBES	:	-lcurses -lc /usr/ucblib/libucb.a
+OS	:	SVR4 (DELL, ESIX, ISC, UHC)
+CONFIG	:	config.sysv4
+XENVIRON	:	n/a
+NOTES	:	none
+VERSION	:	6.00.04
+X
+VENDOR	:	stardent
+MODELS	:	gs2600
+COMPILER:	/bin/cc
+CFLAGS	:	-O
+LIBES	:	-lcurses
+OS	:	stellix
+CONFIG	:	config.stellar
+XENVIRON	:	n/a
+NOTES	:	works but not worth compiling with -O4...
+NOTES	:	setpgrp() and SIGCHLD work the BSD way, not the way documented.
+NOTES	:	we need to define BACKPIPE		
+VERSION	:	6.00.04
+END_OF_FILE
+if test 6846 -ne `wc -c <'Ported'`; then
+    echo shar: \"'Ported'\" unpacked with wrong size!
+fi
+# end of 'Ported'
+fi
+if test -f 'config/config.aix' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'config/config.aix'\"
+else
+echo shar: Extracting \"'config/config.aix'\" \(4786 characters\)
+sed "s/^X//" >'config/config.aix' <<'END_OF_FILE'
+X/*
+X * config.h -- configure various defines for tcsh
+X *
+X * All source files should #include this FIRST.
+X *
+X * Edit this to match your system type.
+X */
+X/* for an RT running the IBM Sys. V version of AIX. -- tells the compiler
+X   reasonable things. MUST BE the fist thing the compiler sees */
+X#ifdef PL8CC
+X\option MAXD(20000,20000) MAXS(50000,50000) MAXL(20000,20000) MAXH(20000,20000);
+X\option MAXA(20000,20000) MAXP(500) EL_SIZE(20000) ET_SIZE(30000);
+X\option OPTIONS UNSAFE;
+X#endif
+X
+X/****************** System dependant compilation flags ****************/
+X/*
+X * POSIX	This system supports IEEE Std 1003.1-1988 (POSIX).
+X */
+X#undef POSIX
+X
+X/*
+X * POSIXJOBS	This system supports the optional IEEE Std 1003.1-1988 (POSIX)
+X *		job control facilities.
+X */
+X#ifndef aiws
+X#define POSIXJOBS
+X#else
+X#undef POSIXJOBS
+X#endif
+X
+X/*
+X * VFORK	This machine has a vfork().  
+X *		It used to be that for job control to work, this define
+X *		was mandatory. This is not the case any more.
+X *		If you think you still need it, but you don't have vfork, 
+X *		define this anyway and then do #define vfork fork.  
+X *		I do this anyway on a Sun because of yellow pages brain damage,
+X *		[should not be needed under 4.1]
+X *		and on the iris4d cause	SGI's fork is sufficiently "virtual" 
+X *		that vfork isn't necessary.  (Besides, SGI's vfork is weird).
+X *		Note that some machines eg. rs6000 have a vfork, but not
+X *		with the berkeley semantics, so we cannot use it there either.
+X */
+X#undef VFORK
+X
+X/*
+X * BSDJOBS	You have BSD-style job control (both process groups and
+X *		a tty that deals correctly
+X */
+X#ifndef aiws
+X# define BSDJOBS
+X#else
+X# undef BSDJOBS
+X#endif
+X
+X/*
+X * BSDSIGS	You have 4.2-style signals, rather than USG style.
+X *		Note: POSIX systems should not define this unless they
+X *		have sigvec() and friends (ie: 4.3BSD-RENO, HP-UX).
+X */
+X#define BSDSIGS
+X
+X/*
+X * BSDTIMES	You have BSD-style process time stuff (like rusage)
+X *		This may or may not be true.  For example, Apple Unix
+X *		(OREO) has BSDJOBS and BSDSIGS but not BSDTIMES.
+X */
+X#ifndef aiws
+X# define BSDTIMES
+X#else
+X# undef BSDTIMES
+X#endif
+X
+X/*
+X * BSDNICE	Your system uses setpriority() instead of nice, to
+X *		change a processes scheduling priority
+X */
+X#ifndef aiws
+X# define BSDNICE
+X#else
+X# undef BSDNICE
+X#endif
+X
+X/*
+X * TERMIO	You have struct termio instead of struct sgttyb.
+X * 		This is usually the case for SVID systems, where
+X *		BSD uses sgttyb. POSIX systems should define this
+X *		anyway, even though they use struct termios.
+X */
+X#if defined(_IBMR2) || defined(aiws)
+X# define TERMIO
+X#else
+X# undef TERMIO
+X#endif /* _IBMR2 || aiws */
+X
+X/*
+X * SVID		Your machine is SVID complient (Sys V, HPUX, A/UX)
+X *		NOTE: don't do this if you are on a Pyramid -- tcsh is
+X *		built in a BSD universe.
+X *		Set SVID to 1, 2, 3, or 4, depending the version of System V
+X *		you are running. Or set it to 0 if you are not SVID based
+X */
+X#ifndef aiws
+X# define SVID	0
+X#else
+X# define SVID	2
+X#endif /* aiws */
+X
+X/*
+X * YPBUGS	Work around Sun YP bugs that cause expansion of ~username
+X *		to send command output to /dev/null
+X */
+X#undef YPBUGS
+X
+X/*
+X * SIGVOID	Define this if your signal handlers return void.  On older
+X *		systems, signal returns int, but on newer ones, it returns void.
+X */
+X#if (defined(_AIX) && defined(_I386)) || defined(aiws)
+X# undef SIGVOID
+X#else /* _AIX && _I386 */
+X# define SIGVOID 
+X#endif /* (_AIX && _I386) || aiws */
+X
+X/*
+X * HAVEDUP2	Define this if your system supports dup2().
+X */
+X#define HAVEDUP2
+X
+X/*
+X * UTHOST	Does the utmp file have a host field?
+X */
+X#ifndef aiws
+X# define UTHOST
+X#else
+X# undef UTHOST
+X#endif
+X
+X/*
+X * DIRENT	Your system has <dirent.h> instead of <sys/dir.h>
+X */
+X#define DIRENT
+X
+X/****************** local defines *********************/
+X/*
+X * IBMAIX	You are running aix on the ps2, rs6000, on ibm370
+X */
+X#define IBMAIX
+X
+X/*
+X * TCF		You have the transparent computing facility.
+X */
+X#if !defined(_IBMR2) && !defined(aiws)
+X# define TCF	/* ps2 and 370 have TCF */
+X#else
+X# undef TCF	/* The rs6000 and the rt does not have TCF yet */
+X#endif
+X
+X#if defined(_AIX) && defined(_I386)
+X# define _AIXPS2	/* give a more sane name */
+X#endif /* _AIX && _386 */
+X
+X#if defined(_AIXPS2)
+X# define _NO_PROTO
+X# define _BSD
+X# define _BSD_INCLUDES
+X#endif /* _AIXPS2 */
+X
+X#if defined(_IBMR2)
+X# define _POSIX_SOURCE
+X# define _ALL_SOURCE	/* for window size etc, extra tty chars etc. */
+X#endif
+X
+X#ifdef NLS
+X# undef NLS	/* Let us decide in config_f.h... */
+X#endif /* NLS */
+X
+X/*
+X * NOSTRCOLL	We don't have strcoll()
+X */
+X#ifndef _IBMR2
+X# define NOSTRCOLL	/* only the rs6000 has strcoll() */
+X#endif
+X
+X/*
+X * Function pointer comparisons are broken
+X */
+X#ifdef aiws
+X#define void int
+X#endif /* aiws */
+X
+X/****************** configurable hacks ****************/
+X/* have been moved to config_f.h */
+X
+X#include "config_f.h"
+X
+X#if defined(_AIXPS2) || defined(aiws)
+X# undef NLS
+X#endif
+END_OF_FILE
+if test 4786 -ne `wc -c <'config/config.aix'`; then
+    echo shar: \"'config/config.aix'\" unpacked with wrong size!
+fi
+# end of 'config/config.aix'
+fi
+if test -f 'config/config.sequent' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'config/config.sequent'\"
+else
+echo shar: Extracting \"'config/config.sequent'\" \(3985 characters\)
+sed "s/^X//" >'config/config.sequent' <<'END_OF_FILE'
+X/*
+X * config.h -- configure various defines for tcsh
+X *
+X * All source files should #include this FIRST.
+X *
+X * Edit this to match your system type.
+X */
+X
+X/****************** System dependant compilation flags ****************/
+X/*
+X * POSIX	This system supports IEEE Std 1003.1-1988 (POSIX).
+X */
+X#ifdef _SEQUENT_
+X# define POSIX
+X#else /* _SEQUENT_ */
+X# undef POSIX
+X#endif /* _SEQUENT_ */
+X
+X/*
+X * POSIXJOBS	This system supports the optional IEEE Std 1003.1-1988 (POSIX)
+X *		job control facilities.
+X */
+X#ifdef _SEQUENT_
+X# define POSIXJOBS
+X#else /* _SEQUENT_ */
+X# undef POSIXJOBS
+X#endif /* _SEQUENT_ */
+X
+X/*
+X * VFORK	This machine has a vfork().  
+X *		It used to be that for job control to work, this define
+X *		was mandatory. This is not the case any more.
+X *		If you think you still need it, but you don't have vfork, 
+X *		define this anyway and then do #define vfork fork.  
+X *		I do this anyway on a Sun because of yellow pages brain damage,
+X *		[should not be needed under 4.1]
+X *		and on the iris4d cause	SGI's fork is sufficiently "virtual" 
+X *		that vfork isn't necessary.  (Besides, SGI's vfork is weird).
+X *		Note that some machines eg. rs6000 have a vfork, but not
+X *		with the berkeley semantics, so we cannot use it there either.
+X */
+X#define VFORK
+X
+X/*
+X * BSDJOBS	You have BSD-style job control (both process groups and
+X *		a tty that deals correctly
+X */
+X#define BSDJOBS
+X
+X/*
+X * BSDSIGS	You have 4.2-style signals, rather than USG style.
+X *		Note: POSIX systems should not define this unless they
+X *		have sigvec() and friends (ie: 4.3BSD-RENO, HP-UX).
+X */
+X#define BSDSIGS
+X
+X/*
+X * BSDTIMES	You have BSD-style process time stuff (like rusage)
+X *		This may or may not be true.  For example, Apple Unix
+X *		(OREO) has BSDJOBS and BSDSIGS but not BSDTIMES.
+X */
+X#ifdef _SEQUENT_
+X# undef BSDTIMES
+X#else /* _SEQUENT_ */
+X# define BSDTIMES
+X#endif /* _SEQUENT_ */
+X
+X/*
+X * BSDNICE	Your system uses setpriority() instead of nice, to
+X *		change a processes scheduling priority
+X */
+X#ifdef _SEQUENT_
+X# undef BSDNICE
+X#else /* _SEQUENT_ */
+X# define BSDNICE
+X#endif /* _SEQUENT_ */
+X
+X/*
+X * TERMIO	You have struct termio instead of struct sgttyb.
+X * 		This is usually the case for SVID systems, where
+X *		BSD uses sgttyb. POSIX systems should define this
+X *		anyway, even though they use struct termios.
+X */
+X#ifdef _SEQUENT_
+X# define TERMIO
+X#else /* _SEQUENT_ */
+X# undef TERMIO
+X#endif /* _SEQUENT_ */
+X
+X/*
+X * SVID		Your machine is SVID complient (Sys V, HPUX, A/UX)
+X *		NOTE: don't do this if you are on a Pyramid -- tcsh is
+X *		built in a BSD universe.
+X *		Set SVID to 1, 2, 3, or 4, depending the version of System V
+X *		you are running. Or set it to 0 if you are not SVID based
+X */
+X#ifdef _SEQUENT_
+X# define SVID	3
+X#else /* _SEQUENT_ */
+X# define SVID	0
+X#endif /* _SEQUENT_ */
+X
+X/*
+X * YPBUGS	Work around Sun YP bugs that cause expansion of ~username
+X *		to send command output to /dev/null
+X *		This is fixed in sunos 4.1, broken in 4.0..
+X */
+X#ifdef _SEQUENT_
+X# undef YPBUGS
+X#else /* _SEQUENT_ */
+X# define YPBUGS
+X#endif /* _SEQUENT_ */
+X  
+X/*
+X * SIGVOID	Define this if your signal handlers return void.  On older
+X *		systems, signal returns int, but on newer ones, it returns void.
+X */
+X#ifdef _SEQUENT_
+X# define SIGVOID 
+X#else /* _SEQUENT_ */
+X# undef SIGVOID 
+X#endif /* _SEQUENT_ */
+X
+X/*
+X * HAVEDUP2	Define this if your system supports dup2().
+X */
+X#define HAVEDUP2
+X
+X/*
+X * UTHOST	Does the utmp file have a host field?
+X */
+X#define UTHOST
+X
+X/*
+X * DIRENT	Your system has <dirent.h> instead of <sys/dir.h>
+X */
+X#ifdef _SEQUENT_
+X#define DIRENT
+X#else /* _SEQUENT_ */
+X#undef DIRENT
+X#endif /* _SEQUENT_ */
+X
+X/*
+X * BSD		Your system has <strings.h> instead of <string.h>
+X */
+X#ifdef _SEQUENT_
+X#undef BSD
+X#else /* _SEQUENT_ */
+X#define BSD
+X#endif /* _SEQUENT_ */
+X
+X/****************** local defines *********************/
+X/****************** configurable hacks ****************/
+X/* have been moved to config_f.h */
+X#include "config_f.h"
+X
+X#ifdef _SEQUENT_
+X#define NAMEI_BUG
+X#else /* _SEQUENT_ */
+X#undef NLS
+X#endif /* _SEQUENT_ */
+END_OF_FILE
+if test 3985 -ne `wc -c <'config/config.sequent'`; then
+    echo shar: \"'config/config.sequent'\" unpacked with wrong size!
+fi
+# end of 'config/config.sequent'
+fi
+if test -f 'config_f.h' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'config_f.h'\"
+else
+echo shar: Extracting \"'config_f.h'\" \(4083 characters\)
+sed "s/^X//" >'config_f.h' <<'END_OF_FILE'
+X/* $Header: /home/hyperion/mu/christos/src/sys/tcsh-6.01/RCS/config_f.h,v 3.2 1991/09/08 00:45:32 christos Exp $ */
+X/*
+X * config_f.h -- configure various defines for tcsh
+X *
+X * This is included by config.h.
+X *
+X * Edit this to match your particular feelings; this is set up to the
+X * way I like it.
+X */
+X/*-
+X * Copyright (c) 1980, 1991 The Regents of the University of California.
+X * All rights reserved.
+X *
+X * Redistribution and use in source and binary forms, with or without
+X * modification, are permitted provided that the following conditions
+X * are met:
+X * 1. Redistributions of source code must retain the above copyright
+X *    notice, this list of conditions and the following disclaimer.
+X * 2. Redistributions in binary form must reproduce the above copyright
+X *    notice, this list of conditions and the following disclaimer in the
+X *    documentation and/or other materials provided with the distribution.
+X * 3. All advertising materials mentioning features or use of this software
+X *    must display the following acknowledgement:
+X *	This product includes software developed by the University of
+X *	California, Berkeley and its contributors.
+X * 4. Neither the name of the University nor the names of its contributors
+X *    may be used to endorse or promote products derived from this software
+X *    without specific prior written permission.
+X *
+X * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+X * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+X * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+X * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+X * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+X * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+X * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+X * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+X * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+X * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+X * SUCH DAMAGE.
+X */
+X#ifndef _h_config_f
+X#define _h_config_f
+X
+X/*
+X * SHORT_STRINGS Use 16 bit characters instead of 8 bit chars
+X * 	         This fixes up quoting problems and eases implementation
+X *	         of nls...
+X *
+X */
+X#define SHORT_STRINGS
+X
+X/*
+X * NLS:		Use Native Language System
+X *		Routines like setlocale() are needed
+X *		if you don't have <locale.h>, you don't want
+X *		to define this.
+X */
+X#define NLS
+X
+X/*
+X * LOGINFIRST   Source ~/.login before ~/.cshrc
+X */
+X#undef LOGINFIRST
+X
+X/*
+X * VIDEFAULT    Make the VI mode editor the default
+X */
+X#undef VIDEFAULT
+X
+X/*
+X * KAI          use "bye" command and rename "log" to "watchlog"
+X */
+X#undef KAI
+X
+X/*
+X * CSHDIRS    save a history like stack of directories
+X */
+X#define CSHDIRS
+X
+X/*
+X * TESLA	drops DTR on logout. Historical note:
+X *		tesla.ee.cornell.edu was a vax11/780 with a develcon
+X *		switch that sometimes would not hang up.
+X */
+X#undef TESLA
+X
+X/*
+X * DOTLAST      put "." last in the default path, for security reasons
+X */
+X#define DOTLAST
+X
+X/*
+X * AUTOLOGOUT	tries to determine if it should set autologout depending
+X *		on the name of the tty, and environment.
+X *		Does not make sense in the modern window systems!
+X */
+X#define AUTOLOGOUT
+X
+X/*
+X * SUSPENDED	Newer shells say 'Suspended' instead of 'Stopped'.
+X *		Define to get the same type of messages.
+X */
+X#define SUSPENDED
+X
+X/*
+X * KANJI	Ignore meta-next, and the ISO character set. Should
+X *		be used with SHORT_STRINGS
+X *
+X */
+X#undef KANJI
+X
+X/*
+X * SYSMALLOC	Use the system provided version of malloc and friends.
+X *		This can be much slower and no memory statistics will be
+X *		provided.
+X */
+X#undef SYSMALLOC
+X
+X/*
+X * RCSID	This defines if we want rcs strings in the binary or not
+X *
+X */
+X#if !defined(lint) && !defined(SABER)
+X# ifndef __GNUC__
+X#  define RCSID(id) static char *rcsid = (id);
+X# else
+X#  define RCSID(id) static char *rcsid() { return (id); }
+X# endif /* !__GNUC__ */
+X#else
+X# define RCSID(id)	/* Nothing */
+X#endif /* !lint && !SABER */
+X
+X#endif /* _h_config_f */
+END_OF_FILE
+if test 4083 -ne `wc -c <'config_f.h'`; then
+    echo shar: \"'config_f.h'\" unpacked with wrong size!
+fi
+# end of 'config_f.h'
+fi
+if test -f 'eight-bit.me' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'eight-bit.me'\"
+else
+echo shar: Extracting \"'eight-bit.me'\" \(4474 characters\)
+sed "s/^X//" >'eight-bit.me' <<'END_OF_FILE'
+X.\" $Id: eight-bit.me,v 3.1 1991/09/12 09:25:57 christos Exp $
+How to use 8 bit characters
+by 
+Johan Widen 
+X(jw@sics.se) 
+and 
+Per Hedeland 
+X(per@erix.ericsson.se)
+X
+X.pp
+X(Disclaimer: This is really a sketch of an approach rather
+than a "how-to" document.
+Also, it is mostly relevant to Swedish X Window users...)
+X
+X.pp
+The way I use this facility at present is to add lines such as the following
+to my .cshrc:
+X
+X.nf 
+setenv NOREBIND
+setenv LC_CTYPE iso_8859_1
+foreach key ( \\\\304 \\\\305 \\\\326 \\\\344 \\\\345 \\\\366 )
+X   bindkey $key self-insert-command
+end
+X.fi
+X
+X.pp
+Note that if I used a system with a reasonably complete NLS
+X(and a tcsh compiled to use it),
+all of the above could be replaced with simply setting the LANG environment
+variable to an appropriate value - the NLS would then indicate exactly which
+characters should be considered printable, and tcsh would do the rebinding
+of these automatically. The above works for tcsh's simulated NLS and for
+the NLS in SunOS 4.1 - without the NOREBIND setting, all of the
+Meta-<non-control-character> bindings would be undone in these cases.
+X
+X.pp
+These keybindings are the codes for my national characters, but the bindings
+X(M-d, M-e etc) are not conveniently placed.
+They are however consistent with what other programs will see.
+X
+X.pp
+Now: I actually want the character \\304 to be inserted when I press say '{'
+together with a modifier key. I want the behavior to be the same not only
+in tcsh but in say cat, an editor and all other programs. I fix this by
+performing a keyboard remapping with the
+X.i xmodmap
+program (I use X Windows).
+X
+X.pp
+I give xmodmap an input something like the following:
+X
+X.nf
+keycode 26 = Mode_switch
+add mod2 = Mode_switch
+X! if you want Mode_switch to toggle, at the expense of losing
+X! Caps- or whatever Lock you currently have, add the two lines below
+X! clear Lock
+X! add Lock = Mode_switch
+X! 	Binds swedish characters on ][\\
+X!
+keycode 71 = bracketleft braceleft adiaeresis Adiaeresis
+keycode 72 = bracketright braceright aring Aring
+keycode 95 = backslash bar odiaeresis Odiaeresis
+X.fi
+X
+or:
+X
+X.nf
+keysym Alt_R = Mode_switch
+add mod2 = Mode_switch
+keysym bracketleft = bracketleft braceleft Adiaeresis adiaeresis
+keysym bracketright = bracketright braceright Aring aring
+keysym backslash = backslash bar Odiaeresis odiaeresis
+X.fi
+X
+Another, more portable way of doing the same thing is:
+X
+X.nf
+X#!/bin/sh
+X# Make Alt-] etc produce the "appropriate" Swedish iso8859/1 keysym values
+X# Should handle fairly strange initial mappings
+X
+xmodmap -pk | sed -e 's/[()]//g' | \\
+awk 'BEGIN {
+X	alt["bracketright"] = "Aring"; alt["braceright"] = "aring";
+X	alt["bracketleft"] = "Adiaeresis"; alt["braceleft"] = "adiaeresis";
+X	alt["backslash"] = "Odiaeresis"; alt["bar"] = "odiaeresis";
+X}
+NF >= 5 && (alt[$3] != "" || alt[$5] != "") {
+X	printf "keycode %s = %s %s ", $1, $3, $5;
+X	if (alt[$3] != "") printf "%s ", alt[$3];
+X	else printf "%s ", $3;
+X	printf "%s\\n", alt[$5];
+X	next;
+X}
+alt[$3] != "" {
+X	printf "keycode %s = %s %s %s\\n", $1, $3, $3, alt[$3];
+X}
+NF >= 5 && ($3 ~ /^Alt_[LR]$/ || $5 ~ /^Alt_[LR]$/) {
+X	printf "keycode %s = %s %s Mode_switch\\n", $1, $3, $5;
+X	if ($3 ~ /^Alt_[LR]$/) altkeys = altkeys " " $3;
+X	else altkeys = altkeys " " $5;
+X	next;
+X}
+X$3 ~ /^Alt_[LR]$/ {
+X	printf "keycode %s = %s %s Mode_switch\\n", $1, $3, $3;
+X	altkeys = altkeys " " $3;
+X}
+XEND {
+X	if (altkeys != "") printf "clear mod2\\nadd mod2 =%s\\n", altkeys;
+X}' | xmodmap -
+X.fi
+X
+X.pp
+XFinally, with the binding of the codes of my national characters to
+self-insert-command, I lost the ability to use the Meta key to call the
+functions previously bound to M-d, M-e, and M-v (<esc>d etc still works).
+However, with the assumption that
+most of my input to tcsh will be through the
+X.i xterm
+terminal emulator, I can get that ability back via xterm bindings!
+Since M-d is the only one of the "lost" key combinations that was
+actually bound to a function in my case,
+and it had the same binding as M-D, I can use the following in
+my .Xdefaults file:
+X
+X.nf
+XXTerm*VT100.Translations:	#override \\n\\
+X			Meta ~Ctrl<Key>d:	string(0x1b) string(d)
+X.fi
+X
+X- or, if I really want a complete mapping:
+X
+X.nf
+XXTerm*VT100.Translations:	#override \\n\\
+X			:Meta ~Ctrl<Key>d:	string(0x1b) string(d) \\n\\
+X			:Meta ~Ctrl<Key>D:	string(0x1b) string(D) \\n\\
+X			:Meta ~Ctrl<Key>e:	string(0x1b) string(e) \\n\\
+X			:Meta ~Ctrl<Key>E:	string(0x1b) string(E) \\n\\
+X			:Meta ~Ctrl<Key>v:	string(0x1b) string(v) \\n\\
+X			:Meta ~Ctrl<Key>V:	string(0x1b) string(V)
+X.fi
+END_OF_FILE
+if test 4474 -ne `wc -c <'eight-bit.me'`; then
+    echo shar: \"'eight-bit.me'\" unpacked with wrong size!
+fi
+# end of 'eight-bit.me'
+fi
+if test -f 'sh.char.h' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'sh.char.h'\"
+else
+echo shar: Extracting \"'sh.char.h'\" \(4716 characters\)
+sed "s/^X//" >'sh.char.h' <<'END_OF_FILE'
+X/* $Header: /home/hyperion/mu/christos/src/sys/tcsh-6.01/RCS/sh.char.h,v 3.1 1991/11/26 04:41:23 christos Exp $ */
+X/*
+X * sh.char.h: Table for spotting special characters quickly
+X * 	      Makes for very obscure but efficient coding.
+X */
+X/*-
+X * Copyright (c) 1980, 1991 The Regents of the University of California.
+X * All rights reserved.
+X *
+X * Redistribution and use in source and binary forms, with or without
+X * modification, are permitted provided that the following conditions
+X * are met:
+X * 1. Redistributions of source code must retain the above copyright
+X *    notice, this list of conditions and the following disclaimer.
+X * 2. Redistributions in binary form must reproduce the above copyright
+X *    notice, this list of conditions and the following disclaimer in the
+X *    documentation and/or other materials provided with the distribution.
+X * 3. All advertising materials mentioning features or use of this software
+X *    must display the following acknowledgement:
+X *	This product includes software developed by the University of
+X *	California, Berkeley and its contributors.
+X * 4. Neither the name of the University nor the names of its contributors
+X *    may be used to endorse or promote products derived from this software
+X *    without specific prior written permission.
+X *
+X * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+X * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+X * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+X * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+X * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+X * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+X * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+X * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+X * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+X * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+X * SUCH DAMAGE.
+X */
+X#ifndef _h_sh_char
+X#define _h_sh_char
+X#include <ctype.h>
+X
+X#ifdef _MINIX
+X# undef _SP
+X#endif /* _MINIX */
+extern unsigned short _cmap[];
+X
+X#ifndef NLS
+extern unsigned char _cmap_lower[], _cmap_upper[];
+X
+X#endif
+X
+X#define	_Q	0x0001		/* '" */
+X#define	_Q1	0x0002		/* ` */
+X#define	_SP	0x0004		/* space and tab */
+X#define	_NL	0x0008		/* \n */
+X#define	_META	0x0010		/* lex meta characters, sp #'`";&<>()|\t\n */
+X#define	_GLOB	0x0020		/* glob characters, *?{[` */
+X#define	_ESC	0x0040		/* \ */
+X#define	_DOL	0x0080		/* $ */
+X#define	_DIG  	0x0100		/* 0-9 */
+X#define	_LET  	0x0200		/* a-z, A-Z, _ */
+X#define	_UP   	0x0400		/* A-Z */
+X#define	_LOW  	0x0800		/* a-z */
+X#define	_XD 	0x1000		/* 0-9, a-f, A-F */
+X#define	_CMD	0x2000		/* lex end of command chars, ;&(|` */
+X#define _CTR	0x4000		/* control */
+X
+X#define cmap(c, bits)	\
+X	(((c) & QUOTE) ? 0 : (_cmap[(unsigned char)(c)] & (bits)))
+X
+X#define isglob(c)	cmap(c, _GLOB)
+X#define isspc(c)	cmap(c, _SP)
+X#define ismeta(c)	cmap(c, _META)
+X#define iscmdmeta(c)	cmap(c, _CMD)
+X#define letter(c)	(((c) & QUOTE) ? 0 : \
+X			 (isalpha((unsigned char) (c)) || (c) == '_'))
+X#define alnum(c)	(((c) & QUOTE) ? 0 : \
+X		         (isalnum((unsigned char) (c)) || (c) == '_'))
+X#ifdef NLS
+X# define Isspace(c)	(((c) & QUOTE) ? 0 : isspace((unsigned char) (c)))
+X# define Isdigit(c)	(((c) & QUOTE) ? 0 : isdigit((unsigned char) (c)))
+X# define Isalpha(c)	(((c) & QUOTE) ? 0 : isalpha((unsigned char) (c)))
+X# define Islower(c)	(((c) & QUOTE) ? 0 : islower((unsigned char) (c)))
+X# define Isupper(c)	(((c) & QUOTE) ? 0 : isupper((unsigned char) (c)))
+X# define Tolower(c) 	(((c) & QUOTE) ? 0 : tolower((unsigned char) (c)))
+X# define Toupper(c) 	(((c) & QUOTE) ? 0 : toupper((unsigned char) (c)))
+X# define Isxdigit(c)	(((c) & QUOTE) ? 0 : isxdigit((unsigned char) (c)))
+X# define Isalnum(c)	(((c) & QUOTE) ? 0 : isalnum((unsigned char) (c)))
+X# define Iscntrl(c) 	(((c) & QUOTE) ? 0 : iscntrl((unsigned char) (c)))
+X# define Isprint(c) 	(((c) & QUOTE) ? 0 : isprint((unsigned char) (c)))
+X#else
+X# define Isspace(c)	cmap(c, _SP|_NL)
+X# define Isdigit(c)	cmap(c, _DIG)
+X# define Isalpha(c)	(cmap(c,_LET) && !(((c) & META) && AsciiOnly))
+X# define Islower(c)	(cmap(c,_LOW) && !(((c) & META) && AsciiOnly))
+X# define Isupper(c)	(cmap(c, _UP) && !(((c) & META) && AsciiOnly))
+X# define Tolower(c)	(_cmap_lower[(unsigned char)(c)])
+X# define Toupper(c)	(_cmap_upper[(unsigned char)(c)])
+X# define Isxdigit(c)	cmap(c, _XD)
+X# define Isalnum(c)	(cmap(c, _DIG|_LET) && !(((c) & META) && AsciiOnly))
+X# define Iscntrl(c)	(cmap(c,_CTR) && !(((c) & META) && AsciiOnly))
+X# define Isprint(c)	(!cmap(c,_CTR) && !(((c) & META) && AsciiOnly))
+X#endif
+X
+X#endif /* _h_sh_char */
+END_OF_FILE
+if test 4716 -ne `wc -c <'sh.char.h'`; then
+    echo shar: \"'sh.char.h'\" unpacked with wrong size!
+fi
+# end of 'sh.char.h'
+fi
+if test -f 'sh.hist.c' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'sh.hist.c'\"
+else
+echo shar: Extracting \"'sh.hist.c'\" \(5527 characters\)
+sed "s/^X//" >'sh.hist.c' <<'END_OF_FILE'
+X/* $Header: /home/hyperion/mu/christos/src/sys/tcsh-6.01/RCS/sh.hist.c,v 3.2 1991/10/12 04:23:51 christos Exp $ */
+X/*
+X * sh.hist.c: Shell history expansions and substitutions
+X */
+X/*-
+X * Copyright (c) 1980, 1991 The Regents of the University of California.
+X * All rights reserved.
+X *
+X * Redistribution and use in source and binary forms, with or without
+X * modification, are permitted provided that the following conditions
+X * are met:
+X * 1. Redistributions of source code must retain the above copyright
+X *    notice, this list of conditions and the following disclaimer.
+X * 2. Redistributions in binary form must reproduce the above copyright
+X *    notice, this list of conditions and the following disclaimer in the
+X *    documentation and/or other materials provided with the distribution.
+X * 3. All advertising materials mentioning features or use of this software
+X *    must display the following acknowledgement:
+X *	This product includes software developed by the University of
+X *	California, Berkeley and its contributors.
+X * 4. Neither the name of the University nor the names of its contributors
+X *    may be used to endorse or promote products derived from this software
+X *    without specific prior written permission.
+X *
+X * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+X * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+X * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+X * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+X * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+X * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+X * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+X * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+X * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+X * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+X * SUCH DAMAGE.
+X */
+X#include "sh.h"
+X
+RCSID("$Id: sh.hist.c,v 3.2 1991/10/12 04:23:51 christos Exp $")
+X
+X#include "tc.h"
+X
+extern bool histvalid;
+extern Char histline[];
+static Char HistLit = 0;
+X
+static	void	hfree	__P((struct Hist *));
+static	void	dohist1	__P((struct Hist *, int *, int, int, int));
+static	void	phist	__P((struct Hist *, int, int));
+X
+X/*
+X * C shell
+X */
+X
+void
+savehist(sp)
+X    struct wordent *sp;
+X{
+X    register struct Hist *hp, *np;
+X    register int histlen = 0;
+X    Char   *cp;
+X
+X    /* throw away null lines */
+X    if (sp->next->word[0] == '\n')
+X	return;
+X    cp = value(STRhistory);
+X    if (*cp) {
+X	register Char *p = cp;
+X
+X	while (*p) {
+X	    if (!Isdigit(*p)) {
+X		histlen = 0;
+X		break;
+X	    }
+X	    histlen = histlen * 10 + *p++ - '0';
+X	}
+X    }
+X    for (hp = &Histlist; np = hp->Hnext;)
+X	if (eventno - np->Href >= histlen || histlen == 0)
+X	    hp->Hnext = np->Hnext, hfree(np);
+X	else
+X	    hp = np;
+X    (void) enthist(++eventno, sp, 1);
+X}
+X
+struct Hist *
+enthist(event, lp, docopy)
+X    int     event;
+X    register struct wordent *lp;
+X    bool    docopy;
+X{
+X    register struct Hist *np;
+X
+X    np = (struct Hist *) xmalloc((size_t) sizeof(*np));
+X    (void) time(&(np->Htime));
+X    np->Hnum = np->Href = event;
+X    if (docopy) {
+X	copylex(&np->Hlex, lp);
+X	if (histvalid)
+X	    np->histline = Strsave(histline);
+X	else
+X	    np->histline = NULL;
+X    }
+X    else {
+X	np->Hlex.next = lp->next;
+X	lp->next->prev = &np->Hlex;
+X	np->Hlex.prev = lp->prev;
+X	lp->prev->next = &np->Hlex;
+X	np->histline = NULL;
+X    }
+X    np->Hnext = Histlist.Hnext;
+X    Histlist.Hnext = np;
+X    return (np);
+X}
+X
+static void
+hfree(hp)
+X    register struct Hist *hp;
+X{
+X
+X    freelex(&hp->Hlex);
+X    if (hp->histline)
+X	xfree((ptr_t) hp->histline);
+X    xfree((ptr_t) hp);
+X}
+X
+X/*ARGSUSED*/
+void
+dohist(vp, c)
+X    Char  **vp;
+X    struct command *c;
+X{
+X    int     n, rflg = 0, hflg = 0, tflg = 0;
+X
+X    if (getn(value(STRhistory)) == 0)
+X	return;
+X    if (setintr)
+X#ifdef BSDSIGS
+X	(void) sigsetmask(sigblock((sigmask_t) 0) & ~sigmask(SIGINT));
+X#else
+X	(void) sigrelse(SIGINT);
+X#endif
+X    while (*++vp && **vp == '-') {
+X	Char   *vp2 = *vp;
+X
+X	while (*++vp2)
+X	    switch (*vp2) {
+X	    case 'h':
+X		hflg++;
+X		break;
+X	    case 'r':
+X		rflg++;
+X		break;
+X	    case 't':
+X		tflg++;
+X		break;
+X	    case '-':		/* ignore multiple '-'s */
+X		break;
+X	    default:
+X		stderror(ERR_HISTUS);
+X		break;
+X	    }
+X    }
+X    if (*vp)
+X	n = getn(*vp);
+X    else {
+X	n = getn(value(STRhistory));
+X    }
+X    dohist1(Histlist.Hnext, &n, rflg, hflg, tflg);
+X}
+X
+static void
+dohist1(hp, np, rflg, hflg, tflg)
+X    struct Hist *hp;
+X    int    *np, rflg, hflg, tflg;
+X{
+X    bool    print = (*np) > 0;
+X
+X    for (; hp != 0; hp = hp->Hnext) {
+X	(*np)--;
+X	hp->Href++;
+X	if (rflg == 0) {
+X	    dohist1(hp->Hnext, np, rflg, hflg, tflg);
+X	    if (print)
+X		phist(hp, hflg, tflg);
+X	    return;
+X	}
+X	if (*np >= 0)
+X	    phist(hp, hflg, tflg);
+X    }
+X}
+X
+static void
+phist(hp, hflg, tflg)
+X    register struct Hist *hp;
+X    int     hflg, tflg;
+X{
+X    struct tm *t;
+X    char    ampm = 'a';
+X
+X    if (hflg == 0) {
+X	xprintf("%6d\t", hp->Hnum);
+X	if (tflg == 0) {
+X	    t = localtime(&hp->Htime);
+X	    if (adrof(STRampm)) {	/* addition by Hans J. Albertsson */
+X		if (t->tm_hour >= 12) {
+X		    if (t->tm_hour > 12)
+X			t->tm_hour -= 12;
+X		    ampm = 'p';
+X		}
+X		else if (t->tm_hour == 0)
+X		    t->tm_hour = 12;
+X		xprintf("%2d:%02d%cm\t", t->tm_hour, t->tm_min, ampm);
+X	    }
+X	    else {
+X		xprintf("%2d:%02d\t", t->tm_hour, t->tm_min);
+X	    }
+X	}
+X    }
+X    if (HistLit && hp->histline)
+X	xprintf("%s\n", short2str(hp->histline));
+X    else
+X	prlex(&hp->Hlex);
+X}
+END_OF_FILE
+if test 5527 -ne `wc -c <'sh.hist.c'`; then
+    echo shar: \"'sh.hist.c'\" unpacked with wrong size!
+fi
+# end of 'sh.hist.c'
+fi
+if test -f 'sh.print.c' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'sh.print.c'\"
+else
+echo shar: Extracting \"'sh.print.c'\" \(5042 characters\)
+sed "s/^X//" >'sh.print.c' <<'END_OF_FILE'
+X/* $Header: /home/hyperion/mu/christos/src/sys/tcsh-6.01/RCS/sh.print.c,v 3.2 1991/10/12 04:23:51 christos Exp $ */
+X/*
+X * sh.print.c: Primitive Output routines.
+X */
+X/*-
+X * Copyright (c) 1980, 1991 The Regents of the University of California.
+X * All rights reserved.
+X *
+X * Redistribution and use in source and binary forms, with or without
+X * modification, are permitted provided that the following conditions
+X * are met:
+X * 1. Redistributions of source code must retain the above copyright
+X *    notice, this list of conditions and the following disclaimer.
+X * 2. Redistributions in binary form must reproduce the above copyright
+X *    notice, this list of conditions and the following disclaimer in the
+X *    documentation and/or other materials provided with the distribution.
+X * 3. All advertising materials mentioning features or use of this software
+X *    must display the following acknowledgement:
+X *	This product includes software developed by the University of
+X *	California, Berkeley and its contributors.
+X * 4. Neither the name of the University nor the names of its contributors
+X *    may be used to endorse or promote products derived from this software
+X *    without specific prior written permission.
+X *
+X * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+X * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+X * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+X * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+X * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+X * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+X * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+X * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+X * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+X * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+X * SUCH DAMAGE.
+X */
+X#include "sh.h"
+X
+RCSID("$Id: sh.print.c,v 3.2 1991/10/12 04:23:51 christos Exp $")
+X
+X#include "ed.h"
+X
+extern int Tty_eight_bit;
+extern int Tty_raw_mode;
+extern Char GettingInput;
+X
+int     lbuffed = 1;		/* true if line buffered */
+X
+static	void	p2dig	__P((int));
+X
+X/*
+X * C Shell
+X */
+X
+X#ifdef RLIMIT_CPU
+void
+psecs(l)
+X    long    l;
+X{
+X    register int i;
+X
+X    i = l / 3600;
+X    if (i) {
+X	xprintf("%d:", i);
+X	i = l % 3600;
+X	p2dig(i / 60);
+X	goto minsec;
+X    }
+X    i = l;
+X    xprintf("%d", i / 60);
+minsec:
+X    i %= 60;
+X    xprintf(":");
+X    p2dig(i);
+X}
+X
+X#endif
+X
+void
+pcsecs(l)			/* PWP: print mm:ss.dd, l is in sec*100 */
+X#ifdef BSDTIMES
+X    long    l;
+X
+X#else				/* BSDTIMES */
+X#ifndef POSIX
+X    time_t  l;
+X
+X#else				/* POSIX */
+X    clock_t l;
+X
+X#endif				/* POSIX */
+X#endif				/* BSDTIMES */
+X{
+X    register int i;
+X
+X    i = l / 360000;
+X    if (i) {
+X	xprintf("%d:", i);
+X	i = (l % 360000) / 100;
+X	p2dig(i / 60);
+X	goto minsec;
+X    }
+X    i = l / 100;
+X    xprintf("%d", i / 60);
+minsec:
+X    i %= 60;
+X    xprintf(":");
+X    p2dig(i);
+X    xprintf(".");
+X    p2dig((int) (l % 100));
+X}
+X
+static void 
+p2dig(i)
+X    register int i;
+X{
+X
+X    xprintf("%d%d", i / 10, i % 10);
+X}
+X
+char    linbuf[2048];		/* was 128 */
+char   *linp = linbuf;
+bool    output_raw = 0;		/* PWP */
+X
+void
+xputchar(c)
+X    register int c;
+X{
+X    int     atr = 0;
+X
+X    atr |= c & ATTRIBUTES & TRIM;
+X    c &= CHAR | QUOTE;
+X    if (!output_raw && (c & QUOTE) == 0) {
+X	if (Iscntrl(c)) {
+X	    if (c != '\t' && c != '\n' && c != '\r') {
+X		xputchar('^' | atr);
+X		if (c == ASCII)
+X		    c = '?';
+X		else
+X		    c |= 0100;
+X	    }
+X	}
+X	else if (!Isprint(c)) {
+X	    xputchar('\\' | atr);
+X	    xputchar((((c >> 6) & 7) + '0') | atr);
+X	    xputchar((((c >> 3) & 7) + '0') | atr);
+X	    c = (c & 7) + '0';
+X	}
+X	(void) putraw(c | atr);
+X    }
+X    else {
+X	c &= TRIM;
+X	if (haderr ? (didfds ? is2atty : isdiagatty) :
+X	    (didfds ? is1atty : isoutatty))
+X	    SetAttributes(c | atr);
+X	(void) putpure(c);
+X    }
+X    if (lbuffed && (c & CHAR) == '\n')
+X	flush();
+X}
+X
+int
+putraw(c)
+X    register int c;
+X{
+X    if (haderr ? (didfds ? is2atty : isdiagatty) :
+X	(didfds ? is1atty : isoutatty)) {
+X	if (Tty_eight_bit == -1)
+X	    ed_set_tty_eight_bit();
+X	if (!Tty_eight_bit && (c & META)) {
+X	    c = (c & ~META) | STANDOUT;
+X	}
+X	SetAttributes(c);
+X    }
+X    return putpure(c);
+X}
+X
+int
+putpure(c)
+X    register int c;
+X{
+X    c &= CHAR;
+X
+X    *linp++ = c;
+X    if (linp >= &linbuf[sizeof linbuf - 10])
+X	flush();
+X    return (1);
+X}
+X
+void
+draino()
+X{
+X    linp = linbuf;
+X}
+X
+void
+flush()
+X{
+X    register int unit;
+X
+X    /* int lmode; */
+X
+X    if (linp == linbuf)
+X	return;
+X    if (GettingInput && !Tty_raw_mode && linp < &linbuf[sizeof linbuf - 10])
+X	return;
+X    if (haderr)
+X	unit = didfds ? 2 : SHDIAG;
+X    else
+X	unit = didfds ? 1 : SHOUT;
+X#ifdef COMMENT
+X#ifdef TIOCLGET
+X    if (didfds == 0 && ioctl(unit, TIOCLGET, (ioctl_t) & lmode) == 0 &&
+X	lmode & LFLUSHO) {
+X	lmode = LFLUSHO;
+X	(void) ioctl(unit, TIOCLBIC, (ioclt_t) & lmode);
+X	(void) write(unit, "\n", 1);
+X    }
+X#endif
+X#endif
+X    (void) write(unit, linbuf, (size_t) (linp - linbuf));
+X    linp = linbuf;
+X}
+END_OF_FILE
+if test 5042 -ne `wc -c <'sh.print.c'`; then
+    echo shar: \"'sh.print.c'\" unpacked with wrong size!
+fi
+# end of 'sh.print.c'
+fi
+if test -f 'sh.proc.h' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'sh.proc.h'\"
+else
+echo shar: Extracting \"'sh.proc.h'\" \(5531 characters\)
+sed "s/^X//" >'sh.proc.h' <<'END_OF_FILE'
+X/* $Header: /home/hyperion/mu/christos/src/sys/tcsh-6.01/RCS/sh.proc.h,v 3.4 1991/11/26 04:28:26 christos Exp $ */
+X/*
+X * sh.proc.h: Process data structures and variables
+X */
+X/*-
+X * Copyright (c) 1980, 1991 The Regents of the University of California.
+X * All rights reserved.
+X *
+X * Redistribution and use in source and binary forms, with or without
+X * modification, are permitted provided that the following conditions
+X * are met:
+X * 1. Redistributions of source code must retain the above copyright
+X *    notice, this list of conditions and the following disclaimer.
+X * 2. Redistributions in binary form must reproduce the above copyright
+X *    notice, this list of conditions and the following disclaimer in the
+X *    documentation and/or other materials provided with the distribution.
+X * 3. All advertising materials mentioning features or use of this software
+X *    must display the following acknowledgement:
+X *	This product includes software developed by the University of
+X *	California, Berkeley and its contributors.
+X * 4. Neither the name of the University nor the names of its contributors
+X *    may be used to endorse or promote products derived from this software
+X *    without specific prior written permission.
+X *
+X * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+X * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+X * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+X * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+X * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+X * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+X * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+X * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+X * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+X * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+X * SUCH DAMAGE.
+X */
+X#ifndef _h_sh_proc
+X#define _h_sh_proc
+X/*
+X * C shell - process structure declarations
+X */
+X
+X/*
+X * Structure for each process the shell knows about:
+X *	allocated and filled by pcreate.
+X *	flushed by pflush; freeing always happens at top level
+X *	    so the interrupt level has less to worry about.
+X *	processes are related to "friends" when in a pipeline;
+X *	    p_friends links makes a circular list of such jobs
+X */
+struct process {
+X    struct process *p_next;	/* next in global "proclist" */
+X    struct process *p_friends;	/* next in job list (or self) */
+X    struct directory *p_cwd;	/* cwd of the job (only in head) */
+X    short unsigned p_flags;	/* various job status flags */
+X    char    p_reason;		/* reason for entering this state */
+X    int     p_index;		/* shorthand job index */
+X    pid_t   p_procid;
+X    pid_t   p_jobid;		/* pid of job leader */
+X    /* if a job is stopped/background p_jobid gives its pgrp */
+X#ifdef BSDTIMES
+X    struct timeval p_btime;	/* begin time */
+X    struct timeval p_etime;	/* end time */
+X    struct rusage p_rusage;
+X#else				/* BSDTIMES */
+X# ifdef _SEQUENT_
+X    timeval_t p_btime;		/* begin time */
+X    timeval_t p_etime;		/* end time */
+X    struct process_stats p_rusage;
+X# else				/* _SEQUENT_ */
+X#  ifndef POSIX
+X    time_t  p_btime;		/* begin time */
+X    time_t  p_etime;		/* end time */
+X    time_t  p_utime;		/* user time */
+X    time_t  p_stime;		/* system time */
+X#  else	/* POSIX */
+X    clock_t p_btime;		/* begin time */
+X    clock_t p_etime;		/* end time */
+X    clock_t p_utime;		/* user time */
+X    clock_t p_stime;		/* system time */
+X#  endif /* POSIX */
+X# endif /* _SEQUENT_ */
+X#endif /* BSDTIMES */
+X    Char   *p_command;		/* first PMAXLEN chars of command */
+X};
+X
+X/* flag values for p_flags */
+X#define	PRUNNING	(1<<0)	/* running */
+X#define	PSTOPPED	(1<<1)	/* stopped */
+X#define	PNEXITED	(1<<2)	/* normally exited */
+X#define	PAEXITED	(1<<3)	/* abnormally exited */
+X#define	PSIGNALED	(1<<4)	/* terminated by a signal != SIGINT */
+X
+X#define	PALLSTATES	(PRUNNING|PSTOPPED|PNEXITED|PAEXITED| \
+X			 PSIGNALED|PINTERRUPTED)
+X#define	PNOTIFY		(1<<5)	/* notify async when done */
+X#define	PTIME		(1<<6)	/* job times should be printed */
+X#define	PAWAITED	(1<<7)	/* top level is waiting for it */
+X#define	PFOREGND	(1<<8)	/* started in shells pgrp */
+X#define	PDUMPED		(1<<9)	/* process dumped core */
+X#define	PDIAG		(1<<10)	/* diagnostic output also piped out */
+X#define	PPOU		(1<<11)	/* piped output */
+X#define	PREPORTED	(1<<12)	/* status has been reported */
+X#define	PINTERRUPTED	(1<<13)	/* job stopped via interrupt signal */
+X#define	PPTIME		(1<<14)	/* time individual process */
+X#define	PNEEDNOTE	(1<<15)	/* notify as soon as practical */
+X
+X#define	PMAXLEN		80
+X
+X/* defines for arguments to pprint */
+X#define	NUMBER		01
+X#define	NAME		02
+X#define	REASON		04
+X#define	AMPERSAND	010
+X#define	FANCY		020
+X#define	SHELLDIR	040	/* print shell's dir if not the same */
+X#define	JOBDIR		0100	/* print job's dir if not the same */
+X#define	AREASON		0200
+X
+XEXTERN struct process proclist;	/* list head of all processes */
+XEXTERN bool    pnoprocesses;	/* pchild found nothing to wait for */
+X
+XEXTERN struct process *pholdjob;/* one level stack of current jobs */
+X
+XEXTERN struct process *pcurrjob;/* current job */
+XEXTERN struct process *pcurrent;/* current job in table */
+XEXTERN struct process *pprevious;/* previous job in table */
+X
+XEXTERN int   pmaxindex;		/* current maximum job index */
+X
+X#ifndef BSDTIMES
+XEXTERN bool    timesdone;	/* shtimes buffer full ? */
+X#endif /* BSDTIMES */
+X
+X#endif /* _h_sh_proc */
+END_OF_FILE
+if test 5531 -ne `wc -c <'sh.proc.h'`; then
+    echo shar: \"'sh.proc.h'\" unpacked with wrong size!
+fi
+# end of 'sh.proc.h'
+fi
+if test -f 'tc.disc.c' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'tc.disc.c'\"
+else
+echo shar: Extracting \"'tc.disc.c'\" \(5307 characters\)
+sed "s/^X//" >'tc.disc.c' <<'END_OF_FILE'
+X/* $Header: /home/hyperion/mu/christos/src/sys/tcsh-6.01/RCS/tc.disc.c,v 3.2 1991/10/12 04:23:51 christos Exp $ */
+X/*
+X * tc.disc.c: Functions to set/clear line disciplines
+X *
+X */
+X/*-
+X * Copyright (c) 1980, 1991 The Regents of the University of California.
+X * All rights reserved.
+X *
+X * Redistribution and use in source and binary forms, with or without
+X * modification, are permitted provided that the following conditions
+X * are met:
+X * 1. Redistributions of source code must retain the above copyright
+X *    notice, this list of conditions and the following disclaimer.
+X * 2. Redistributions in binary form must reproduce the above copyright
+X *    notice, this list of conditions and the following disclaimer in the
+X *    documentation and/or other materials provided with the distribution.
+X * 3. All advertising materials mentioning features or use of this software
+X *    must display the following acknowledgement:
+X *	This product includes software developed by the University of
+X *	California, Berkeley and its contributors.
+X * 4. Neither the name of the University nor the names of its contributors
+X *    may be used to endorse or promote products derived from this software
+X *    without specific prior written permission.
+X *
+X * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+X * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+X * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+X * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+X * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+X * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+X * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+X * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+X * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+X * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+X * SUCH DAMAGE.
+X */
+X#include "sh.h"
+X
+RCSID("$Id: tc.disc.c,v 3.2 1991/10/12 04:23:51 christos Exp $")
+X
+X#ifdef OREO
+X#include <compat.h>
+X#endif	/* OREO */
+X
+static bool add_discipline = 0;	/* Did we add a line discipline	 */
+X
+X#if defined(IRIS4D) || defined(OREO)
+X# define HAVE_DISC
+X# ifndef POSIX
+static struct termio otermiob;
+X# else
+static struct termios otermiob;
+X# endif /* POSIX */
+X#endif	/* IRIS4D || OREO */
+X
+X#ifdef _IBMR2
+X# define HAVE_DISC
+char    strPOSIX[] = "posix";
+X#endif	/* _IBMR2 */
+X
+X#if !defined(HAVE_DISC) && defined(TIOCGETD) && defined(NTTYDISC)
+static int oldisc;
+X#endif /* !HAVE_DISC && TIOCGETD && NTTYDISC */
+X
+int
+X/*ARGSUSED*/
+setdisc(f)
+int     f;
+X{
+X#ifdef IRIS4D
+X# ifndef POSIX
+X    struct termio termiob;
+X# else
+X    struct termios termiob;
+X# endif
+X
+X    if (ioctl(f, TCGETA, (ioctl_t) & termiob) == 0) {
+X	otermiob = termiob;
+X	if (termiob.c_line != NTTYDISC || termiob.c_cc[VSWTCH] == 0) {
+X	    termiob.c_line = NTTYDISC;
+X	    termiob.c_cc[VSWTCH] = CSWTCH;
+X	    if (ioctl(f, TCSETA, (ioctl_t) & termiob) != 0)
+X		return (-1);
+X	}
+X    }
+X    else
+X	return (-1);
+X    add_discipline = 1;
+X    return (0);
+X#endif				/* IRIS4D */
+X
+X
+X#ifdef OREO
+X# ifndef POSIX
+X    struct termio termiob;
+X# else
+X    struct termios termiob;
+X# endif
+X
+X    struct ltchars ltcbuf;
+X
+X    if (ioctl(f, TCGETA, (ioctl_t) & termiob) == 0) {
+X	otermiob = termiob;
+X	if ((getcompat(COMPAT_BSDTTY) & COMPAT_BSDTTY) != COMPAT_BSDTTY) {
+X	    setcompat(COMPAT_BSDTTY);
+X	    if (ioctl(f, TIOCGLTC, (ioctl_t) & ltcbuf) != 0)
+X		xprintf("Couldn't get local chars.\n");
+X	    else {
+X		ltcbuf.t_suspc = '\032';	/* ^Z */
+X		ltcbuf.t_dsuspc = '\031';	/* ^Y */
+X		ltcbuf.t_rprntc = '\022';	/* ^R */
+X		ltcbuf.t_flushc = '\017';	/* ^O */
+X		ltcbuf.t_werasc = '\027';	/* ^W */
+X		ltcbuf.t_lnextc = '\026';	/* ^V */
+X		if (ioctl(f, TIOCSLTC, (ioctl_t) & ltcbuf) != 0)
+X		    xprintf("Couldn't set local chars.\n");
+X	    }
+X	    termiob.c_cc[VSWTCH] = '\0';
+X	    if (ioctl(f, TCSETAF, (ioctl_t) & termiob) != 0)
+X		return (-1);
+X	}
+X    }
+X    else
+X	return (-1);
+X    add_discipline = 1;
+X    return (0);
+X#endif				/* OREO */
+X
+X
+X#ifdef _IBMR2
+X    union txname tx;
+X
+X    tx.tx_which = 0;
+X
+X    if (ioctl(f, TXGETLD, (ioctl_t) & tx) == 0) {
+X	if (strcmp(tx.tx_name, strPOSIX) != 0)
+X	    if (ioctl(f, TXADDCD, (ioctl_t) strPOSIX) == 0) {
+X		add_discipline = 1;
+X		return (0);
+X	    }
+X	return (0);
+X    }
+X    else
+X	return (-1);
+X#endif	/* _IBMR2 */
+X
+X#ifndef HAVE_DISC
+X# if defined(TIOCGETD) && defined(NTTYDISC)
+X    if (ioctl(f, TIOCGETD, (ioctl_t) & oldisc) == 0) {
+X	if (oldisc != NTTYDISC) {
+X	    int     ldisc = NTTYDISC;
+X
+X	    if (ioctl(f, TIOCSETD, (ioctl_t) & ldisc) != 0)
+X		return (-1);
+X	    add_discipline = 1;
+X	}
+X	else
+X	    oldisc = -1;
+X	return (0);
+X    }
+X    else
+X	return (-1);
+X# else
+X    return (0);
+X# endif	/* TIOCGETD && NTTYDISC */
+X#endif	/* !HAVE_DISC */
+X} /* end setdisc */
+X
+X
+int
+X/*ARGSUSED*/
+resetdisc(f)
+int f;
+X{
+X    if (add_discipline) {
+X	add_discipline = 0;
+X#if defined(OREO) || defined(IRIS4D)
+X	return (ioctl(f, TCSETAF, &otermiob));
+X#endif /* OREO || IRIS4D */
+X
+X#ifdef _IBMR2
+X	return (ioctl(f, TXDELCD, (ioctl_t) strPOSIX));
+X#endif /* _IBMR2 */
+X
+X#ifndef HAVE_DISC
+X# if defined(TIOCSETD) && defined(NTTYDISC)
+X	return (ioctl(f, TIOCSETD, (ioctl_t) & oldisc));
+X# endif /* TIOCSETD && NTTYDISC */
+X#endif /* !HAVE_DISC */
+X    }
+X    return (0);
+X} /* end resetdisc */
+END_OF_FILE
+if test 5307 -ne `wc -c <'tc.disc.c'`; then
+    echo shar: \"'tc.disc.c'\" unpacked with wrong size!
+fi
+# end of 'tc.disc.c'
+fi
+if test -f 'tc.printf.c' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'tc.printf.c'\"
+else
+echo shar: Extracting \"'tc.printf.c'\" \(7246 characters\)
+sed "s/^X//" >'tc.printf.c' <<'END_OF_FILE'
+X/* $Header: /home/hyperion/mu/christos/src/sys/tcsh-6.01/RCS/tc.printf.c,v 3.3 1991/11/26 04:41:23 christos Exp $ */
+X/*
+X * tc.printf.c: A public-domain, minimal printf/sprintf routine that prints
+X *	       through the putchar() routine.  Feel free to use for
+X *	       anything...  -- 7/17/87 Paul Placeway
+X */
+X/*-
+X * Copyright (c) 1980, 1991 The Regents of the University of California.
+X * All rights reserved.
+X *
+X * Redistribution and use in source and binary forms, with or without
+X * modification, are permitted provided that the following conditions
+X * are met:
+X * 1. Redistributions of source code must retain the above copyright
+X *    notice, this list of conditions and the following disclaimer.
+X * 2. Redistributions in binary form must reproduce the above copyright
+X *    notice, this list of conditions and the following disclaimer in the
+X *    documentation and/or other materials provided with the distribution.
+X * 3. All advertising materials mentioning features or use of this software
+X *    must display the following acknowledgement:
+X *	This product includes software developed by the University of
+X *	California, Berkeley and its contributors.
+X * 4. Neither the name of the University nor the names of its contributors
+X *    may be used to endorse or promote products derived from this software
+X *    without specific prior written permission.
+X *
+X * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+X * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+X * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+X * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+X * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+X * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+X * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+X * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+X * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+X * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+X * SUCH DAMAGE.
+X */
+X#include "sh.h"
+X
+RCSID("$Id: tc.printf.c,v 3.3 1991/11/26 04:41:23 christos Exp $")
+X
+X#ifdef lint
+X#undef va_arg
+X#define va_arg(a, b) (a ? (b) 0 : (b) 0)
+X#endif
+X
+X#define INF	32766		/* should be bigger than any field to print */
+X
+static unsigned char buf[128];
+X
+static	void	xaddchar	__P((int));
+static	void	doprnt		__P((void (*) __P((int)), char *, va_list));
+X
+static void
+doprnt(addchar, sfmt, ap)
+X    void    (*addchar)();
+X    char   *sfmt;
+X    va_list ap;
+X{
+X    register unsigned char *f, *bp;
+X    register long l;
+X    register unsigned long u;
+X    register int i;
+X    register int fmt;
+X    register unsigned char pad = ' ';
+X    int     flush_left = 0, f_width = 0, prec = INF, hash = 0, do_long = 0;
+X    int     sign = 0;
+X    int     attributes = 0;
+X
+X
+X    f = (unsigned char *) sfmt;
+X    for (; *f; f++) {
+X	if (*f != '%') {	/* then just out the char */
+X	    (*addchar) ((int) (*f | attributes));
+X	}
+X	else {
+X	    f++;		/* skip the % */
+X
+X	    if (*f == '-') {	/* minus: flush left */
+X		flush_left = 1;
+X		f++;
+X	    }
+X
+X	    if (*f == '0' || *f == '.') {
+X		/* padding with 0 rather than blank */
+X		pad = '0';
+X		f++;
+X	    }
+X	    if (*f == '*') {	/* field width */
+X		f_width = va_arg(ap, int);
+X		f++;
+X	    }
+X	    else if (Isdigit(*f)) {
+X		f_width = atoi((char *) f);
+X		while (Isdigit(*f))
+X		    f++;	/* skip the digits */
+X	    }
+X
+X	    if (*f == '.') {	/* precision */
+X		f++;
+X		if (*f == '*') {
+X		    prec = va_arg(ap, int);
+X		    f++;
+X		}
+X		else if (Isdigit(*f)) {
+X		    prec = atoi((char *) f);
+X		    while (Isdigit(*f))
+X			f++;	/* skip the digits */
+X		}
+X	    }
+X
+X	    if (*f == '#') {	/* alternate form */
+X		hash = 1;
+X		f++;
+X	    }
+X
+X	    if (*f == 'l') {	/* long format */
+X		do_long = 1;
+X		f++;
+X	    }
+X
+X	    fmt = *f;
+X	    if (Isupper(fmt)) {
+X		do_long = 1;
+X		fmt = Tolower(fmt);
+X	    }
+X	    bp = buf;
+X	    switch (fmt) {	/* do the format */
+X	    case 'd':
+X		if (do_long)
+X		    l = va_arg(ap, long);
+X		else
+X		    l = (long) (va_arg(ap, int));
+X		if (l < 0) {
+X		    sign = 1;
+X		    l = -l;
+X		}
+X		do {
+X		    *bp++ = l % 10 + '0';
+X		} while ((l /= 10) > 0);
+X		if (sign)
+X		    *bp++ = '-';
+X		f_width = f_width - (bp - buf);
+X		if (!flush_left)
+X		    while (f_width-- > 0)
+X			(*addchar) ((int) (pad | attributes));
+X		for (bp--; bp >= buf; bp--)
+X		    (*addchar) ((int) (*bp | attributes));
+X		if (flush_left)
+X		    while (f_width-- > 0)
+X			(*addchar) ((int) (' ' | attributes));
+X		break;
+X
+X	    case 'o':
+X	    case 'x':
+X	    case 'u':
+X		if (do_long)
+X		    u = va_arg(ap, unsigned long);
+X		else
+X		    u = (unsigned long) (va_arg(ap, unsigned));
+X		if (fmt == 'u') {	/* unsigned decimal */
+X		    do {
+X			*bp++ = u % 10 + '0';
+X		    } while ((u /= 10) > 0);
+X		}
+X		else if (fmt == 'o') {	/* octal */
+X		    do {
+X			*bp++ = u % 8 + '0';
+X		    } while ((u /= 8) > 0);
+X		    if (hash)
+X			*bp++ = '0';
+X		}
+X		else if (fmt == 'x') {	/* hex */
+X		    do {
+X			i = u % 16;
+X			if (i < 10)
+X			    *bp++ = i + '0';
+X			else
+X			    *bp++ = i - 10 + 'a';
+X		    } while ((u /= 16) > 0);
+X		    if (hash) {
+X			*bp++ = 'x';
+X			*bp++ = '0';
+X		    }
+X		}
+X		i = f_width - (bp - buf);
+X		if (!flush_left)
+X		    while (i-- > 0)
+X			(*addchar) ((int) (pad | attributes));
+X		for (bp--; bp >= buf; bp--)
+X		    (*addchar) ((int) (*bp | attributes));
+X		if (flush_left)
+X		    while (i-- > 0)
+X			(*addchar) ((int) (' ' | attributes));
+X		break;
+X
+X
+X	    case 'c':
+X		i = va_arg(ap, int);
+X		(*addchar) ((int) (i | attributes));
+X		break;
+X
+X	    case 's':
+X		bp = va_arg(ap, unsigned char *);
+X		if (!bp)
+X		    bp = (unsigned char *) "(nil)";
+X		f_width = f_width - strlen((char *) bp);
+X		if (!flush_left)
+X		    while (f_width-- > 0)
+X			(*addchar) ((int) (pad | attributes));
+X		for (i = 0; *bp && i < prec; i++) {
+X		    (*addchar) ((int) (*bp | attributes));
+X		    bp++;
+X		}
+X		if (flush_left)
+X		    while (f_width-- > 0)
+X			(*addchar) ((int) (' ' | attributes));
+X
+X		break;
+X
+X	    case 'a':
+X		attributes = va_arg(ap, int);
+X		break;
+X
+X	    case '%':
+X		(*addchar) ((int) ('%' | attributes));
+X		break;
+X
+X	    default:
+X		break;
+X	    }
+X	    flush_left = 0, f_width = 0, prec = INF, hash = 0, do_long = 0;
+X	    sign = 0;
+X	    pad = ' ';
+X	}
+X    }
+X}
+X
+X
+static unsigned char *xstring;
+static void
+xaddchar(c)
+X    int     c;
+X{
+X    *xstring++ = c;
+X}
+X
+X
+void
+X/*VARARGS*/
+X#if __STDC__
+xsprintf(char *str, char *fmt, ...)
+X#else
+xsprintf(va_alist)
+X    va_dcl
+X#endif
+X{
+X    va_list va;
+X#if __STDC__
+X    va_start(va, fmt);
+X#else
+X    char *str, *fmt;
+X
+X    va_start(va);
+X    str = va_arg(va, char *);
+X    fmt = va_arg(va, char *);
+X#endif
+X
+X    xstring = (unsigned char *) str;
+X    doprnt(xaddchar, fmt, va);
+X    va_end(va);
+X    *xstring++ = '\0';
+X}
+X
+X
+void
+X/*VARARGS*/
+X#if __STDC__
+xprintf(char *fmt, ...)
+X#else
+xprintf(va_alist)
+X    va_dcl
+X#endif
+X{
+X    va_list va;
+X#if __STDC__
+X    va_start(va, fmt);
+X#else
+X    char   *fmt;
+X
+X    va_start(va);
+X    fmt = va_arg(va, char *);
+X#endif
+X    doprnt(xputchar, fmt, va);
+X    va_end(va);
+X}
+X
+X
+void
+xvprintf(fmt, va)
+X    char   *fmt;
+X    va_list va;
+X{
+X    doprnt(xputchar, fmt, va);
+X}
+X
+void
+xvsprintf(str, fmt, va)
+X    char   *str;
+X    char   *fmt;
+X    va_list va;
+X{
+X    xstring = (unsigned char *) str;
+X    doprnt(xaddchar, fmt, va);
+X    *xstring++ = '\0';
+X}
+END_OF_FILE
+if test 7246 -ne `wc -c <'tc.printf.c'`; then
+    echo shar: \"'tc.printf.c'\" unpacked with wrong size!
+fi
+# end of 'tc.printf.c'
+fi
+if test -f 'tc.sig.h' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'tc.sig.h'\"
+else
+echo shar: Extracting \"'tc.sig.h'\" \(6361 characters\)
+sed "s/^X//" >'tc.sig.h' <<'END_OF_FILE'
+X/* $Header: /home/hyperion/mu/christos/src/sys/tcsh-6.01/RCS/tc.sig.h,v 3.5 1991/11/26 04:41:23 christos Exp $ */
+X/*
+X * tc.sig.h: Signal handling
+X *
+X */
+X/*-
+X * Copyright (c) 1980, 1991 The Regents of the University of California.
+X * All rights reserved.
+X *
+X * Redistribution and use in source and binary forms, with or without
+X * modification, are permitted provided that the following conditions
+X * are met:
+X * 1. Redistributions of source code must retain the above copyright
+X *    notice, this list of conditions and the following disclaimer.
+X * 2. Redistributions in binary form must reproduce the above copyright
+X *    notice, this list of conditions and the following disclaimer in the
+X *    documentation and/or other materials provided with the distribution.
+X * 3. All advertising materials mentioning features or use of this software
+X *    must display the following acknowledgement:
+X *	This product includes software developed by the University of
+X *	California, Berkeley and its contributors.
+X * 4. Neither the name of the University nor the names of its contributors
+X *    may be used to endorse or promote products derived from this software
+X *    without specific prior written permission.
+X *
+X * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+X * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+X * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+X * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+X * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+X * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+X * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+X * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+X * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+X * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+X * SUCH DAMAGE.
+X */
+X#ifndef _h_tc_sig
+X#define _h_tc_sig
+X
+X#if (SVID > 0) || defined(BSD4_4)
+X# include <signal.h>
+X# ifndef SIGCHLD
+X#  define SIGCHLD SIGCLD
+X# endif				/* SIGCHLD */
+X#else				/* SVID == 0 */
+X# include <sys/signal.h>
+X#endif				/* SVID > 0 */
+X
+X#ifdef sun
+X# define SAVESIGVEC
+X#endif
+X
+X#if SVID > 0 && SVID < 3 && !defined(BSDSIGS)
+X/*
+X * If we have unreliable signals...
+X */
+X# define UNRELSIG
+X#endif /* SVID > 0 && SVID < 3 && !BSDSIGS */
+X
+X#ifdef BSDSIGS
+X/*
+X * sigvec is not the same everywhere
+X */
+X# if defined(_SEQUENT_) || (defined(_POSIX_SOURCE) && !defined(hpux))
+X#  define HAVE_SIGVEC
+X#  define mysigvec(a, b, c)	sigaction(a, b, c)
+typedef struct sigaction sigvec_t;
+X#  define sv_handler sa_handler
+X#  define sv_flags sa_flags
+X# endif	/* _SEQUENT || (_POSIX_SOURCE && !hpux) */
+X
+X# ifdef hpux
+X#  define HAVE_SIGVEC
+X#  define mysigvec(a, b, c)	sigvector(a, b, c)
+typedef struct sigvec sigvec_t;
+X#  define NEEDsignal
+X# endif	/* hpux */
+X
+X# ifndef HAVE_SIGVEC
+X#  define mysigvec(a, b, c)	sigvec(a, b, c)
+typedef struct sigvec sigvec_t;
+X# endif	/* HAVE_SIGVEC */
+X
+X# undef HAVE_SIGVEC
+X#endif /* BSDSIGS */
+X
+X#if SVID > 0
+X# ifdef BSDJOBS
+X/* here I assume that systems that have bsdjobs implement the
+X * the setpgrp call correctly. Otherwise defining this would
+X * work, but it would kill the world, because all the setpgrp
+X * code is the the part defined when BSDJOBS are defined
+X * NOTE: we don't want killpg(a, b) == kill(-getpgrp(a), b)
+X * cause process a might be already dead and getpgrp would fail
+X */
+X#  define killpg(a, b) kill(-(a), (b))
+X# else
+X/* this is the poor man's version of killpg()! Just kill the
+X * current process and don't worry about the rest. Someday
+X * I hope I get to fix that.
+X */
+X#  define killpg(a, b) kill((a), (b))
+X# endif	/* BSDJOBS */
+X#endif /* SVID > 0 */
+X
+X#ifdef _MINIX
+X#include <signal.h>
+X#  define killpg(a, b) kill((a), (b))
+X#endif /* _MINIX */
+X
+X#ifdef BSDSIGS
+X/*
+X * For 4.2bsd signals.
+X */
+X# ifdef sigmask
+X#  undef sigmask
+X# endif				/* sigmask */
+X# define	sigmask(s)	(1 << ((s)-1))
+X# ifdef _SEQUENT_
+X#  define 	sigpause(a)	bsd_sigpause(a)
+X#  define 	signal(a, b)	sigset(a, b)
+X# else /* _SEQUENT_ */
+X#  define	sighold(s)	sigblock(sigmask(s))
+X#  define	sigignore(s)	signal(s, SIG_IGN)
+X#  define 	sigset(s, a)	signal(s, a)
+X# endif	/* _SEQUENT_ */
+X# ifdef aiws
+X#  define 	sigrelse(a)	sigsetmask(sigblock(0) & ~sigmask(a))
+X#  undef	killpg
+X#  define 	killpg(a, b)	kill(-getpgrp(a), b)
+X#  define	NEEDsignal
+X# endif	/* aiws */
+X#endif /* BSDSIGS */
+X
+X
+X/*
+X * We choose a define for the window signal if it exists..
+X */
+X#ifdef SIGWINCH
+X# define SIG_WINDOW SIGWINCH
+X#else
+X# ifdef SIGWINDOW
+X#  define SIG_WINDOW SIGWINDOW
+X# endif	/* SIGWINDOW */
+X#endif /* SIGWINCH */
+X
+X#if defined(convex) || defined(__convex__)
+X# ifdef notdef
+X/* Does not seem to work right... Christos */
+X#  define SIGSYNCH       0 
+X# endif
+X# ifdef SIGSYNCH
+X#  define SYNCHMASK 	(sigmask(SIGCHLD)|sigmask(SIGSYNCH))
+X# else
+X#  define SYNCHMASK 	(sigmask(SIGCHLD))
+X# endif
+extern sigret_t synch_handler();
+X#endif /* convex || __convex__ */
+X
+X#ifdef SAVESIGVEC
+X# define NSIGSAVED 7
+X /*
+X  * These are not inline for speed. gcc -traditional -O on the sparc ignores
+X  * the fact that vfork() corrupts the registers. Calling a routine is not
+X  * nice, since it can make the compiler put some things that we want saved
+X  * into registers 				- christos
+X  */
+X# define savesigvec(sv)						\
+X   (mysigvec(SIGINT,  (sigvec_t *) 0, &(sv)[0]),		\
+X    mysigvec(SIGQUIT, (sigvec_t *) 0, &(sv)[1]),		\
+X    mysigvec(SIGTSTP, (sigvec_t *) 0, &(sv)[2]),		\
+X    mysigvec(SIGTTIN, (sigvec_t *) 0, &(sv)[3]),		\
+X    mysigvec(SIGTTOU, (sigvec_t *) 0, &(sv)[4]),		\
+X    mysigvec(SIGTERM, (sigvec_t *) 0, &(sv)[5]),		\
+X    mysigvec(SIGHUP,  (sigvec_t *) 0, &(sv)[6]),		\
+X    sigblock(sigmask(SIGINT) | sigmask(SIGQUIT) | 		\
+X	    sigmask(SIGTSTP) | sigmask(SIGTTIN) | 		\
+X	    sigmask(SIGTTOU) | sigmask(SIGTERM) |		\
+X	    sigmask(SIGHUP)))
+X
+X# define restoresigvec(sv, sm)					\
+X    (void) (mysigvec(SIGINT,  &(sv)[0], (sigvec_t *) 0),	\
+X	    mysigvec(SIGQUIT, &(sv)[1], (sigvec_t *) 0),	\
+X	    mysigvec(SIGTSTP, &(sv)[2], (sigvec_t *) 0),	\
+X	    mysigvec(SIGTTIN, &(sv)[3], (sigvec_t *) 0),	\
+X	    mysigvec(SIGTTOU, &(sv)[4], (sigvec_t *) 0),	\
+X	    mysigvec(SIGTERM, &(sv)[5], (sigvec_t *) 0),	\
+X	    mysigvec(SIGHUP,  &(sv)[6], (sigvec_t *) 0),	\
+X	    sigsetmask(sm))
+X# endif				/* SAVESIGVEC */
+X
+X#endif				/* _h_tc_sig */
+END_OF_FILE
+if test 6361 -ne `wc -c <'tc.sig.h'`; then
+    echo shar: \"'tc.sig.h'\" unpacked with wrong size!
+fi
+# end of 'tc.sig.h'
+fi
+if test -f 'tc.wait.h' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'tc.wait.h'\"
+else
+echo shar: Extracting \"'tc.wait.h'\" \(4645 characters\)
+sed "s/^X//" >'tc.wait.h' <<'END_OF_FILE'
+X/* $Header: /home/hyperion/mu/christos/src/sys/tcsh-6.01/RCS/tc.wait.h,v 3.3 1991/11/26 04:28:26 christos Exp $ */
+X/*
+X * tc.wait.h: <sys/wait.h> for machines that don't have it or have it and
+X *	      is incorrect.
+X */
+X/*-
+X * Copyright (c) 1980, 1991 The Regents of the University of California.
+X * All rights reserved.
+X *
+X * Redistribution and use in source and binary forms, with or without
+X * modification, are permitted provided that the following conditions
+X * are met:
+X * 1. Redistributions of source code must retain the above copyright
+X *    notice, this list of conditions and the following disclaimer.
+X * 2. Redistributions in binary form must reproduce the above copyright
+X *    notice, this list of conditions and the following disclaimer in the
+X *    documentation and/or other materials provided with the distribution.
+X * 3. All advertising materials mentioning features or use of this software
+X *    must display the following acknowledgement:
+X *	This product includes software developed by the University of
+X *	California, Berkeley and its contributors.
+X * 4. Neither the name of the University nor the names of its contributors
+X *    may be used to endorse or promote products derived from this software
+X *    without specific prior written permission.
+X *
+X * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+X * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+X * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+X * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+X * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+X * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+X * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+X * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+X * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+X * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+X * SUCH DAMAGE.
+X */
+X#ifndef _h_tc_wait
+X#define _h_tc_wait
+X
+X/*
+X * a little complicated #include <sys/wait.h>! :-(
+X * We try to use the system's wait.h when we can...
+X */
+X
+X#if SVID > 0
+X# ifdef hpux
+X#  ifndef __hpux
+X#   define NEEDwait
+X#  else
+X#   ifndef POSIX
+X#    define _BSD
+X#   endif
+X#   ifndef _CLASSIC_POSIX_TYPES
+X#    define _CLASSIC_POSIX_TYPES
+X#   endif
+X#   include <sys/wait.h> /* 7.0 fixed it again */
+X#  endif /* __hpux */
+X# else /* hpux */
+X#  if defined(OREO) || defined(IRIS4D) || defined(POSIX)
+X#   include <sys/wait.h>
+X#  else	/* OREO || IRIS4D || POSIX */
+X#   define NEEDwait
+X#  endif /* OREO || IRIS4D || POSIX */
+X# endif	/* hpux */
+X#else /* SVID == 0 */
+X# include <sys/wait.h>
+X#endif /* SVID == 0 */
+X
+X#ifdef _MINIX
+X# undef NEEDwait
+X# include "mi.wait.h"
+X#endif /* _MINIX */
+X
+X#ifdef NEEDwait
+X/*
+X *	This wait is for big-endians and little endians
+X */
+union wait {
+X    int     w_status;
+X# ifdef _SEQUENT_
+X    struct {
+X	unsigned short w_Termsig:7;
+X	unsigned short w_Coredump:1;
+X	unsigned short w_Retcode:8;
+X    }       w_T;
+X    struct {
+X	unsigned short w_Stopval:8;
+X	unsigned short w_Stopsig:8;
+X    }       w_S;
+X};
+X
+X#  define w_termsig     w_T.w_Termsig
+X#  define w_coredump    w_T.w_Coredump
+X#  define w_retcode     w_T.w_Retcode
+X#  define w_stopval     w_S.w_Stopval
+X#  define w_stopsig     w_S.w_Stopsig
+X# else /* _SEQUENT_ */
+X#  if defined(vax) || defined(i386)
+X    union {
+X	struct {
+X	    unsigned int w_Termsig:7;
+X	    unsigned int w_Coredump:1;
+X	    unsigned int w_Retcode:8;
+X	    unsigned int w_Dummy:16;
+X	}       w_T;
+X	struct {
+X	    unsigned int w_Stopval:8;
+X	    unsigned int w_Stopsig:8;
+X	    unsigned int w_Dummy:16;
+X	}       w_S;
+X    }       w_P;
+X#  else /* mc68000 || sparc || ??? */
+X    union {
+X	struct {
+X	    unsigned int w_Dummy:16;
+X	    unsigned int w_Retcode:8;
+X	    unsigned int w_Coredump:1;
+X	    unsigned int w_Termsig:7;
+X	}       w_T;
+X	struct {
+X	    unsigned int w_Dummy:16;
+X	    unsigned int w_Stopsig:8;
+X	    unsigned int w_Stopval:8;
+X	}       w_S;
+X    }       w_P;
+X#  endif /* vax || i386 */
+X};
+X
+X#  define w_termsig	w_P.w_T.w_Termsig
+X#  define w_coredump	w_P.w_T.w_Coredump
+X#  define w_retcode	w_P.w_T.w_Retcode
+X#  define w_stopval	w_P.w_S.w_Stopval
+X#  define w_stopsig	w_P.w_S.w_Stopsig
+X# endif /* _SEQUENT_ */
+X
+X
+X# ifndef WNOHANG
+X#  define WNOHANG	1	/* dont hang in wait */
+X# endif
+X
+X# ifndef WUNTRACED
+X#  define WUNTRACED	2	/* tell about stopped, untraced children */
+X# endif
+X
+X# define WSTOPPED 0177
+X# define WIFSTOPPED(x)	((x).w_stopval == WSTOPPED)
+X# define WIFSIGNALED(x)	(((x).w_stopval != WSTOPPED) && ((x).w_termsig != 0))
+X
+X#endif /* NEEDwait */
+X
+X#endif /* _h_tc_wait */
+END_OF_FILE
+if test 4645 -ne `wc -c <'tc.wait.h'`; then
+    echo shar: \"'tc.wait.h'\" unpacked with wrong size!
+fi
+# end of 'tc.wait.h'
+fi
+if test -f 'tw.h' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'tw.h'\"
+else
+echo shar: Extracting \"'tw.h'\" \(3804 characters\)
+sed "s/^X//" >'tw.h' <<'END_OF_FILE'
+X/* $Header: /home/hyperion/mu/christos/src/sys/tcsh-6.01/RCS/tw.h,v 3.2 1991/12/14 20:45:46 christos Exp $ */
+X/*
+X * tw.h: TwENEX functions headers
+X */
+X/*-
+X * Copyright (c) 1980, 1991 The Regents of the University of California.
+X * All rights reserved.
+X *
+X * Redistribution and use in source and binary forms, with or without
+X * modification, are permitted provided that the following conditions
+X * are met:
+X * 1. Redistributions of source code must retain the above copyright
+X *    notice, this list of conditions and the following disclaimer.
+X * 2. Redistributions in binary form must reproduce the above copyright
+X *    notice, this list of conditions and the following disclaimer in the
+X *    documentation and/or other materials provided with the distribution.
+X * 3. All advertising materials mentioning features or use of this software
+X *    must display the following acknowledgement:
+X *	This product includes software developed by the University of
+X *	California, Berkeley and its contributors.
+X * 4. Neither the name of the University nor the names of its contributors
+X *    may be used to endorse or promote products derived from this software
+X *    without specific prior written permission.
+X *
+X * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+X * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+X * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+X * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+X * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+X * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+X * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+X * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+X * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+X * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+X * SUCH DAMAGE.
+X */
+X#ifndef _h_tw
+X#define _h_tw
+X
+X#ifdef BSDSIGS
+X
+X# define FREE_ITEMS(items,num)\
+X{\
+X    sigmask_t omask;\
+X    omask = sighold (SIGINT);\
+X    free_items (items,num);\
+X    items = NULL;\
+X    (void) sigsetmask(omask);\
+X}
+X
+X# define FREE_DIR(fd)\
+X{\
+X    sigmask_t omask;\
+X    omask = sighold (SIGINT);\
+X    (void) closedir (fd);\
+X    fd = NULL;\
+X    (void) sigsetmask(omask);\
+X}
+X
+X#else
+X
+X# define FREE_ITEMS(items,num)\
+X{\
+X    sighold (SIGINT);\
+X    free_items (items,num);\
+X    items = NULL;\
+X    (void) sigrelse (SIGINT);\
+X}
+X
+X# define FREE_DIR(fd)\
+X{\
+X    sighold (SIGINT);\
+X    (void) closedir (fd);\
+X    fd = NULL;\
+X    (void) sigrelse (SIGINT);\
+X}
+X
+X#endif
+X
+X#ifndef TRUE
+X# define TRUE		1
+X#endif
+X#ifndef FALSE
+X# define FALSE		0
+X#endif
+X#define ON		1
+X#define OFF		0
+X#define FILSIZ		512	/* Max reasonable file name length */
+X#define ESC		'\033'
+X#define equal(a, b)	(strcmp(a, b) == 0)
+X
+X#define is_set(var)	adrof(var)
+X#define ismetahash(a)	(ismeta(a) && (a) != '#')
+X
+X#define BUILTINS	"/usr/local/lib/builtins/"	/* fake builtin bin */
+X#define SEARCHLIST "HPATH"	/* Env. param for helpfile searchlist */
+X#define DEFAULTLIST ":/usr/man/cat1:/usr/man/cat8:/usr/man/cat6:/usr/local/man/cat1:/usr/local/man/cat8:/usr/local/man/cat6"	/* if no HPATH */
+X
+extern Char PromptBuf[];
+X
+typedef enum {
+X    LIST, RECOGNIZE, PRINT_HELP, SPELL, GLOB, GLOB_EXPAND,
+X    VARS_EXPAND, PATH_NORMALIZE
+X}       COMMAND;
+X
+X
+X#define NUMCMDS_START 512	/* was 800 */
+X#define NUMCMDS_INCR 256
+X#define ITEMS_START 512
+X#define ITEMS_INCR 256
+X
+X#ifndef DONT_EXTERN
+X
+extern Char **command_list;	/* the pre-digested list of commands for speed
+X				 * and general usefullness */
+extern int numcommands;
+extern int have_sorted;
+extern int non_unique_match;
+X
+extern Char dirflag[5];		/* ' nn\0' - dir #s -  . 1 2 ... */
+X
+X
+X#endif
+X#include "tw.decls.h"
+X
+X#endif				/* _h_tw */
+END_OF_FILE
+if test 3804 -ne `wc -c <'tw.h'`; then
+    echo shar: \"'tw.h'\" unpacked with wrong size!
+fi
+# end of 'tw.h'
+fi
+if test -f 'tw.help.c' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'tw.help.c'\"
+else
+echo shar: Extracting \"'tw.help.c'\" \(5969 characters\)
+sed "s/^X//" >'tw.help.c' <<'END_OF_FILE'
+X/* $Header: /home/hyperion/mu/christos/src/sys/tcsh-6.01/RCS/tw.help.c,v 3.4 1991/10/20 01:38:14 christos Exp $ */
+X/* tw.help.c: actually look up and print documentation on a file.
+X *	      Look down the path for an appropriate file, then print it.
+X *	      Note that the printing is NOT PAGED.  This is because the
+X *	      function is NOT meant to look at manual pages, it only does so
+X *	      if there is no .help file to look in.
+X */
+X/*-
+X * Copyright (c) 1980, 1991 The Regents of the University of California.
+X * All rights reserved.
+X *
+X * Redistribution and use in source and binary forms, with or without
+X * modification, are permitted provided that the following conditions
+X * are met:
+X * 1. Redistributions of source code must retain the above copyright
+X *    notice, this list of conditions and the following disclaimer.
+X * 2. Redistributions in binary form must reproduce the above copyright
+X *    notice, this list of conditions and the following disclaimer in the
+X *    documentation and/or other materials provided with the distribution.
+X * 3. All advertising materials mentioning features or use of this software
+X *    must display the following acknowledgement:
+X *	This product includes software developed by the University of
+X *	California, Berkeley and its contributors.
+X * 4. Neither the name of the University nor the names of its contributors
+X *    may be used to endorse or promote products derived from this software
+X *    without specific prior written permission.
+X *
+X * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+X * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+X * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+X * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+X * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+X * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+X * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+X * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+X * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+X * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+X * SUCH DAMAGE.
+X */
+X#include "sh.h"
+X
+RCSID("$Id: tw.help.c,v 3.4 1991/10/20 01:38:14 christos Exp $")
+X
+X#include "tw.h"
+X#include "tc.h"
+X
+X
+static int f = -1;
+static	sigret_t	 cleanf		__P((int));
+static	Char    	*skipslist	__P((Char *));
+static	void		 nextslist 	__P((Char *, Char *));
+X
+static char *h_ext[] = {
+X    ".help", ".1", ".8", ".6", NULL
+X};
+X
+void
+do_help(command)
+X    Char   *command;
+X{
+X    Char    name[FILSIZ + 1];
+X    Char   *cmd_p, *ep;
+X    char  **sp;
+X
+X    sigret_t(*orig_intr) ();
+X    Char    curdir[MAXPATHLEN];	/* Current directory being looked at */
+X    register Char *hpath;	/* The environment parameter */
+X    Char    full[MAXPATHLEN];
+X    char    buf[512];		/* full path name and buffer for read */
+X    int     len;		/* length of read buffer */
+X    Char   *thpath;
+X
+X
+X    /* copy the string to a safe place */
+X    copyn(name, command, FILSIZ + 1);
+X
+X    /* trim off the garbage that may be at the end */
+X    for (cmd_p = name; *cmd_p != '\0'; cmd_p++)
+X	if (*cmd_p == ' ' || *cmd_p == '\t')
+X	    *cmd_p = '\0';
+X
+X    /* if nothing left, return */
+X    if (*name == '\0')
+X	return;
+X
+X    if (adrof1(STRhelpcommand, &aliases)) {	/* if we have an alias */
+X	jmp_buf osetexit;
+X
+X	getexit(osetexit);	/* make sure to come back here */
+X	if (setexit() == 0)
+X	    aliasrun(2, STRhelpcommand, name);	/* then use it. */
+X	resexit(osetexit);	/* and finish up */
+X    }
+X    else {			/* else cat something to them */
+X	/* got is, now "cat" the file based on the path $HPATH */
+X
+X	hpath = str2short(getenv(SEARCHLIST));
+X	if (hpath == NULL)
+X	    hpath = str2short(DEFAULTLIST);
+X	thpath = hpath = Strsave(hpath);
+X
+X	while (1) {
+X	    if (!*hpath) {
+X		xprintf("No help file for %s\n", short2str(name));
+X		break;
+X	    }
+X	    nextslist(hpath, curdir);
+X	    hpath = skipslist(hpath);
+X
+X	    /*
+X	     * now make the full path name - try first /bar/foo.help, then
+X	     * /bar/foo.1, /bar/foo.8, then finally /bar/foo.6.  This is so
+X	     * that you don't spit a binary at the tty when $HPATH == $PATH.
+X	     */
+X	    copyn(full, curdir, sizeof(full) / sizeof(Char));
+X	    catn(full, STRslash, sizeof(full) / sizeof(Char));
+X	    catn(full, name, sizeof(full) / sizeof(Char));
+X	    ep = &full[Strlen(full)];
+X	    for (sp = h_ext; *sp; sp++) {
+X		*ep = '\0';
+X		catn(full, str2short(*sp), sizeof(full) / sizeof(Char));
+X		if ((f = open(short2str(full), O_RDONLY)) != -1)
+X		    break;
+X	    }
+X	    if (f != -1) {
+X		/* so cat it to the terminal */
+X		orig_intr = (sigret_t (*)()) sigset(SIGINT, cleanf);
+X		while (f != -1 && (len = read(f, (char *) buf, 512)) != 0)
+X		    (void) write(SHOUT, (char *) buf, (size_t) len);
+X		(void) sigset(SIGINT, orig_intr);
+X		if (f != -1)
+X		    (void) close(f);
+X		break;
+X	    }
+X	}
+X	xfree((ptr_t) thpath);
+X    }
+X}
+X
+static  sigret_t
+X/*ARGSUSED*/
+cleanf(snum)
+int snum;
+X{
+X#ifdef UNRELSIGS
+X    if (snum)
+X	(void) sigset(SIGINT, cleanf);
+X#endif /* UNRELSIGS */
+X    if (f != -1)
+X	(void) close(f);
+X    f = -1;
+X#ifndef SIGVOID
+X    return (snum);
+X#endif
+X}
+X
+X/* these next two are stolen from CMU's man(1) command for looking down
+X * paths.  they are prety straight forward. */
+X
+X/*
+X * nextslist takes a search list and copies the next path in it
+X * to np.  A null search list entry is expanded to ".".
+X * If there are no entries in the search list, then np will point
+X * to a null string.
+X */
+X
+static void
+nextslist(sl, np)
+X    register Char *sl;
+X    register Char *np;
+X{
+X    if (!*sl)
+X	*np = '\000';
+X    else if (*sl == ':') {
+X	*np++ = '.';
+X	*np = '\000';
+X    }
+X    else {
+X	while (*sl && *sl != ':')
+X	    *np++ = *sl++;
+X	*np = '\000';
+X    }
+X}
+X
+X/*
+X * skipslist returns the pointer to the next entry in the search list.
+X */
+X
+static Char *
+skipslist(sl)
+X    register Char *sl;
+X{
+X    while (*sl && *sl++ != ':');
+X    return (sl);
+X}
+END_OF_FILE
+if test 5969 -ne `wc -c <'tw.help.c'`; then
+    echo shar: \"'tw.help.c'\" unpacked with wrong size!
+fi
+# end of 'tw.help.c'
+fi
+if test -f 'tw.spell.c' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'tw.spell.c'\"
+else
+echo shar: Extracting \"'tw.spell.c'\" \(5363 characters\)
+sed "s/^X//" >'tw.spell.c' <<'END_OF_FILE'
+X/* $Header: /home/hyperion/mu/christos/src/sys/tcsh-6.01/RCS/tw.spell.c,v 3.3 1991/10/12 04:23:51 christos Exp $ */
+X/*
+X * tw.spell.c: Spell check words
+X */
+X/*-
+X * Copyright (c) 1980, 1991 The Regents of the University of California.
+X * All rights reserved.
+X *
+X * Redistribution and use in source and binary forms, with or without
+X * modification, are permitted provided that the following conditions
+X * are met:
+X * 1. Redistributions of source code must retain the above copyright
+X *    notice, this list of conditions and the following disclaimer.
+X * 2. Redistributions in binary form must reproduce the above copyright
+X *    notice, this list of conditions and the following disclaimer in the
+X *    documentation and/or other materials provided with the distribution.
+X * 3. All advertising materials mentioning features or use of this software
+X *    must display the following acknowledgement:
+X *	This product includes software developed by the University of
+X *	California, Berkeley and its contributors.
+X * 4. Neither the name of the University nor the names of its contributors
+X *    may be used to endorse or promote products derived from this software
+X *    without specific prior written permission.
+X *
+X * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+X * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+X * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+X * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+X * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+X * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+X * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+X * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+X * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+X * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+X * SUCH DAMAGE.
+X */
+X#include "sh.h"
+X
+RCSID("$Id: tw.spell.c,v 3.3 1991/10/12 04:23:51 christos Exp $")
+X
+X#include "tw.h"
+X
+extern Char **command_list;
+extern int numcommands;
+X
+X/* spell_me : return corrrectly spelled filename.  From K&P spname */
+int
+spell_me(oldname, oldsize, looking_for_cmd)
+X    Char   *oldname;
+X    int     oldsize, looking_for_cmd;
+X{
+X    /* The +1 is to fool hp's optimizer */
+X    Char    guess[FILSIZ + 1], newname[FILSIZ + 1];
+X    register Char *new = newname, *old = oldname;
+X    register Char *p, *cp, *ws;
+X    bool    foundslash = 0;
+X    int     retval;
+X
+X    for (;;) {
+X	while (*old == '/') {	/* skip '/' */
+X	    *new++ = *old++;
+X	    foundslash = 1;
+X	}
+X	/* do not try to correct spelling of single letter words */
+X	if (*old != '\0' && old[1] == '\0')
+X	    *new++ = *old++;
+X	*new = '\0';
+X	if (*old == '\0') {
+X	    retval = (StrQcmp(oldname, newname) != 0);
+X	    copyn(oldname, newname, oldsize);	/* shove it back. */
+X	    return retval;
+X	}
+X	p = guess;		/* start at beginning of buf */
+X	if (newname[0])		/* add current dir if any */
+X	    for (cp = newname; *cp; cp++)
+X		if (p < guess + FILSIZ)
+X		    *p++ = *cp;
+X	ws = p;
+X	for (; *old != '/' && *old != '\0'; old++)/* add current file name */
+X	    if (p < guess + FILSIZ)
+X		*p++ = *old;
+X	*p = '\0';		/* terminate it */
+X
+X	/*
+X	 * Don't tell t_search we're looking for cmd if no '/' in the name so
+X	 * far but there are later - or it will look for *all* commands
+X	 */
+X	/* (*should* say "looking for directory" whenever '/' is next...) */
+X	retval = t_search(guess, p, SPELL, FILSIZ,
+X			  looking_for_cmd && (foundslash || *old != '/'), 1);
+X	if (retval >= 4 || retval < 0)
+X	    return -1;		/* hopeless */
+X	for (p = ws; *new = *p++;)
+X	    new++;
+X    }
+X/*NOTREACHED*/
+X#ifdef notdef
+X    return (0);			/* lint on the vax under mtXinu complains! */
+X#endif
+X}
+X
+X#define EQ(s,t)	(StrQcmp(s,t) == 0)
+X
+X/*
+X * spdist() is taken from Kernighan & Pike,
+X *  _The_UNIX_Programming_Environment_
+X * and adapted somewhat to correspond better to psychological reality.
+X * (Note the changes to the return values)
+X *
+X * According to Pollock and Zamora, CACM April 1984 (V. 27, No. 4),
+X * page 363, the correct order for this is:
+X * OMISSION = TRANSPOSITION > INSERTION > SUBSTITUTION
+X * thus, it was exactly backwards in the old version. -- PWP
+X */
+X
+int
+spdist(s, t)
+X    register Char *s, *t;
+X{
+X    for (; (*s & TRIM) == (*t & TRIM); t++, s++)
+X	if (*t == '\0')
+X	    return 0;		/* exact match */
+X    if (*s) {
+X	if (*t) {
+X	    if (s[1] && t[1] && (*s & TRIM) == (t[1] & TRIM) &&
+X		(*t & TRIM) == (s[1] & TRIM) && EQ(s + 2, t + 2))
+X		return 1;	/* transposition */
+X	    if (EQ(s + 1, t + 1))
+X		return 3;	/* 1 char mismatch */
+X	}
+X	if (EQ(s + 1, t))
+X	    return 2;		/* extra character */
+X    }
+X    if (*t && EQ(s, t + 1))
+X	return 1;		/* missing character */
+X    return 4;
+X}
+X
+int
+spdir(extended_name, tilded_dir, entry, name)
+X    Char   *extended_name;
+X    Char   *tilded_dir;
+X    Char   *entry;
+X    Char   *name;
+X{
+X    Char    path[1024];
+X    Char   *s;
+X    Char    oldch;
+X
+X    for (s = name; *s != 0 && (*s & TRIM) == (*entry & TRIM); s++, entry++);
+X    if (*s == 0 || s[1] == 0 || *entry != 0)
+X	return 0;
+X
+X    (void) Strcpy(path, tilded_dir);
+X    oldch = *s;
+X    *s = '/';
+X    catn(path, name, sizeof(path) / sizeof(Char));
+X    if (access(short2str(path), F_OK) == 0) {
+X	(void) Strcpy(extended_name, name);
+X	return 1;
+X    }
+X    *s = oldch;
+X    return 0;
+X}
+END_OF_FILE
+if test 5363 -ne `wc -c <'tw.spell.c'`; then
+    echo shar: \"'tw.spell.c'\" unpacked with wrong size!
+fi
+# end of 'tw.spell.c'
+fi
+echo shar: End of archive 3 \(of 18\).
+cp /dev/null ark3isdone
+MISSING=""
+for I in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 ; do
+    if test ! -f ark${I}isdone ; then
+	MISSING="${MISSING} ${I}"
+    fi
+done
+if test "${MISSING}" = "" ; then
+    echo You have unpacked all 18 archives.
+    rm -f ark[1-9]isdone ark[1-9][0-9]isdone
+else
+    echo You still need to unpack the following archives:
+    echo "        " ${MISSING}
+fi
+##  End of shell archive.
+exit 0

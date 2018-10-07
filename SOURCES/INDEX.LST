@@ -1,0 +1,915 @@
+total 416
+drwxr-xr-x   3 root     root        16384 Jul  2 20:19 ash/
+drwxr-xr-x   5 root     root        16384 Jun  5 20:44 awk/
+drwxr-xr-x   6 root     root        16384 Jun 26 20:42 bash/
+drwxr-xr-x   3 root     root        16384 Jun 25 20:59 bourne/
+drwxr-xr-x   3 root     root        16384 Jun 29 17:20 csh/
+drwxr-xr-x   3 root     root        16384 Jun 29 19:14 find/
+drwxr-xr-x   3 root     root        16384 Jul  2 20:19 gawk/
+drwxr-xr-x   4 root     root        16384 Jun 25 22:47 gdb/
+-rwxr-xr-x   1 root     root         4737 Jun 25 21:19 gnu_sw*
+drwxr-xr-x  11 root     root        16384 Jul  2 20:30 grep/
+drwxr-xr-x   3 root     root        16384 Jun 26 23:10 hosts/
+drwxr-xr-x   2 root     root        16384 Jun 30 19:07 html/
+drwxr-xr-x   7 root     root        16384 Jun 26 20:48 korn/
+drwxr-xr-x   2 root     root        16384 Jun 29 17:10 lan_wan/
+drwxr-xr-x   2 root     root        16384 Jun 26 20:38 less/
+drwxr-xr-x   6 root     root        16384 Jun 26 20:41 perl/
+drwxr-xr-x   3 root     root        16384 Jun 30 18:36 sed/
+drwxr-xr-x   2 root     root        16384 Jun 25 19:10 shellarc/
+drwxr-xr-x   3 root     root        16384 Jul  2 20:25 shellscr/
+drwxr-xr-x   3 root     root        16384 Jun 27 00:32 sort/
+drwxr-xr-x   2 root     root        16384 Jun 29 17:20 ssh/
+drwxr-xr-x   2 root     root        16384 Jun 25 19:20 strsed/
+drwxr-xr-x   5 root     root        16384 Jun 30 18:46 tcsh/
+drwxr-xr-x   8 root     root        16384 Jun 26 20:50 unixtool/
+drwxr-xr-x   2 root     root        16384 Jun 30 19:08 vi/
+drwxr-xr-x   3 root     root        16384 Jun 29 17:19 zsh/
+
+/g:/ash:
+total 32
+-rwxr-xr-x   1 root     root         1458 Jun 29 17:24 ash*
+drwxr-xr-x   2 root     root        16384 Jun 30 18:29 linux/
+
+/g:/ash/linux:
+total 512
+-rwxr-xr-x   1 root     root       522240 Jun 29 17:53 ashlinux.tar*
+
+/g:/awk:
+total 96
+drwxr-xr-x   2 root     root        16384 Jun 27 00:24 amiga/
+-rwxr-xr-x   1 root     root           25 Jun  5 21:52 dir.lis*
+drwxr-xr-x   3 root     root        16384 Jun 25 18:39 dir_01/
+drwxr-xr-x   3 root     root        16384 Jun 25 18:45 dir_02/
+-rwxr-xr-x   1 root     root         1517 Jun 29 17:25 gawk*
+-rwxr-xr-x   1 root     root         1611 Jun 29 17:33 mawk*
+
+/g:/awk/amiga:
+total 80
+-rwxr-xr-x   1 root     root        72189 Jun 27 00:28 bawk.lha*
+
+/g:/awk/dir_01:
+total 288
+drwxr-xr-x   2 root     root        16384 Apr 14  1995 awkcc/
+-rwxr-xr-x   1 root     root          901 Jun  5 21:31 changeca.awk*
+-rwxr-xr-x   1 root     root         1446 Jun  5 21:31 checkdat.awk*
+-rwxr-xr-x   1 root     root         1463 Jun  5 21:33 checkpas.awk*
+-rwxr-xr-x   1 root     root         1082 Jun  5 21:32 date2dat.awk*
+-rwxr-xr-x   1 root     root         1221 Jun  5 21:33 date2yym.awk*
+-rwxr-xr-x   1 root     root         2874 Jun  5 21:33 datetoda.awk*
+-rwxr-xr-x   1 root     root         1195 Jun  5 21:22 filelist.txt*
+-rwxr-xr-x   1 root     root         2557 Jun  5 21:34 fromtoda.awk*
+-rwxr-xr-x   1 root     root          359 Jun  5 21:34 hour2dec.awk*
+-rwxr-xr-x   1 root     root         1381 Jun  5 21:35 makefit.awk*
+-rwxr-xr-x   1 root     root          944 Jun  5 21:36 makerege.awk*
+-rwxr-xr-x   1 root     root         4737 Jun  5 21:36 pcl_prin.awk*
+-rwxr-xr-x   1 root     root         4900 Jun  5 21:40 printer.awk*
+-rwxr-xr-x   1 root     root         2708 Jun  5 21:24 source.txt*
+-rwxr-xr-x   1 root     root         4356 Jun  5 21:39 sql_fun.awk*
+-rwxr-xr-x   1 root     root         4247 Jun  5 21:36 sql_func.awk*
+-rwxr-xr-x   1 root     root         1559 Jun  5 21:37 uncompre.awk*
+
+/g:/awk/dir_01/awkcc:
+total 272
+-rwxr-xr-x   1 root     root         1378 Feb 16  1995 awk.h*
+-rwxr-xr-x   1 root     root          118 Feb 16  1995 awkcc.sh*
+-rwxr-xr-x   1 root     root          824 Feb 16  1995 dollars.h*
+-rwxr-xr-x   1 root     root         3858 Feb 16  1995 ear.h*
+-rwxr-xr-x   1 root     root          993 Feb 16  1995 hash.h*
+-rwxr-xr-x   1 root     root         1707 Feb 16  1995 header.h*
+-rwxr-xr-x   1 root     root       103468 Feb 16  1995 libawk.a*
+-rwxr-xr-x   1 root     root         1827 Feb 16  1995 readme*
+-rwxr-xr-x   1 root     root         4136 Feb 16  1995 specassi.h*
+-rwxr-xr-x   1 root     root        14467 Feb 16  1995 unipen.c*
+-rwxr-xr-x   1 root     root          275 Feb 16  1995 y.tab*
+
+/g:/awk/dir_02:
+total 288
+-rwxr-xr-x   1 root     root         1211 Jun 25 18:57 file.lst*
+drwxr-xr-x   2 root     root        16384 Jun 25 18:49 gawk211/
+-rwxr-xr-x   1 root     root       251403 Jun  5 22:45 index.lst*
+
+/g:/awk/dir_02/gawk211:
+total 1008
+-rwxr-xr-x   1 root     root        52522 Jun  5 23:25 v22i087*
+-rwxr-xr-x   1 root     root        55524 Jun  5 23:26 v22i088*
+-rwxr-xr-x   1 root     root        55603 Jun  5 23:27 v22i089*
+-rwxr-xr-x   1 root     root        55946 Jun  5 23:27 v22i090*
+-rwxr-xr-x   1 root     root        55509 Jun  5 23:28 v22i091*
+-rwxr-xr-x   1 root     root        55943 Jun  5 23:28 v22i092*
+-rwxr-xr-x   1 root     root        55709 Jun  5 23:29 v22i093*
+-rwxr-xr-x   1 root     root        56231 Jun  5 23:30 v22i094*
+-rwxr-xr-x   1 root     root        56024 Jun  5 23:31 v22i095*
+-rwxr-xr-x   1 root     root        55472 Jun  5 23:31 v22i096*
+-rwxr-xr-x   1 root     root        56250 Jun  5 23:30 v22i097*
+-rwxr-xr-x   1 root     root        55243 Jun  5 23:29 v22i098*
+-rwxr-xr-x   1 root     root        55390 Jun  5 23:29 v22i099*
+-rwxr-xr-x   1 root     root        53224 Jun  5 23:28 v22i100*
+-rwxr-xr-x   1 root     root        52023 Jun  5 23:27 v22i101*
+-rwxr-xr-x   1 root     root        23649 Jun  5 23:25 v22i102*
+-rwxr-xr-x   1 root     root         2258 Jun  5 23:37 v22i107*
+
+/g:/bash:
+total 7184
+drwxr-xr-x   2 root     root        16384 Jun 24 22:59 atari/
+-rwxr-xr-x   1 root     root      1548288 Jun 25 21:15 bash105.tar*
+-rwxr-xr-x   1 root     root      5703680 Jun 25 22:18 bash1146.tar*
+-rwxr-xr-x   1 root     root         1601 Jun 29 17:23 bournesh*
+drwxr-xr-x   5 root     root        16384 Jun 29 18:28 hp-ux903/
+drwxr-xr-x   2 root     root        16384 Jun 30 18:32 linux/
+drwxr-xr-x   2 root     root        16384 Jun 24 22:39 os2/
+
+/g:/bash/atari:
+total 176
+-rwxr-xr-x   1 root     root       168702 Jun 24 23:08 bash1135.zoo*
+
+/g:/bash/hp-ux903:
+total 64
+-rwxr-xr-x   1 root     root          741 Jun 29 19:29 bash1146*
+drwxr-xr-x   2 root     root        16384 Jun 30 18:34 dynamic/
+drwxr-xr-x   2 root     root        16384 Jun 30 18:36 source/
+drwxr-xr-x   2 root     root        16384 Jun 30 18:35 static/
+
+/g:/bash/hp-ux903/dynamic:
+total 720
+-rwxr-xr-x   1 root     root       727040 Jun 29 19:16 bash1146.tar*
+
+/g:/bash/hp-ux903/source:
+total 5792
+-rwxr-xr-x   1 root     root      5928960 Jun 29 19:55 bash1146.tar*
+
+/g:/bash/hp-ux903/static:
+total 832
+-rwxr-xr-x   1 root     root       849920 Jun 29 20:05 bash1146.tar*
+
+/g:/bash/linux:
+total 5584
+-rwxr-xr-x   1 root     root      5703680 Jun 29 18:33 bash1145.tar*
+
+/g:/bash/os2:
+total 4480
+-rwxr-xr-x   1 root     root      4579840 Nov 10  1993 bash-112.tar*
+
+/g:/bourne:
+total 512
+-rwxr-xr-x   1 root     root        57043 Jun  5 22:48 bourne_0*
+-rwxr-xr-x   1 root     root        56254 Jun  5 22:49 bourne_1*
+-rwxr-xr-x   1 root     root        46279 Jun  5 22:49 bourne_2*
+-rwxr-xr-x   1 root     root        47774 Jun  5 22:49 bourne_3*
+-rwxr-xr-x   1 root     root        49192 Jun  5 22:50 bourne_4*
+-rwxr-xr-x   1 root     root        49290 Jun  5 22:50 bourne_5*
+-rwxr-xr-x   1 root     root        33792 Jun  5 22:50 bourne_6*
+-rwxr-xr-x   1 root     root        57464 Jun  5 22:51 bourne_7*
+-rwxr-xr-x   1 root     root        27929 Jun  5 22:51 bourne_8*
+drwxr-xr-x   2 root     root        16384 Jun 29 16:26 overview/
+
+/g:/bourne/overview:
+total 48
+-rwxr-xr-x   1 root     root         2233 Jun 29 16:26 scrpt_sc*
+-rwxr-xr-x   1 root     root          451 Jun 29 16:24 shell_ov*
+-rwxr-xr-x   1 root     root          613 Jun 29 16:24 shellov*
+
+/g:/csh:
+total 32
+drwxr-xr-x   2 root     root        16384 Jun 30 19:10 linux/
+-rwxr-xr-x   1 root     root         1397 Jun 29 17:20 tcsh606*
+
+/g:/csh/linux:
+total 608
+-rwxr-xr-x   1 root     root       614400 Jun 29 18:08 csh526a.tar*
+
+/g:/find:
+total 16
+drwxr-xr-x   3 root     root        16384 Jun 29 19:14 hp-ux903/
+
+/g:/find/hp-ux903:
+total 16
+drwxr-xr-x   2 root     root        16384 Jun 30 18:39 source/
+
+/g:/find/hp-ux903/source:
+total 688
+-rwxr-xr-x   1 root     root       696320 Jun 29 19:20 find-380.tar*
+
+/g:/gawk:
+total 5792
+-rwxr-xr-x   1 root     root      2703360 Jun 25 22:45 gawkd300.tar*
+-rwxr-xr-x   1 root     root      3207168 Jun 25 22:49 gawks300.tar*
+drwxr-xr-x   5 root     root        16384 Jun 29 19:23 hp-ux903/
+
+/g:/gawk/hp-ux903:
+total 64
+drwxr-xr-x   2 root     root        16384 Jun 30 18:46 dynamic/
+-rwxr-xr-x   1 root     root          763 Jun 29 19:29 gawk-3_0*
+drwxr-xr-x   2 root     root        16384 Jun 30 18:47 source/
+drwxr-xr-x   2 root     root        16384 Jun 30 18:47 static/
+
+/g:/gawk/hp-ux903/dynamic:
+total 1072
+-rwxr-xr-x   1 root     root      1085440 Jun 29 19:45 gawk-300.tar*
+
+/g:/gawk/hp-ux903/source:
+total 3264
+-rwxr-xr-x   1 root     root      3328000 Jun 29 20:00 gawk-300.tar*
+
+/g:/gawk/hp-ux903/static:
+total 1360
+-rwxr-xr-x   1 root     root      1382400 Jun 29 19:57 gawk-300.tar*
+
+/g:/gdb:
+total 32
+drwxr-xr-x   2 root     root        16384 Jun 25 22:48 bin/
+drwxr-xr-x   2 root     root        16384 Jun 25 22:48 test/
+
+/g:/gdb/bin:
+total 5872
+-rwxr-xr-x   1 root     root      5996836 Jun 26 00:34 gdb-4_16.gz*
+
+/g:/gdb/test:
+total 464
+-rwxr-xr-x   1 root     root       464522 Jun 25 23:04 gdb-4_16.gz*
+
+/g:/grep:
+total 624
+drwxr-xr-x   5 root     root        16384 Jul  2 20:29 agrep201/
+drwxr-xr-x   3 root     root        16384 Jul  2 20:30 egrep/
+drwxr-xr-x   2 root     root        16384 Jun 25 18:44 fastgrep/
+-rwxr-xr-x   1 root     root       481280 Jun 24 21:41 greps-20.tar*
+drwxr-xr-x   2 root     root        16384 Jun 25 19:06 hgrep/
+drwxr-xr-x   3 root     root        16384 Jun 29 20:01 hp-ux903/
+drwxr-xr-x   2 root     root        16384 Jun 27 00:18 macitosh/
+drwxr-xr-x   2 root     root        16384 Jun 25 19:06 mailgrep/
+drwxr-xr-x   2 root     root        16384 Jun 24 23:46 nt/
+drwxr-xr-x   3 root     root        16384 Jun 24 23:42 windows/
+
+/g:/grep/agrep201:
+total 224
+drwxr-xr-x   3 root     root        16384 Jun 29 20:35 hp-ux807/
+drwxr-xr-x   5 root     root        16384 Jun 29 20:33 hp-ux905/
+-rwxr-xr-x   1 root     root        61784 Jun 24 21:48 part01*
+-rwxr-xr-x   1 root     root        45520 Jun 24 21:49 part02*
+-rwxr-xr-x   1 root     root        57519 Jun 24 21:51 part03*
+drwxr-xr-x   2 root     root        16384 Jul  2 20:30 shellscr/
+
+/g:/grep/agrep201/hp-ux807:
+total 16
+drwxr-xr-x   2 root     root        16384 Jun 30 18:53 source/
+
+/g:/grep/agrep201/hp-ux807/source:
+total 224
+-rwxr-xr-x   1 root     root       225792 Jun 29 21:17 agrep-20.tar*
+
+/g:/grep/agrep201/hp-ux905:
+total 48
+drwxr-xr-x   2 root     root        16384 Jun 30 18:53 dynamic/
+drwxr-xr-x   2 root     root        16384 Jun 30 18:53 source/
+drwxr-xr-x   2 root     root        16384 Jun 30 18:53 static/
+
+/g:/grep/agrep201/hp-ux905/dynamic:
+total 112
+-rwxr-xr-x   1 root     root       102400 Jun 29 21:12 agrep201.tar*
+
+/g:/grep/agrep201/hp-ux905/source:
+total 176
+-rwxr-xr-x   1 root     root       174080 Jun 29 21:14 agrep204.tar*
+
+/g:/grep/agrep201/hp-ux905/static:
+total 160
+-rwxr-xr-x   1 root     root       163840 Jun 29 21:12 agrep201.tar*
+
+/g:/grep/agrep201/shellscr:
+total 464
+-rwxr-xr-x   1 root     root        61824 Jun  5 23:52 v26i021*
+-rwxr-xr-x   1 root     root        45560 Jun  5 23:53 v26i022*
+-rwxr-xr-x   1 root     root        57559 Jun  5 23:53 v26i023*
+-rwxr-xr-x   1 root     root       103435 Jun  5 23:59 v26i167*
+-rwxr-xr-x   1 root     root        62252 Jun  6 00:00 v26i168*
+-rwxr-xr-x   1 root     root        41782 Jun  6 00:00 v26i169*
+-rwxr-xr-x   1 root     root        60381 Jun  6 00:00 v26i170*
+
+/g:/grep/egrep:
+total 16
+drwxr-xr-x   2 root     root        16384 Jun 25 18:47 egrep12/
+
+/g:/grep/egrep/egrep12:
+total 272
+-rwxr-xr-x   1 root     root        49951 Jun  5 23:07 v17i098*
+-rwxr-xr-x   1 root     root        54003 Jun  5 23:07 v17i099*
+-rwxr-xr-x   1 root     root        52304 Jun  5 23:08 v17i100*
+-rwxr-xr-x   1 root     root        58188 Jun  5 23:08 v17i101*
+-rwxr-xr-x   1 root     root        14073 Jun  5 23:08 v17i102*
+
+/g:/grep/fastgrep:
+total 128
+-rwxr-xr-x   1 root     root        58232 Jun  5 22:56 v09i061*
+-rwxr-xr-x   1 root     root        56410 Jun  5 22:56 v09i062*
+
+/g:/grep/hgrep:
+total 16
+-rwxr-xr-x   1 root     root         7276 Jun 24 22:03 hgrep*
+
+/g:/grep/hp-ux903:
+total 16
+drwxr-xr-x   2 root     root        16384 Jun 30 18:32 source/
+
+/g:/grep/hp-ux903/source:
+total 528
+-rwxr-xr-x   1 root     root       532480 Jun 29 20:07 grep-20.tar*
+
+/g:/grep/macitosh:
+total 48
+-rwxr-xr-x   1 root     root        47926 Jun 27 00:21 egrep.hqx*
+
+/g:/grep/mailgrep:
+total 16
+-rwxr-xr-x   1 root     root         5055 Jun 24 21:44 mgrep*
+
+/g:/grep/nt:
+total 640
+-rwxr-xr-x   1 root     root        18321 Oct  8  1993 copying*
+-rwxr-xr-x   1 root     root        56916 Feb 28  1989 dfa.c*
+-rwxr-xr-x   1 root     root        15866 Jul  9  1993 dfa.h*
+-rwxr-xr-x   1 root     root        62464 Feb 18  1994 egrep.exe*
+-rwxr-xr-x   1 root     root        14721 Nov 25  1992 fgrep.c*
+-rwxr-xr-x   1 root     root        38912 Feb 18  1994 fgrep.exe*
+-rwxr-xr-x   1 root     root        16934 Feb 18  1994 getopt.c*
+-rwxr-xr-x   1 root     root        29582 Jul  9  1993 grep.c*
+-rwxr-xr-x   1 root     root        62464 Feb 18  1994 grep.exe*
+-rwxr-xr-x   1 root     root         8869 Dec  7  1990 grep.man*
+-rwxr-xr-x   1 root     root        17705 Feb 15  1991 kwset.c*
+-rwxr-xr-x   1 root     root         2434 Dec 26  1990 kwset.h*
+-rwxr-xr-x   1 root     root         1054 Feb 18  1994 makefile*
+-rwxr-xr-x   1 root     root         9156 Dec 14  1990 obstack.c*
+-rwxr-xr-x   1 root     root        16824 Nov 25  1992 obstack.h*
+-rwxr-xr-x   1 root     root          192 Feb 18  1994 readme*
+-rwxr-xr-x   1 root     root        51349 Jan  2  1991 regex.c*
+-rwxr-xr-x   1 root     root        12771 Feb 28  1989 regex.h*
+-rwxr-xr-x   1 root     root        32905 Feb 18  1994 setargv.c*
+
+/g:/grep/windows:
+total 464
+-rwxr-xr-x   1 root     root          329 May 12 21:42 file_id.diz*
+-rwxr-xr-x   1 root     root       276288 May 27 13:14 li.exe*
+-rwxr-xr-x   1 root     root        73194 May 26 20:35 li.hlp*
+-rwxr-xr-x   1 root     root          903 May 27 11:51 li.txt*
+-rwxr-xr-x   1 root     root        10591 May 12 21:30 lichgs.txt*
+-rwxr-xr-x   1 root     root         1423 May 12 21:33 lifaq.txt*
+-rwxr-xr-x   1 root     root         1547 May 12 17:58 lireg.txt*
+drwxr-xr-x   2 root     root        16384 Jun 25 20:31 s-n-r/
+-rwxr-xr-x   1 root     root        10752 Jan  4  1992 vga128.fon*
+
+/g:/grep/windows/s-n-r:
+total 544
+-rwxr-xr-x   1 root     root         2007 May  4 17:17 order.txt*
+-rwxr-xr-x   1 root     root         6892 May  4 17:16 read.me*
+-rwxr-xr-x   1 root     root       170464 May  5 01:19 sr.exe*
+-rwxr-xr-x   1 root     root        36357 May  5 01:55 sr.hlp*
+-rwxr-xr-x   1 root     root       286208 May  4 17:14 sr32.exe*
+
+/g:/hosts:
+total 16
+drwxr-xr-x   3 root     root        16384 Jun 26 23:10 ftp/
+
+/g:/hosts/ftp:
+total 16
+drwxr-xr-x   3 root     root        16384 Jun 26 23:10 sterling/
+
+/g:/hosts/ftp/sterling:
+total 16
+drwxr-xr-x   2 root     root        16384 Jun 26 23:10 com/
+
+/g:/hosts/ftp/sterling/com:
+total 256
+-rwxr-xr-x   1 root     root       251403 Jun 26 23:07 index*
+
+/g:/html:
+total 32
+-rwxr-xr-x   1 root     root        16718 Jun 29 16:17 htmlqref*
+
+/g:/korn:
+total 528
+drwxr-xr-x   2 root     root        16384 Jun 25 19:17 class/
+-rwxr-xr-x   1 root     root         1740 Jun 29 17:17 kornshel.001*
+-rwxr-xr-x   1 root     root         3133 Jun 29 17:18 kornshel.002*
+-rwxr-xr-x   1 root     root         1740 Jun 29 17:28 kornshel.sk*
+-rwxr-xr-x   1 root     root         3133 Jun 29 17:27 kornshel.txt*
+drwxr-xr-x   2 root     root        16384 Jun 30 18:51 linux/
+drwxr-xr-x   2 root     root        16384 Jun 24 23:24 mint/
+drwxr-xr-x   4 root     root        16384 Jun 24 23:08 msdos/
+drwxr-xr-x   2 root     root        16384 Jun 24 23:38 nt/
+-rwxr-xr-x   1 root     root         2408 Jun 29 17:17 pdksh*
+-rwxr-xr-x   1 root     root       337920 Jun 24 23:38 pdksh-32.tar*
+-rwxr-xr-x   1 root     root         2422 Jun 29 16:15 quickref*
+-rwxr-xr-x   1 root     root         6623 Jun 29 16:42 sections*
+
+/g:/korn/class:
+total 208
+-rwxr-xr-x   1 root     root        28154 Jun 25 20:58 command*
+-rwxr-xr-x   1 root     root         4535 Jun 25 20:58 conditio*
+-rwxr-xr-x   1 root     root         2288 Jun  5 21:04 escape*
+-rwxr-xr-x   1 root     root         7929 Jun  5 21:05 examples*
+-rwxr-xr-x   1 root     root         4896 Jun  5 21:02 flow*
+-rwxr-xr-x   1 root     root        30007 Jun  5 21:12 intro*
+-rwxr-xr-x   1 root     root         2956 Jun  5 21:03 logical*
+-rwxr-xr-x   1 root     root         5102 Jun  5 21:01 notes*
+-rwxr-xr-x   1 root     root          244 Jun  5 21:09 readme*
+-rwxr-xr-x   1 root     root         2445 Jun  5 21:02 redirect*
+-rwxr-xr-x   1 root     root         1764 Jun  5 21:05 signals*
+
+/g:/korn/linux:
+total 1264
+-rwxr-xr-x   1 root     root      1280000 Jun 29 18:08 pdksh523.tar*
+
+/g:/korn/mint:
+total 80
+-rwxr-xr-x   1 root     root        73497 Jun 24 23:33 ksh_v04a.lzh*
+
+/g:/korn/msdos:
+total 32
+drwxr-xr-x   6 root     root        16384 Jun 25 20:33 full/
+drwxr-xr-x   5 root     root        16384 Jun 25 20:33 partial/
+
+/g:/korn/msdos/full:
+total 432
+drwxr-xr-x   2 root     root        16384 Jun 25 20:34 bin/
+-rwxr-xr-x   1 root     root         2678 Aug 26  1994 changes*
+-rwxr-xr-x   1 root     root        12311 Aug 26  1994 dos4gw.doc*
+drwxr-xr-x   3 root     root        16384 Jun 25 20:34 emxinc/
+-rwxr-xr-x   1 root     root         1448 Jul 14  1992 extend.lst*
+drwxr-xr-x   3 root     root        16384 Jun 25 20:34 include/
+-rwxr-xr-x   1 root     root         8432 Aug 26  1994 install*
+-rwxr-xr-x   1 root     root         4009 Aug 26  1994 manifest*
+-rwxr-xr-x   1 root     root         3472 Aug 26  1994 mem.err*
+-rwxr-xr-x   1 root     root         9372 Aug 26  1994 notes*
+-rwxr-xr-x   1 root     root         3118 Aug 26  1994 patch.lib*
+-rwxr-xr-x   1 root     root          124 Jul 14  1992 profile.etc*
+-rwxr-xr-x   1 root     root          942 Jul 14  1992 profile.sh*
+-rwxr-xr-x   1 root     root         7023 Aug 26  1994 readme*
+-rwxr-xr-x   1 root     root       120438 Aug 26  1994 sh.1*
+-rwxr-xr-x   1 root     root         2658 Aug 26  1994 sh.ini*
+-rwxr-xr-x   1 root     root          545 Aug 26  1994 sh.pif*
+-rwxr-xr-x   1 root     root          669 Jul 14  1992 sh.rc*
+-rwxr-xr-x   1 root     root         1150 Aug 26  1994 sh.vmc*
+drwxr-xr-x   2 root     root        16384 Jun 25 20:34 src/
+
+/g:/korn/msdos/full/bin:
+total 304
+-rwxr-xr-x   1 root     root       244716 Aug 26  1994 dos4gw.exe*
+-rwxr-xr-x   1 root     root         4636 Aug 26  1994 sh0_msc.obj*
+-rwxr-xr-x   1 root     root         4636 Aug 26  1994 sh0_tc.obj*
+-rwxr-xr-x   1 root     root          766 Aug 26  1994 shell.ico*
+-rwxr-xr-x   1 root     root         1010 Aug 26  1994 shell2.ico*
+
+/g:/korn/msdos/full/emxinc:
+total 32
+-rwxr-xr-x   1 root     root         4253 May 31  1994 dirent.h*
+drwxr-xr-x   2 root     root        16384 Jun 25 20:34 sys/
+
+/g:/korn/msdos/full/emxinc/sys:
+total 16
+-rwxr-xr-x   1 root     root         1705 May 31  1994 dirent.h*
+
+/g:/korn/msdos/full/include:
+total 112
+-rwxr-xr-x   1 root     root         3322 May 23  1994 dirent.h*
+-rwxr-xr-x   1 root     root          944 Feb 23  1994 glob.h*
+-rwxr-xr-x   1 root     root         1999 Feb 13  1994 langinfo.h*
+-rwxr-xr-x   1 root     root         3908 Feb 23  1994 limits.h*
+-rwxr-xr-x   1 root     root          692 Feb 13  1994 nl_types.h*
+drwxr-xr-x   2 root     root        16384 Jun 25 20:34 sys/
+-rwxr-xr-x   1 root     root        10074 May 23  1994 unistd.h*
+
+/g:/korn/msdos/full/include/sys:
+total 64
+-rwxr-xr-x   1 root     root         1611 Feb 23  1994 dirent.h*
+-rwxr-xr-x   1 root     root          325 Feb 23  1994 null.h*
+-rwxr-xr-x   1 root     root          870 Feb 23  1994 proto.h*
+-rwxr-xr-x   1 root     root         2359 May 23  1994 types.h*
+
+/g:/korn/msdos/full/src:
+total 1440
+-rwxr-xr-x   1 root     root        11321 Aug 26  1994 director.c*
+-rwxr-xr-x   1 root     root           99 Aug 26  1994 emx.def*
+-rwxr-xr-x   1 root     root           66 Aug 26  1994 emx.imp*
+-rwxr-xr-x   1 root     root        19291 Aug 26  1994 glob.c*
+-rwxr-xr-x   1 root     root         9509 Aug 28  1994 makefile*
+-rwxr-xr-x   1 root     root          176 Aug 26  1994 msh0.lnk*
+-rwxr-xr-x   1 root     root          186 Aug 26  1994 msh0d.lnk*
+-rwxr-xr-x   1 root     root          177 Aug 26  1994 msh1.lnk*
+-rwxr-xr-x   1 root     root          189 Aug 26  1994 msh1d.lnk*
+-rwxr-xr-x   1 root     root         2753 Aug 26  1994 nt.mak*
+-rwxr-xr-x   1 root     root        20935 Aug 28  1994 ps.c*
+-rwxr-xr-x   1 root     root          267 Aug 26  1994 ps.lnk*
+-rwxr-xr-x   1 root     root         6976 Aug 26  1994 ptype.c*
+-rwxr-xr-x   1 root     root         1378 Aug 26  1994 sh.bnd*
+-rwxr-xr-x   1 root     root         1291 Aug 26  1994 sh.def*
+-rwxr-xr-x   1 root     root        71959 Aug 26  1994 sh.h*
+-rwxr-xr-x   1 root     root        30844 Aug 26  1994 sh0.asm*
+-rwxr-xr-x   1 root     root        78206 Aug 26  1994 sh1.c*
+-rwxr-xr-x   1 root     root        47168 Aug 26  1994 sh10.c*
+-rwxr-xr-x   1 root     root        22797 Aug 26  1994 sh11.c*
+-rwxr-xr-x   1 root     root        18378 Aug 26  1994 sh12.c*
+-rwxr-xr-x   1 root     root       120215 Aug 26  1994 sh13.c*
+-rwxr-xr-x   1 root     root        21588 Aug 26  1994 sh2.c*
+-rwxr-xr-x   1 root     root       103664 Aug 26  1994 sh3.c*
+-rwxr-xr-x   1 root     root        37911 Aug 26  1994 sh4.c*
+-rwxr-xr-x   1 root     root        28343 Aug 26  1994 sh5.c*
+-rwxr-xr-x   1 root     root        12205 Aug 26  1994 sh6.c*
+-rwxr-xr-x   1 root     root       120908 Aug 26  1994 sh7.c*
+-rwxr-xr-x   1 root     root        76847 Aug 26  1994 sh8.c*
+-rwxr-xr-x   1 root     root        65450 Aug 26  1994 sh9.c*
+-rwxr-xr-x   1 root     root         7192 Aug 26  1994 showkey.c*
+-rwxr-xr-x   1 root     root        19126 Aug 26  1994 stdargv.c*
+-rwxr-xr-x   1 root     root        22918 Aug 26  1994 swap.asm*
+-rwxr-xr-x   1 root     root        49365 Aug 26  1994 system.c*
+-rwxr-xr-x   1 root     root          172 Aug 26  1994 tsh.lnk*
+-rwxr-xr-x   1 root     root          252 Aug 26  1994 wsh0.lnk*
+-rwxr-xr-x   1 root     root          262 Aug 26  1994 wsh0d.lnk*
+-rwxr-xr-x   1 root     root          457 Aug 26  1994 wsh1.lnk*
+-rwxr-xr-x   1 root     root          467 Aug 26  1994 wsh1d.lnk*
+
+/g:/korn/msdos/partial:
+total 608
+drwxr-xr-x   2 root     root        16384 Jun 25 20:34 bin/
+-rwxr-xr-x   1 root     root        12311 Aug 26  1994 dos4gw.doc*
+-rwxr-xr-x   1 root     root         1448 Jul 14  1992 extend.lst*
+drwxr-xr-x   3 root     root        16384 Jun 25 20:34 include/
+-rwxr-xr-x   1 root     root         8432 Aug 26  1994 install*
+-rwxr-xr-x   1 root     root         4009 Aug 26  1994 manifest*
+-rwxr-xr-x   1 root     root         3472 Aug 26  1994 mem.err*
+-rwxr-xr-x   1 root     root         9372 Aug 26  1994 notes*
+-rwxr-xr-x   1 root     root          124 Jul 14  1992 profile.etc*
+-rwxr-xr-x   1 root     root          942 Jul 14  1992 profile.sh*
+-rwxr-xr-x   1 root     root         7023 Aug 26  1994 readme*
+-rwxr-xr-x   1 root     root       120438 Aug 26  1994 sh.1*
+-rwxr-xr-x   1 root     root         2658 Aug 26  1994 sh.ini*
+-rwxr-xr-x   1 root     root       214919 Aug 25  1994 sh.man*
+-rwxr-xr-x   1 root     root          545 Aug 26  1994 sh.pif*
+-rwxr-xr-x   1 root     root          669 Jul 14  1992 sh.rc*
+-rwxr-xr-x   1 root     root         1150 Aug 26  1994 sh.vmc*
+drwxr-xr-x   2 root     root        16384 Jun 25 20:34 src/
+
+/g:/korn/msdos/partial/bin:
+total 1328
+-rwxr-xr-x   1 root     root       244716 Aug 26  1994 dos4gw.exe*
+-rwxr-xr-x   1 root     root           48 Jun 25 20:45 history.sh*
+-rwxr-xr-x   1 root     root        31041 Aug 26  1994 ps.exe*
+-rwxr-xr-x   1 root     root       192193 Aug 26  1994 shdos16.exe*
+-rwxr-xr-x   1 root     root       191927 Aug 26  1994 shdos32.exe*
+-rwxr-xr-x   1 root     root          766 Aug 26  1994 shell.ico*
+-rwxr-xr-x   1 root     root         1010 Aug 26  1994 shell2.ico*
+-rwxr-xr-x   1 root     root       159748 Aug 26  1994 shemx.exe*
+-rwxr-xr-x   1 root     root       183497 Aug 26  1994 shos216.exe*
+-rwxr-xr-x   1 root     root       199711 Aug 26  1994 shos232.exe*
+-rwxr-xr-x   1 root     root        23491 Aug 26  1994 showkey2.exe*
+-rwxr-xr-x   1 root     root        26497 Aug 26  1994 showkeyd.exe*
+
+/g:/korn/msdos/partial/include:
+total 80
+-rwxr-xr-x   1 root     root         3322 May 23  1994 dirent.h*
+-rwxr-xr-x   1 root     root          944 Feb 23  1994 glob.h*
+-rwxr-xr-x   1 root     root         3908 Feb 23  1994 limits.h*
+drwxr-xr-x   2 root     root        16384 Jun 25 20:34 sys/
+-rwxr-xr-x   1 root     root        10074 May 23  1994 unistd.h*
+
+/g:/korn/msdos/partial/include/sys:
+total 64
+-rwxr-xr-x   1 root     root         1611 Feb 23  1994 dirent.h*
+-rwxr-xr-x   1 root     root          325 Feb 23  1994 null.h*
+-rwxr-xr-x   1 root     root          870 Feb 23  1994 proto.h*
+-rwxr-xr-x   1 root     root         2359 May 23  1994 types.h*
+
+/g:/korn/msdos/partial/src:
+total 208
+-rwxr-xr-x   1 root     root        11321 Aug 26  1994 director.c*
+-rwxr-xr-x   1 root     root        19291 Aug 26  1994 glob.c*
+-rwxr-xr-x   1 root     root         9509 Aug 28  1994 makefile*
+-rwxr-xr-x   1 root     root         7192 Aug 26  1994 showkey.c*
+-rwxr-xr-x   1 root     root        19126 Aug 26  1994 stdargv.c*
+-rwxr-xr-x   1 root     root        22918 Aug 26  1994 swap.asm*
+-rwxr-xr-x   1 root     root        49365 Aug 26  1994 system.c*
+
+/g:/korn/nt:
+total 240
+-rwxr-xr-x   1 root     root       142848 Feb 19  1993 ls.exe*
+-rwxr-xr-x   1 root     root        68608 Feb 22  1993 ntsh.exe*
+-rwxr-xr-x   1 root     root         3635 Feb 22  1993 read.me*
+
+/g:/lan_wan:
+total 64
+-rwxr-xr-x   1 root     root        65396 Jun 29 17:10 lan-tech*
+
+/g:/less:
+total 672
+-rwxr-xr-x   1 root     root       675840 Jun 25 22:42 less290.tar*
+
+/g:/perl:
+total 6240
+drwxr-xr-x   4 root     root        16384 Jun 29 20:11 hp-ux903/
+drwxr-xr-x   3 root     root        16384 Jun 29 20:15 hp-ux905/
+-rwxr-xr-x   1 root     root         1259 Jun 29 17:32 perl*
+-rwxr-xr-x   1 root     root         9881 Jun 29 17:29 perl-1*
+drwxr-xr-x   2 root     root        16384 Jun 25 18:47 perl20/
+drwxr-xr-x   2 root     root        16384 Jun 25 18:48 perl30/
+-rwxr-xr-x   1 root     root         6065 Jun 29 17:30 perl5*
+-rwxr-xr-x   1 root     root      5750784 Jun 25 23:36 perl5002.tar*
+-rwxr-xr-x   1 root     root       512000 Jun 25 22:56 perlref5.tar*
+
+/g:/perl/hp-ux903:
+total 32
+drwxr-xr-x   2 root     root        16384 Jun 30 18:50 source/
+drwxr-xr-x   2 root     root        16384 Jun 30 18:48 static/
+
+/g:/perl/hp-ux903/source:
+total 5696
+-rwxr-xr-x   1 root     root      5826560 Jun 29 21:09 perl5002.tar*
+
+/g:/perl/hp-ux903/static:
+total 144
+-rwxr-xr-x   1 root     root       143360 Jun 29 20:20 perl5002.tar*
+
+/g:/perl/hp-ux905:
+total 16
+drwxr-xr-x   2 root     root        16384 Jun 30 18:51 source/
+
+/g:/perl/hp-ux905/source:
+total 6832
+-rwxr-xr-x   1 root     root      6983680 Jun 29 21:17 perl5002.tar*
+
+/g:/perl/perl20:
+total 320
+-rwxr-xr-x   1 root     root        50385 Jun  5 23:04 v15i090*
+-rwxr-xr-x   1 root     root        51105 Jun  5 23:05 v15i091*
+-rwxr-xr-x   1 root     root        49831 Jun  5 23:05 v15i092*
+-rwxr-xr-x   1 root     root        50464 Jun  5 23:05 v15i093*
+-rwxr-xr-x   1 root     root        50080 Jun  5 23:04 v15i094*
+
+/g:/perl/perl30:
+total 1584
+-rwxr-xr-x   1 root     root        50499 Jun  5 23:12 v20i084*
+-rwxr-xr-x   1 root     root        55884 Jun  5 23:12 v20i085*
+-rwxr-xr-x   1 root     root        51721 Jun  5 23:12 v20i086*
+-rwxr-xr-x   1 root     root        51007 Jun  5 23:13 v20i087*
+-rwxr-xr-x   1 root     root        50830 Jun  5 23:13 v20i088*
+-rwxr-xr-x   1 root     root        49993 Jun  5 23:15 v20i089*
+-rwxr-xr-x   1 root     root        50534 Jun  5 23:15 v20i090*
+-rwxr-xr-x   1 root     root        50101 Jun  5 23:17 v20i091*
+-rwxr-xr-x   1 root     root        50161 Jun  5 23:18 v20i092*
+-rwxr-xr-x   1 root     root        50064 Jun  5 23:19 v20i093*
+-rwxr-xr-x   1 root     root        50495 Jun  5 23:19 v20i094*
+-rwxr-xr-x   1 root     root        50434 Jun  5 23:20 v20i095*
+-rwxr-xr-x   1 root     root        50613 Jun  5 23:21 v20i096*
+-rwxr-xr-x   1 root     root        50269 Jun  5 23:21 v20i097*
+-rwxr-xr-x   1 root     root        50363 Jun  5 23:22 v20i098*
+-rwxr-xr-x   1 root     root        50676 Jun  5 23:22 v20i099*
+-rwxr-xr-x   1 root     root        50544 Jun  5 23:21 v20i100*
+-rwxr-xr-x   1 root     root        50463 Jun  5 23:20 v20i101*
+-rwxr-xr-x   1 root     root        50433 Jun  5 23:19 v20i102*
+-rwxr-xr-x   1 root     root        50121 Jun  5 23:19 v20i103*
+-rwxr-xr-x   1 root     root        50399 Jun  5 23:18 v20i104*
+-rwxr-xr-x   1 root     root        50352 Jun  5 23:17 v20i105*
+-rwxr-xr-x   1 root     root        50391 Jun  5 23:17 v20i106*
+-rwxr-xr-x   1 root     root        45876 Jun  5 23:16 v20i107*
+-rwxr-xr-x   1 root     root        52411 Jun  5 23:15 v20i108*
+
+/g:/sed:
+total 480
+drwxr-xr-x   3 root     root        16384 Jun 29 20:06 hp-ux903/
+-rwxr-xr-x   1 root     root         1364 Jun 29 17:25 sed-204*
+-rwxr-xr-x   1 root     root       450560 Jun 26 22:50 sed-205.tar*
+
+/g:/sed/hp-ux903:
+total 16
+drwxr-xr-x   2 root     root        16384 Jun 30 18:38 source/
+
+/g:/sed/hp-ux903/source:
+total 464
+-rwxr-xr-x   1 root     root       471040 Jun 29 20:09 sed-205.tar*
+
+/g:/shellarc:
+total 48
+-rwxr-xr-x   1 root     root        46405 Jun  5 23:54 getether.sh*
+
+/g:/shellscr:
+total 16
+drwxr-xr-x   2 root     root        16384 Jun 25 18:52 shellmen/
+
+/g:/shellscr/shellmen:
+total 608
+-rwxr-xr-x   1 root     root        65667 Jun  6 00:03 v28i125*
+-rwxr-xr-x   1 root     root        44914 Jun  6 00:04 v28i126*
+-rwxr-xr-x   1 root     root        39261 Jun  6 00:05 v28i127*
+-rwxr-xr-x   1 root     root        43337 Jun  6 00:05 v28i128*
+-rwxr-xr-x   1 root     root        43407 Jun  6 00:06 v28i129*
+-rwxr-xr-x   1 root     root        43363 Jun  6 00:06 v28i130*
+-rwxr-xr-x   1 root     root        43952 Jun  6 00:05 v28i131*
+-rwxr-xr-x   1 root     root        40763 Jun  6 00:04 v28i132*
+-rwxr-xr-x   1 root     root        42029 Jun  6 00:03 v28i133*
+-rwxr-xr-x   1 root     root        35355 Jun  6 00:07 v28i202*
+-rwxr-xr-x   1 root     root        28641 Jun  6 00:08 v28i203*
+-rwxr-xr-x   1 root     root        58014 Jun  6 00:08 v28i204*
+
+/g:/sort:
+total 16
+drwxr-xr-x   2 root     root        16384 Jun 27 00:32 macitosh/
+
+/g:/sort/macitosh:
+total 16
+-rwxr-xr-x   1 root     root        15619 Jun 27 00:33 sort-10.hqx*
+
+/g:/ssh:
+total 16
+-rwxr-xr-x   1 root     root         1411 Jun 29 17:21 ssh-170*
+
+/g:/strsed:
+total 80
+-rwxr-xr-x   1 root     root        30733 Jun 24 22:14 part01*
+-rwxr-xr-x   1 root     root        30097 Jun 24 22:15 part02*
+-rwxr-xr-x   1 root     root         3214 Jun 24 22:16 part03*
+
+/g:/tcsh:
+total 2512
+-rwxr-xr-x   1 root     root         7156 Jun 24 22:20 faq*
+drwxr-xr-x   5 root     root        16384 Jun 29 18:28 hp-ux903/
+-rwxr-xr-x   1 root     root        19158 Jun 24 22:24 ported*
+drwxr-xr-x   2 root     root        16384 Jun 25 18:46 tcsh/
+-rwxr-xr-x   1 root     root      2265088 Jun 24 22:38 tcsh-606.tar*
+-rwxr-xr-x   1 root     root       183109 Jun 24 22:29 tcsh.man*
+drwxr-xr-x   2 root     root        16384 Jun 25 18:50 tcsh601/
+
+/g:/tcsh/hp-ux903:
+total 48
+drwxr-xr-x   2 root     root        16384 Jun 30 18:40 dynamic/
+drwxr-xr-x   2 root     root        16384 Jun 30 18:41 source/
+drwxr-xr-x   2 root     root        16384 Jun 30 18:41 static/
+
+/g:/tcsh/hp-ux903/dynamic:
+total 672
+-rwxr-xr-x   1 root     root       675840 Jun 29 18:51 tcsh-606.tar*
+
+/g:/tcsh/hp-ux903/source:
+total 2464
+-rwxr-xr-x   1 root     root      2519040 Jun 29 18:59 tcsh-606.tar*
+
+/g:/tcsh/hp-ux903/static:
+total 672
+-rwxr-xr-x   1 root     root       675840 Jun 29 18:58 tcsh-606.tar*
+
+/g:/tcsh/tcsh:
+total 448
+-rwxr-xr-x   1 root     root        45448 Jun  5 22:58 v11i001*
+-rwxr-xr-x   1 root     root        41715 Jun  5 22:59 v11i002*
+-rwxr-xr-x   1 root     root        46220 Jun  5 22:59 v11i003*
+-rwxr-xr-x   1 root     root        43042 Jun  5 22:59 v11i004*
+-rwxr-xr-x   1 root     root        50057 Jun  5 23:00 v11i005*
+-rwxr-xr-x   1 root     root        52037 Jun  5 23:00 v11i006*
+-rwxr-xr-x   1 root     root        60377 Jun  5 23:01 v11i084*
+-rwxr-xr-x   1 root     root        61990 Jun  5 23:01 v11i085*
+
+/g:/tcsh/tcsh601:
+total 1600
+-rwxr-xr-x   1 root     root        97881 Jun  5 23:40 v25i054*
+-rwxr-xr-x   1 root     root        98473 Jun  5 23:42 v25i055*
+-rwxr-xr-x   1 root     root        93594 Jun  5 23:43 v25i056*
+-rwxr-xr-x   1 root     root        89795 Jun  5 23:44 v25i057*
+-rwxr-xr-x   1 root     root        95620 Jun  5 23:49 v25i058*
+-rwxr-xr-x   1 root     root        87786 Jun  5 23:45 v25i059*
+-rwxr-xr-x   1 root     root        85929 Jun  5 23:46 v25i060*
+-rwxr-xr-x   1 root     root        81550 Jun  5 23:49 v25i061*
+-rwxr-xr-x   1 root     root        90699 Jun  5 23:50 v25i062*
+-rwxr-xr-x   1 root     root        78165 Jun  5 23:50 v25i063*
+-rwxr-xr-x   1 root     root        83236 Jun  5 23:46 v25i064*
+-rwxr-xr-x   1 root     root        63761 Jun  5 23:48 v25i065*
+-rwxr-xr-x   1 root     root        73519 Jun  5 23:45 v25i066*
+-rwxr-xr-x   1 root     root        84107 Jun  5 23:44 v25i067*
+-rwxr-xr-x   1 root     root        91167 Jun  5 23:44 v25i068*
+-rwxr-xr-x   1 root     root        51524 Jun  5 23:42 v25i069*
+-rwxr-xr-x   1 root     root        63114 Jun  5 23:41 v25i070*
+-rwxr-xr-x   1 root     root        85842 Jun  5 23:41 v25i071*
+
+/g:/unixtool:
+total 96
+drwxr-xr-x   2 root     root        16384 Jun 26 23:56 amiga/
+drwxr-xr-x   2 root     root        16384 Jun 26 23:45 atari/
+drwxr-xr-x   2 root     root        16384 Jun 24 23:57 macintos/
+drwxr-xr-x   2 root     root        16384 Jun 26 23:13 msdos/
+drwxr-xr-x   3 root     root        16384 Jun 24 23:53 win3/
+drwxr-xr-x   3 root     root        16384 Jun 24 23:48 win95/
+
+/g:/unixtool/amiga:
+total 480
+-rwxr-xr-x   1 root     root        71910 Jun 26 23:57 pdksh-bi.lha*
+-rwxr-xr-x   1 root     root       211740 Jun 27 00:09 pdksh-sr.lha*
+-rwxr-xr-x   1 root     root       189151 Jun 27 00:21 unixcmd.lha*
+
+/g:/unixtool/atari:
+total 512
+-rwxr-xr-x   1 root     root         1815 Jun 26 23:48 pure_asc.lzh*
+-rwxr-xr-x   1 root     root        42898 Jun 26 23:59 sed.arc*
+-rwxr-xr-x   1 root     root         6912 Jun 26 23:54 sort.arc*
+-rwxr-xr-x   1 root     root        15515 Jun 27 00:03 tr.zoo*
+-rwxr-xr-x   1 root     root       400813 Jun 27 00:09 unixtkit.arc*
+-rwxr-xr-x   1 root     root        15024 Jun 27 00:06 wc.zoo*
+
+/g:/unixtool/macintos:
+total 448
+-rwxr-xr-x   1 root     root       116707 Jun 27 00:20 mac-shel.hqx*
+-rwxr-xr-x   1 root     root       318860 Jun 25 00:20 mega-sou.hqx*
+
+/g:/unixtool/msdos:
+total 1232
+-rwxr-xr-x   1 root     root        33400 Jun 26 23:15 batcsh12.zip*
+-rwxr-xr-x   1 root     root        45416 Jun 26 23:44 csh4.zip*
+-rwxr-xr-x   1 root     root         1656 Jun 29 16:13 dos2unix*
+-rwxr-xr-x   1 root     root        19310 Jun 26 23:23 doscvt27.zip*
+-rwxr-xr-x   1 root     root        24113 Jun 26 23:18 toaduu21.zip*
+-rwxr-xr-x   1 root     root       148955 Jun 26 23:18 untgz093.zip*
+-rwxr-xr-x   1 root     root       243970 Jun 26 23:38 uxutl23a.zip*
+-rwxr-xr-x   1 root     root       232982 Jun 26 23:37 uxutl23b.zip*
+-rwxr-xr-x   1 root     root       226425 Jun 26 23:34 uxutl23c.zip*
+-rwxr-xr-x   1 root     root       164364 Jun 26 23:29 uxutl23d.zip*
+-rwxr-xr-x   1 root     root        13092 Jun 26 23:19 xgrep103.zip*
+
+/g:/unixtool/win3:
+total 1920
+-rwxr-xr-x   1 root     root       148256 Apr 20 09:46 diff.exe*
+-rwxr-xr-x   1 root     root        18432 Feb 20 17:17 diff.hlp*
+-rwxr-xr-x   1 root     root       116400 Apr 22 14:20 dosconv.exe*
+-rwxr-xr-x   1 root     root        30720 Feb  9 17:05 dosconv.hlp*
+-rwxr-xr-x   1 root     root       124960 Feb  9 17:04 filters.exe*
+-rwxr-xr-x   1 root     root        38912 Dec  5  1995 filters.hlp*
+-rwxr-xr-x   1 root     root       169824 Feb 20 17:13 genuts.exe*
+-rwxr-xr-x   1 root     root        32768 Dec 21  1995 genuts.hlp*
+-rwxr-xr-x   1 root     root       146544 Apr 20 09:43 grep.exe*
+-rwxr-xr-x   1 root     root        20480 Feb 11 10:51 grep.hlp*
+-rwxr-xr-x   1 root     root       138944 Feb  3 17:48 hd.exe*
+-rwxr-xr-x   1 root     root        24576 Aug 12  1995 hd.hlp*
+-rwxr-xr-x   1 root     root         4488 Apr 14 12:14 license.txt*
+-rwxr-xr-x   1 root     root       169776 Feb 27 18:21 more.exe*
+-rwxr-xr-x   1 root     root        52269 Oct 19  1995 more.hlp*
+-rwxr-xr-x   1 root     root        10240 Aug 12  1995 pr.hlp*
+-rwxr-xr-x   1 root     root        13594 Apr 20 20:43 readme.txt*
+-rwxr-xr-x   1 root     root         1817 Apr 14 12:11 register.txt*
+drwxr-xr-x   2 root     root        16384 Jun 25 20:36 scripts/
+-rwxr-xr-x   1 root     root       133888 Feb  9 17:10 sed.exe*
+-rwxr-xr-x   1 root     root        32768 Jan  6 13:53 sed.hlp*
+-rwxr-xr-x   1 root     root        91936 Apr 20 09:48 setup.exe*
+-rwxr-xr-x   1 root     root        18432 Feb 26 19:39 setup.hlp*
+-rwxr-xr-x   1 root     root         6603 Apr 19 15:11 whatsnew.txt*
+-rwxr-xr-x   1 root     root       144768 Apr 19 10:05 winpax.exe*
+-rwxr-xr-x   1 root     root        26624 Apr 18 18:14 winpax.hlp*
+-rwxr-xr-x   1 root     root         8192 Apr 13 14:25 winxsdll.dll*
+
+/g:/unixtool/win3/scripts:
+total 32
+-rwxr-xr-x   1 root     root          490 Nov 21  1995 cat-s.sed*
+-rwxr-xr-x   1 root     root          633 Nov 27  1995 diff-e.sed*
+
+/g:/unixtool/win95:
+total 3360
+-rwxr-xr-x   1 root     root       285184 Apr 20 09:53 diff.exe*
+-rwxr-xr-x   1 root     root        18432 Feb 20 17:17 diff.hlp*
+-rwxr-xr-x   1 root     root       211456 Apr 22 14:26 dosconv.exe*
+-rwxr-xr-x   1 root     root        30720 Feb  9 17:05 dosconv.hlp*
+-rwxr-xr-x   1 root     root       228352 Feb 11 10:36 filters.exe*
+-rwxr-xr-x   1 root     root        38912 Dec 24  1995 filters.hlp*
+-rwxr-xr-x   1 root     root       320512 Feb 20 17:09 genuts.exe*
+-rwxr-xr-x   1 root     root        32768 Dec 24  1995 genuts.hlp*
+-rwxr-xr-x   1 root     root       285184 Apr 20 09:57 grep.exe*
+-rwxr-xr-x   1 root     root        20480 Feb 11 10:51 grep.hlp*
+-rwxr-xr-x   1 root     root       273920 Feb 10 12:11 hd.exe*
+-rwxr-xr-x   1 root     root        24576 Dec 24  1995 hd.hlp*
+-rwxr-xr-x   1 root     root         4488 Apr 14 12:14 license.txt*
+-rwxr-xr-x   1 root     root       321536 Feb 27 18:24 more.exe*
+-rwxr-xr-x   1 root     root        52269 Dec 24  1995 more.hlp*
+-rwxr-xr-x   1 root     root        10240 Dec 24  1995 pr.hlp*
+-rwxr-xr-x   1 root     root        13594 Apr 20 20:43 readme.txt*
+-rwxr-xr-x   1 root     root         1817 Apr 14 12:12 register.txt*
+drwxr-xr-x   2 root     root        16384 Jun 25 20:36 scripts/
+-rwxr-xr-x   1 root     root       205824 Feb 11 10:43 sed.exe*
+-rwxr-xr-x   1 root     root        32768 Jan  6 13:53 sed.hlp*
+-rwxr-xr-x   1 root     root       187904 Apr 20 10:00 setup.exe*
+-rwxr-xr-x   1 root     root        18432 Feb 26 19:36 setup.hlp*
+-rwxr-xr-x   1 root     root         6603 Apr 19 15:11 whatsnew.txt*
+-rwxr-xr-x   1 root     root       285184 Apr 19 10:23 winpax.exe*
+-rwxr-xr-x   1 root     root        26624 Apr 18 18:14 winpax.hlp*
+-rwxr-xr-x   1 root     root         8192 Apr 13 14:25 winxsdll.dll*
+-rwxr-xr-x   1 root     root       243712 Apr 24 19:54 winxssh.exe*
+-rwxr-xr-x   1 root     root        24576 Apr 19 15:09 winxssh.hlp*
+
+/g:/unixtool/win95/scripts:
+total 32
+-rwxr-xr-x   1 root     root          490 Dec 24  1995 cat-s.sed*
+-rwxr-xr-x   1 root     root          633 Dec 24  1995 diff-e.sed*
+
+/g:/vi:
+total 32
+-rwxr-xr-x   1 root     root        31313 Jun 29 16:16 vi_ref.txt*
+
+/g:/zsh:
+total 32
+drwxr-xr-x   2 root     root        16384 Jun 30 18:36 linux/
+-rwxr-xr-x   1 root     root         1908 Jun 29 17:31 zshell.txt*
+
+/g:/zsh/linux:
+total 2192
+-rwxr-xr-x   1 root     root      2232320 Jun 29 18:25 zsh-260.tar*

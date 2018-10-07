@@ -1,0 +1,24 @@
+#!/bin/ksh
+# Name: tellme
+read age?"How old are you? "
+if (( age < 0 || age > 120 ))
+		then
+			print "Welcome to our planet! "
+			exit 1   
+		fi
+if (( age >= 0 && age < 13 ))
+		then
+			print "A child is a garden of verses"
+		elif (( age > 12 && age < 20 ))
+		then
+ 			print "Rebel without a cause"
+		elif (( age >= 20 && age < 30 ))
+		then
+			print "You got the world by the tail!!"
+		elif (( age >= 30 && age < 40 ))
+		then
+			print "Thirty something..."
+else
+	 		print "Sorry I asked"
+fi
+ 

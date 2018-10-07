@@ -1,0 +1,11 @@
+#!/bin/ksh
+# This is the first Korn shell program of the day.
+# Script name: greetings
+# Written by: Karen Korny
+
+print "Hello $LOGNAME, it's nice talking to you."
+print "Your present working directory is $(pwd)."
+	print "You are working on a machine called $(uname -n)."
+	print "Here is a list of your files."
+ls		# list files in the present working directory
+	print "Bye for now $LOGNAME. The time is $(date +%T)!" 

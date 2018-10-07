@@ -1,0 +1,13 @@
+# This file produced by MS2WLINK
+system os2v2
+option caseexact
+option dosseg
+option modname=PS
+option newfiles
+option description 'PS for OS/2'
+option stack=32672
+option protmode
+file ps.obj
+name ps.exe
+import DOSGETPRTY DOSCALLS.9
+import DOSQPROCSTATUS DOSCALLS.154

@@ -1,0 +1,2370 @@
+From: rsalz@uunet.uu.net (Rich Salz)
+Newsgroups: comp.sources.unix
+Subject: v22i097:  GNU AWK, version 2.11, Part11/16
+Message-ID: <2636@papaya.bbn.com>
+Date: 7 Jun 90 20:31:13 GMT
+Approved: rsalz@uunet.UU.NET
+
+Submitted-by: "Arnold D. Robbins" <arnold@unix.cc.emory.edu>
+Posting-number: Volume 22, Issue 97
+Archive-name: gawk2.11/part11
+
+#! /bin/sh
+# This is a shell archive.  Remove anything before this line, then feed it
+# into a shell via "sh file" or similar.  To overwrite existing files,
+# type "sh file -c".
+# The tool that generated this appeared in the comp.sources.unix newsgroup;
+# send mail to comp-sources-unix@uunet.uu.net if you want that tool.
+# Contents:  ./gawk.1 ./io.c ./missing.d/memcpy.c
+# Wrapped by rsalz@litchi.bbn.com on Wed Jun  6 12:24:56 1990
+PATH=/bin:/usr/bin:/usr/ucb ; export PATH
+echo If this archive is complete, you will see the following message:
+echo '          "shar: End of archive 11 (of 16)."'
+if test -f './gawk.1' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'./gawk.1'\"
+else
+  echo shar: Extracting \"'./gawk.1'\" \(33549 characters\)
+  sed "s/^X//" >'./gawk.1' <<'END_OF_FILE'
+X.TH GAWK 1 "August 24 1989" "Free Software Foundation"
+X.SH NAME
+Xgawk \- pattern scanning and processing language
+X.SH SYNOPSIS
+X.B gawk
+X.ig
+X[
+X.B \-d
+X] [
+X.B \-D
+X]
+X..
+X[
+X.B \-a
+X] [
+X.B \-e
+X] [
+X.B \-c
+X] [
+X.B \-C
+X] [
+X.B \-V
+X] [
+X.BI \-F\^ fs
+X] [
+X.B \-v
+X.IR var = val
+X]
+X.B \-f
+X.I program-file
+X[
+X.B \-\^\-
+X] file .\^.\^.
+X.br
+X.B gawk
+X.ig
+X[
+X.B \-d
+X] [
+X.B \-D
+X]
+X..
+X[
+X.B \-a
+X] [
+X.B \-e
+X] [
+X.B \-c
+X] [
+X.B \-C
+X] [
+X.B \-V
+X] [
+X.BI \-F\^ fs
+X] [
+X.B \-v
+X.IR var = val
+X] [
+X.B \-\^\-
+X]
+X.I program-text
+Xfile .\^.\^.
+X.SH DESCRIPTION
+X.I Gawk
+Xis the GNU Project's implementation of the AWK programming language.
+XIt conforms to the definition and description of the language in
+X.IR "The AWK Programming Language" ,
+Xby Aho, Kernighan, and Weinberger,
+Xwith the additional features defined in the System V Release 4 version
+Xof \s-1UNIX\s+1
+X.IR awk ,
+Xand some GNU-specific extensions.
+X.PP
+XThe command line consists of options to
+X.I gawk
+Xitself, the AWK program text (if not supplied via the
+X.B \-f
+Xoption), and values to be made
+Xavailable in the
+X.B ARGC
+Xand
+X.B ARGV
+Xpre-defined AWK variables.
+X.PP
+X.I Gawk
+Xaccepts the following options, which should be available on any implementation
+Xof the AWK language.
+X.TP
+X.BI \-F fs
+XUse
+X.I fs
+Xfor the input field separator (the value of the
+X.B FS
+Xpredefined
+Xvariable).
+X.TP
+X\fB\-v\fI var\fR\^=\^\fIval\fR
+XAssign the value
+X.IR val ,
+Xto the variable
+X.IR var ,
+Xbefore execution of the program begins.
+XSuch variable values are available to the
+X.B BEGIN
+Xblock of an AWK program.
+X.TP
+X.BI \-f " program-file"
+XRead the AWK program source from the file
+X.IR program-file ,
+Xinstead of from the first command line argument.
+XMultiple
+X.B \-f
+Xoptions may be used.
+X.TP
+X.B \-\^\-
+XSignal the end of options. This is useful to allow further arguments to the
+XAWK program itself to start with a ``\-''.
+XThis is mainly for consistency with the argument parsing convention used
+Xby most other System V programs.
+X.PP
+XThe following options are specific to the GNU implementation.
+X.TP
+X.B \-a
+XUse AWK style regular expressions as described in the book.
+XThis is the current default, but may not be when the POSIX P1003.2
+Xstandard is finalized.
+XIt is orthogonal to
+X.BR \-c .
+X.TP
+X.B \-e
+XUse
+X.IR egrep (1)
+Xstyle regular expressions as described in POSIX standard.
+XThis may become the default when the POSIX P1003.2
+Xstandard is finalized.
+XIt is orthogonal to
+X.BR \-c .
+X.TP
+X.B \-c
+XRun in
+X.I compatibility
+Xmode.  In compatibility mode,
+X.I gawk
+Xbehaves identically to \s-1UNIX\s+1
+X.IR awk ;
+Xnone of the GNU-specific extensions are recognized.
+X.TP
+X.B \-C
+XPrint the short version of the GNU copyright information message on
+Xthe error output.
+XThis option may disappear in a future version of
+X.IR gawk .
+X.TP
+X.B \-V
+XPrint version information for this particular copy of
+X.I gawk
+Xon the error output.
+XThis is useful mainly for knowing if the current copy of
+X.I gawk
+Xon your system
+Xis up to date with respect to whatever the Free Software Foundation
+Xis distributing.
+XThis option may disappear in a future version of
+X.IR gawk .
+X.PP
+XAny other options are flagged as illegal, but are otherwise ignored.
+X.PP
+XAn AWK program consists of a sequence of pattern-action statements
+Xand optional function definitions.
+X.RS
+X.PP
+X\fIpattern\fB	{ \fIaction statements\fB }\fR
+X.br
+X\fBfunction \fIname\fB(\fIparameter list\fB) { \fIstatements\fB }\fR
+X.RE
+X.PP
+X.I Gawk
+Xfirst reads the program source from the
+X.IR program-file (s)
+Xif specified, or from the first non-option argument on the command line.
+XThe
+X.B \-f
+Xoption may be used multiple times on the command line.
+X.I Gawk
+Xwill read the program text as if all the
+X.IR program-file s
+Xhad been concatenated together.  This is useful for building libraries
+Xof AWK functions, without having to include them in each new AWK
+Xprogram that uses them.  To use a library function in a file from a
+Xprogram typed in on the command line, specify
+X.B /dev/tty
+Xas one of the
+X.IR program-file s,
+Xtype your program, and end it with a
+X.B ^D
+X(control-d).
+X.PP
+XThe environment variable
+X.B AWKPATH
+Xspecifies a search path to use when finding source files named with
+Xthe 
+X.B \-f
+Xoption.  If this variable does not exist, the default path is
+X\fB".:/usr/lib/awk:/usr/local/lib/awk"\fR.
+XIf a file name given to the
+X.B \-f
+Xoption contains a ``/'' character, no path search is performed.
+X.PP
+X.I Gawk
+Xcompiles the program into an internal form,
+Xexecutes the code in the
+X.B BEGIN
+Xblock(s) (if any),
+Xand then proceeds to read
+Xeach file named in the
+X.B ARGV
+Xarray.
+XIf there are no files named on the command line,
+X.I gawk
+Xreads the standard input.
+X.PP
+XIf a ``file'' named on the command line has the form
+X.IB var = val
+Xit is treated as a variable assignment. The variable
+X.I var
+Xwill be assigned the value
+X.IR val .
+XThis is most useful for dynamically assigning values to the variables
+XAWK uses to control how input is broken into fields and records. It
+Xis also useful for controlling state if multiple passes are needed over
+Xa single data file.
+X.PP
+XFor each line in the input,
+X.I gawk
+Xtests to see if it matches any
+X.I pattern
+Xin the AWK program.
+XFor each pattern that the line matches, the associated
+X.I action
+Xis executed.
+X.SH VARIABLES AND FIELDS
+XAWK variables are dynamic; they come into existence when they are
+Xfirst used. Their values are either floating-point numbers or strings,
+Xdepending upon how they are used. AWK also has one dimension
+Xarrays; multiply dimensioned arrays may be simulated.
+XThere are several pre-defined variables that AWK sets as a program
+Xruns; these will be described as needed and summarized below.
+X.SS Fields
+X.PP
+XAs each input line is read,
+X.I gawk
+Xsplits the line into
+X.IR fields ,
+Xusing the value of the
+X.B FS
+Xvariable as the field separator.
+XIf
+X.B FS
+Xis a single character, fields are separated by that character.
+XOtherwise,
+X.B FS
+Xis expected to be a full regular expression.
+XIn the special case that
+X.B FS
+Xis a single blank, fields are separated
+Xby runs of blanks and/or tabs.
+XNote that the value of
+X.B IGNORECASE
+X(see below) will also affect how fields are split when
+X.B FS
+Xis a regular expression.
+X.PP
+XEach field in the input line may be referenced by its position,
+X.BR $1 ,
+X.BR $2 ,
+Xand so on.
+X.B $0
+Xis the whole line. The value of a field may be assigned to as well.
+XFields need not be referenced by constants:
+X.RS
+X.PP
+X.ft B
+Xn = 5
+X.br
+Xprint $n
+X.ft R
+X.RE
+X.PP
+Xprints the fifth field in the input line.
+XThe variable
+X.B NF
+Xis set to the total number of fields in the input line.
+X.PP
+XReferences to non-existent fields (i.e. fields after
+X.BR $NF ),
+Xproduce the null-string. However, assigning to a non-existent field
+X(e.g., 
+X.BR "$(NF+2) = 5" )
+Xwill increase the value of
+X.BR NF ,
+Xcreate any intervening fields with the null string as their value, and
+Xcause the value of
+X.B $0
+Xto be recomputed, with the fields being separated by the value of
+X.BR OFS .
+X.SS Built-in Variables
+X.PP
+XAWK's built-in variables are:
+X.PP
+X.RS
+X.TP \l'\fBIGNORECASE\fR'
+X.B ARGC
+Xthe number of command line arguments (does not include options to
+X.IR gawk ,
+Xor the program source).
+X.TP \l'\fBIGNORECASE\fR'
+X.B ARGV
+Xarray of command line arguments. The array is indexed from
+X0 to
+X.B ARGC
+X\- 1.
+XDynamically changing the contents of
+X.B ARGV
+Xcan control the files used for data.
+X.TP \l'\fBIGNORECASE\fR'
+X.B ENVIRON
+XAn array containing the values of the current environment.
+XThe array is indexed by the environment variables, each element being
+Xthe value of that variable (e.g., \fBENVIRON["HOME"]\fP might be
+X.BR /u/arnold ).
+XChanging this array does not affect the environment seen by programs which
+X.I gawk
+Xspawns via redirection or the
+X.B system
+Xfunction.
+X(This may change in a future version of
+X.IR gawk .)
+X.TP \l'\fBIGNORECASE\fR'
+X.B FILENAME
+Xthe name of the current input file.
+XIf no files are specified on the command line, the value of
+X.B FILENAME
+Xis ``\-''.
+X.TP \l'\fBIGNORECASE\fR'
+X.B FNR
+Xthe input record number in the current input file.
+X.TP \l'\fBIGNORECASE\fR'
+X.B FS
+Xthe input field separator, a blank by default.
+X.TP \l'\fBIGNORECASE\fR'
+X.B IGNORECASE
+XControls the case-sensitivity of all regular expression operations. If
+X.B IGNORECASE
+Xhas a non-zero value, then pattern matching in rules,
+Xfield splitting with
+X.BR FS ,
+Xregular expression
+Xmatching with
+X.B ~
+Xand
+X.BR !~ ,
+Xand the
+X.BR gsub() ,
+X.BR index() ,
+X.BR match() ,
+X.BR split() ,
+Xand
+X.B sub()
+Xpre-defined functions will all ignore case when doing regular expression
+Xoperations.  Thus, if
+X.B IGNORECASE
+Xis not equal to zero,
+X.B /aB/
+Xmatches all of the strings \fB"ab"\fP, \fB"aB"\fP, \fB"Ab"\fP,
+Xand \fB"AB"\fP.
+XAs with all AWK variables, the initial value of
+X.B IGNORECASE
+Xis zero, so all regular expression operations are normally case-sensitive.
+X.TP \l'\fBIGNORECASE\fR'
+X.B NF
+Xthe number of fields in the current input record.
+X.TP \l'\fBIGNORECASE\fR'
+X.B NR
+Xthe total number of input records seen so far.
+X.TP \l'\fBIGNORECASE\fR'
+X.B OFMT
+Xthe output format for numbers,
+X.B %.6g
+Xby default.
+X.TP \l'\fBIGNORECASE\fR'
+X.B OFS
+Xthe output field separator, a blank by default.
+X.TP \l'\fBIGNORECASE\fR'
+X.B ORS
+Xthe output record separator, by default a newline.
+X.TP \l'\fBIGNORECASE\fR'
+X.B RS
+Xthe input record separator, by default a newline.
+X.B RS
+Xis exceptional in that only the first character of its string
+Xvalue is used for separating records. If
+X.B RS
+Xis set to the null string, then records are separated by
+Xblank lines.
+XWhen
+X.B RS
+Xis set to the null string, then the newline character always acts as
+Xa field separator, in addition to whatever value
+X.B FS
+Xmay have.
+X.TP \l'\fBIGNORECASE\fR'
+X.B RSTART
+Xthe index of the first character matched by
+X.BR match() ;
+X0 if no match.
+X.TP \l'\fBIGNORECASE\fR'
+X.B RLENGTH
+Xthe length of the string matched by
+X.BR match() ;
+X\-1 if no match.
+X.TP \l'\fBIGNORECASE\fR'
+X.B SUBSEP
+Xthe character used to separate multiple subscripts in array
+Xelements, by default \fB"\e034"\fR.
+X.RE
+X.SS Arrays
+X.PP
+XArrays are subscripted with an expression between square brackets
+X.RB ( [ " and " ] ).
+XIf the expression is an expression list
+X.RI ( expr ", " expr " ...)"
+Xthen the array subscript is a string consisting of the
+Xconcatenation of the (string) value of each expression,
+Xseparated by the value of the
+X.B SUBSEP
+Xvariable.
+XThis facility is used to simulate multiply dimensioned
+Xarrays. For example:
+X.PP
+X.RS
+X.ft B
+Xi = "A" ;\^ j = "B" ;\^ k = "C"
+X.br
+Xx[i, j, k] = "hello, world\en"
+X.ft R
+X.RE
+X.PP
+Xassigns the string \fB"hello, world\en"\fR to the element of the array
+X.B x
+Xwhich is indexed by the string \fB"A\e034B\e034C"\fR. All arrays in AWK
+Xare associative, i.e. indexed by string values.
+X.PP
+XThe special operator
+X.B in
+Xmay be used in an
+X.B if
+Xor
+X.B while
+Xstatement to see if an array has an index consisting of a particular
+Xvalue.
+X.PP
+X.RS
+X.ft B
+X.nf
+Xif (val in array)
+X	print array[val]
+X.fi
+X.ft
+X.RE
+X.PP
+XIf the array has multiple subscripts, use
+X.BR "(i, j) in array" .
+X.PP
+XThe
+X.B in
+Xconstruct may also be used in a
+X.B for
+Xloop to iterate over all the elements of an array.
+X.PP
+XAn element may be deleted from an array using the
+X.B delete
+Xstatement.
+X.SS Variable Typing
+X.PP
+XVariables and fields
+Xmay be (floating point) numbers, or strings, or both. How the
+Xvalue of a variable is interpreted depends upon its context. If used in
+Xa numeric expression, it will be treated as a number, if used as a string
+Xit will be treated as a string.
+X.PP
+XTo force a variable to be treated as a number, add 0 to it; to force it
+Xto be treated as a string, concatenate it with the null string.
+X.PP
+XThe AWK language defines comparisons as being done numerically if
+Xpossible, otherwise one or both operands are converted to strings and
+Xa string comparison is performed.
+X.PP
+XUninitialized variables have the numeric value 0 and the string value ""
+X(the null, or empty, string).
+X.SH PATTERNS AND ACTIONS
+XAWK is a line oriented language. The pattern comes first, and then the
+Xaction. Action statements are enclosed in
+X.B {
+Xand
+X.BR } .
+XEither the pattern may be missing, or the action may be missing, but,
+Xof course, not both. If the pattern is missing, the action will be
+Xexecuted for every single line of input.
+XA missing action is equivalent to
+X.RS
+X.PP
+X.B "{ print }"
+X.RE
+X.PP
+Xwhich prints the entire line.
+X.PP
+XComments begin with the ``#'' character, and continue until the
+Xend of the line.
+XBlank lines may be used to separate statements.
+XNormally, a statement ends with a newline, however, this is not the
+Xcase for lines ending in
+Xa ``,'', ``{'', ``?'', ``:'', ``&&'', or ``||''.
+XLines ending in
+X.B do
+Xor
+X.B else
+Xalso have their statements automatically continued on the following line.
+XIn other cases, a line can be continued by ending it with a ``\e'',
+Xin which case the newline will be ignored.
+X.PP
+XMultiple statements may
+Xbe put on one line by separating them with a ``;''.
+XThis applies to both the statements within the action part of a
+Xpattern-action pair (the usual case),
+Xand to the pattern-action statements themselves.
+X.SS Patterns
+XAWK patterns may be one of the following:
+X.PP
+X.RS
+X.nf
+X.B BEGIN
+X.B END
+X.BI / "regular expression" /
+X.I "relational expression"
+X.IB pattern " && " pattern
+X.IB pattern " || " pattern
+X.IB pattern " ? " pattern " : " pattern
+X.BI ( pattern )
+X.BI ! " pattern"
+X.IB pattern1 ", " pattern2"
+X.fi
+X.RE
+X.PP
+X.B BEGIN
+Xand
+X.B END
+Xare two special kinds of patterns which are not tested against
+Xthe input.
+XThe action parts of all
+X.B BEGIN
+Xpatterns are merged as if all the statements had
+Xbeen written in a single
+X.B BEGIN
+Xblock. They are executed before any
+Xof the input is read. Similarly, all the
+X.B END
+Xblocks are merged,
+Xand executed when all the input is exhausted (or when an
+X.B exit
+Xstatement is executed).
+X.B BEGIN
+Xand
+X.B END
+Xpatterns cannot be combined with other patterns in pattern expressions.
+X.B BEGIN
+Xand
+X.B END
+Xpatterns cannot have missing action parts.
+X.PP
+XFor
+X.BI / "regular expression" /
+Xpatterns, the associated statement is executed for each input line that matches
+Xthe regular expression.
+XRegular expressions are the same as those in
+X.IR egrep (1),
+Xand are summarized below.
+X.PP
+XA
+X.I "relational expression"
+Xmay use any of the operators defined below in the section on actions.
+XThese generally test whether certain fields match certain regular expressions.
+X.PP
+XThe
+X.BR && ,
+X.BR || ,
+Xand
+X.B !
+Xoperators are logical AND, logical OR, and logical NOT, respectively, as in C.
+XThey do short-circuit evaluation, also as in C, and are used for combining
+Xmore primitive pattern expressions. As in most languages, parentheses
+Xmay be used to change the order of evaluation.
+X.PP
+XThe
+X.B ?\^:
+Xoperator is like the same operator in C. If the first pattern is true
+Xthen the pattern used for testing is the second pattern, otherwise it is
+Xthe third. Only one of the second and third patterns is evaluated.
+X.PP
+XThe 
+X.IB pattern1 ", " pattern2"
+Xform of an expression is called a range pattern.
+XIt matches all input lines starting with a line that matches
+X.IR pattern1 ,
+Xand continuing until a line that matches
+X.IR pattern2 ,
+Xinclusive. It does not combine with any other sort of pattern expression.
+X.SS Regular Expressions
+XRegular expressions are the extended kind found in
+X.IR egrep .
+XThey are composed of characters as follows:
+X.RS
+X.TP \l'[^abc...]'
+X.I c
+Xmatches the non-metacharacter
+X.IR c .
+X.TP \l'[^abc...]'
+X.I \ec
+Xmatches the literal character
+X.IR c .
+X.TP \l'[^abc...]'
+X.B .
+Xmatches any character except newline.
+X.TP \l'[^abc...]'
+X.B ^
+Xmatches the beginning of a line or a string.
+X.TP \l'[^abc...]'
+X.B $
+Xmatches the end of a line or a string.
+X.TP \l'[^abc...]'
+X.BI [ abc... ]
+Xcharacter class, matches any of the characters
+X.IR abc... .
+X.TP \l'[^abc...]'
+X.BI [^ abc... ]
+Xnegated character class, matches any character except
+X.I abc...
+Xand newline.
+X.TP \l'[^abc...]'
+X.IB r1 | r2
+Xalternation: matches either
+X.I r1
+Xor
+X.IR r2 .
+X.TP \l'[^abc...]'
+X.I r1r2
+Xconcatenation: matches
+X.IR r1 ,
+Xand then
+X.IR r2 .
+X.TP \l'[^abc...]'
+X.IB r +
+Xmatches one or more
+X.IR r 's. 
+X.TP \l'[^abc...]'
+X.IB r *
+Xmatches zero or more
+X.IR r 's. 
+X.TP \l'[^abc...]'
+X.IB r ?
+Xmatches zero or one
+X.IR r 's. 
+X.TP \l'[^abc...]'
+X.BI ( r )
+Xgrouping: matches
+X.IR r .
+X.RE
+XThe escape sequences that are valid in string constants (see below)
+Xare also legal in regular expressions.
+X.SS Actions
+XAction statements are enclosed in braces,
+X.B {
+Xand
+X.BR } .
+XAction statements consist of the usual assignment, conditional, and looping
+Xstatements found in most languages. The operators, control statements,
+Xand input/output statements
+Xavailable are patterned after those in C.
+X.SS Operators
+X.PP
+XThe operators in AWK, in order of increasing precedence, are
+X.PP
+X.RS
+X.TP \l'\fB= += \-= *= /= %= ^=\fR'
+X.B "= += \-= *= /= %= ^="
+XAssignment. Both absolute assignment
+X.BI ( var " = " value )
+Xand operator-assignment (the other forms) are supported.
+X.TP \l'\fB= += \-= *= /= %= ^=\fR'
+X.B ?:
+XThe C conditional expression. This has the form
+X.IB expr1 " ? " expr2 " : " expr3\c
+X\&. If
+X.I expr1
+Xis true, the value of the expression is
+X.IR expr2 ,
+Xotherwise it is
+X.IR expr3 .
+XOnly one of
+X.I expr2
+Xand
+X.I expr3
+Xis evaluated.
+X.TP \l'\fB= += \-= *= /= %= ^=\fR'
+X.B ||
+Xlogical OR.
+X.TP \l'\fB= += \-= *= /= %= ^=\fR'
+X.B &&
+Xlogical AND.
+X.TP \l'\fB= += \-= *= /= %= ^=\fR'
+X.B "~ !~"
+Xregular expression match, negated match.
+X.TP \l'\fB= += \-= *= /= %= ^=\fR'
+X.B "< <= > >= != =="
+Xthe regular relational operators.
+X.TP \l'\fB= += \-= *= /= %= ^=\fR'
+X.I blank
+Xstring concatenation.
+X.TP \l'\fB= += \-= *= /= %= ^=\fR'
+X.B "+ \-"
+Xaddition and subtraction.
+X.TP \l'\fB= += \-= *= /= %= ^=\fR'
+X.B "* / %"
+Xmultiplication, division, and modulus.
+X.TP \l'\fB= += \-= *= /= %= ^=\fR'
+X.B "+ \- !"
+Xunary plus, unary minus, and logical negation.
+X.TP \l'\fB= += \-= *= /= %= ^=\fR'
+X.B ^
+Xexponentiation (\fB**\fR may also be used, and \fB**=\fR for
+Xthe assignment operator).
+X.TP \l'\fB= += \-= *= /= %= ^=\fR'
+X.B "++ \-\^\-"
+Xincrement and decrement, both prefix and postfix.
+X.TP \l'\fB= += \-= *= /= %= ^=\fR'
+X.B $
+Xfield reference.
+X.RE
+X.SS Control Statements
+X.PP
+XThe control statements are
+Xas follows:
+X.PP
+X.RS
+X.nf
+X\fBif (\fIcondition\fB) \fIstatement\fR [ \fBelse\fI statement \fR]
+X\fBwhile (\fIcondition\fB) \fIstatement \fR
+X\fBdo \fIstatement \fBwhile (\fIcondition\fB)\fR
+X\fBfor (\fIexpr1\fB; \fIexpr2\fB; \fIexpr3\fB) \fIstatement\fR
+X\fBfor (\fIvar \fBin\fI array\fB) \fIstatement\fR
+X\fBbreak\fR
+X\fBcontinue\fR
+X\fBdelete \fIarray\^\fB[\^\fIindex\^\fB]\fR
+X\fBexit\fR [ \fIexpression\fR ]
+X\fB{ \fIstatements \fB}
+X.fi
+X.RE
+X.SS "I/O Statements"
+X.PP
+XThe input/output statements are as follows:
+X.PP
+X.RS
+X.TP \l'\fBprintf \fIfmt, expr-list\fR'
+X.BI close( filename )
+Xclose file (or pipe, see below).
+X.TP \l'\fBprintf \fIfmt, expr-list\fR'
+X.B getline
+Xset
+X.B $0
+Xfrom next input record; set
+X.BR NF ,
+X.BR NR ,
+X.BR FNR .
+X.TP \l'\fBprintf \fIfmt, expr-list\fR'
+X.BI "getline <" file
+Xset
+X.B $0
+Xfrom next record of
+X.IR file ;
+Xset
+X.BR NF .
+X.TP \l'\fBprintf \fIfmt, expr-list\fR'
+X.BI getline " var"
+Xset
+X.I var
+Xfrom next input record; set
+X.BR NF ,
+X.BR FNR .
+X.TP \l'\fBprintf \fIfmt, expr-list\fR'
+X.BI getline " var" " <" file
+Xset
+X.I var
+Xfrom next record of
+X.IR file .
+X.TP \l'\fBprintf \fIfmt, expr-list\fR'
+X.B next
+XStop processing the current input record. The next input record
+Xis read and processing starts over with the first pattern in the
+XAWK program. If the end of the input data is reached, the
+X.B END
+Xblock(s), if any, are executed.
+X.TP \l'\fBprintf \fIfmt, expr-list\fR'
+X.B print
+Xprints the current record.
+X.TP \l'\fBprintf \fIfmt, expr-list\fR'
+X.BI print " expr-list"
+Xprints expressions.
+X.TP \l'\fBprintf \fIfmt, expr-list\fR'
+X.BI print " expr-list" " >" file
+Xprints expressions on
+X.IR file .
+X.TP \l'\fBprintf \fIfmt, expr-list\fR'
+X.BI printf " fmt, expr-list"
+Xformat and print.
+X.TP \l'\fBprintf \fIfmt, expr-list\fR'
+X.BI printf " fmt, expr-list" " >" file
+Xformat and print on
+X.IR file .
+X.TP \l'\fBprintf \fIfmt, expr-list\fR'
+X.BI system( cmd-line )
+Xexecute the command
+X.IR cmd-line ,
+Xand return the exit status.
+X(This may not be available on 
+Xsystems besides \s-1UNIX\s+1 and \s-1GNU\s+1.)
+X.RE
+X.PP
+XOther input/output redirections are also allowed. For
+X.B print
+Xand
+X.BR printf ,
+X.BI >> file
+Xappends output to the
+X.IR file ,
+Xwhile
+X.BI | " command"
+Xwrites on a pipe.
+XIn a similar fashion,
+X.IB command " | getline"
+Xpipes into
+X.BR getline .
+X.BR Getline
+Xwill return 0 on end of file, and \-1 on an error.
+X.SS The \fIprintf\fP Statement
+X.PP
+XThe AWK versions of the
+X.B printf
+Xand
+X.B sprintf
+X(see below)
+Xfunctions accept the following conversion specification formats:
+X.RS
+X.TP
+X.B %c
+XAn ASCII character.
+XIf the argument used for
+X.B %c
+Xis numeric, it is treated as a character and printed.
+XOtherwise, the argument is assumed to be a string, and the only first
+Xcharacter of that string is printed.
+X.TP
+X.B %d
+XA decimal number (the integer part).
+X.TP
+X.B %i
+XJust like
+X.BR %d .
+X.TP
+X.B %e
+XA floating point number of the form
+X.BR [\-]d.ddddddE[+\^\-]dd .
+X.TP
+X.B %f
+XA floating point number of the form
+X.BR [\-]ddd.dddddd .
+X.TP
+X.B %g
+XUse
+X.B e
+Xor
+X.B f
+Xconversion, whichever is shorter, with nonsignificant zeros suppressed.
+X.TP
+X.B %o
+XAn unsigned octal number (again, an integer).
+X.TP
+X.B %s
+XA character string.
+X.TP
+X.B %x
+XAn unsigned hexadecimal number (an integer).
+X.TP
+X.B %X
+XLike
+X.BR %x ,
+Xbut using
+X.B ABCDEF
+Xinstead of
+X.BR abcdef .
+X.TP
+X.B %%
+XA single
+X.B %
+Xcharacter; no argument is converted.
+X.RE
+X.PP
+XThere are optional, additional parameters that may lie between the
+X.B %
+Xand the control letter:
+X.RS
+X.TP
+X.B \-
+XThe expression should be left-justified within its field.
+X.TP
+X.I width
+XThe field should be padded to this width. If the number has a leading
+Xzero, then the field will be padded with zeros.
+XOtherwise it is padded with blanks.
+X.TP
+X.BI . prec
+XA number indicating the maximum width of strings or digits to the right
+Xof the decimal point.
+X.RE
+X.PP
+XThe dynamic
+X.I width
+Xand
+X.I prec
+Xcapabilities of the C library
+X.B printf
+Xroutines are not supported.
+XHowever, they may be simulated by using
+Xthe AWK concatenation operation to build up
+Xa format specification dynamically.
+X.SS Special File Names
+X.PP
+XWhen doing I/O redirection from either
+X.B print
+Xor
+X.B printf
+Xinto a file,
+Xor via
+X.B getline
+Xfrom a file,
+X.I gawk
+Xrecognizes certain special filenames internally.  These filenames
+Xallow access to open file descriptors inherited from
+X.IR gawk 's
+Xparent process (usually the shell).  The filenames are:
+X.RS
+X.TP
+X.B /dev/stdin
+XThe standard input.
+X.TP
+X.B /dev/stdout
+XThe standard output.
+X.TP
+X.B /dev/stderr
+XThe standard error output.
+X.TP
+X.BI /dev/fd/\^ n
+XThe file denoted by the open file descriptor
+X.IR n .
+X.RE
+X.PP
+XThese are particularly useful for error messages. For example:
+X.PP
+X.RS
+X.ft B
+Xprint "You blew it!" > "/dev/stderr"
+X.ft R
+X.RE
+X.PP
+Xwhereas you would otherwise have to use
+X.PP
+X.RS
+X.ft B
+Xprint "You blew it!" | "cat 1>&2"
+X.ft R
+X.RE
+X.PP
+XThese file names may also be used on the command line to name data files.
+X.SS Numeric Functions
+X.PP
+XAWK has the following pre-defined arithmetic functions:
+X.PP
+X.RS
+X.TP \l'\fBsrand(\fIexpr\fB)\fR'
+X.BI atan2( y , " x" )
+Xreturns the arctangent of
+X.I y/x
+Xin radians.
+X.TP \l'\fBsrand(\fIexpr\fB)\fR'
+X.BI cos( expr )
+Xreturns the cosine in radians.
+X.TP \l'\fBsrand(\fIexpr\fB)\fR'
+X.BI exp( expr )
+Xthe exponential function.
+X.TP \l'\fBsrand(\fIexpr\fB)\fR'
+X.BI int( expr )
+Xtruncates to integer.
+X.TP \l'\fBsrand(\fIexpr\fB)\fR'
+X.BI log( expr )
+Xthe natural logarithm function.
+X.TP \l'\fBsrand(\fIexpr\fB)\fR'
+X.B rand()
+Xreturns a random number between 0 and 1.
+X.TP \l'\fBsrand(\fIexpr\fB)\fR'
+X.BI sin( expr )
+Xreturns the sine in radians.
+X.TP \l'\fBsrand(\fIexpr\fB)\fR'
+X.BI sqrt( expr )
+Xthe square root function.
+X.TP \l'\fBsrand(\fIexpr\fB)\fR'
+X.BI srand( expr )
+Xuse
+X.I expr
+Xas a new seed for the random number generator. If no
+X.I expr
+Xis provided, the time of day will be used.
+XThe return value is the previous seed for the random
+Xnumber generator.
+X.RE
+X.SS String Functions
+X.PP
+XAWK has the following pre-defined string functions:
+X.PP
+X.RS
+X.TP \l'\fBsprintf(\fIfmt\fB, \fIexpr-list\fB)\fR'
+X\fBgsub(\fIr\fB, \fIs\fB, \fIt\fB)\fR
+Xfor each substring matching the regular expression
+X.I r
+Xin the string
+X.IR t ,
+Xsubstitute the string
+X.IR s ,
+Xand return the number of substitutions.
+XIf
+X.I t
+Xis not supplied, use
+X.BR $0 .
+X.TP \l'\fBsprintf(\fIfmt\fB, \fIexpr-list\fB)\fR'
+X.BI index( s , " t" )
+Xreturns the index of the string
+X.I t
+Xin the string
+X.IR s ,
+Xor 0 if
+X.I t
+Xis not present.
+X.TP \l'\fBsprintf(\fIfmt\fB, \fIexpr-list\fB)\fR'
+X.BI length( s )
+Xreturns the length of the string
+X.IR s .
+X.TP \l'\fBsprintf(\fIfmt\fB, \fIexpr-list\fB)\fR'
+X.BI match( s , " r" )
+Xreturns the position in
+X.I s
+Xwhere the regular expression
+X.I r
+Xoccurs, or 0 if
+X.I r
+Xis not present, and sets the values of
+X.B RSTART
+Xand
+X.BR RLENGTH .
+X.TP \l'\fBsprintf(\fIfmt\fB, \fIexpr-list\fB)\fR'
+X\fBsplit(\fIs\fB, \fIa\fB, \fIr\fB)\fR
+Xsplits the string
+X.I s
+Xinto the array
+X.I a
+Xon the regular expression
+X.IR r ,
+Xand returns the number of fields. If
+X.I r
+Xis omitted,
+X.B FS
+Xis used instead.
+X.TP \l'\fBsprintf(\fIfmt\fB, \fIexpr-list\fB)\fR'
+X.BI sprintf( fmt , " expr-list" )
+Xprints
+X.I expr-list
+Xaccording to
+X.IR fmt ,
+Xand returns the resulting string.
+X.TP \l'\fBsprintf(\fIfmt\fB, \fIexpr-list\fB)\fR'
+X\fBsub(\fIr\fB, \fIs\fB, \fIt\fB)\fR
+Xthis is just like
+X.BR gsub ,
+Xbut only the first matching substring is replaced.
+X.TP \l'\fBsprintf(\fIfmt\fB, \fIexpr-list\fB)\fR'
+X\fBsubstr(\fIs\fB, \fIi\fB, \fIn\fB)\fR
+Xreturns the
+X.IR n -character
+Xsubstring of
+X.I s
+Xstarting at
+X.IR i .
+XIf
+X.I n
+Xis omitted, the rest of
+X.I s
+Xis used.
+X.TP \l'\fBsprintf(\fIfmt\fB, \fIexpr-list\fB)\fR'
+X.BI tolower( str )
+Xreturns a copy of the string
+X.IR str ,
+Xwith all the upper-case characters in
+X.I str
+Xtranslated to their corresponding lower-case counterparts.
+XNon-alphabetic characters are left unchanged.
+X.TP \l'\fBsprintf(\fIfmt\fB, \fIexpr-list\fB)\fR'
+X.BI toupper( str )
+Xreturns a copy of the string
+X.IR str ,
+Xwith all the lower-case characters in
+X.I str
+Xtranslated to their corresponding upper-case counterparts.
+XNon-alphabetic characters are left unchanged.
+X.RE
+X.SS String Constants
+X.PP
+XString constants in AWK are sequences of characters enclosed
+Xbetween double quotes (\fB"\fR). Within strings, certain
+X.I "escape sequences"
+Xare recognized, as in C. These are:
+X.PP
+X.RS
+X.TP \l'\fB\e\fIddd\fR'
+X.B \e\e
+XA literal backslash.
+X.TP \l'\fB\e\fIddd\fR'
+X.B \ea
+XThe ``alert'' character; usually the ASCII BEL character.
+X.TP \l'\fB\e\fIddd\fR'
+X.B \eb
+Xbackspace.
+X.TP \l'\fB\e\fIddd\fR'
+X.B \ef
+Xform-feed.
+X.TP \l'\fB\e\fIddd\fR'
+X.B \en
+Xnew line.
+X.TP \l'\fB\e\fIddd\fR'
+X.B \er
+Xcarriage return.
+X.TP \l'\fB\e\fIddd\fR'
+X.B \et
+Xhorizontal tab.
+X.TP \l'\fB\e\fIddd\fR'
+X.B \ev
+Xvertical tab.
+X.TP \l'\fB\e\fIddd\fR'
+X.BI \ex "\^hex digits"
+XThe character represented by the string of hexadecimal digits following
+Xthe
+X.BR \ex .
+XAs in ANSI C, all following hexadecimal digits are considered part of
+Xthe escape sequence.
+X(This feature should tell us something about language design by committee.)
+XE.g., "\ex1B" is the ASCII ESC (escape) character.
+X.TP \l'\fB\e\fIddd\fR'
+X.BI \e ddd
+XThe character represented by the 1-, 2-, or 3-digit sequence of octal
+Xdigits. E.g. "\e033" is the ASCII ESC (escape) character.
+X.TP \l'\fB\e\fIddd\fR'
+X.BI \e c
+XThe literal character
+X.IR c\^ .
+X.RE
+X.PP
+XThe escape sequences may also be used inside constant regular expressions
+X(e.g.,
+X.B "/[\ \et\ef\en\er\ev]/"
+Xmatches whitespace characters).
+X.SH FUNCTIONS
+XFunctions in AWK are defined as follows:
+X.PP
+X.RS
+X\fBfunction \fIname\fB(\fIparameter list\fB) { \fIstatements \fB}\fR
+X.RE
+X.PP
+XFunctions are executed when called from within the action parts of regular
+Xpattern-action statements. Actual parameters supplied in the function
+Xcall are used to instantiate the formal parameters declared in the function.
+XArrays are passed by reference, other variables are passed by value.
+X.PP
+XSince functions were not originally part of the AWK language, the provision
+Xfor local variables is rather clumsy: they are declared as extra parameters
+Xin the parameter list. The convention is to separate local variables from
+Xreal parameters by extra spaces in the parameter list. For example:
+X.PP
+X.RS
+X.ft B
+X.nf
+Xfunction  f(p, q,     a, b) {	# a & b are local
+X			..... }
+X
+X/abc/	{ ... ; f(1, 2) ; ... }
+X.fi
+X.ft R
+X.RE
+X.PP
+XThe left parenthesis in a function call is required
+Xto immediately follow the function name,
+Xwithout any intervening white space.
+XThis is to avoid a syntactic ambiguity with the concatenation operator.
+XThis restriction does not apply to the built-in functions listed above.
+X.PP
+XFunctions may call each other and may be recursive.
+XFunction parameters used as local variables are initialized
+Xto the null string and the number zero upon function invocation.
+X.PP
+XThe word
+X.B func
+Xmay be used in place of
+X.BR function .
+X.SH EXAMPLES
+X.nf
+XPrint and sort the login names of all users:
+X
+X.ft B
+X	BEGIN	{ FS = ":" }
+X		{ print $1 | "sort" }
+X
+X.ft R
+XCount lines in a file:
+X
+X.ft B
+X		{ nlines++ }
+X	END	{ print nlines }
+X
+X.ft R
+XPrecede each line by its number in the file:
+X
+X.ft B
+X	{ print FNR, $0 }
+X
+X.ft R
+XConcatenate and line number (a variation on a theme):
+X
+X.ft B
+X	{ print NR, $0 }
+X.ft R
+X.fi
+X.SH SEE ALSO
+X.IR egrep (1)
+X.PP
+X.IR "The AWK Programming Language" ,
+XAlfred V. Aho, Brian W. Kernighan, Peter J. Weinberger,
+XAddison-Wesley, 1988. ISBN 0-201-07981-X.
+X.PP
+X.IR "The GAWK Manual" ,
+Xpublished by the Free Software Foundation, 1989.
+X.SH SYSTEM V RELEASE 4 COMPATIBILITY
+XA primary goal for
+X.I gawk
+Xis compatibility with the latest version of \s-1UNIX\s+1
+X.IR awk .
+XTo this end,
+X.I gawk
+Xincorporates the following user visible
+Xfeatures which are not described in the AWK book,
+Xbut are part of
+X.I awk
+Xin System V Release 4.
+X.PP
+XThe
+X.B \-v
+Xoption for assigning variables before program execution starts is new.
+XThe book indicates that command line variable assignment happens when
+X.I awk
+Xwould otherwise open the argument as a file, which is after the
+X.B BEGIN
+Xblock is executed.  However, in earlier implementations, when such an
+Xassignment appeared before any file names, the assignment would happen
+X.I before
+Xthe
+X.B BEGIN
+Xblock was run.  Applications came to depend on this ``feature.''
+XWhen
+X.I awk
+Xwas changed to match its documentation, this option was added to
+Xaccomodate applications that depended upon the old behaviour.
+X.PP
+XWhen processing arguments,
+X.I gawk
+Xuses the special option ``\fB\-\^\-\fP'' to signal the end of
+Xarguments, and warns about, but otherwise ignores, undefined options.
+X.PP
+XThe AWK book does not define the return value of
+X.BR srand() .
+XThe System V Release 4 version of \s-1UNIX\s+1
+X.I awk
+Xhas it return the seed it was using, to allow keeping track
+Xof random number sequences. Therefore
+X.B srand()
+Xin
+X.I gawk
+Xalso returns its current seed.
+X.PP
+XOther new features are:
+XThe use of multiple
+X.B \-f
+Xoptions; the
+X.B ENVIRON
+Xarray; the
+X.BR \ea ,
+Xand
+X.BR \ev ,
+X.B \ex
+Xescape sequences; the
+X.B tolower
+Xand
+X.B toupper
+Xbuilt-in functions; and the ANSI C conversion specifications in
+X.BR printf .
+X.SH GNU EXTENSIONS
+X.I Gawk
+Xhas some extensions to System V
+X.IR awk .
+XThey are described in this section.  All the extensions described here
+Xcan be disabled by compiling
+X.I gawk
+Xwith
+X.BR \-DSTRICT ,
+Xor by invoking
+X.I gawk
+Xwith the
+X.B \-c
+Xoption.
+XIf the underlying operating system supports the
+X.B /dev/fd
+Xdirectory and corresponding files, then
+X.I gawk
+Xcan be compiled with
+X.B \-DNO_DEV_FD
+Xto disable the special filename processing.
+X.PP
+XThe following features of
+X.I gawk
+Xare not available in
+XSystem V
+X.IR awk .
+X.RS
+X.TP \l'\(bu'
+X\(bu
+XThe special file names available for I/O redirection are not recognized.
+X.TP \l'\(bu'
+X\(bu
+XThe
+X.B IGNORECASE
+Xvariable and its side-effects are not available.
+X.TP \l'\(bu'
+X\(bu
+XNo path search is performed for files named via the
+X.B \-f
+Xoption.  Therefore the
+X.B AWKPATH
+Xenvironment variable is not special.
+X.TP \l'\(bu'
+X\(bu
+XThe
+X.BR \-a ,
+X.BR \-e ,
+X.BR \-c ,
+X.BR \-C ,
+Xand
+X.B \-V
+Xcommand line options.
+X.RE
+X.PP
+XThe AWK book does not define the return value of the
+X.B close
+Xfunction.
+X.IR Gawk\^ 's
+X.B close
+Xreturns the value from
+X.IR fclose (3),
+Xor
+X.IR pclose (3),
+Xwhen closing a file or pipe, respectively.
+X.PP
+XWhen
+X.I gawk
+Xis invoked with the
+X.B \-c
+Xoption,
+Xif the
+X.I fs
+Xargument to the
+X.B \-F
+Xoption is ``t'', then
+X.B FS
+Xwill be set to the tab character.
+XSince this is a rather ugly special case, it is not the default behavior.
+X.ig
+X.PP
+XThe rest of the features described in this section may change at some time in
+Xthe future, or may go away entirely.
+XYou should not write programs that depend upon them.
+X.PP
+X.I Gawk
+Xaccepts the following additional options:
+X.TP
+X.B \-D
+XTurn on general debugging and turn on
+X.IR yacc (1)
+Xor
+X.IR bison (1)
+Xdebugging output during program parsing.
+XThis option should only be of interest to the
+X.I gawk
+Xmaintainers, and may not even be compiled into
+X.IR gawk .
+X.TP
+X.B \-d
+XTurn on general debugging and print the
+X.I gawk
+Xinternal tree as the program is executed.
+XThis option should only be of interest to the
+X.I gawk
+Xmaintainers, and may not even be compiled into
+X.IR gawk .
+X..
+X.SH BUGS
+XThe
+X.B \-F
+Xoption is not necessary given the command line variable assignment feature;
+Xit remains only for backwards compatibility.
+X.PP
+XThere are now too many options.
+XFortunately, most of them are rarely needed.
+X.SH AUTHORS
+XThe original version of \s-1UNIX\s+1
+X.I awk
+Xwas designed and implemented by Alfred Aho,
+XPeter Weinberger, and Brian Kernighan of AT&T Bell Labs. Brian Kernighan
+Xcontinues to maintain and enhance it.
+X.PP
+XPaul Rubin and Jay Fenlason,
+Xof the Free Software Foundation, wrote
+X.IR gawk ,
+Xto be compatible with the original version of
+X.I awk
+Xdistributed in Seventh Edition \s-1UNIX\s+1.
+XJohn Woods contributed a number of bug fixes.
+XDavid Trueman of Dalhousie University, with contributions
+Xfrom Arnold Robbins at Emory University, made
+X.I gawk
+Xcompatible with the new version of \s-1UNIX\s+1
+X.IR awk .
+X.SH ACKNOWLEDGEMENTS
+XBrian Kernighan of Bell Labs
+Xprovided valuable assistance during testing and debugging.
+XWe thank him.
+END_OF_FILE
+  if test 33549 -ne `wc -c <'./gawk.1'`; then
+    echo shar: \"'./gawk.1'\" unpacked with wrong size!
+  fi
+  # end of './gawk.1'
+fi
+if test -f './io.c' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'./io.c'\"
+else
+  echo shar: Extracting \"'./io.c'\" \(17467 characters\)
+  sed "s/^X//" >'./io.c' <<'END_OF_FILE'
+X/*
+X * io.c - routines for dealing with input and output and records
+X */
+X
+X/* 
+X * Copyright (C) 1986, 1988, 1989 the Free Software Foundation, Inc.
+X * 
+X * This file is part of GAWK, the GNU implementation of the
+X * AWK Progamming Language.
+X * 
+X * GAWK is free software; you can redistribute it and/or modify
+X * it under the terms of the GNU General Public License as published by
+X * the Free Software Foundation; either version 1, or (at your option)
+X * any later version.
+X * 
+X * GAWK is distributed in the hope that it will be useful,
+X * but WITHOUT ANY WARRANTY; without even the implied warranty of
+X * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+X * GNU General Public License for more details.
+X * 
+X * You should have received a copy of the GNU General Public License
+X * along with GAWK; see the file COPYING.  If not, write to
+X * the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
+X */
+X
+X#include "awk.h"
+X#ifndef O_RDONLY
+X#include <fcntl.h>
+X#endif
+X#include <signal.h>
+X
+Xextern FILE *popen();
+X
+Xstatic void do_file();
+Xstatic IOBUF *nextfile();
+Xstatic int get_a_record();
+Xstatic int iop_close();
+Xstatic IOBUF *iop_alloc();
+Xstatic void close_one();
+Xstatic int close_redir();
+Xstatic IOBUF *gawk_popen();
+Xstatic int gawk_pclose();
+X
+Xstatic struct redirect *red_head = NULL;
+Xstatic int getline_redirect = 0;	/* "getline <file" being executed */
+X
+Xextern char *line_buf;
+Xextern int output_is_tty;
+Xextern NODE *ARGC_node;
+Xextern NODE *ARGV_node;
+Xextern NODE **fields_arr;
+X
+Xint field_num;
+X
+Xstatic IOBUF *
+Xnextfile()
+X{
+X	static int i = 1;
+X	static int files = 0;
+X	static IOBUF *curfile = NULL;
+X	char *arg;
+X	char *cp;
+X	int fd = -1;
+X
+X	if (curfile != NULL && curfile->cnt != EOF)
+X		return curfile;
+X	for (; i < (int) (ARGC_node->lnode->numbr); i++) {
+X		arg = (*assoc_lookup(ARGV_node, tmp_number((AWKNUM) i)))->stptr;
+X		if (*arg == '\0')
+X			continue;
+X		cp = strchr(arg, '=');
+X		if (cp != NULL) {
+X			*cp++ = '\0';
+X			variable(arg)->var_value = make_string(cp, strlen(cp));
+X			*--cp = '=';	/* restore original text of ARGV */
+X		} else {
+X			files++;
+X			if (STREQ(arg, "-"))
+X				fd = 0;
+X			else
+X				fd = devopen(arg, "r");
+X			if (fd == -1)
+X				fatal("cannot open file `%s' for reading (%s)",
+X					arg, strerror(errno));
+X				/* NOTREACHED */
+X			/* This is a kludge.  */
+X			deref = FILENAME_node->var_value;
+X			do_deref();
+X			FILENAME_node->var_value =
+X				make_string(arg, strlen(arg));
+X			FNR_node->var_value->numbr = 0.0;
+X			i++;
+X			break;
+X		}
+X	}
+X	if (files == 0) {
+X		files++;
+X		/* no args. -- use stdin */
+X		/* FILENAME is init'ed to "-" */
+X		/* FNR is init'ed to 0 */
+X		fd = 0;
+X	}
+X	if (fd == -1)
+X		return NULL;
+X	return curfile = iop_alloc(fd);
+X}
+X
+Xstatic IOBUF *
+Xiop_alloc(fd)
+Xint fd;
+X{
+X	IOBUF *iop;
+X	struct stat stb;
+X
+X	/*
+X	 * System V doesn't have the file system block size in the
+X	 * stat structure. So we have to make some sort of reasonable
+X	 * guess. We use stdio's BUFSIZ, since that is what it was
+X	 * meant for in the first place.
+X	 */
+X#ifdef BLKSIZE_MISSING
+X#define	DEFBLKSIZE	BUFSIZ
+X#else
+X#define DEFBLKSIZE	(stb.st_blksize ? stb.st_blksize : BUFSIZ)
+X#endif
+X
+X	if (fd == -1)
+X		return NULL;
+X	emalloc(iop, IOBUF *, sizeof(IOBUF), "nextfile");
+X	iop->flag = 0;
+X	if (isatty(fd)) {
+X		iop->flag |= IOP_IS_TTY;
+X		iop->size = BUFSIZ;
+X	} else if (fstat(fd, &stb) == -1)
+X		fatal("can't stat fd %d (%s)", fd, strerror(errno));
+X	else if (lseek(fd, 0L, 0) == -1)
+X		iop->size = DEFBLKSIZE;
+X	else
+X		iop->size = (stb.st_size < DEFBLKSIZE ?
+X				stb.st_size+1 : DEFBLKSIZE);
+X	errno = 0;
+X	iop->fd = fd;
+X	emalloc(iop->buf, char *, iop->size, "nextfile");
+X	iop->off = iop->buf;
+X	iop->cnt = 0;
+X	iop->secsiz = iop->size < BUFSIZ ? iop->size : BUFSIZ;
+X	emalloc(iop->secbuf, char *, iop->secsiz, "nextfile");
+X	return iop;
+X}
+X
+Xvoid
+Xdo_input()
+X{
+X	IOBUF *iop;
+X	extern int exiting;
+X
+X	while ((iop = nextfile()) != NULL) {
+X		do_file(iop);
+X		if (exiting)
+X			break;
+X	}
+X}
+X
+Xstatic int
+Xiop_close(iop)
+XIOBUF *iop;
+X{
+X	int ret;
+X
+X	ret = close(iop->fd);
+X	if (ret == -1)
+X		warning("close of fd %d failed (%s)", iop->fd, strerror(errno));
+X	free(iop->buf);
+X	free(iop->secbuf);
+X	free((char *)iop);
+X	return ret == -1 ? 1 : 0;
+X}
+X
+X/*
+X * This reads in a record from the input file
+X */
+Xstatic int
+Xinrec(iop)
+XIOBUF *iop;
+X{
+X	int cnt;
+X	int retval = 0;
+X
+X	cnt = get_a_record(&line_buf, iop);
+X	if (cnt == EOF) {
+X		cnt = 0;
+X		retval = 1;
+X	} else {
+X		if (!getline_redirect) {
+X			assign_number(&NR_node->var_value,
+X			    NR_node->var_value->numbr + 1.0);
+X			assign_number(&FNR_node->var_value,
+X			    FNR_node->var_value->numbr + 1.0);
+X		}
+X	}
+X	set_record(line_buf, cnt);
+X
+X	return retval;
+X}
+X
+Xstatic void
+Xdo_file(iop)
+XIOBUF *iop;
+X{
+X	/* This is where it spends all its time.  The infamous MAIN LOOP */
+X	if (inrec(iop) == 0)
+X		while (interpret(expression_value) && inrec(iop) == 0)
+X			;
+X	(void) iop_close(iop);
+X}
+X
+Xint
+Xget_rs()
+X{
+X	register NODE *tmp;
+X
+X	tmp = force_string(RS_node->var_value);
+X	if (tmp->stlen == 0)
+X		return 0;
+X	return *(tmp->stptr);
+X}
+X
+X/* Redirection for printf and print commands */
+Xstruct redirect *
+Xredirect(tree, errflg)
+XNODE *tree;
+Xint *errflg;
+X{
+X	register NODE *tmp;
+X	register struct redirect *rp;
+X	register char *str;
+X	int tflag = 0;
+X	int outflag = 0;
+X	char *direction = "to";
+X	char *mode;
+X	int fd;
+X
+X	switch (tree->type) {
+X	case Node_redirect_append:
+X		tflag = RED_APPEND;
+X	case Node_redirect_output:
+X		outflag = (RED_FILE|RED_WRITE);
+X		tflag |= outflag;
+X		break;
+X	case Node_redirect_pipe:
+X		tflag = (RED_PIPE|RED_WRITE);
+X		break;
+X	case Node_redirect_pipein:
+X		tflag = (RED_PIPE|RED_READ);
+X		break;
+X	case Node_redirect_input:
+X		tflag = (RED_FILE|RED_READ);
+X		break;
+X	default:
+X		fatal ("invalid tree type %d in redirect()", tree->type);
+X		break;
+X	}
+X	tmp = force_string(tree_eval(tree->subnode));
+X	str = tmp->stptr;
+X	for (rp = red_head; rp != NULL; rp = rp->next)
+X		if (STREQ(rp->value, str)
+X		    && ((rp->flag & ~RED_NOBUF) == tflag
+X			|| (outflag
+X			    && (rp->flag & (RED_FILE|RED_WRITE)) == outflag)))
+X			break;
+X	if (rp == NULL) {
+X		emalloc(rp, struct redirect *, sizeof(struct redirect),
+X			"redirect");
+X		emalloc(str, char *, tmp->stlen+1, "redirect");
+X		memcpy(str, tmp->stptr, tmp->stlen+1);
+X		rp->value = str;
+X		rp->flag = tflag;
+X		rp->offset = 0;
+X		rp->fp = NULL;
+X		rp->iop = NULL;
+X		/* maintain list in most-recently-used first order */
+X		if (red_head)
+X			red_head->prev = rp;
+X		rp->prev = NULL;
+X		rp->next = red_head;
+X		red_head = rp;
+X	}
+X	while (rp->fp == NULL && rp->iop == NULL) {
+X		mode = NULL;
+X		errno = 0;
+X		switch (tree->type) {
+X		case Node_redirect_output:
+X			mode = "w";
+X			break;
+X		case Node_redirect_append:
+X			mode = "a";
+X			break;
+X		case Node_redirect_pipe:
+X			if ((rp->fp = popen(str, "w")) == NULL)
+X				fatal("can't open pipe (\"%s\") for output (%s)",
+X					str, strerror(errno));
+X			rp->flag |= RED_NOBUF;
+X			break;
+X		case Node_redirect_pipein:
+X			direction = "from";
+X			if (gawk_popen(str, rp) == NULL)
+X				fatal("can't open pipe (\"%s\") for input (%s)",
+X					str, strerror(errno));
+X			break;
+X		case Node_redirect_input:
+X			direction = "from";
+X			rp->iop = iop_alloc(devopen(str, "r"));
+X			break;
+X		default:
+X			cant_happen();
+X		}
+X		if (mode != NULL) {
+X			fd = devopen(str, mode);
+X			if (fd != -1) {
+X				rp->fp = fdopen(fd, mode);
+X				if (isatty(fd))
+X					rp->flag |= RED_NOBUF;
+X			}
+X		}
+X		if (rp->fp == NULL && rp->iop == NULL) {
+X			/* too many files open -- close one and try again */
+X			if (errno == ENFILE || errno == EMFILE)
+X				close_one();
+X			else {
+X				/*
+X				 * Some other reason for failure.
+X				 *
+X				 * On redirection of input from a file,
+X				 * just return an error, so e.g. getline
+X				 * can return -1.  For output to file,
+X				 * complain. The shell will complain on
+X				 * a bad command to a pipe.
+X				 */
+X				*errflg = 1;
+X				if (tree->type == Node_redirect_output
+X				    || tree->type == Node_redirect_append)
+X					fatal("can't redirect %s `%s' (%s)",
+X					    direction, str, strerror(errno));
+X				else
+X					return NULL;
+X			}
+X		}
+X	}
+X	if (rp->offset != 0)	/* this file was previously open */
+X		if (fseek(rp->fp, rp->offset, 0) == -1)
+X			fatal("can't seek to %ld on `%s' (%s)",
+X				rp->offset, str, strerror(errno));
+X	free_temp(tmp);
+X	return rp;
+X}
+X
+Xstatic void
+Xclose_one()
+X{
+X	register struct redirect *rp;
+X	register struct redirect *rplast = NULL;
+X
+X	/* go to end of list first, to pick up least recently used entry */
+X	for (rp = red_head; rp != NULL; rp = rp->next)
+X		rplast = rp;
+X	/* now work back up through the list */
+X	for (rp = rplast; rp != NULL; rp = rp->prev)
+X		if (rp->fp && (rp->flag & RED_FILE)) {
+X			rp->offset = ftell(rp->fp);
+X			if (fclose(rp->fp))
+X				warning("close of \"%s\" failed (%s).",
+X					rp->value, strerror(errno));
+X			rp->fp = NULL;
+X			break;
+X		}
+X	if (rp == NULL)
+X		/* surely this is the only reason ??? */
+X		fatal("too many pipes or input files open"); 
+X}
+X
+XNODE *
+Xdo_close(tree)
+XNODE *tree;
+X{
+X	NODE *tmp;
+X	register struct redirect *rp;
+X
+X	tmp = force_string(tree_eval(tree->subnode));
+X	for (rp = red_head; rp != NULL; rp = rp->next) {
+X		if (STREQ(rp->value, tmp->stptr))
+X			break;
+X	}
+X	free_temp(tmp);
+X	if (rp == NULL) /* no match */
+X		return tmp_number((AWKNUM) 0.0);
+X	fflush(stdout);	/* synchronize regular output */
+X	return tmp_number((AWKNUM)close_redir(rp));
+X}
+X
+Xstatic int
+Xclose_redir(rp)
+Xregister struct redirect *rp;
+X{
+X	int status = 0;
+X
+X	if ((rp->flag & (RED_PIPE|RED_WRITE)) == (RED_PIPE|RED_WRITE))
+X		status = pclose(rp->fp);
+X	else if (rp->fp)
+X		status = fclose(rp->fp);
+X	else if (rp->iop) {
+X		if (rp->flag & RED_PIPE)
+X			status = gawk_pclose(rp);
+X		else
+X			status = iop_close(rp->iop);
+X
+X	}
+X	/* SVR4 awk checks and warns about status of close */
+X	if (status)
+X		warning("failure status (%d) on %s close of \"%s\" (%s).",
+X			status,
+X			(rp->flag & RED_PIPE) ? "pipe" :
+X			"file", rp->value, strerror(errno));
+X	if (rp->next)
+X		rp->next->prev = rp->prev;
+X	if (rp->prev)
+X		rp->prev->next = rp->next;
+X	else
+X		red_head = rp->next;
+X	free(rp->value);
+X	free((char *)rp);
+X	return status;
+X}
+X
+Xint
+Xflush_io ()
+X{
+X	register struct redirect *rp;
+X	int status = 0;
+X
+X	errno = 0;
+X	if (fflush(stdout)) {
+X		warning("error writing standard output (%s).", strerror(errno));
+X		status++;
+X	}
+X	errno = 0;
+X	if (fflush(stderr)) {
+X		warning("error writing standard error (%s).", strerror(errno));
+X		status++;
+X	}
+X	for (rp = red_head; rp != NULL; rp = rp->next)
+X		/* flush both files and pipes, what the heck */
+X		if ((rp->flag & RED_WRITE) && rp->fp != NULL)
+X			if (fflush(rp->fp)) {
+X				warning("%s flush of \"%s\" failed (%s).",
+X				    (rp->flag  & RED_PIPE) ? "pipe" :
+X				    "file", rp->value, strerror(errno));
+X				status++;
+X			}
+X	return status;
+X}
+X
+Xint
+Xclose_io ()
+X{
+X	register struct redirect *rp;
+X	int status = 0;
+X
+X	for (rp = red_head; rp != NULL; rp = rp->next)
+X		if (close_redir(rp))
+X			status++;
+X	return status;
+X}
+X
+X/* devopen --- handle /dev/std{in,out,err}, /dev/fd/N, regular files */
+Xint
+Xdevopen (name, mode)
+Xchar *name, *mode;
+X{
+X	int openfd = -1;
+X	FILE *fdopen ();
+X	char *cp;
+X	int flag = 0;
+X
+X	switch(mode[0]) {
+X	case 'r':
+X		flag = O_RDONLY;
+X		break;
+X
+X	case 'w':
+X		flag = O_WRONLY|O_CREAT|O_TRUNC;
+X		break;
+X
+X	case 'a':
+X		flag = O_WRONLY|O_APPEND|O_CREAT;
+X		break;
+X	default:
+X		cant_happen();
+X	}
+X
+X#if defined(STRICT) || defined(NO_DEV_FD)
+X	return (open (name, flag, 0666));
+X#else
+X	if (strict)
+X		return (open (name, flag, 0666));
+X
+X	if (!STREQN (name, "/dev/", 5))
+X		return (open (name, flag, 0666));
+X	else
+X		cp = name + 5;
+X		
+X	/* XXX - first three tests ignore mode */
+X	if (STREQ(cp, "stdin"))
+X		return (0);
+X	else if (STREQ(cp, "stdout"))
+X		return (1);
+X	else if (STREQ(cp, "stderr"))
+X		return (2);
+X	else if (STREQN(cp, "fd/", 3)) {
+X		cp += 3;
+X		if (sscanf (cp, "%d", & openfd) == 1 && openfd >= 0)
+X			/* got something */
+X			return openfd;
+X		else
+X			return -1;
+X	} else
+X		return (open (name, flag, 0666));
+X#endif
+X}
+X
+X#ifndef MSDOS
+Xstatic IOBUF *
+Xgawk_popen(cmd, rp)
+Xchar *cmd;
+Xstruct redirect *rp;
+X{
+X	int p[2];
+X	register int pid;
+X
+X	rp->pid = -1;
+X	rp->iop = NULL;
+X	if (pipe(p) < 0)
+X		return NULL;
+X	if ((pid = fork()) == 0) {
+X		close(p[0]);
+X		dup2(p[1], 1);
+X		close(p[1]);
+X		execl("/bin/sh", "sh", "-c", cmd, 0);
+X		_exit(127);
+X	}
+X	if (pid == -1)
+X		return NULL;
+X	rp->pid = pid;
+X	close(p[1]);
+X	return (rp->iop = iop_alloc(p[0]));
+X}
+X
+Xstatic int
+Xgawk_pclose(rp)
+Xstruct redirect *rp;
+X{
+X	SIGTYPE (*hstat)(), (*istat)(), (*qstat)();
+X	int pid;
+X	int status;
+X	struct redirect *redp;
+X
+X	iop_close(rp->iop);
+X	if (rp->pid == -1)
+X		return rp->status;
+X	hstat = signal(SIGHUP, SIG_IGN);
+X	istat = signal(SIGINT, SIG_IGN);
+X	qstat = signal(SIGQUIT, SIG_IGN);
+X	for (;;) {
+X		pid = wait(&status);
+X		if (pid == -1 && errno == ECHILD)
+X			break;
+X		else if (pid == rp->pid) {
+X			rp->pid = -1;
+X			rp->status = status;
+X			break;
+X		} else {
+X			for (redp = red_head; redp != NULL; redp = redp->next)
+X				if (pid == redp->pid) {
+X					redp->pid = -1;
+X					redp->status = status;
+X					break;
+X				}
+X		}
+X	}
+X	signal(SIGHUP, hstat);
+X	signal(SIGINT, istat);
+X	signal(SIGQUIT, qstat);
+X	return(rp->status);
+X}
+X#else
+Xstatic
+Xstruct {
+X	char *command;
+X	char *name;
+X} pipes[_NFILE];
+X
+Xstatic IOBUF *
+Xgawk_popen(cmd, rp)
+Xchar *cmd;
+Xstruct redirect *rp;
+X{
+X	extern char *strdup(const char *);
+X	int current;
+X	char *name;
+X	static char cmdbuf[256];
+X
+X	/* get a name to use.  */
+X	if ((name = tempnam(".", "pip")) == NULL)
+X		return NULL;
+X	sprintf(cmdbuf,"%s > %s", cmd, name);
+X	system(cmdbuf);
+X	if ((current = open(name,O_RDONLY)) == -1)
+X		return NULL;
+X	pipes[current].name = name;
+X	pipes[current].command = strdup(cmd);
+X	return (rp->iop = iop_alloc(current));
+X}
+X
+Xstatic int
+Xgawk_pclose(rp)
+Xstruct redirect *rp;
+X{
+X	int cur = rp->iop->fd;
+X	int rval;
+X
+X	rval = iop_close(rp->iop);
+X
+X	/* check for an open file  */
+X	if (pipes[cur].name == NULL)
+X		return -1;
+X	unlink(pipes[cur].name);
+X	free(pipes[cur].name);
+X	pipes[cur].name = NULL;
+X	free(pipes[cur].command);
+X	return rval;
+X}
+X#endif
+X
+X#define	DO_END_OF_BUF	len = bp - iop->off;\
+X			used = last - start;\
+X			while (len + used > iop->secsiz) {\
+X				iop->secsiz *= 2;\
+X				erealloc(iop->secbuf,char *,iop->secsiz,"get");\
+X			}\
+X			last = iop->secbuf + used;\
+X			start = iop->secbuf;\
+X			memcpy(last, iop->off, len);\
+X			last += len;\
+X			iop->cnt = read(iop->fd, iop->buf, iop->size);\
+X			if (iop->cnt < 0)\
+X				return iop->cnt;\
+X			end_data = iop->buf + iop->cnt;\
+X			iop->off = bp = iop->buf;
+X
+X#define	DO_END_OF_DATA	iop->cnt = read(iop->fd, end_data, end_buf - end_data);\
+X			if (iop->cnt < 0)\
+X				return iop->cnt;\
+X			end_data += iop->cnt;\
+X			if (iop->cnt == 0)\
+X				break;\
+X			iop->cnt = end_data - iop->buf;
+X
+Xstatic int
+Xget_a_record(res, iop)
+Xchar **res;
+XIOBUF *iop;
+X{
+X	register char *end_data;
+X	register char *end_buf;
+X	char *start;
+X	register char *bp;
+X	register char *last;
+X	int len, used;
+X	register char rs = get_rs();
+X
+X	if (iop->cnt < 0)
+X		return iop->cnt;
+X	if ((iop->flag & IOP_IS_TTY) && output_is_tty)
+X		fflush(stdout);
+X	end_data = iop->buf + iop->cnt;
+X	if (iop->off >= end_data) {
+X		iop->cnt = read(iop->fd, iop->buf, iop->size);
+X		if (iop->cnt <= 0)
+X			return iop->cnt = EOF;
+X		end_data = iop->buf + iop->cnt;
+X		iop->off = iop->buf;
+X	}
+X	last = start = bp = iop->off;
+X	end_buf = iop->buf + iop->size;
+X	if (rs == 0) {
+X		while (!(*bp == '\n' && bp != iop->buf && bp[-1] == '\n')) {
+X			if (++bp == end_buf) {
+X				DO_END_OF_BUF
+X			}
+X			if (bp == end_data) {
+X				DO_END_OF_DATA
+X			}
+X		}
+X		if (*bp == '\n' && bp != iop->off && bp[-1] == '\n') {
+X			int tmp = 0;
+X
+X			/* allow for more than two newlines */
+X			while (*bp == '\n') {
+X				tmp++;
+X				if (++bp == end_buf) {
+X					DO_END_OF_BUF
+X				}
+X				if (bp == end_data) {
+X					DO_END_OF_DATA
+X				}
+X			}
+X			iop->off = bp;
+X			bp -= 1 + tmp;
+X		} else if (bp != iop->buf && bp[-1] != '\n') {
+X			warning("record not terminated");
+X			iop->off = bp + 2;
+X		} else {
+X			bp--;
+X			iop->off = bp + 2;
+X		}
+X	} else {
+X		while (*bp++ != rs) {
+X			if (bp == end_buf) {
+X				DO_END_OF_BUF
+X			}
+X			if (bp == end_data) {
+X				DO_END_OF_DATA
+X			}
+X		}
+X		if (*--bp != rs) {
+X			warning("record not terminated");
+X			bp++;
+X		}
+X		iop->off = bp + 1;
+X	}
+X	if (start == iop->secbuf) {
+X		len = bp - iop->buf;
+X		if (len > 0) {
+X			used = last - start;
+X			while (len + used > iop->secsiz) {
+X				iop->secsiz *= 2;
+X				erealloc(iop->secbuf,char *,iop->secsiz,"get2");
+X			}
+X			last = iop->secbuf + used;
+X			start = iop->secbuf;
+X			memcpy(last, iop->buf, len);
+X			last += len;
+X		}
+X	} else
+X		last = bp;
+X	*last = '\0';
+X	*res = start;
+X	return last - start;
+X}
+X
+XNODE *
+Xdo_getline(tree)
+XNODE *tree;
+X{
+X	struct redirect *rp;
+X	IOBUF *iop;
+X	int cnt;
+X	NODE **lhs;
+X	int redir_error = 0;
+X
+X	if (tree->rnode == NULL) {	 /* no redirection */
+X		iop = nextfile();
+X		if (iop == NULL)		/* end of input */
+X			return tmp_number((AWKNUM) 0.0);
+X	} else {
+X		rp = redirect(tree->rnode, &redir_error);
+X		if (rp == NULL && redir_error)	/* failed redirect */
+X			return tmp_number((AWKNUM) -1.0);
+X		iop = rp->iop;
+X		getline_redirect++;
+X	}
+X	if (tree->lnode == NULL) {	/* no optional var. -- read in $0 */
+X		if (inrec(iop) != 0) {
+X			getline_redirect = 0;
+X			return tmp_number((AWKNUM) 0.0);
+X		}
+X	} else {			/* read in a named variable */
+X		char *s = NULL;
+X
+X		lhs = get_lhs(tree->lnode, 1);
+X		cnt = get_a_record(&s, iop);
+X		if (!getline_redirect) {
+X			assign_number(&NR_node->var_value,
+X			    NR_node->var_value->numbr + 1.0);
+X			assign_number(&FNR_node->var_value,
+X			    FNR_node->var_value->numbr + 1.0);
+X		}
+X		if (cnt == EOF) {
+X			getline_redirect = 0;
+X			free(s);
+X			return tmp_number((AWKNUM) 0.0);
+X		}
+X		*lhs = make_string(s, strlen(s));
+X		do_deref();
+X		/* we may have to regenerate $0 here! */
+X		if (field_num == 0)
+X			set_record(fields_arr[0]->stptr, fields_arr[0]->stlen);
+X		field_num = -1;
+X	}
+X	getline_redirect = 0;
+X	return tmp_number((AWKNUM) 1.0);
+X}
+END_OF_FILE
+  if test 17467 -ne `wc -c <'./io.c'`; then
+    echo shar: \"'./io.c'\" unpacked with wrong size!
+  fi
+  # end of './io.c'
+fi
+if test -f './missing.d/memcpy.c' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'./missing.d/memcpy.c'\"
+else
+  echo shar: Extracting \"'./missing.d/memcpy.c'\" \(261 characters\)
+  sed "s/^X//" >'./missing.d/memcpy.c' <<'END_OF_FILE'
+X/*
+X * memcpy --- copy strings.
+X *
+X * We supply this routine for those systems that aren't standard yet.
+X */
+X
+Xchar *
+Xmemcpy (dest, src, l)
+Xregister char *dest, *src;
+Xregister int l;
+X{
+X	register char *ret = dest;
+X
+X	while (l--)
+X		*dest++ = *src++;
+X
+X	return ret;
+X}
+END_OF_FILE
+  if test 261 -ne `wc -c <'./missing.d/memcpy.c'`; then
+    echo shar: \"'./missing.d/memcpy.c'\" unpacked with wrong size!
+  fi
+  # end of './missing.d/memcpy.c'
+fi
+echo shar: End of archive 11 \(of 16\).
+cp /dev/null ark11isdone
+MISSING=""
+for I in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 ; do
+    if test ! -f ark${I}isdone ; then
+	MISSING="${MISSING} ${I}"
+    fi
+done
+if test "${MISSING}" = "" ; then
+    echo You have unpacked all 16 archives.
+    rm -f ark[1-9]isdone ark[1-9][0-9]isdone
+else
+    echo You still must unpack the following archives:
+    echo "        " ${MISSING}
+fi
+exit 0
+exit 0 # Just in case...
+-- 
+Please send comp.sources.unix-related mail to rsalz@uunet.uu.net.
+Use a domain-based address or give alternate paths, or you may lose out.

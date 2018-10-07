@@ -1,0 +1,35 @@
+                                 tool: tcsh
+
+---------------------------------------------------------------------------
+ Language:    csh (C-Shell)
+ Version:     6.06
+ Parts:       interpreter, manual page, html manual
+ Author:      Christos Zoulas <christos@ee.cornell.edu>
+ Location:    ftp://ftp.deshaw.com/pub/tcsh
+ Description: a modified C-Shell with history editing
+ Ports:       unix, VMS_POSIX, nearing completion: OS/2 EMX.
+ Updated:     June 27th, 1994
+
+---------------------------------------------------------------------------
+
+                               Related Items
+
+category: command shells summary, or expanded.
+
+category: glue summary, or expanded.
+
+category: scripting languages summary, or expanded.
+
+---------------------------------------------------------------------------
+---------------------------------------------------------------------------
+This work supported by Idiom Consulting. Idiom Consulting         [ aqui ]
+provides Internet access and perl programming in the SF Bay
+Area.
+
+Please send updates to free-compilers@idiom.com
+
+The HTML is maintained by David Muir Sharnoff and the entries themselves
+are maintained by Steve Robenalt.
+
+Copyright (c) 1992, 1993, 1994, David Muir Sharnoff, All Rights Reserved
+Copyright (c) 1994, 1995, 1996, Steven Allen Robenalt, All Rights Reserved

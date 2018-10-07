@@ -1,0 +1,1945 @@
+Path: uunet!rs
+From: rs@uunet.UU.NET (Rich Salz)
+Newsgroups: comp.sources.unix
+Subject: v11i003:  New version of T-shell, Part03/06
+Message-ID: <861@uunet.UU.NET>
+Date: 11 Aug 87 23:52:08 GMT
+Organization: UUNET Communications Services, Arlington, VA
+Lines: 1935
+Approved: rs@uunet.UU.NET
+
+Submitted-by: Paul Placeway <pyramid!osu-eddie!paul>
+Posting-number: Volume 11, Issue 3
+Archive-name: tcsh/Part03
+
+# This is a shell archive.  Remove anything before this line
+# then unpack it by saving it in a file and typing "sh file"
+# (Files unpacked will be owned by you and have default permissions).
+# This archive contains the following files:
+#	./tw.spell.c
+#	./ed.h
+#	./ed.chared.c
+#	./ed.refresh.c
+#	./ed.screen.c
+#
+if `test ! -s ./tw.spell.c`
+then
+echo "writing ./tw.spell.c"
+sed 's/^x//' > ./tw.spell.c << '\Rogue\Monster\'
+x#include "sh.h"
+x#define MAKE_TWENEX
+x#include "tw.h"
+x
+xextern char **command_list;
+xextern int numcommands;
+x
+x
+x/* spell_me : return corrrectly spelled filename.  From K&P spname */
+x
+xextern int t_search();
+x
+xspell_me(oldname, oldsize, looking_for_cmd)
+xchar *oldname;
+x{
+x    char guess[FILSIZ], best[FILSIZ], newname[FILSIZ];
+x    register char *new = newname, *old = oldname;
+x    register char *p, *cp, *ws;
+x    int retval;
+x
+x    for (;;) {
+x	while (*old == '/')	/* skip blanks */
+x	    *new++ = *old++;
+x	*new = '\0';
+x	if (*old == '\0') {
+x	    retval = (strcmp(oldname, newname) != 0);
+x	    copyn (oldname, newname, oldsize); /* shove it back. */
+x	    return retval;
+x	}
+x	p = guess;		/* start at beginning of buf */
+x	if (newname[0])		/* add current dir if any */
+x	    for (cp = newname; *cp; cp++)
+x		if (p < guess+FILSIZ)
+x		    *p++ = *cp;
+x	ws = p;
+x	for (; *old != '/' && *old != '\0'; old++) /* add current file name */
+x	    if (p < guess+FILSIZ)
+x		*p++ = *old;
+x	*p = '\0';		/* terminate it */
+x
+x	if (t_search (guess, p, SPELL, FILSIZ, looking_for_cmd) >= 4)
+x	    return -1;		/* hopeless */
+x	for (p = ws; *new = *p++; )
+x	    new++;
+x    }
+x/*NOTREACHED*/
+x}
+x
+x#define EQ(s,t)	(strcmp(s,t) == 0)
+x
+x/* 
+x * spdist() is taken from Kernighan & Pike,
+x *  _The_UNIX_Programming_Environment_
+x * and adapted somewhat to corispond better to psychological reality.
+x * (Note the changes to the return values)
+x *
+x * According to Pollock and Zamora, CACM April 1984 (V. 27, No. 4),
+x * page 363, the correct order for this is:
+x * OMISSION = TRANSPOSITION > INSERTION > SUBSTITUTION
+x * thus, it was exactly backwards in the old version. -- PWP
+x */
+x
+xspdist(s, t)
+xregister char *s, *t;
+x{
+x    while (*s++ == *t)
+x	if (*t++ == '\0')
+x	    return 0;		/* exact match */
+x    if (*--s) {
+x	if (*t) {
+x	    if (s[1] && t[1] && *s == t[1] && *t == s[1] && EQ(s+2, t+2))
+x		return 1;	/* transposition */
+x	    if (EQ(s+1, t+1))
+x		return 3;	/* 1 char mismatch */
+x	}
+x	if (EQ(s+1, t))
+x	    return 2;		/* extra character */
+x    }
+x    if (*t && EQ(s, t+1))
+x	return 1;		/* missing character */
+x    return 4;
+x}
+\Rogue\Monster\
+else
+  echo "will not over write ./tw.spell.c"
+fi
+if [ `wc -c ./tw.spell.c | awk '{printf $1}'` -ne 2054 ]
+then
+echo `wc -c ./tw.spell.c | awk '{print "Got " $1 ", Expected " 2054}'`
+fi
+if `test ! -s ./ed.h`
+then
+echo "writing ./ed.h"
+sed 's/^x//' > ./ed.h << '\Rogue\Monster\'
+x#ifndef lint
+xstatic char *rcsid = "$Header: ed.h,v 2.3 86/01/06 21:39:15 paul Exp $";
+x#endif
+x
+x#ifndef EXTERN
+x#define EXTERN extern
+x#endif
+x
+x#define MAXLINES	100	/* max number of lines to edit on */
+x#define TABSIZE		8	/* usually 8 spaces/tab */
+x#define	INBUFSIZ	BUFSIZ	/* size of input buffer */
+x#define REFBUFSIZ	INBUFSIZ+INBUFSIZ+MAXLINES /* size of refresh buffer */
+x
+xchar	*strcpy();
+xchar	*strncpy();
+xchar	*getenv();
+x/* char	*shell; */
+x
+x
+xextern	errno;
+x
+x/****************************************************************************/
+x/* stuff for the different states returned by the character editor routines */
+x/****************************************************************************/
+x
+x#define CCRETVAL	char	/* size needed for the different char editor */
+x 				/* return values */
+x
+x#define KEYCMD		char	/* size needed to index into CcFuncTbl */
+x
+xtypedef CCRETVAL (*PFCmd)();	/* pointer to function returning CCRETVAL */
+x
+xstruct KeyFuncs {		/* for the "bind" shell command */
+x    char *name;			/* function name for bind command */
+x    int func;			/* function numeric value */
+x};
+x
+x#ifndef ED_DEFNS
+xextern PFCmd CcFuncTbl[];	/* table of available commands */
+xextern KEYCMD NumFuns;		/* number of KEYCMDs in above table */
+xextern KEYCMD CcKeyMap[];	/* keymap table, each index into above tbl */
+xextern KEYCMD CcEmacsMap[];	/* keymap table for Emacs default bindings */
+xextern KEYCMD CcViMap[];	/* keymap table for Vi defaults */
+xextern struct KeyFuncs FuncNames[]; /* string names vs. CcFuncTbl indices */
+x#endif
+x
+x#define	CC_ERROR		100 /* there should NOT be 100 different... */
+x#define CC_FATAL		101 /* fatal error: inconsistant, must reset */
+x#define	CC_NORM			0
+x#define	CC_NEWLINE		1
+x#define	CC_EOF			2
+x#define	CC_COMPLETE		3
+x#define	CC_LIST_CHOICES		4
+x#define	CC_UP_HIST		5
+x#define CC_DOWN_HIST		6
+x#define	CC_UP_SEARCH_HIST	7
+x#define CC_DOWN_SEARCH_HIST	8
+x#define	CC_HELPME		9
+x#define CC_CORRECT		10
+x#define CC_WHICH		11
+x#define	CC_LAST_ITEM		12
+x
+x/*************************/
+x/* tty state             */
+x/*************************/
+x
+x#ifdef SVID
+x
+xEXTERN struct termio nio;
+xEXTERN struct termio xio;
+xEXTERN struct termio testio;
+x
+x# ifdef OREO
+xEXTERN struct ltchars nlc;
+xEXTERN struct ltchars xlc;
+xEXTERN struct ltchars testlc;
+x# endif OREO
+x
+x#else SVID
+x
+xEXTERN struct sgttyb nb;	/* original setup tty bits */
+xEXTERN struct tchars ntc;
+xEXTERN struct ltchars nlc;
+xEXTERN int nlb;
+xEXTERN int nli;
+x
+xEXTERN struct sgttyb xb;	/* running setup tty bits */
+xEXTERN struct tchars xtc;
+xEXTERN struct ltchars xlc;
+xEXTERN int xlb;
+xEXTERN int xl;
+x
+xEXTERN struct sgttyb testsgb;	/* running setup tty bits */
+xEXTERN int testnlb;		/* test local mode word */
+xEXTERN struct tchars testtc;
+xEXTERN struct ltchars testlc;
+x
+x#endif OREO
+x
+x/****************************/
+x/* Editor state and buffers */
+x/****************************/
+x
+xEXTERN char GettingInput;	/* true if getting an input line (mostly) */
+xEXTERN char NeedsRedraw;	/* for editor and twenex error messages */
+xEXTERN char InputBuf[INBUFSIZ];	/* the real input data */
+xEXTERN char  *LastChar, *Cursor;	/* point to the next open space */
+xEXTERN char *InputLim;			/* limit of size of InputBuf */
+xEXTERN char QuoteNext, MetaNext; /* flags for ^Q and ^X functions */
+xEXTERN char StickyMeta;		/* sticky meta shift flag (for vi mode) */
+xEXTERN char *Mark;		/* the emacs "mark" (dot is Cursor) */
+xEXTERN char DoingArg;		/* true if we have an argument */
+xEXTERN int Argument;		/* "universal" argument value */
+xEXTERN KEYCMD LastCmd;		/* previous command executed */
+xEXTERN char KillBuf[INBUFSIZ];	/* kill buffer */
+xEXTERN char *LastKill;		/* points to end of kill buffer */
+xEXTERN char HistBuf[INBUFSIZ];	/* history buffer */
+xEXTERN char *LastHist;		/* points to end of history buffer */
+xEXTERN int Hist_num;		/* what point up the history we are at now. */
+xEXTERN char WhichBuf[INBUFSIZ]; /* buffer for which command */
+xEXTERN char *LastWhich;		/* points to end of which buffer */
+xEXTERN char *CursWhich;		/* points to the cursor point in which buf */
+x
+xextern char PromptBuf[];
+x
+xEXTERN char DispBuf[REFBUFSIZ];	/* display buffer */
+xEXTERN char *Display[MAXLINES];	/* display buffer seed vector */
+xEXTERN int CursorV,		/* real cursor vertical (line) */
+x    CursorH, 			/* real cursor horisontal (column) */
+x    TermV, 	/* number of real screen lines (sizeof(DisplayBuf) / width */
+x    TermH;			/* screen width */
+xEXTERN char VdispBuf[REFBUFSIZ]; /* virtual display buffer */
+xEXTERN char *Vdisplay[MAXLINES]; /* new buffer */
+x
+x/* Variables that describe terminal ability */
+xEXTERN char T_CanIns;		/* true if I can insert characters */
+xEXTERN char T_CanDel;		/* dito for delete characters */
+xEXTERN char T_Tabs;		/* true if term does tabs */
+xEXTERN char T_CanCEOL;		/* true if we can clear to end of line */
+xEXTERN char T_CanUP;		/* true if this term can do reverse linefeen */
+xEXTERN char T_HasMeta;		/* true if we have a meta key */
+x
+x/* note the extra characters in the index() call in this macro */
+x#define isword(c)	(isalpha(c)||isdigit(c)||index("*?_-.[]~=",c))
+x#define min(x,y)	(((x)<(y))?(x):(y))
+x#define max(x,y)	(((x)>(y))?(x):(y))
+x
+x#ifndef INTERN
+xextern short SHIN, SHOUT;
+x#endif
+\Rogue\Monster\
+else
+  echo "will not over write ./ed.h"
+fi
+if [ `wc -c ./ed.h | awk '{printf $1}'` -ne 5117 ]
+then
+echo `wc -c ./ed.h | awk '{print "Got " $1 ", Expected " 5117}'`
+fi
+if `test ! -s ./ed.chared.c`
+then
+echo "writing ./ed.chared.c"
+sed 's/^x//' > ./ed.chared.c << '\Rogue\Monster\'
+x#ifndef lint
+xstatic char *RCSid = "$Header: ed.chared.c,v 2.3 86/01/06 21:39:19 paul Exp $";
+x#endif
+x
+x#include "sh.h"
+x#include "ed.h"
+x#include "ed.fcns.h"
+x
+x/* all routines that start with c_ are private to this set of routines */
+x
+xstatic
+xc_insert(num)
+xregister int num;
+x{
+x    register char *cp;
+x
+x    if (LastChar+num >= InputLim)
+x	return; /* can't go past end of buffer */
+x
+x    if (Cursor < LastChar) {	/* if I must move chars */
+x	for (cp = LastChar; cp >= Cursor; cp--)
+x	    cp[num] = *cp;
+x    }
+x    LastChar += num;
+x}
+x
+xstatic
+xc_delafter(num)			/* delete after dot, with bounds checking */
+xregister int num;
+x{
+x    register char *cp;
+x
+x    if (Cursor+num > LastChar)
+x	num = LastChar-Cursor; /* bounds check */
+x
+x    if (num > 0) {	/* if I can delete anything */
+x	for (cp = Cursor; cp <= LastChar; cp++)
+x	    *cp = cp[num];
+x	LastChar -= num;
+x    }
+x}
+x
+xstatic
+xc_delbefore(num)		/* delete before dot, with bounds checking */
+xregister int num;
+x{
+x    register char *cp;
+x
+x    if (Cursor-num < InputBuf)
+x	num = Cursor-InputBuf; /* bounds check */
+x
+x    if (num > 0) {	/* if I can delete anything */
+x	for (cp = Cursor-num; cp <= LastChar; cp++)
+x	    *cp = cp[num];
+x	LastChar -= num;
+x    }
+x}
+x
+x/*
+x * demi-PUBLIC routines.  Any routine that is of type CCRETVAL is an
+x * entry point, called from the CcKeyMap indirected into the
+x * CcFuncTbl array.
+x */
+x
+x/*VARARGS*/
+xCCRETVAL
+xe_unassigned()			/* bound to keys that arn't really assigned */
+x{
+x    Beep();
+x    flush();
+x    return (CC_NORM);
+x}
+x
+x/*VARARGS*/
+xCCRETVAL
+xe_insert(c)
+xregister char c;
+x{
+x    c &= 0177;			/* no meta chars ever */
+x
+x    if (!c) 
+x	return (CC_ERROR);	/* no NULs in the input ever!! */
+x
+x    if (LastChar+Argument >= InputLim)
+x	return (CC_ERROR);	/* end of buffer space */
+x
+x    if (Argument == 1) {	/* optimize */
+x	c_insert(1);
+x	*Cursor++ = c;
+x	DoingArg = 0;		/* just in case */
+x	RefPlusOne();		/* fast refresh for one char. */
+x    } else {
+x	c_insert(Argument);
+x	while (Argument--)
+x	    *Cursor++ = c;
+x	DoingArg = 0;
+x	Argument = 1;
+x	Refresh();
+x    }
+x    return (CC_NORM);
+x}
+x
+xInsertStr(s)			/* insert ASCIZ s at cursor (for complete) */
+xchar *s;
+x{
+x    register int len;
+x
+x    if ((len = strlen(s)) <= 0)
+x	return -1;
+x    if (LastChar+len >= InputLim)
+x	return -1;		/* end of buffer space */
+x
+x    c_insert(len);
+x    while (len--)
+x	*Cursor++ = *s++;
+x    return 0;
+x}
+x
+xDeleteBack(n)			/* delete the n characters before . */
+xint n;
+x{
+x    if (n <= 0) return;
+x    if (Cursor >= &InputBuf[n]) {
+x	c_delbefore(n);		/* delete before dot */
+x	Cursor -= n;
+x	if (Cursor < InputBuf) Cursor = InputBuf; /* bounds check */
+x    }
+x}
+x
+x/*VARARGS*/
+xCCRETVAL
+xe_digit(c)			/* gray magic here */
+xregister char c;
+x{
+x    if (!isdigit(c)) 
+x	return (CC_ERROR);	/* no NULs in the input ever!! */
+x
+x    if (DoingArg) {		/* if doing an arg, add this in... */
+x	if (LastCmd == F_ARGFOUR) /* if last command was ^U */
+x	    Argument = c - '0';
+x	else
+x	    Argument = (Argument * 10) + (c - '0');
+x    } else {
+x	if (LastChar+1 >= InputLim)
+x	    return CC_ERROR;		/* end of buffer space */
+x
+x	c_insert(1);
+x	*Cursor++ = c;
+x	DoingArg = 0;		/* just in case */
+x	RefPlusOne();		/* fast refresh for one char. */
+x    }
+x    return (CC_NORM);
+x}
+x
+x/*VARARGS*/
+xCCRETVAL
+xe_argdigit(c)			/* for ESC-n */
+xregister char c;
+x{
+x    c &= 0177;
+x
+x    if (!isdigit(c)) 
+x	return (CC_ERROR);	/* no NULs in the input ever!! */
+x
+x    if (DoingArg) {		/* if doing an arg, add this in... */
+x	Argument = (Argument * 10) + (c - '0');
+x    } else {			/* else starting an argument */
+x	Argument = c - '0';
+x	DoingArg = 1;
+x    }
+x    return (CC_NORM);
+x}
+x
+x/*VARARGS*/
+xCCRETVAL
+xe_newline()			/* always ignore argument */
+x{
+x    PastBottom();
+x    *LastChar++ = '\n';		/* for the benifit of CSH */
+x    *LastChar = '\0';		/* just in case */
+x    return (CC_NEWLINE);	/* we must do a ResetInLine later */
+x}
+x
+x/*VARARGS*/
+xCCRETVAL
+xe_send_eof()			/* for when ^D is ONLY send-eof */
+x{
+x    PastBottom();
+x    *LastChar = '\0';		/* just in case */
+x    ResetInLine();		/* reset the input pointers */
+x    return (CC_EOF);
+x}
+x
+x/*VARARGS*/
+xCCRETVAL
+xe_complete()
+x{
+x    GotoBottom();
+x    *LastChar = '\0';		/* just in case */
+x    return (CC_COMPLETE);
+x}
+x
+x/*VARARGS*/
+xCCRETVAL
+xe_up_hist()
+x{
+x    *LastChar = '\0';		/* just in case */
+x    return (CC_UP_HIST);
+x}
+x
+x/*VARARGS*/
+xCCRETVAL
+xe_down_hist()
+x{
+x    *LastChar = '\0';		/* just in case */
+x    return (CC_DOWN_HIST);
+x}
+x
+x/*VARARGS*/
+xCCRETVAL
+xe_up_search_hist()
+x{
+x    *LastChar = '\0';		/* just in case */
+x    return (CC_UP_SEARCH_HIST);
+x}
+x
+x/*VARARGS*/
+xCCRETVAL
+xe_down_search_hist()
+x{
+x    *LastChar = '\0';		/* just in case */
+x    return (CC_DOWN_SEARCH_HIST);
+x}
+x
+x/*VARARGS*/
+xCCRETVAL
+xe_helpme()
+x{
+x    PastBottom();
+x    *LastChar = '\0';		/* just in case */
+x    return (CC_HELPME);
+x}
+x
+x/*VARARGS*/
+xCCRETVAL
+xe_correct()
+x{
+x    *LastChar = '\0';		/* just in case */
+x    return (CC_CORRECT);
+x}
+x
+x/*VARARGS*/
+xCCRETVAL
+xe_list_choices()
+x{
+x    PastBottom();
+x    *LastChar = '\0';		/* just in case */
+x    return (CC_LIST_CHOICES);
+x}
+x
+x/*VARARGS*/
+xCCRETVAL
+xe_which()			/* do a fast command line which(1) */
+x{
+x    PastBottom();
+x    *LastChar = '\0';		/* just in case */
+x    return (CC_WHICH);
+x}
+x
+x/*VARARGS*/
+xCCRETVAL
+xe_last_item()			/* insert the last element of the prev. cmd */
+x{
+x    *LastChar = '\0';		/* just in case */
+x    return (CC_LAST_ITEM);
+x}
+x
+x/*VARARGS*/
+xCCRETVAL
+xe_yank_kill()			/* almost like GnuEmacs */
+x{
+x    register char *kp, *cp;
+x
+x    if (LastKill == KillBuf)	/* if zero content */
+x	return (CC_ERROR);
+x
+x    if (LastChar + (LastKill-KillBuf) >= InputLim)
+x	return (CC_ERROR);	/* end of buffer space */
+x
+x    /* else */
+x    Mark = Cursor;		/* set the mark */
+x    cp = Cursor;		/* for speed */
+x
+x    c_insert(LastKill-KillBuf);	/* open the space, */
+x    for (kp = KillBuf; kp < LastKill; kp++) /* copy the chars */
+x	*cp++ = *kp;
+x
+x    if (Argument == 1)		/* if an arg, cursor at beginning */
+x	Cursor = cp;
+x
+x    DoingArg = 0;		/* no longer doing an argument */
+x    Argument = 1;
+x    Refresh();
+x    return (CC_NORM);
+x}
+x
+x/*VARARGS*/
+xCCRETVAL
+xe_delprev()
+x{
+x    if (Cursor > InputBuf) {
+x	c_delbefore(Argument);		/* delete before dot */
+x	Cursor -= Argument;
+x	if (Cursor < InputBuf) Cursor = InputBuf; /* bounds check */
+x	DoingArg = 0;
+x	Argument = 1;
+x	Refresh();
+x	return (CC_NORM);
+x    } else {
+x	return (CC_ERROR);
+x    }
+x}
+x
+x/*VARARGS*/
+xCCRETVAL
+xe_delwordprev()
+x{
+x    register char *cp, *p, *kp;
+x
+x    if (Cursor == InputBuf)
+x	return (CC_ERROR);
+x    /* else */
+x    
+x    cp = &Cursor[-1];
+x
+x    while (Argument--) {
+x	while ((cp >= InputBuf) && (!(isword(*cp))))
+x	    cp--;
+x	while ((cp >= InputBuf) && (isword(*cp)))
+x	    cp--;
+x    }
+x    /* cp now points to one character before the word */
+x    cp++;
+x    /* cp now points where we want it */
+x
+x    for (p = cp, kp = KillBuf; p < Cursor; p++)	/* save the text */
+x	*kp++ = *p;
+x    LastKill = kp;
+x
+x    c_delbefore(Cursor-cp);		/* delete before dot */
+x    Cursor = cp;
+x    if (Cursor < InputBuf)
+x	Cursor = InputBuf; /* bounds check */
+x    DoingArg = 0;
+x    Argument = 1;
+x    Refresh();
+x    return (CC_NORM);
+x}
+x
+x/*VARARGS*/
+xCCRETVAL
+xe_delnext()
+x{
+x    if (Cursor == LastChar) {		/* if I'm at the end */
+x	if (Cursor == InputBuf) {	/* if I'm also at the beginning */
+x	    so_write ("^D\b\b", 4);	/* then do a EOF */
+x	    flush();
+x	    return (CC_EOF);
+x	} else {
+x	    return (CC_ERROR);
+x	}
+x    } else {
+x	c_delafter(Argument);		/* delete after dot */
+x	if (Cursor > LastChar) Cursor = LastChar; /* bounds check */
+x	DoingArg = 0;
+x	Argument = 1;
+x	Refresh();
+x	return (CC_NORM);
+x    }
+x}
+x
+x/*VARARGS*/
+xCCRETVAL
+xe_list_delnext()
+x{
+x    if (Cursor == LastChar) {		/* if I'm at the end */
+x	if (Cursor == InputBuf) {	/* if I'm also at the beginning */
+x	    so_write ("^D\b\b", 4);	/* then do a EOF */
+x	    flush();
+x	    return (CC_EOF);
+x	} else {
+x	    PastBottom();
+x	    *LastChar = '\0';		/* just in case */
+x	    return (CC_LIST_CHOICES);
+x	}
+x    } else {
+x	c_delafter(Argument);		/* delete after dot */
+x	if (Cursor > LastChar) Cursor = LastChar; /* bounds check */
+x	DoingArg = 0;
+x	Argument = 1;
+x	Refresh();
+x	return (CC_NORM);
+x    }
+x}
+x
+x/*VARARGS*/
+xCCRETVAL
+xe_delwordnext()
+x{
+x    register char *cp, *p, *kp;
+x
+x    if (Cursor == LastChar)
+x	return (CC_ERROR);
+x    /* else */
+x    
+x    cp = Cursor;
+x
+x    while (Argument--) {
+x	while ((cp < LastChar) && (!(isword(*cp))))
+x	    cp++;
+x	while ((cp < LastChar) && (isword(*cp)))
+x	    cp++;
+x    }
+x
+x    for (p = Cursor, kp = KillBuf; p < cp; p++)	/* save the text */
+x	*kp++ = *p;
+x    LastKill = kp;
+x
+x    c_delafter(cp-Cursor);		/* delete after dot */
+x    /* Cursor = Cursor; */
+x    if (Cursor > LastChar) Cursor = LastChar; /* bounds check */
+x    DoingArg = 0;
+x    Argument = 1;
+x    Refresh();
+x    return (CC_NORM);
+x}
+x
+x/*VARARGS*/
+xCCRETVAL
+xe_toend()
+x{
+x    Cursor = LastChar;
+x    RefCursor();		/* move the cursor */
+x    return (CC_NORM);
+x}
+x
+x/*VARARGS*/
+xCCRETVAL
+xe_tobeg()
+x{
+x    Cursor = InputBuf;
+x    RefCursor();		/* move the cursor */
+x    return (CC_NORM);
+x}
+x
+x/*VARARGS*/
+xCCRETVAL
+xe_killend()
+x{
+x    register char *kp, *cp;
+x
+x    cp = Cursor;
+x    kp = KillBuf;
+x    while (cp < LastChar)
+x	*kp++ = *cp++;		/* copy it */
+x    LastKill = kp;
+x    LastChar = Cursor;		/* zap! -- delete to end */
+x    Refresh();
+x    return (CC_NORM);
+x}
+x
+x/*VARARGS*/
+xCCRETVAL
+xe_killbeg()
+x{
+x    register char *kp, *cp;
+x
+x    cp = InputBuf;
+x    kp = KillBuf;
+x    while (cp < Cursor)
+x	*kp++ = *cp++;		/* copy it */
+x    LastKill = kp;
+x    c_delbefore(Cursor-InputBuf);
+x    Cursor = InputBuf;		/* zap! */
+x    Refresh();
+x    return (CC_NORM);
+x}
+x
+x/*VARARGS*/
+xCCRETVAL
+xe_killregion()
+x{
+x    register char *kp, *cp;
+x
+x    if (!Mark)
+x	return (CC_ERROR);
+x
+x    if (Mark > Cursor) {
+x	cp = Cursor;
+x	kp = KillBuf;
+x	while (cp < Mark)
+x	    *kp++ = *cp++;		/* copy it */
+x	LastKill = kp;
+x	c_delafter(cp-Cursor);	/* delete it */
+x    } else {			/* mark is before cursor */
+x	cp = Mark;
+x	kp = KillBuf;
+x	while (cp < Cursor)
+x	    *kp++ = *cp++;		/* copy it */
+x	LastKill = kp;
+x	c_delbefore(cp-Mark);
+x	Cursor = Mark;
+x    }
+x    Refresh();
+x    return (CC_NORM);
+x}
+x
+x/*VARARGS*/
+xCCRETVAL
+xe_copyregion()
+x{
+x    register char *kp, *cp;
+x
+x    if (!Mark)
+x	return (CC_ERROR);
+x
+x    if (Mark > Cursor) {
+x	cp = Cursor;
+x	kp = KillBuf;
+x	while (cp < Mark)
+x	    *kp++ = *cp++;		/* copy it */
+x	LastKill = kp;
+x    } else {			/* mark is before cursor */
+x	cp = Mark;
+x	kp = KillBuf;
+x	while (cp < Cursor)
+x	    *kp++ = *cp++;		/* copy it */
+x	LastKill = kp;
+x    }
+x    return (CC_NORM);		/* don't even need to Refresh() */
+x}
+x
+x/*VARARGS*/
+xCCRETVAL
+xe_charswitch()
+x{
+x    register char c;
+x
+x    if (Cursor < LastChar) {
+x	if (LastChar <= &InputBuf[1]) {
+x	    return (CC_ERROR);
+x	} else {
+x	    Cursor++;
+x	}
+x    }
+x    if (Cursor > &InputBuf[1]) { /* must have at least two chars entered */
+x	c = Cursor[-2];
+x	Cursor[-2] = Cursor[-1];
+x	Cursor[-1] = c;
+x	Refresh();
+x	return (CC_NORM);
+x    } else {
+x	return (CC_ERROR);
+x    }
+x}
+x
+x/*VARARGS*/
+xCCRETVAL
+xe_charback()
+x{
+x    if (Cursor > InputBuf) {
+x	Cursor -= Argument;
+x	if (Cursor < InputBuf) Cursor = InputBuf;
+x	RefCursor();
+x	return (CC_NORM);
+x    } else {
+x	return (CC_ERROR);
+x    }
+x}
+x
+x/*VARARGS*/
+xCCRETVAL
+xe_wordback()
+x{
+x    register char *cp;
+x
+x    if (Cursor == InputBuf)
+x	return (CC_ERROR);
+x    /* else */
+x    
+x    cp = &Cursor[-1];
+x
+x    while (Argument--) {
+x	while ((cp >= InputBuf) && (!(isword(*cp))))
+x	    cp--;
+x	while ((cp >= InputBuf) && (isword(*cp)))
+x	    cp--;
+x    }
+x    /* cp now points to one character before the word */
+x
+x    Cursor = ++cp;
+x    if (Cursor < InputBuf) Cursor = InputBuf; /* bounds check */
+x    DoingArg = 0;
+x    Argument = 1;
+x    RefCursor();
+x    return (CC_NORM);
+x}
+x
+x/*VARARGS*/
+xCCRETVAL
+xe_charfwd()
+x{
+x    if (Cursor < LastChar) {
+x	Cursor += Argument;
+x	if (Cursor > LastChar) Cursor = LastChar;
+x	RefCursor();
+x	return (CC_NORM);
+x    } else {
+x	return (CC_ERROR);
+x    }
+x}
+x
+x/*VARARGS*/
+xCCRETVAL
+xe_wordfwd()
+x{
+x    register char *cp;
+x
+x    if (Cursor == LastChar)
+x	return (CC_ERROR);
+x    /* else */
+x    
+x    cp = Cursor;
+x
+x    while (Argument--) {
+x	while ((cp < LastChar) && (!(isword(*cp))))
+x	    cp++;
+x	while ((cp < LastChar) && (isword(*cp)))
+x	    cp++;
+x    }
+x
+x    Cursor = cp;
+x    if (Cursor > LastChar) Cursor = LastChar; /* bounds check */
+x    DoingArg = 0;
+x    Argument = 1;
+x    RefCursor();
+x    return (CC_NORM);
+x}
+x
+x/*VARARGS*/
+xCCRETVAL
+xe_set_mark()
+x{
+x    Mark = Cursor;
+x    return (CC_NORM);
+x}
+x
+x/*VARARGS*/
+xCCRETVAL
+xe_exchange_mark()
+x{
+x    register char *cp;
+x
+x    cp = Cursor;
+x    Cursor = Mark;
+x    Mark = cp;
+x    RefCursor();
+x    return (CC_NORM);
+x}
+x
+x/*VARARGS*/
+xCCRETVAL
+xe_argfour()			/* multiply current argument by 4 */
+x{
+x    DoingArg = 1;
+x    Argument *= 4;
+x    return (CC_NORM);
+x}
+x
+x/*VARARGS*/
+xCCRETVAL
+xe_quote()
+x{
+x    QuoteNext = 1;
+x    return (CC_NORM);
+x}
+x
+x/*VARARGS*/
+xCCRETVAL
+xe_metanext()
+x{
+x    MetaNext = 1;
+x    return (CC_NORM);
+x}
+x
+x/*VARARGS*/
+xCCRETVAL
+xe_vi_cmd_mode()
+x{
+x    StickyMeta = 1;
+x    if (Cursor > InputBuf)
+x	Cursor--;
+x    RefCursor();
+x    return (CC_NORM);
+x}
+x
+x/*VARARGS*/
+xCCRETVAL
+xe_vi_insert()			/* vi mode start inserting */
+x{
+x    StickyMeta = 0;
+x    return (CC_NORM);
+x}
+x
+x/*VARARGS*/
+xCCRETVAL
+xe_startover()			/* erase all of current line, start again */
+x{
+x    ResetInLine();		/* reset the input pointers */
+x    Refresh();
+x    return (CC_NORM);
+x}
+x
+x/*VARARGS*/
+xCCRETVAL
+xe_redisp()
+x{
+x    ClearLines();
+x    ClearDisp();
+x    Refresh();
+x    return (CC_NORM);
+x}
+x
+x/*VARARGS*/
+xCCRETVAL
+xe_cleardisp()
+x{
+x    ClearScreen();		/* clear the whole real screen */
+x    ClearDisp();		/* reset everything */
+x    Refresh();
+x    return (CC_NORM);
+x}
+x
+x/*VARARGS*/
+xCCRETVAL
+xe_tty_int()
+x{
+x    /* do no editing */
+x    return (CC_NORM);
+x}
+x
+x/*VARARGS*/
+xCCRETVAL
+xe_tty_dsusp()
+x{
+x    /* do no editing */
+x    return (CC_NORM);
+x}
+x
+x/*VARARGS*/
+xCCRETVAL
+xe_tty_flusho()
+x{
+x    /* do no editing */
+x    return (CC_NORM);
+x}
+x
+x/*VARARGS*/
+xCCRETVAL
+xe_tty_quit()
+x{
+x    /* do no editing */
+x    return (CC_NORM);
+x}
+x
+x/*VARARGS*/
+xCCRETVAL
+xe_tty_tsusp()
+x{
+x    /* do no editing */
+x    return (CC_NORM);
+x}
+x
+x/*VARARGS*/
+xCCRETVAL
+xe_tty_stopo()
+x{
+x    /* do no editing */
+x    return (CC_NORM);
+x}
+x
+x/*VARARGS*/
+xCCRETVAL
+xe_tty_starto()
+x{
+x    /* do no editing */
+x    return (CC_NORM);
+x}
+\Rogue\Monster\
+else
+  echo "will not over write ./ed.chared.c"
+fi
+if [ `wc -c ./ed.chared.c | awk '{printf $1}'` -ne 13871 ]
+then
+echo `wc -c ./ed.chared.c | awk '{print "Got " $1 ", Expected " 13871}'`
+fi
+if `test ! -s ./ed.refresh.c`
+then
+echo "writing ./ed.refresh.c"
+sed 's/^x//' > ./ed.refresh.c << '\Rogue\Monster\'
+x#ifndef lint
+xstatic char *RCSid = "$Header: ed.refresh.c,v 2.3 86/01/06 21:39:30 paul Exp $";
+x#endif
+x
+x#include "sh.h"
+x#include "ed.h"
+x/* #define DEBUG_REFRESH */
+x
+x/* refresh.c -- refresh the current set of lines on the screen */
+x
+xstatic int vcursor_h, vcursor_v;
+x
+xDraw(c)				/* draw c, expand tabs, ctl chars */
+xregister unsigned char c;	/* MUST be unsigned for meta characters */
+x{
+x    register char ch = c & 0177;
+x    register int meta = 0;
+x
+x    if (c & 0200)
+x	meta = 0200;
+x
+x    if (ch >= ' ' && ch <= '~') {	/* assumes ASCII */
+x	Vdraw(c | meta);
+x	return;
+x    }
+x    if (ch == '\t' && !meta) {		/* expand the tab */
+x	for (;;) {
+x	    Vdraw(' ');
+x	    if ((vcursor_h & 07) == 0) break; /* go until tab stop */
+x	}
+x    } else {
+x	Vdraw('^' | meta);
+x	if (ch == '\177') {
+x	    Vdraw ('?' | meta);
+x	} else {
+x	    Vdraw (c | 0100 | meta);	/* uncontrolify it */
+x	}
+x    }
+x}
+x
+xVdraw(c)			/* draw char c onto V lines */
+xregister unsigned char c;	/* MUST BE UNSIGNED */
+x{
+x#ifdef DEBUG_REFRESH
+x    printf ("Vdrawing %3.3o '%c'\r\n", c, c);
+x#endif
+x
+x    Vdisplay[vcursor_v][vcursor_h] = (char )c;
+x    vcursor_h++;		/* advance to next place */
+x    if (vcursor_h >= TermH) {
+x	Vdisplay[vcursor_v][TermH] = '\0'; /* assure end of line */
+x	vcursor_h = 0;		/* reset it. */
+x	vcursor_v++;
+x	if (vcursor_v >= TermV) {	/* should NEVER happen. */
+x	    printf(
+x"\r\nVdraw: vcursor_v overflow! Vcursor_v == %d, should be < %d\r\n",
+x		     vcursor_v, TermV);
+x	    vcursor_v = 0;
+x	}
+x    }
+x}
+x
+x/* ************************************************************************
+x    Refresh() draws the new virtual screen image from the current input
+x    line, then goes line-by-line changing the real image to the new virtual
+x    image.  The routine to re-draw a line can be replaced easily in hopes
+x    of a smarter one being placed there.
+x************************************************************************ */
+x
+xstatic int OldvcV = 0;
+xstatic int OldH = 0;
+x
+xRefresh()
+x{
+x    register int current_line, h;
+x    register char *cp, c;
+x    int cur_h, cur_v, new_vcv;
+x    char oldgetting;
+x
+x#ifdef DEBUG_REFRESH
+x    printf ("PromptBuf = :%s:\r\nInputBuf = :%s:\r\n", PromptBuf, InputBuf);
+x#endif
+x    oldgetting = GettingInput;
+x    GettingInput = 0;		/* avoid re-entrance via SIGWINCH */
+x
+x    /* put prompt in new display buf */
+x    vcursor_h = 0;		/* reset the Vdraw cursor */
+x    vcursor_v = 0;
+x    for (cp = PromptBuf; *cp; cp++)	/* draw prompt, we know it's ASCIZ */
+x	Draw(*cp);
+x    cur_h = -1;		/* set flag in case I'm not set */
+x    for (cp = InputBuf; (cp < LastChar); cp++) {
+x	if (cp == Cursor) {
+x	    cur_h = vcursor_h; /* save for later */
+x	    cur_v = vcursor_v;
+x	}
+x	Draw (*cp);
+x    }
+x    
+x    if (cur_h == -1) {	/* if I havn't been set yet, I'm at the end */
+x	cur_h = vcursor_h;
+x	cur_v = vcursor_v;
+x    }
+x    new_vcv = vcursor_v;	/* must be done BEFORE the NUL is written */
+x    Vdraw('\0');		/* put NUL on end */
+x    
+x#ifdef DEBUG_REFRESH
+x    printf ("TermH = %d, vcursor_h = %d, vcursor_v = %d, Vdisplay[0] =\r\n:%80.80s:\r\n",
+x	    TermH, vcursor_h, vcursor_v, Vdisplay[0]);
+x#endif
+x
+x    if (Vdisplay[0][0] == '\0') {	/* if complete new draw of line  */
+x	if (Display[0][0] & 0200) {
+x	    StandOut();
+x	} else {
+x	    StandEnd();
+x	}
+x    }
+x
+x    for (current_line = 0; current_line <= new_vcv; current_line++) {
+x	update_line (Display[current_line], Vdisplay[current_line], current_line);
+x	strncpy (Display[current_line], Vdisplay[current_line], TermH);
+x	Display[current_line][TermH] = '\0';	/* just in case */
+x    }
+x#ifdef DEBUG_REFRESH
+x    printf ("\r\nvcursor_v = %d, OldvcV = %d, current_line = %d\r\n",
+x	    vcursor_v, OldvcV, current_line);
+x#endif
+x    if (OldvcV > new_vcv) {
+x	for (; current_line <= OldvcV; current_line++) {
+x	    MoveToLine(current_line);
+x	    MoveToChar(0);
+x	    ClearEOL(strlen(Display[current_line]));
+x#ifdef DEBUG_REFRESH
+x	    so_write ("C\b", 2);
+x#endif
+x	    *Display[current_line] = '\0';
+x	}
+x    }
+x    OldvcV = new_vcv;		/* set for next time */
+x#ifdef DEBUG_REFRESH
+x    printf ("\r\nCursorH = %d, CursorV = %d, cur_h = %d, cur_v = %d\r\n",
+x	    CursorH, CursorV, cur_h, cur_v);
+x#endif
+x    StandEnd();			/* just in case, no standout mode */
+x    MoveToLine (cur_v); /* go to where the cursor is */
+x    MoveToChar (cur_h);
+x    flush();			/* send the output... */
+x    GettingInput = oldgetting;	/* reset to old value */
+x}
+x
+xGotoBottom()			/* used to go to last used screen line */
+x{
+x    MoveToLine(OldvcV);
+x}
+x
+xPastBottom()			/* used to go to last used screen line */
+x{
+x    MoveToLine(OldvcV);
+x    putraw ('\r');
+x    putraw ('\n');
+x    ClearDisp();
+x    flush();
+x}
+x
+x/* ****************************************************************
+x    update_line() is based on finding the middle difference of each line
+x    on the screen; vis:
+x
+x
+x			     /old first difference
+x	/beginning of line   |              /old last same       /old EOL
+x	v		     v              v                    v
+xold:	eddie> Oh, my little gruntle-buggy is to me, as lurgid as
+xnew:	eddie> Oh, my little buggy says to me, as lurgid as
+x	^		     ^        ^			   ^
+x	\beginning of line   |        \new last same	   \new end of line
+x			     \new first difference
+x
+x    all are character pointers for the sake of speed.  Special cases for
+x    no differences, as well as for end of line additions must be handeled.
+x
+x**************************************************************** */
+x
+xstatic
+x				/* could be changed to make it smarter */
+xupdate_line(old, new, current_line)
+xregister char *old, *new;
+xint current_line;
+x{
+x    register char *ofd, *ols, *oe, *nfd, *nls, *ne;
+x    int lendiff, wsatend;
+x
+x					/* find first diff */
+x    for (ofd=old, nfd=new; *ofd && (*ofd == *nfd); ofd++, nfd++);
+x
+x				/*   if no diff, continue to next line */
+x    if (*ofd == '\0' && *nfd == '\0') {
+x#ifdef DEBUG_REFRESH
+x	printf ("no difference.\r\n");
+x#endif
+x	return;
+x    }
+x 
+x    for (oe = ofd; *oe; oe++);	/* go to end */
+x    for (ne = nfd; *ne; ne++);
+x
+x    wsatend = 1;		/* flag for trailing whitespace */
+x    ols = oe;			/* find last same */
+x    nls = ne;
+x    while ((*ols == *nls) && (ols > ofd) && (nls > nfd)) {
+x	if (*ols != ' ') wsatend = 0;
+x	ols--;
+x	nls--;
+x    }
+x    if (wsatend) {
+x	ols = oe;
+x	nls = ne;
+x    } else {
+x	if (*ols)			/* don't step past the NUL */
+x	    ols++;
+x	if (*nls)
+x	    nls++;
+x    }
+x
+x#ifdef DEBUG_REFRESH
+x      printf ("old:\"%s\"\r\nnew:\"%s\"\r\nofd:\"%s\"\r\nnfd\"%s\"\r\nols:\"%s\"\r\nnls:\"%s\"\r\n*oe:%o,*ne:%o\r\n",
+x	    old, new, ofd, nfd, ols, nls, *oe, *ne);
+x#endif
+x
+x				/*   CursorV to this line */
+x    MoveToLine (current_line);	/* current_line MUST be in this routine so */
+x				/* that if we don't have to change */
+x				/* the line, we don't move to it. */
+x
+x				/* CursorH to first diff char */
+x    MoveToChar (ofd-old);
+x
+x				/*   if (len (new) > len (old)) */
+x    lendiff = (nls-nfd) - (ols-ofd);	/* + for new > old */
+x#ifdef DEBUG_REFRESH
+x    printf ("lendiff = %d\r\n", lendiff);
+x#endif
+x    if (lendiff > 0) {	  /* insert (diff(len(old),len(new)) ch */
+x	if (T_CanIns) {
+x	    if ((2*(ne-nfd)) < (lendiff)) { /* if cheaper to just write */
+x		so_write (nfd, (ne-nfd)); /* write all chars until end */
+x		CursorH += ((ne-nfd));
+x	    } else {
+x		if (*ols) {
+x		    StartInsert(lendiff);
+x		    so_write (nfd, lendiff);
+x		    CursorH += lendiff;
+x		    EndInsert();
+x		} else {	/* if I'm at the end of line, I don't have */
+x				/* to insert the characters, just write them */
+x		    so_write (nfd, lendiff);
+x		    CursorH += lendiff;
+x		}
+x				/*   copy (new) chars to screen from first */
+x				/*    diff to last match */
+x		if (((nls-nfd)-lendiff) > 0) {
+x		    so_write (&nfd[lendiff], ((nls-nfd)-lendiff));
+x		    CursorH += ((nls-nfd)-lendiff);
+x		}
+x	    }
+x
+x	} else {		/* cannot insert chars, write to EOL */
+x	    so_write (nfd, (ne-nfd)); /* write all chars until end */
+x	    CursorH += ((ne-nfd));
+x	}
+x
+x    } else {		/* delete and/or copy */
+x	if (T_CanDel) {
+x	    if ((2*(ne-nfd)) < (-lendiff)) { /* if cheaper to just write */
+x		so_write (nfd, (ne-nfd)); /* write all chars until end */
+x		CursorH += ((ne-nfd));
+x		ClearEOL((oe-old)-(ne-new));
+x	    } else {		/* cheaper to delete */
+x		if (lendiff < 0) {	/*   if (new < old) */
+x		    DeleteChars(-lendiff); /*     delete (diff) characters */
+x		}
+x				/*   copy (new) chars to screen from first */
+x				/*    diff to last match */
+x		if ((nls-nfd) > 0) {
+x		    so_write (nfd, (nls-nfd));
+x		    CursorH += (nls-nfd);
+x		}
+x	    }
+x	} else {		/* cannot delete chars, write all and clear */
+x	    so_write (nfd, (ne-nfd)); /* write all chars until end */
+x	    CursorH += ((ne-nfd));
+x	    ClearEOL((oe-old)-(ne-new));
+x	}
+x    }
+x}
+x
+xRefCursor()			/* only move to new cursor pos */
+x{
+x    register char *cp, c;
+x    register int h, th, v;
+x
+x    /* first we must find where the cursor is... */
+x    h = 0;
+x    v = 0;
+x    th = TermH;			/* optimize for speed */
+x
+x    for (cp = PromptBuf; *cp; cp++) { /* do prompt */
+x	c = *cp & 0177;		/* extra speed plus strip the inverse */
+x	h++;			/* all chars at least this long */
+x	if (c == '\t') {	/* if a tab, to next tab stop */
+x	    while (h & 07) {
+x		h++;
+x	    }
+x	} else if (c < ' ' || c == '\177') { /* if control char */
+x	    h++;
+x	    if (h > th) {	/* if overflow, compensate */
+x		h = 1; v++;
+x	    }
+x	}
+x	
+x	if (h >= th) {	/* check, extra long tabs picked up here also */
+x	    h = 0; v++;
+x	}
+x    }
+x    
+x    for (cp = InputBuf; cp < Cursor; cp++) { /* do input buffer to Cursor */
+x	c = *cp & 0177;		/* extra speed plus strip the inverse */
+x	h++;			/* all chars at least this long */
+x	if (c == '\t') {	/* if a tab, to next tab stop */
+x	    while (h & 07) {
+x		h++;
+x	    }
+x	} else if (c < ' ' || c == '\177') { /* if control char */
+x	    h++;
+x	    if (h > th) {	/* if overflow, compensate */
+x		h = 1; v++;
+x	    }
+x	}
+x
+x	if (h >= th) {	/* check, extra long tabs picked up here also */
+x	    h = 0; v++;
+x	}
+x    }
+x    
+x    StandEnd();			/* just in case */
+x    /* now go there */
+x    MoveToLine(v);
+x    MoveToChar(h);
+x    flush();
+x}
+x
+xRefPlusOne()			/* we added just one char, handle it fast */
+x{				/* assumes that screen cursor == real cursor */
+x    register char c, mc;
+x
+x    c = Cursor[-1] & 0177;	/* the char we just added */
+x
+x    if (c == '\t' || Cursor != LastChar) {
+x	Refresh();		/* too hard to handle */
+x	return;
+x    } /* else (only do at end of line, no TAB) */
+x
+x    StandEnd();			/* we never have standout input text */
+x
+x    if (c < ' ' || c == '\177') { /* if control char, do caret */
+x	mc = (c == '\177') ? '?' : (c | 0100);
+x	putraw('^');
+x	Display[CursorV][CursorH++] = '^';
+x	if (CursorH >= TermH) {	/* if we must overflow */
+x	    CursorH = 0;
+x	    CursorV++;
+x	    OldvcV++;
+x	    putraw('\r');
+x	    putraw('\n');
+x	}
+x    } else {			/* normal char */
+x	mc = c;
+x    }
+x    putraw(mc);
+x    Display[CursorV][CursorH++] = c;
+x    if (CursorH >= TermH) {	/* if we must overflow */
+x	CursorH = 0;
+x	CursorV++;
+x	OldvcV++;
+x	putraw('\r');
+x	putraw('\n');
+x    }
+x    flush();
+x}
+x
+x/* clear the screen buffers so that new new prompt starts fresh. */
+x
+xClearDisp()
+x{
+x    register int i;
+x
+x    CursorV = 0;		/* clear the display buffer */
+x    CursorH = 0;
+x    for (i = 0; i < TermV; i++)
+x        Display[i][0] = '\0';
+x    OldvcV = 0;
+x}
+x
+xClearLines()			/* Make sure all lines are *really* blank */
+x{
+x    register int i;
+x
+x    if (T_CanCEOL) {
+x	MoveToChar(0);
+x	for (i = 0; i <= OldvcV; i++) { /* for each line on the screen */
+x	    MoveToLine(i);
+x	    ClearEOL();
+x	}
+x	MoveToLine(0);
+x    } else {
+x	MoveToLine(OldvcV);	/* go to last line */
+x	putraw('\r');		/* go to BOL */
+x	putraw('\n');		/* go to new line */
+x    }
+x}
+\Rogue\Monster\
+else
+  echo "will not over write ./ed.refresh.c"
+fi
+if [ `wc -c ./ed.refresh.c | awk '{printf $1}'` -ne 11403 ]
+then
+echo `wc -c ./ed.refresh.c | awk '{print "Got " $1 ", Expected " 11403}'`
+fi
+if `test ! -s ./ed.screen.c`
+then
+echo "writing ./ed.screen.c"
+sed 's/^x//' > ./ed.screen.c << '\Rogue\Monster\'
+x#ifndef lint
+xstatic char *RCSid = "$Header: ed.screen.c,v 2.3 86/01/06 21:39:42 paul Exp $";
+x#endif
+x
+x#include "sh.h"
+x#include "ed.h"
+x#undef  DEBUG_SCREEN
+x
+x/* screen.c -- get and deal with screen capabilites */
+x
+x/* ****************************************************************
+x    IMPORTANT NOTE: these routines are allowed to look at the current screen
+x    and the current possition assuming that it is correct.  If this is not
+x    true, then the update will be WRONG!  This is (should be) a valid
+x    assumption...
+x**************************************************************** */
+x
+x/*
+x * termcap variables
+x */
+x
+xstatic char PC;	/* padding character */
+xstatic char *BC;	/* backspace if not ^H */
+xstatic char *TC_UP;	/* Upline (cursor up) */
+xstatic char *cd;	/* clear to end of display */
+xstatic char *TC_cEOL;	/* clear to end of line */
+xstatic char *cl;	/* clear display */
+xstatic char *cm;	/* cursor movement */
+xstatic char *TC_delC;	/* delete character */
+xstatic char *dl;	/* delete line */
+xstatic char *dm;	/* delete mode */
+xstatic char *ed;	/* exit delete mode */
+xstatic char *TC_endI;	/* exit insert mode */
+xstatic char *ho;	/* home */
+xstatic char *TC_IC;	/* insert character */
+xstatic char *il;	/* insert line */
+xstatic char *TC_IM;	/* insert mode */
+xstatic char *ip;	/* insert padding */
+xstatic char *nd;	/* non-destructive space */
+xstatic char *vb;	/* visible bell */
+xstatic char *TC_SO;		/* standout */
+xstatic char *TC_SE;		/* standout end */
+x
+xstatic int bs;
+xstatic int pt;
+xstatic int li, co;	/* lines, columns */
+xstatic int km;			/* has meta key */
+x
+xMoveToLine (where)		/* move to line <where> (first line == 0) */
+xint where;			/* as efficiently as possible; */
+x{
+x    int delta, i;
+x
+x    if (where == CursorV) return;
+x
+x    if (where > TermV) {
+x#ifdef DEBUG_SCREEN
+x	printf ("MoveToLine: where is riduculous: %d\r\n", where);
+x	flush();
+x#endif
+x	return;
+x    }
+x
+x    if ((delta = where - CursorV) > 0) {
+x	for (i = 0; i < delta; i++)
+x	    putraw('\n');
+x	CursorH = 0;		/* because the \n will become \r\n */
+x    } else {			/* delta < 0 */
+x	for (i = 0; i < -delta; i++)
+x	  tputs(TC_UP, 1, putraw);
+x    }
+x    CursorV = where;			/* now where is here */
+x}
+x
+xMoveToChar (where)		/* move to character position (where) */
+xint where;
+x{				/* as efficiently as possible */
+x    int delta, i;
+x
+x mc_again:
+x    if (where == CursorH) return;
+x
+x    if (where > (TermH+1)) {
+x#ifdef DEBUG_SCREEN
+x	printf ("MoveToChar: where is riduculous: %d\r\n", where);
+x	flush();
+x#endif
+x	return;
+x    }
+x
+x    if (!where) {		/* if where is first column */
+x	putraw('\r');		/* do a CR */
+x	CursorH = 0;
+x	return;
+x    }
+x
+x    delta = where - CursorH;
+x
+x    if (delta > 0) {		/* moving forward */
+x	if (T_Tabs) {		/* if I can do tabs, use them */
+x	    if ((CursorH & 0370) != (where & 0370)) {
+x				/* if not within tab stop */
+x		for (i = (CursorH & 0370); i < (where & 0370); i += 8) {
+x		    putraw('\t'); /* then tab over */
+x		}
+x		CursorH = where & 0370;
+x	    }
+x	}
+x	/* it's usually cheaper to just write the chars, so we do. */
+x	so_write (&Display[CursorV][CursorH], where-CursorH);
+x    } else {			/* delta < 0 := moving backward */
+x		/* if the "cost" is greater than the "cost" from col 0 */
+x	if (T_Tabs ? (-delta > ((where >> 3) + (where & 07))) 
+x	           : (-delta > where) ) {
+x	    putraw ('\r');	/* do a CR */
+x	    CursorH = 0;
+x	    goto mc_again;	/* and try again */
+x	}
+x	for (i = 0; i < -delta; i++)
+x	    putraw('\b');
+x    }
+x    CursorH = where;			/* now where is here */
+x}
+x
+xDeleteChars(number)		/* deletes <number> characters */
+xint number;
+x{
+x    if (number > TermH) {
+x#ifdef DEBUG_SCREEN
+x	printf ("DeleteChars: number is riduculous: %d\r\n", number);
+x	flush();
+x#endif
+x	return;
+x    }
+x
+x    while (number--)
+x	tputs(TC_delC, 1, putraw);
+x}
+x
+xStartInsert(num)		/* Puts terminal in insert character mode, */
+xregister int num;		/* or inserts num characters in the line */
+x{
+x    if (*TC_IM)			/* if I have insert mode */
+x	tputs(TC_IM, 1, putraw);
+x    else			/* have to make num chars insert */
+x	while (num--)
+x	    tputs (TC_IC, 1, putraw); /* insert a char */
+x}
+x
+xEndInsert()			/* Puts terminal back in overwrite mode, */
+x{				/* or does nothing (see StartInsert) */
+x    tputs(TC_endI, 1, putraw);
+x}
+x
+xClearEOL(num)			/* clear to end of line.  There are num */
+xint num;			/* characters to clear */
+x{
+x    register int i;
+x    if (T_CanCEOL) {
+x	tputs(TC_cEOL, 1, putraw);
+x    } else {
+x	StandEnd();		/* just in case */
+x	for (i = 0; i < num; i++)
+x	    putraw(' ');
+x	CursorH += num;		/* have written num spaces */
+x    }
+x}
+x
+xClearScreen()			/* clear the whole screen and home */
+x{
+x    if (cl && *cl) {
+x	tputs(cl, li, putraw);	/* send the clear screen code */
+x    } else {
+x	putraw ('\r');
+x	putraw ('\n');
+x    }
+x	
+x}
+x
+xstatic char in_stand_out = 0;
+x
+xStandOut()
+x{
+x    if (*TC_SO) {
+x	if (!in_stand_out) {
+x	    tputs (TC_SO, 1, putraw);
+x	    in_stand_out = 1;
+x	}
+x    }
+x}
+x
+xStandEnd()
+x{
+x    if (*TC_SE) {
+x	if (in_stand_out) {
+x	    tputs (TC_SE, 1, putraw);
+x	    in_stand_out = 0;
+x	}
+x    }
+x}
+x
+xso_write(cp, n)
+xregister unsigned char *cp;
+xregister int n;
+x{
+x    if (n <= 0) return;		/* catch bugs */
+x
+x    do {
+x	if ((*cp & 0200) && !in_stand_out)
+x	    StandOut();
+x	if (!(*cp & 0200) && in_stand_out)
+x	    StandEnd();
+x	putraw(*cp++);
+x    } while (--n);
+x}
+x
+x
+xBeep()				/* produce a sound */
+x{
+x    putraw('\007');		/* an ASCII bell; ^G */
+x}
+x
+xstatic char *
+xMytgetstr(id, area)
+xregister char *id, **area;
+x{
+x    register char *cp;
+x    char *tgetstr();
+x
+x    if ((cp = tgetstr(id, area)) == (char *)0)
+x	return ("");
+x    return (cp);
+x}
+x
+xGetTermCaps()			/* read in the needed terminal capabilites */
+x{
+x    register int i;
+x    static char buffer[1024];	/* for string values */
+x    static char bp[1024];
+x    char *area = buffer;
+x    char *MyTerm;
+x    char *getenv();
+x
+x#ifdef SIGWINCH
+x    sighold(SIGWINCH);		/* don't want to confuse things here */
+x#endif
+x
+x    MyTerm = getenv("TERM");
+x    if (!MyTerm[0])
+x      MyTerm = "dumb";
+x
+x    for (i = 0; i < 1024; i++) { /* just in case... */
+x	buffer[i] = 0;
+x	bp[i] = 0;
+x    }
+x
+x    i = tgetent(bp, MyTerm);
+x    if (i <= 0) {
+x	if (i == -1) {
+x	    printf ("tcsh: Cannot open /etc/termcap.\n");
+x	} else if (i == 0) {
+x	    printf ("tcsh: No entry for terminal type \"%s\"\n", getenv("TERM"));
+x	}
+x	printf ("tcsh: using dumb terminal settings.\n");
+x	co = 80;		/* do a dumb terminal */
+x	bs = pt = li = 0;
+x	BC = TC_UP = cd = TC_cEOL = cl = cm = TC_delC = dl = dm = (char *)0;
+x	ed = TC_endI = ho = TC_IC = il = TC_IM = ip = nd = vb = (char *)0;
+x	TC_SO = TC_SE = (char *)0;
+x	goto got_termcaps;
+x    }
+x
+x    bs = 0; bs = tgetflag("bs");
+x    pt = 0; pt = tgetflag("pt");
+x    km = 0; km = (tgetflag("km") || tgetflag("MT")); /* do we have a meta? */
+x    co = 0; co = tgetnum("co");
+x    li = 0; li = tgetnum("li");	
+x
+x    BC = Mytgetstr("bc", &area);
+x    TC_UP = Mytgetstr("up", &area);
+x    cd = Mytgetstr("cd", &area);
+x    TC_cEOL = Mytgetstr("ce", &area);    
+x    cl = Mytgetstr("cl", &area);
+x    cm = Mytgetstr("cm", &area);
+x    TC_delC = Mytgetstr("dc", &area);
+x    dl = Mytgetstr("dl", &area);
+x    dm = Mytgetstr("dm", &area);
+x    ed = Mytgetstr("ed", &area);
+x    TC_endI = Mytgetstr("ei", &area);
+x    ho = Mytgetstr("ho", &area);
+x    TC_IC = Mytgetstr("ic", &area);
+x    il = Mytgetstr("al", &area);
+x    TC_IM = Mytgetstr("im", &area);
+x    ip = Mytgetstr("ip", &area);
+x    nd = Mytgetstr("nd", &area);
+x    vb = Mytgetstr("vb", &area);
+x    TC_SO = Mytgetstr("so", &area);	/* inverse video on */
+x    TC_SE = Mytgetstr("se", &area);	/* inverse video off */
+x
+x  got_termcaps:
+x
+x    if (!*TC_UP) {
+x/*	printf ("tcsh: WARNING: Your terminal cannot move up.\n");
+x	printf ("Editing may be odd for long lines.\n"); */
+x	T_CanUP = 0;
+x    } else {
+x	T_CanUP = 1;
+x    }
+x
+x    if (!*TC_cEOL) {
+x#ifdef DEBUG_SCREEN
+x        printf ("no clear EOL capability.\n");
+x#endif
+x	T_CanCEOL = 0;
+x    } else {
+x	T_CanCEOL = 1;
+x    }
+x
+x    if (!*TC_delC) {
+x#ifdef DEBUG_SCREEN
+x        printf ("no delete char capability.\n");
+x#endif
+x	T_CanDel = 0;
+x    } else {
+x	T_CanDel = 1;
+x    }
+x    if ((!*TC_IM) && (!*TC_IC)) {
+x#ifdef DEBUG_SCREEN
+x        printf ("no insert char capability.\n");
+x#endif
+x	T_CanIns = 0;
+x    } else {
+x	T_CanIns = 1;
+x    }
+x
+x    if (!pt) {			/* if no tabs caps. */
+x	T_Tabs = 0;
+x    }				/* else defer to tty driver */
+x
+x    T_HasMeta = km;		/* set the meta-ness of this term. */
+x
+x    if (co < 2) co = 80;	/* just in case */
+x    if (li < 1) li = 24;
+x
+x    TermH = (co-1);		/* make this public, -1 to avoid wraps */
+x
+x    for (i = 0; (i+1)*(TermH+1) <= INBUFSIZ+MAXLINES; i++) {
+x	Display[i] = &DispBuf[i*(TermH+1)];
+x	Display[i][TermH] = '\0'; /* NUL at the end */
+x	Vdisplay[i] = &VdispBuf[i*(TermH+1)];
+x	Vdisplay[i][TermH] = '\0'; /* Here also */
+x    }
+x    TermV = i;
+x
+x    ClearDisp();
+x
+x#ifdef SIGWINCH
+x    sigrelse(SIGWINCH);		/* can change it again */
+x#endif
+x}
+x
+xChangeSize()
+x{
+x    register int i;
+x#ifdef TIOCGWINSZ
+x    struct winsize ws;		/* from 4.3 */
+x
+x    if (ioctl (SHOUT, TIOCGWINSZ, &ws) < 0)
+x	return;
+x
+x    TermH = ws.ws_col;
+x#else
+x# ifdef TIOCGSIZE
+x    struct ttysize ts;		/* from Sun */
+x
+x    if (ioctl (SHOUT, TIOCGSIZE, &ts) < 0)
+x	return;
+x
+x    TermH = ts.ts__cols;
+x# endif
+x#endif
+x
+x    if (TermH < 3)
+x	TermH = 80;	/* just in case */
+x    else
+x	TermH--;
+x
+x    for (i = 0; (i+1)*(TermH+1) <= INBUFSIZ+MAXLINES; i++) {
+x	Display[i] = &DispBuf[i*(TermH+1)];
+x	Display[i][TermH] = '\0'; /* NUL at the end */
+x	Vdisplay[i] = &VdispBuf[i*(TermH+1)];
+x	Vdisplay[i][TermH] = '\0'; /* Here also */
+x    }
+x    TermV = i;
+x
+x    ClearDisp();
+x
+x#ifdef SIGWINCH
+x    sigrelse(SIGWINCH);		/* can change it again */
+x#endif
+x}
+\Rogue\Monster\
+else
+  echo "will not over write ./ed.screen.c"
+fi
+if [ `wc -c ./ed.screen.c | awk '{printf $1}'` -ne 9438 ]
+then
+echo `wc -c ./ed.screen.c | awk '{print "Got " $1 ", Expected " 9438}'`
+fi
+echo "Finished archive 3 of 6"
+# if you want to concatenate archives, remove anything after this line
+exit
+
+-- 
+
+Rich $alz
+Cronus Project, BBN Labs			rsalz@bbn.com
+Moderator, comp.sources.unix			sources@uunet.uu.net

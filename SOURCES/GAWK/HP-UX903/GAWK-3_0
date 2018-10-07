@@ -1,0 +1,25 @@
+[Software Porting & Archive Centre For HP-UX]
+
+gawk-3.0.0
+
+Pattern scanning and processing language (GNU awk). Supports the definition
+of awk in the POSIX standard plus some specific GNU extensions. Gawk and
+awk are a useful way to provide floating-point arithmetic in shell scripts,
+as well as many other facilities.
+
+Author: Arnold Robbins <arnold@gnu.ai.mit.edu>
+
+   * README file
+
+   * Man Page
+
+   * Packages Available:
+
+     HP-UX 9.03 Statically Linked Binary (gzipped)
+     (Size: 516 K, Archived: 22 Feb 1996)
+
+     HP-UX 9.03 Dynamically Linked Binary (gzipped)
+     (Size: 346 K, Archived: 22 Feb 1996)
+
+     HP-UX 9.03 Source Code (gzipped)
+     (Size: 879 K, Archived: 22 Feb 1996, View tar archive)

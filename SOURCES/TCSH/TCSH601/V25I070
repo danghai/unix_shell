@@ -1,0 +1,3207 @@
+Newsgroups: comp.sources.unix
+From: christos@ee.cornell.edu (Christos Zoulas)
+Subject: v25i070: tcsh6.01 - a csh replacement with lots of extra goodies, Part17/18
+Message-ID: <1991Dec20.214653.8130@PA.dec.com>
+Date: Fri, 20 Dec 91 21:46:53 GMT
+Approved: vixie@pa.dec.com
+
+Submitted-By: christos@ee.cornell.edu (Christos Zoulas)
+Posting-Number: Volume 25, Issue 70
+Archive-Name: tcsh-6.01/part17
+
+#! /bin/sh
+# This is a shell archive.  Remove anything before this line, then unpack
+# it by saving it into a file and typing "sh file".  To overwrite existing
+# files, type "sh file -c".  You can also feed this as standard input via
+# unshar, or by typing "sh <file", e.g..  If this archive is complete, you
+# will see the following message at the end:
+#		"End of archive 17 (of 18)."
+# Contents:  ed.chared.c
+# Wrapped by vixie@cognition.pa.dec.com on Fri Dec 20 13:29:30 1991
+PATH=/bin:/usr/bin:/usr/ucb ; export PATH
+if test -f 'ed.chared.c' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'ed.chared.c'\"
+else
+echo shar: Extracting \"'ed.chared.c'\" \(58512 characters\)
+sed "s/^X//" >'ed.chared.c' <<'END_OF_FILE'
+X/* $Header: /home/hyperion/mu/christos/src/sys/tcsh-6.01/RCS/ed.chared.c,v 3.18 1991/12/19 22:34:14 christos Exp $ */
+X/*
+X * ed.chared.c: Character editing functions.
+X */
+X/*-
+X * Copyright (c) 1980, 1991 The Regents of the University of California.
+X * All rights reserved.
+X *
+X * Redistribution and use in source and binary forms, with or without
+X * modification, are permitted provided that the following conditions
+X * are met:
+X * 1. Redistributions of source code must retain the above copyright
+X *    notice, this list of conditions and the following disclaimer.
+X * 2. Redistributions in binary form must reproduce the above copyright
+X *    notice, this list of conditions and the following disclaimer in the
+X *    documentation and/or other materials provided with the distribution.
+X * 3. All advertising materials mentioning features or use of this software
+X *    must display the following acknowledgement:
+X *	This product includes software developed by the University of
+X *	California, Berkeley and its contributors.
+X * 4. Neither the name of the University nor the names of its contributors
+X *    may be used to endorse or promote products derived from this software
+X *    without specific prior written permission.
+X *
+X * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+X * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+X * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+X * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+X * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+X * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+X * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+X * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+X * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+X * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+X * SUCH DAMAGE.
+X */
+X#include "sh.h"
+X
+RCSID("$Id: ed.chared.c,v 3.18 1991/12/19 22:34:14 christos Exp $")
+X
+X#include "ed.h"
+X#include "tw.h"
+X#include "ed.defns.h"
+X
+X/* #define SDEBUG */
+X
+X#define NOP    	  0x00
+X#define DELETE 	  0x01
+X#define INSERT 	  0x02
+X#define CHANGE 	  0x04
+X
+X#define CHAR_FWD	0
+X#define CHAR_BACK	1
+X
+static Char *InsertPos = InputBuf; /* Where insertion starts */
+static Char *ActionPos = 0;	   /* Where action begins  */
+static int  ActionFlag = NOP;	   /* What delayed action to take */
+X/*
+X * Word search state
+X */
+static int  searchdir = F_UP_SEARCH_HIST; 	/* Direction of last search */
+static Char patbuf[INBUFSIZE];			/* Search target */
+static int patlen = 0;
+X/*
+X * Char search state
+X */
+static int  srch_dir = CHAR_FWD;		/* Direction of last search */
+static Char srch_char = 0;			/* Search target */
+X
+X/* all routines that start with c_ are private to this set of routines */
+static	void	 c_alternativ_key_map	__P((int));
+static	void	 c_insert		__P((int));
+static	void	 c_delafter		__P((int));
+static	void	 c_delbefore		__P((int));
+static	Char	*c_prev_word		__P((Char *, Char *, int));
+static	Char	*c_next_word		__P((Char *, Char *, int));
+static	void	 c_copy			__P((Char *, Char *, int));
+static	Char	*c_number		__P((Char *, int *, int));
+static	Char	*c_expand		__P((Char *));
+static	void	 c_excl			__P((Char *));
+static	void	 c_substitute		__P((void));
+static	int	 c_hmatch		__P((Char *));
+static	void	 c_hsetpat		__P((void));
+X#ifdef COMMENT
+static	void	 c_get_word		__P((Char **, Char **));
+X#endif
+static	Char	*c_preword		__P((Char *, Char *, int));
+static	Char	*c_nexword		__P((Char *, Char *, int));
+static	Char	*c_endword		__P((Char *, Char *, int));
+static	Char	*c_eword		__P((Char *, Char *, int));
+static  CCRETVAL c_get_histline		__P((void));
+static  CCRETVAL c_search_line		__P((Char *, int));
+static  CCRETVAL v_repeat_srch		__P((int));
+static	CCRETVAL e_inc_search		__P((int));
+static	CCRETVAL v_search		__P((int));
+static	CCRETVAL v_csearch_fwd		__P((int, int, int));
+static	CCRETVAL v_csearch_back		__P((int, int, int));
+X
+static void
+c_alternativ_key_map(state)
+X    int     state;
+X{
+X    switch (state) {
+X    case 0:
+X	CurrentKeyMap = CcKeyMap;
+X	break;
+X    case 1:
+X	CurrentKeyMap = CcAltMap;
+X	break;
+X    default:
+X	return;
+X    }
+X
+X    AltKeyMap = state;
+X}
+X
+static void
+c_insert(num)
+X    register int num;
+X{
+X    register Char *cp;
+X
+X    if (LastChar + num >= InputLim)
+X	return;			/* can't go past end of buffer */
+X
+X    if (Cursor < LastChar) {	/* if I must move chars */
+X	for (cp = LastChar; cp >= Cursor; cp--)
+X	    cp[num] = *cp;
+X    }
+X    LastChar += num;
+X}
+X
+static void
+c_delafter(num)	
+X    register int num;
+X{
+X    register Char *cp, *kp;
+X
+X    if (Cursor + num > LastChar)
+X	num = LastChar - Cursor;	/* bounds check */
+X
+X    if (num > 0) {			/* if I can delete anything */
+X	if (VImode) {
+X	    kp = UndoBuf;		/* Set Up for VI undo command */
+X	    UndoAction = INSERT;
+X	    UndoSize = num;
+X	    UndoPtr  = Cursor;
+X	    for (cp = Cursor; cp <= LastChar; cp++) {
+X		*kp++ = *cp;	/* Save deleted chars into undobuf */
+X		*cp = cp[num];
+X	    }
+X	}
+X	else
+X	    for (cp = Cursor; cp <= LastChar; cp++)
+X		*cp = cp[num];
+X	LastChar -= num;
+X    }
+X#ifdef notdef
+X    else {
+X	/* 
+X	 * XXX: We don't want to do that. In emacs mode overwrite should be
+X	 * sticky. I am not sure how that affects vi mode 
+X	 */
+X	inputmode = MODE_INSERT;
+X    }
+X#endif /* notdef */
+X}
+X
+static void
+c_delbefore(num)		/* delete before dot, with bounds checking */
+X    register int num;
+X{
+X    register Char *cp, *kp;
+X
+X    if (Cursor - num < InputBuf)
+X	num = Cursor - InputBuf;	/* bounds check */
+X
+X    if (num > 0) {			/* if I can delete anything */
+X	if (VImode) {
+X	    kp = UndoBuf;		/* Set Up for VI undo command */
+X	    UndoAction = INSERT;
+X	    UndoSize = num;
+X	    UndoPtr  = Cursor - num;
+X	    for (cp = Cursor - num; cp <= LastChar; cp++) {
+X		*kp++ = *cp;
+X		*cp = cp[num];
+X	    }
+X	}
+X	else
+X	    for (cp = Cursor - num; cp <= LastChar; cp++)
+X		*cp = cp[num];
+X	LastChar -= num;
+X    }
+X}
+X
+static Char *
+c_preword(p, low, n)
+X    register Char *p, *low;
+X    register int n;
+X{
+X    p--;
+X
+X    while (n--) {
+X	while ((p >= low) && Isspace(*p)) 
+X	    p--;
+X	while ((p >= low) && !Isspace(*p)) 
+X	    p--;
+X    }
+X    /* cp now points to one character before the word */
+X    p++;
+X    if (p < low)
+X	p = low;
+X    /* cp now points where we want it */
+X    return(p);
+X}
+X
+static Char *
+c_prev_word(p, low, n)
+X    register Char *p, *low;
+X    register int n;
+X{
+X    p--;
+X
+X    while (n--) {
+X	while ((p >= low) && !isword(*p)) 
+X	    p--;
+X	while ((p >= low) && isword(*p)) 
+X	    p--;
+X    }
+X
+X    /* cp now points to one character before the word */
+X    p++;
+X    if (p < low)
+X	p = low;
+X    /* cp now points where we want it */
+X    return(p);
+X}
+X
+static Char *
+c_next_word(p, high, n)
+X    register Char *p, *high;
+X    register int n;
+X{
+X    while (n--) {
+X	while ((p < high) && !isword(*p)) 
+X	    p++;
+X	while ((p < high) && isword(*p)) 
+X	    p++;
+X    }
+X    if (p > high)
+X	p = high;
+X    /* p now points where we want it */
+X    return(p);
+X}
+X
+static Char *
+c_nexword(p, high, n)
+X    register Char *p, *high;
+X    register int n;
+X{
+X    while (n--) {
+X	while ((p < high) && !Isspace(*p)) 
+X	    p++;
+X	while ((p < high) && Isspace(*p)) 
+X	    p++;
+X    }
+X
+X    if (p > high)
+X	p = high;
+X    /* p now points where we want it */
+X    return(p);
+X}
+X
+X/*
+X * Expand-History (originally "Magic-Space") code added by
+X * Ray Moody <ray@gibbs.physics.purdue.edu>
+X * this is a neat, but odd, addition.
+X */
+X
+X/*
+X * c_copy is sorta like bcopy() except that we handle overlap between
+X * source and destination memory
+X */
+X
+static void
+c_copy(src, dst, length)
+X    register Char *src, *dst;
+X    register int length;
+X{
+X    if (src > dst) {
+X	while (length--) {
+X	    *dst++ = *src++;
+X	}
+X    }
+X    else {
+X	src += length;
+X	dst += length;
+X	while (length--) {
+X	    *--dst = *--src;
+X	}
+X    }
+X}
+X
+X/*
+X * c_number: Ignore character p points to, return number appearing after that.
+X * A '$' by itself means a big number; "$-" is for negative; '^' means 1.
+X * Return p pointing to last char used.
+X */
+X
+X/*
+X * dval is the number to subtract from for things like $-3
+X */
+X
+static Char *
+c_number(p, num, dval)
+X    register Char *p;
+X    register int *num;
+X    register int dval;
+X{
+X    register int i;
+X    register int sign = 1;
+X
+X    if (*++p == '^') {
+X	*num = 1;
+X	return(p);
+X    }
+X    if (*p == '$') {
+X	if (*++p != '-') {
+X	    *num = NCARGS;	/* Handle $ */
+X	    return(--p);
+X	}
+X	sign = -1;		/* Handle $- */
+X	++p;
+X    }
+X    for (i = 0; *p >= '0' && *p <= '9'; i = 10 * i + *p++ - '0');
+X    *num = (sign < 0 ? dval - i : i);
+X    return(--p);
+X}
+X
+X/*
+X * excl_expand: There is an excl to be expanded to p -- do the right thing
+X * with it and return a version of p advanced over the expanded stuff.  Also,
+X * update tsh_cur and related things as appropriate...
+X */
+X
+static Char *
+c_expand(p)
+X    register Char *p;
+X{
+X    register Char *q;
+X    register struct Hist *h = Histlist.Hnext;
+X    register struct wordent *l;
+X    int     i, from, to, dval;
+X    bool    all_dig;
+X    bool    been_once = 0;
+X    Char   *op = p;
+X    Char    buf[INBUFSIZE];
+X    Char   *bend = buf;
+X    Char   *modbuf, *omodbuf;
+X
+X    if (!h)
+X	goto excl_err;
+excl_sw:
+X    switch (*(q = p + 1)) {
+X
+X    case '^':
+X	bend = expand_lex(buf, INBUFSIZE, &h->Hlex, 1, 1);
+X	break;
+X
+X    case '$':
+X	if ((l = (h->Hlex).prev))
+X	    bend = expand_lex(buf, INBUFSIZE, l->prev->prev, 0, 0);
+X	break;
+X
+X    case '*':
+X	bend = expand_lex(buf, INBUFSIZE, &h->Hlex, 1, NCARGS);
+X	break;
+X
+X    default:
+X	if (been_once) {	/* unknown argument */
+X	    /* assume it's a modifier, e.g. !foo:h, and get whole cmd */
+X	    bend = expand_lex(buf, INBUFSIZE, &h->Hlex, 0, NCARGS);
+X	    q -= 2;
+X	    break;
+X	}
+X	been_once = 1;
+X
+X	if (*q == ':')		/* short form: !:arg */
+X	    --q;
+X
+X	if (*q != HIST) {
+X	    /*
+X	     * Search for a space, tab, or colon.  See if we have a number (as
+X	     * in !1234:xyz).  Remember the number.
+X	     */
+X	    for (i = 0, all_dig = 1; 
+X		 *q != ' ' && *q != '\t' && *q != ':' && q < Cursor; q++) {
+X		/*
+X		 * PWP: !-4 is a valid history argument too, therefore the test
+X		 * is if not a digit, or not a - as the first character.
+X		 */
+X		if ((*q < '0' || *q > '9') && (*q != '-' || q != p + 1))
+X		    all_dig = 0;
+X		else if (*q == '-')
+X		    all_dig = 2;/* we are sneeky about this */
+X		else
+X		    i = 10 * i + *q - '0';
+X	    }
+X	    --q;
+X
+X	    /*
+X	     * If we have a number, search for event i.  Otherwise, search for
+X	     * a named event (as in !foo).  (In this case, I is the length of
+X	     * the named event).
+X	     */
+X	    if (all_dig) {
+X		if (all_dig == 2)
+X		    i = -i;	/* make it negitive */
+X		if (i < 0)	/* if !-4 (for example) */
+X		    i = eventno + 1 + i;	/* remember: i is < 0 */
+X		for (; h; h = h->Hnext) {
+X		    if (h->Hnum == i)
+X			break;
+X		}
+X	    }
+X	    else {
+X		for (i = q - p; h; h = h->Hnext) {
+X		    if ((l = &h->Hlex)) {
+X			if (!Strncmp(p + 1, l->next->word, i))
+X			    break;
+X		    }
+X		}
+X	    }
+X	}
+X	if (!h)
+X	    goto excl_err;
+X	if (q[1] == ':' || q[1] == '-' || q[1] == '*' ||
+X	    q[1] == '$' || q[1] == '^') {	/* get some args */
+X	    p = q[1] == ':' ? ++q : q;
+X	    /*
+X	     * Go handle !foo:*
+X	     */
+X	    if ((q[1] < '0' || q[1] > '9') &&
+X		q[1] != '-' && q[1] != '$' && q[1] != '^')
+X		goto excl_sw;
+X	    /*
+X	     * Go handle !foo:$
+X	     */
+X	    if (q[1] == '$' && (q[2] != '-' || q[3] < '0' || q[3] > '9'))
+X		goto excl_sw;
+X	    /*
+X	     * Count up the number of words in this event.  Store it in dval.
+X	     * Dval will be fed to number.
+X	     */
+X	    dval = 0;
+X	    if ((l = h->Hlex.prev)) {
+X		for (l = l->prev; l != h->Hlex.next; l = l->prev, dval++);
+X	    }
+X	    if (!dval)
+X		goto excl_err;
+X	    if (q[1] == '-')
+X		from = 0;
+X	    else
+X		q = c_number(q, &from, dval);
+X	    if (q[1] == '-') {
+X		++q;
+X		if ((q[1] < '0' || q[1] > '9') && q[1] != '$')
+X		    to = dval - 1;
+X		else
+X		    q = c_number(q, &to, dval);
+X	    }
+X	    else if (q[1] == '*') {
+X		++q;
+X		to = NCARGS;
+X	    }
+X	    else {
+X		to = from;
+X	    }
+X	    if (from < 0 || to < from)
+X		goto excl_err;
+X	    bend = expand_lex(buf, INBUFSIZE, &h->Hlex, from, to);
+X	}
+X	else {			/* get whole cmd */
+X	    bend = expand_lex(buf, INBUFSIZE, &h->Hlex, 0, NCARGS);
+X	}
+X	break;
+X    }
+X
+X    /*
+X     * Apply modifiers, if any.
+X     */
+X    if (q[1] == ':') {
+X	*bend = '\0';
+X	omodbuf = buf;
+X	while (q[1] == ':' && (modbuf = domod(omodbuf, (int) q[2])) != NULL) {
+X	    if (omodbuf != buf)
+X		xfree((ptr_t) omodbuf);
+X	    omodbuf = modbuf;
+X	    q += 2;
+X	}
+X	if (omodbuf != buf) {
+X	    (void) Strcpy(buf, omodbuf);
+X	    xfree((ptr_t) omodbuf);
+X	    bend = Strend(buf);
+X	}
+X    }
+X
+X    /*
+X     * Now replace the text from op to q inclusive with the text from buf to
+X     * bend.
+X     */
+X    q++;
+X
+X    /*
+X     * Now replace text non-inclusively like a real CS major!
+X     */
+X    if (LastChar + (bend - buf) - (q - op) >= InputLim)
+X	goto excl_err;
+X    c_copy(q, q + (bend - buf) - (q - op), LastChar - q);
+X    LastChar += (bend - buf) - (q - op);
+X    Cursor += (bend - buf) - (q - op);
+X    c_copy(buf, op, (bend - buf));
+X    return(op + (bend - buf));
+excl_err:
+X    Beep();
+X    return(op + 1);
+X}
+X
+X/*
+X * c_excl: An excl has been found at point p -- back up and find some white
+X * space (or the beginning of the buffer) and properly expand all the excl's
+X * from there up to the current cursor position. We also avoid (trying to)
+X * expanding '>!'
+X */
+X
+static void
+c_excl(p)
+X    register Char *p;
+X{
+X    register int i;
+X    register Char *q;
+X
+X    /*
+X     * if />[SPC TAB]*![SPC TAB]/, back up p to just after the >. otherwise,
+X     * back p up to just before the current word.
+X     */
+X    if ((p[1] == ' ' || p[1] == '\t') &&
+X	(p[-1] == ' ' || p[-1] == '\t' || p[-1] == '>')) {
+X	for (q = p - 1; q > InputBuf && (*q == ' ' || *q == '\t'); --q);
+X	if (*q == '>')
+X	    ++p;
+X    }
+X    else {
+X	while (*p != ' ' && *p != '\t' && p > InputBuf)
+X	    --p;
+X    }
+X
+X    /*
+X     * Forever: Look for history char.  (Stop looking when we find the cursor.)
+X     * Count backslashes.  Of odd, skip history char. Return if all done.
+X     * Expand if even number of backslashes.
+X     */
+X    for (;;) {
+X	while (*p != HIST && p < Cursor)
+X	    ++p;
+X	for (i = 1; (p - i) >= InputBuf && p[-i] == '\\'; i++);
+X	if (i % 2 == 0)
+X	    ++p;
+X	if (p >= Cursor)
+X	    return;
+X	if (i % 2 == 1)
+X	    p = c_expand(p);
+X    }
+X}
+X
+X
+static void
+c_substitute()
+X{
+X    register Char *p;
+X
+X    /*
+X     * Start p out one character before the cursor.  Move it backwards looking
+X     * for white space, the beginning of the line, or a history character.
+X     */
+X    for (p = Cursor - 1; 
+X	 p > InputBuf && *p != ' ' && *p != '\t' && *p != HIST; --p);
+X
+X    /*
+X     * If we found a history character, go expand it.
+X     */
+X    if (*p == HIST)
+X	c_excl(p);
+X    Refresh();
+X}
+X
+static void
+c_delfini()		/* Finish up delete action */
+X{
+X    register int Size;
+X
+X    if (ActionFlag & INSERT)
+X	c_alternativ_key_map(0);
+X
+X    ActionFlag = NOP;
+X
+X    if (ActionPos == 0) 
+X	return;
+X
+X    UndoAction = INSERT;
+X
+X    if (Cursor > ActionPos) {
+X	Size = (int) (Cursor-ActionPos);
+X	c_delbefore(Size); 
+X	Cursor = ActionPos;
+X	RefCursor();
+X    }
+X    else if (Cursor < ActionPos) {
+X	Size = (int)(ActionPos-Cursor);
+X	c_delafter(Size);
+X    }
+X    else  {
+X	Size = 1;
+X	c_delafter(Size);
+X    }
+X    UndoPtr = Cursor;
+X    UndoSize = Size;
+X}
+X
+static Char *
+c_endword(p, high, n)
+X    register Char *p, *high;
+X    register int n;
+X{
+X    p++;
+X
+X    while (n--) {
+X	while ((p < high) && Isspace(*p))
+X	    p++;
+X	while ((p < high) && !Isspace(*p)) 
+X	    p++;
+X    }
+X
+X    p--;
+X    return(p);
+X}
+X
+X
+static Char *
+c_eword(p, high, n)
+X    register Char *p, *high;
+X    register int n;
+X{
+X    p++;
+X
+X    while (n--) {
+X	while ((p < high) && Isspace(*p)) 
+X	    p++;
+X
+X	if (Isalnum(*p))
+X	    while ((p < high) && Isalnum(*p)) 
+X		p++;
+X	else
+X	    while ((p < high) && !(Isspace(*p) || Isalnum(*p)))
+X		p++;
+X    }
+X
+X    p--;
+X    return(p);
+X}
+X
+static CCRETVAL
+c_get_histline()
+X{
+X    struct Hist *hp;
+X    int     h;
+X
+X    if (Hist_num == 0) {	/* if really the current line */
+X	copyn(InputBuf, HistBuf, INBUFSIZE);
+X	LastChar = InputBuf + (LastHist - HistBuf);
+X
+X#ifdef KSHVI
+X    if (VImode)
+X	Cursor = InputBuf;
+X    else
+X#endif /* KSHVI */
+X	Cursor = LastChar;
+X
+X	return(CC_REFRESH);
+X    }
+X
+X    hp = Histlist.Hnext;
+X    if (hp == NULL)
+X	return(CC_ERROR);
+X
+X    for (h = 1; h < Hist_num; h++) {
+X	if ((hp->Hnext) == NULL) {
+X	    Hist_num = h;
+X	    return(CC_ERROR);
+X	}
+X	hp = hp->Hnext;
+X    }
+X
+X    if (HistLit && hp->histline) {
+X	copyn(InputBuf, hp->histline, INBUFSIZE);
+X	CurrentHistLit = 1;
+X    }
+X    else {
+X	(void) sprlex(InputBuf, &hp->Hlex);
+X	CurrentHistLit = 0;
+X    }
+X    LastChar = InputBuf + Strlen(InputBuf);
+X
+X    if (LastChar > InputBuf) {
+X	if (LastChar[-1] == '\n')
+X	    LastChar--;
+X	if (LastChar[-1] == ' ')
+X	    LastChar--;
+X	if (LastChar < InputBuf)
+X	    LastChar = InputBuf;
+X    }
+X
+X#ifdef KSHVI
+X    if (VImode)
+X	Cursor = InputBuf;
+X    else
+X#endif /* KSHVI */
+X	Cursor = LastChar;
+X
+X    return(CC_REFRESH);
+X}
+X
+static CCRETVAL
+c_search_line(pattern, dir)
+Char *pattern;
+int dir;
+X{
+X    Char *cp;
+X    int len;
+X
+X    len = Strlen(pattern);
+X
+X    if (dir == F_UP_SEARCH_HIST) {
+X	for (cp = Cursor; cp >= InputBuf; cp--)
+X	    if (Strncmp(cp, pattern, len) == 0 || Gmatch(cp, pattern)) {
+X		Cursor = cp;
+X		return(CC_NORM);
+X	    }
+X	return(CC_ERROR);
+X    } else {
+X	for (cp = Cursor; *cp != '\0' && cp < InputLim; cp++)
+X	    if (Strncmp(cp, pattern, len) == 0 || Gmatch(cp, pattern)) {
+X		Cursor = cp;
+X		return(CC_NORM);
+X	    }
+X	return(CC_ERROR);
+X    }
+X}
+X
+static CCRETVAL
+e_inc_search(dir)
+X    int dir;
+X{
+X    static Char STRfwd[] = { 'f', 'w', 'd', '\0' },
+X		STRbck[] = { 'b', 'c', 'k', '\0' };
+X    static Char pchar = ':';	/* ':' = normal, '?' = failed */
+X    static Char endcmd[2];
+X    Char ch, *cp,
+X	*oldCursor = Cursor,
+X	oldpchar = pchar;
+X    CCRETVAL ret = CC_NORM;
+X    int oldHist_num = Hist_num,
+X	oldpatlen = patlen,
+X	newdir = dir,
+X        done, redo;
+X
+X    if (LastChar + sizeof(STRfwd)/sizeof(Char) + 2 + patlen >= InputLim)
+X	return(CC_ERROR);
+X
+X    for (;;) {
+X
+X	if (patlen == 0) {	/* first round */
+X	    pchar = ':';
+X	    patbuf[patlen++] = '*';
+X	}
+X	done = redo = 0;
+X	*LastChar++ = '\n';
+X	for (cp = newdir == F_UP_SEARCH_HIST ? STRbck : STRfwd; 
+X	     *cp; *LastChar++ = *cp++);
+X	*LastChar++ = pchar;
+X	for (cp = &patbuf[1]; cp < &patbuf[patlen]; *LastChar++ = *cp++);
+X	*LastChar = '\0';
+X	Refresh();
+X
+X	if (GetNextChar(&ch) != 1)
+X	    return(e_send_eof(0));
+X
+X	switch (CurrentKeyMap[(unsigned char) ch]) {
+X	case F_INSERT:
+X	case F_DIGIT:
+X	case F_MAGIC_SPACE:
+X	    if (patlen > INBUFSIZE - 3)
+X		Beep();
+X	    else {
+X		patbuf[patlen++] = ch;
+X		*LastChar++ = ch;
+X		*LastChar = '\0';
+X		Refresh();
+X	    }
+X	    break;
+X
+X	case F_INC_FWD:
+X	    newdir = F_DOWN_SEARCH_HIST;
+X	    redo++;
+X	    break;
+X
+X	case F_INC_BACK:
+X	    newdir = F_UP_SEARCH_HIST;
+X	    redo++;
+X	    break;
+X
+X	case F_DELPREV:
+X	    if (patlen > 1)
+X		done++;
+X	    else 
+X		Beep();
+X	    break;
+X
+X	default:
+X	    switch (ch) {
+X	    case 0007:		/* ^G: Abort */
+X		ret = CC_ERROR;
+X		done++;
+X		break;
+X
+X	    case 0027:		/* ^W: Append word */
+X		/* No can do if globbing characters in pattern */
+X		for (cp = &patbuf[1]; ; cp++)
+X		    if (cp >= &patbuf[patlen]) {
+X			Cursor += patlen - 1;
+X			cp = c_next_word(Cursor, LastChar, 1);
+X			while (Cursor < cp && *Cursor != '\n') {
+X			    if (patlen > INBUFSIZE - 3) {
+X				Beep();
+X				break;
+X			    }
+X			    patbuf[patlen++] = *Cursor;
+X			    *LastChar++ = *Cursor++;
+X			}
+X			Cursor = oldCursor;
+X			*LastChar = '\0';
+X			Refresh();
+X			break;
+X		    } else if (isglob(*cp)) {
+X			Beep();
+X			break;
+X		    }
+X		break;
+X	    
+X	    default:		/* Terminate and execute cmd */
+X		endcmd[0] = ch;
+X		PushMacro(endcmd);
+X		/* fall through */
+X
+X	    case 0033:		/* ESC: Terminate */
+X		ret = CC_REFRESH;
+X		done++;
+X		break;
+X	    }
+X	    break;
+X	}
+X
+X	while (LastChar > InputBuf && *LastChar != '\n')
+X	    *LastChar-- = '\0';
+X	*LastChar = '\0';
+X
+X	if (!done) {
+X
+X	    /* Can't search if unmatched '[' */
+X	    for (cp = &patbuf[patlen - 1], ch = ']'; cp > patbuf; cp--)
+X		if (*cp == '[' || *cp == ']') {
+X		    ch = *cp;
+X		    break;
+X		}
+X
+X	    if (patlen > 1 && ch != '[') {
+X		if (redo && newdir == dir) {
+X		    if (pchar == '?') {	/* wrap around */
+X			Hist_num = newdir == F_UP_SEARCH_HIST ? 0 : 0x7fffffff;
+X			if (c_get_histline() == CC_ERROR)
+X			    /* Hist_num was fixed by first call */
+X			    (void) c_get_histline();
+X			Cursor = newdir == F_UP_SEARCH_HIST ?
+X			    LastChar : InputBuf;
+X		    } else
+X			Cursor += newdir == F_UP_SEARCH_HIST ? -1 : 1;
+X		}
+X		patbuf[patlen++] = '*';
+X		patbuf[patlen] = '\0';
+X		if (Cursor < InputBuf || Cursor > LastChar ||
+X		    (ret = c_search_line(&patbuf[1], newdir)) == CC_ERROR) {
+X		    LastCmd = newdir; /* avoid c_hsetpat */
+X		    ret = newdir == F_UP_SEARCH_HIST ?
+X			e_up_search_hist(0) : e_down_search_hist(0);
+X		    if (ret != CC_ERROR) {
+X			Cursor = newdir == F_UP_SEARCH_HIST ?
+X			    LastChar : InputBuf;
+X			(void) c_search_line(&patbuf[1], newdir);
+X		    }
+X		}
+X		patbuf[--patlen] = '\0';
+X		if (ret == CC_ERROR) {
+X		    Beep();
+X		    if (Hist_num != oldHist_num) {
+X			Hist_num = oldHist_num;
+X			if (c_get_histline() == CC_ERROR)
+X			    return(CC_ERROR);
+X		    }
+X		    Cursor = oldCursor;
+X		    pchar = '?';
+X		} else {
+X		    pchar = ':';
+X		}
+X	    }
+X
+X	    ret = e_inc_search(newdir);
+X
+X	    if (ret == CC_ERROR && pchar == '?' && oldpchar == ':') {
+X		/* break abort of failed search at last non-failed */
+X		ret = CC_NORM;
+X	    }
+X
+X	}
+X
+X	if (ret == CC_NORM || (ret == CC_ERROR && oldpatlen == 0)) {
+X	    /* restore on normal return or error exit */
+X	    pchar = oldpchar;
+X	    patlen = oldpatlen;
+X	    if (Hist_num != oldHist_num) {
+X		Hist_num = oldHist_num;
+X		if (c_get_histline() == CC_ERROR)
+X		    return(CC_ERROR);
+X	    }
+X	    Cursor = oldCursor;
+X	    if (ret == CC_ERROR)
+X		Refresh();
+X	}
+X	if (done || ret != CC_NORM)
+X	    return(ret);
+X	    
+X    }
+X
+X}
+X
+static CCRETVAL
+v_search(dir)
+X    int dir;
+X{
+X    Char ch;
+X    Char tmpbuf[INBUFSIZE];
+X    int tmplen;
+X
+X    tmplen = 0;
+X    tmpbuf[tmplen++] = '*';
+X
+X    InputBuf[0] = '\0';
+X    LastChar = InputBuf;
+X    Cursor = InputBuf;
+X    searchdir = dir;
+X
+X    c_insert(2);	/* prompt + '\n' */
+X    *Cursor++ = '\n';
+X    *Cursor++ = dir == F_UP_SEARCH_HIST ? '?' : '/';
+X    Refresh();
+X    for (ch = 0;ch == 0;) {
+X	if (GetNextChar(&ch) != 1)
+X	    return(e_send_eof(0));
+X	switch (ch) {
+X	case 0010:	/* Delete and backspace */
+X	case 0177:
+X	    if (tmplen > 1) {
+X		*Cursor-- = '\0';
+X		LastChar = Cursor;
+X		tmpbuf[tmplen--] = '\0';
+X	    }
+X	    else {
+X		InputBuf[0] = '\0';
+X		LastChar = InputBuf;
+X		Cursor = InputBuf;
+X		return(CC_REFRESH);
+X	    }
+X	    Refresh();
+X	    ch = 0;
+X	    break;
+X
+X	case 0033:	/* ESC */
+X	case '\r':	/* Newline */
+X	case '\n':
+X	    break;
+X
+X	default:
+X	    if (tmplen >= INBUFSIZE)
+X		Beep();
+X	    else {
+X		tmpbuf[tmplen++] = ch;
+X		*Cursor++ = ch;
+X		LastChar = Cursor;
+X	    }
+X	    Refresh();
+X	    ch = 0;
+X	    break;
+X	}
+X    }
+X
+X    if (tmplen == 1) {
+X	/*
+X	 * Use the old pattern, but wild-card it.
+X	 */
+X	if (patlen == 0) {
+X	    InputBuf[0] = '\0';
+X	    LastChar = InputBuf;
+X	    Cursor = InputBuf;
+X	    Refresh();
+X	    return(CC_ERROR);
+X	}
+X	if (patbuf[0] != '*') {
+X	    (void) Strcpy(tmpbuf, patbuf);
+X	    patbuf[0] = '*';
+X	    (void) Strcpy(&patbuf[1], tmpbuf);
+X	    patlen++;
+X	    patbuf[patlen++] = '*';
+X	    patbuf[patlen] = '\0';
+X	}
+X    }
+X    else {
+X	tmpbuf[tmplen++] = '*';
+X	tmpbuf[tmplen] = '\0';
+X	(void) Strcpy(patbuf, tmpbuf);
+X	patlen = tmplen;
+X    }
+X    LastCmd = dir; /* avoid c_hsetpat */
+X    Cursor = LastChar = InputBuf;
+X    if ((dir == F_UP_SEARCH_HIST ? e_up_search_hist(0) : 
+X				   e_down_search_hist(0)) == CC_ERROR) {
+X	Refresh();
+X	return(CC_ERROR);
+X    }
+X    else {
+X	if (ch == 0033) {
+X	    Refresh();
+X	    *LastChar++ = '\n';
+X	    *LastChar = '\0';
+X	    PastBottom();
+X	    return(CC_NEWLINE);
+X	}
+X	else
+X	    return(CC_REFRESH);
+X    }
+X}
+X
+X/*
+X * semi-PUBLIC routines.  Any routine that is of type CCRETVAL is an
+X * entry point, called from the CcKeyMap indirected into the
+X * CcFuncTbl array.
+X */
+X
+X/*ARGSUSED*/
+CCRETVAL
+v_cmd_mode(c)
+X    int c;
+X{
+X
+X    InsertPos = 0;
+X    ActionFlag = NOP;	/* [Esc] cancels pending action */
+X    ActionPos = 0;
+X    DoingArg = 0;
+X    if (UndoPtr > Cursor)
+X	UndoSize = (int)(UndoPtr - Cursor);
+X    else
+X	UndoSize = (int)(Cursor - UndoPtr);
+X
+X    inputmode = MODE_INSERT;
+X    c_alternativ_key_map(1);
+X#ifdef notdef
+X    /*
+X     * We don't want to move the cursor, because all the editing
+X     * commands don't include the character under the cursor.
+X     */
+X    if (Cursor > InputBuf)
+X	Cursor--;
+X#endif
+X    RefCursor();
+X    return(CC_NORM);
+X}
+X
+X/*ARGSUSED*/
+CCRETVAL
+e_unassigned(c)
+X    int c;
+X{				/* bound to keys that arn't really assigned */
+X    Beep();
+X    flush();
+X    return(CC_NORM);
+X}
+X
+CCRETVAL
+e_insert(c)
+X    register int c;
+X{
+X    register int i;
+X#ifndef SHORT_STRINGS
+X    c &= ASCII;			/* no meta chars ever */
+X#endif
+X
+X    if (!c)
+X	return(CC_ERROR);	/* no NULs in the input ever!! */
+X
+X    if (LastChar + Argument >= InputLim)
+X	return(CC_ERROR);	/* end of buffer space */
+X
+X    if (Argument == 1) {  	/* How was this optimized ???? */
+X
+X	if (inputmode != MODE_INSERT) {
+X	    UndoBuf[UndoSize++] = *Cursor;
+X	    UndoBuf[UndoSize] = '\0';
+X	    c_delafter(1);   /* Do NOT use the saving ONE */
+X    	}
+X
+X        c_insert(1);
+X
+X	*Cursor++ = c;
+X	DoingArg = 0;		/* just in case */
+X	RefPlusOne();		/* fast refresh for one char. */
+X    }
+X    else {
+X	if (inputmode != MODE_INSERT) {
+X
+X	    for(i=0;i<Argument;i++) 
+X		UndoBuf[UndoSize++] = *(Cursor+i);
+X
+X	    UndoBuf[UndoSize] = '\0';
+X	    c_delafter(Argument);   /* Do NOT use the saving ONE */
+X    	}
+X
+X        c_insert(Argument);
+X
+X	while (Argument--)
+X	    *Cursor++ = c;
+X	Refresh();
+X    }
+X
+X    if (inputmode == MODE_REPLACE_1)
+X	(void) v_cmd_mode(0);
+X
+X    return(CC_NORM);
+X}
+X
+int
+InsertStr(s)			/* insert ASCIZ s at cursor (for complete) */
+X    Char   *s;
+X{
+X    register int len;
+X
+X    if ((len = Strlen(s)) <= 0)
+X	return -1;
+X    if (LastChar + len >= InputLim)
+X	return -1;		/* end of buffer space */
+X
+X    c_insert(len);
+X    while (len--)
+X	*Cursor++ = *s++;
+X    return 0;
+X}
+X
+void
+DeleteBack(n)			/* delete the n characters before . */
+X    int     n;
+X{
+X    if (n <= 0)
+X	return;
+X    if (Cursor >= &InputBuf[n]) {
+X	c_delbefore(n);		/* delete before dot */
+X	Cursor -= n;
+X	if (Cursor < InputBuf)
+X	    Cursor = InputBuf;	/* bounds check */
+X    }
+X}
+X
+CCRETVAL
+e_digit(c)			/* gray magic here */
+X    register int c;
+X{
+X    if (!Isdigit(c))
+X	return(CC_ERROR);	/* no NULs in the input ever!! */
+X
+X    if (DoingArg) {		/* if doing an arg, add this in... */
+X	if (LastCmd == F_ARGFOUR)	/* if last command was ^U */
+X	    Argument = c - '0';
+X	else {
+X	    if (Argument > 1000000)
+X		return CC_ERROR;
+X	    Argument = (Argument * 10) + (c - '0');
+X	}
+X	return(CC_ARGHACK);
+X    }
+X    else {
+X	if (LastChar + 1 >= InputLim)
+X	    return CC_ERROR;	/* end of buffer space */
+X
+X	if (inputmode != MODE_INSERT) {
+X	    UndoBuf[UndoSize++] = *Cursor;
+X	    UndoBuf[UndoSize] = '\0';
+X	    c_delafter(1);   /* Do NOT use the saving ONE */
+X    	}
+X	c_insert(1);
+X	*Cursor++ = c;
+X	DoingArg = 0;		/* just in case */
+X	RefPlusOne();		/* fast refresh for one char. */
+X    }
+X    return(CC_NORM);
+X}
+X
+CCRETVAL
+e_argdigit(c)			/* for ESC-n */
+X    register int c;
+X{
+X    c &= ASCII;
+X
+X    if (!Isdigit(c))
+X	return(CC_ERROR);	/* no NULs in the input ever!! */
+X
+X    if (DoingArg) {		/* if doing an arg, add this in... */
+X	if (Argument > 1000000)
+X	    return CC_ERROR;
+X	Argument = (Argument * 10) + (c - '0');
+X    }
+X    else {			/* else starting an argument */
+X	Argument = c - '0';
+X	DoingArg = 1;
+X    }
+X    return(CC_ARGHACK);
+X}
+X
+CCRETVAL
+v_zero(c)			/* command mode 0 for vi */
+X    register int c;
+X{
+X    if (DoingArg) {		/* if doing an arg, add this in... */
+X	if (Argument > 1000000)
+X	    return CC_ERROR;
+X	Argument = (Argument * 10) + (c - '0');
+X	return(CC_ARGHACK);
+X    }
+X    else {			/* else starting an argument */
+X	Cursor = InputBuf;
+X	if (ActionFlag & DELETE) {
+X	   c_delfini();
+X	   return(CC_REFRESH);
+X        }
+X	RefCursor();		/* move the cursor */
+X	return(CC_NORM);
+X    }
+X}
+X
+X/*ARGSUSED*/
+CCRETVAL
+e_newline(c)
+X    int c;
+X{				/* always ignore argument */
+X    PastBottom();
+X    *LastChar++ = '\n';		/* for the benefit of CSH */
+X    *LastChar = '\0';		/* just in case */
+X    if (VImode)
+X	InsertPos = InputBuf;	/* Reset editing position */
+X    return(CC_NEWLINE);	/* we must do a ResetInLine later */
+X}
+X
+X/*ARGSUSED*/
+CCRETVAL
+e_send_eof(c)
+X    int c;
+X{				/* for when ^D is ONLY send-eof */
+X    PastBottom();
+X    *LastChar = '\0';		/* just in case */
+X#ifdef notdef
+X    ResetInLine();		/* reset the input pointers */
+X#endif
+X    return(CC_EOF);
+X}
+X
+X/*ARGSUSED*/
+CCRETVAL
+e_complete(c)
+X    int c;
+X{
+X    *LastChar = '\0';		/* just in case */
+X    return(CC_COMPLETE);
+X}
+X
+X/*ARGSUSED*/
+CCRETVAL
+v_cm_complete(c)
+X    int c;
+X{
+X    if (Cursor < LastChar)
+X	Cursor++;
+X    *LastChar = '\0';		/* just in case */
+X    return(CC_COMPLETE);
+X}
+X
+X/*ARGSUSED*/
+CCRETVAL
+e_toggle_hist(c)
+X    int c;
+X{
+X    struct Hist *hp;
+X    int     h;
+X
+X    *LastChar = '\0';		/* just in case */
+X
+X    if (Hist_num <= 0) {
+X	return CC_ERROR;
+X    }
+X
+X    hp = Histlist.Hnext;
+X    if (hp == NULL) {	/* this is only if no history */
+X	return(CC_ERROR);
+X    }
+X
+X    for (h = 1; h < Hist_num; h++)
+X	hp = hp->Hnext;
+X
+X    if (!CurrentHistLit) {
+X	if (hp->histline) {
+X	    copyn(InputBuf, hp->histline, INBUFSIZE);
+X	    CurrentHistLit = 1;
+X	}
+X	else {
+X	    return CC_ERROR;
+X	}
+X    }
+X    else {
+X	(void) sprlex(InputBuf, &hp->Hlex);
+X	CurrentHistLit = 0;
+X    }
+X
+X    LastChar = InputBuf + Strlen(InputBuf);
+X    if (LastChar > InputBuf) {
+X	if (LastChar[-1] == '\n')
+X	    LastChar--;
+X	if (LastChar[-1] == ' ')
+X	    LastChar--;
+X	if (LastChar < InputBuf)
+X	    LastChar = InputBuf;
+X    }
+X
+X#ifdef KSHVI
+X    if (VImode)
+X	Cursor = InputBuf;
+X    else
+X#endif /* KSHVI */
+X	Cursor = LastChar;
+X
+X    return(CC_REFRESH);
+X}
+X
+X/*ARGSUSED*/
+CCRETVAL
+e_up_hist(c)
+X    int c;
+X{
+X    Char    beep = 0;
+X
+X    UndoAction = NOP;
+X    *LastChar = '\0';		/* just in case */
+X
+X    if (Hist_num == 0) {	/* save the current buffer away */
+X	copyn(HistBuf, InputBuf, INBUFSIZE);
+X	LastHist = HistBuf + (LastChar - InputBuf);
+X    }
+X
+X    Hist_num += Argument;
+X
+X    if (c_get_histline() == CC_ERROR) {
+X	beep = 1;
+X	(void) c_get_histline(); /* Hist_num was fixed by first call */
+X    }
+X
+X    Refresh();
+X    if (beep)
+X	return(CC_ERROR);
+X    else
+X	return(CC_NORM);	/* was CC_UP_HIST */
+X}
+X
+X/*ARGSUSED*/
+CCRETVAL
+e_down_hist(c)
+X    int c;
+X{
+X    UndoAction = NOP;
+X    *LastChar = '\0';		/* just in case */
+X
+X    Hist_num -= Argument;
+X
+X    if (Hist_num < 0) {
+X	Hist_num = 0;
+X	return(CC_ERROR);	/* make it beep */
+X    }
+X
+X    return(c_get_histline());
+X}
+X
+X
+X
+X/*
+X * c_hmatch() return True if the pattern matches the prefix
+X */
+static int
+c_hmatch(str)
+Char *str;
+X{
+X    if (Strncmp(patbuf, str, patlen) == 0)
+X	return 1;
+X    return Gmatch(str, patbuf);
+X}
+X
+X/*
+X * c_hsetpat(): Set the history seatch pattern
+X */
+static void
+c_hsetpat()
+X{
+X    if (LastCmd != F_UP_SEARCH_HIST && LastCmd != F_DOWN_SEARCH_HIST) {
+X	patlen = Cursor - InputBuf;
+X	if (patlen >= INBUFSIZE) patlen = INBUFSIZE -1;
+X	if (patlen >= 0)  {
+X	    (void) Strncpy(patbuf, InputBuf, patlen);
+X	    patbuf[patlen] = '\0';
+X	}
+X	else
+X	    patlen = Strlen(patbuf);
+X    }
+X#ifdef SDEBUG
+X    xprintf("\nHist_num = %d\n", Hist_num);
+X    xprintf("patlen = %d\n", patlen);
+X    xprintf("patbuf = \"%s\"\n", short2str(patbuf));
+X    xprintf("Cursor %d LastChar %d\n", Cursor - InputBuf, LastChar - InputBuf);
+X#endif
+X}
+X
+X/*ARGSUSED*/
+CCRETVAL
+e_up_search_hist(c)
+X    int c;
+X{
+X    struct Hist *hp;
+X    int h;
+X    bool    found = 0;
+X
+X    ActionFlag = NOP;
+X    UndoAction = NOP;
+X    *LastChar = '\0';		/* just in case */
+X    if (Hist_num < 0) {
+X#ifdef DEBUG_EDIT
+X	xprintf("tcsh: e_up_search_hist(): Hist_num < 0; resetting.\n");
+X#endif
+X	Hist_num = 0;
+X	return(CC_ERROR);
+X    }
+X
+X    if (Hist_num == 0)
+X    {
+X	copyn(HistBuf, InputBuf, INBUFSIZE);
+X	LastHist = HistBuf + (LastChar - InputBuf);
+X    }
+X
+X
+X    hp = Histlist.Hnext;
+X    if (hp == NULL)
+X	return(CC_ERROR);
+X
+X    c_hsetpat();		/* Set search pattern !! */
+X
+X    for (h = 1; h <= Hist_num; h++)
+X	hp = hp->Hnext;
+X
+X    while (hp != NULL) {
+X	if (hp->histline == NULL) {
+X	    Char sbuf[BUFSIZE];
+X	    hp->histline = Strsave(sprlex(sbuf, &hp->Hlex));
+X	}
+X#ifdef SDEBUG
+X	xprintf("Comparing with \"%s\"\n", short2str(hp->histline));
+X#endif
+X	if ((Strncmp(hp->histline, InputBuf, LastChar-InputBuf) || hp->histline[LastChar-InputBuf]) && c_hmatch(hp->histline)) {
+X	    found++;
+X	    break;
+X	}
+X	h++;
+X	hp = hp->Hnext;
+X    }
+X
+X    if (!found) {
+X#ifdef SDEBUG
+X	xprintf("not found\n"); 
+X#endif
+X	return(CC_ERROR);
+X    }
+X
+X    Hist_num = h;
+X
+X    return(c_get_histline());
+X}
+X
+X/*ARGSUSED*/
+CCRETVAL
+e_down_search_hist(c)
+X    int c;
+X{
+X    struct Hist *hp;
+X    int h;
+X    bool    found = 0;
+X
+X    ActionFlag = NOP;
+X    UndoAction = NOP;
+X    *LastChar = '\0';		/* just in case */
+X
+X    if (Hist_num == 0)
+X	return(CC_ERROR);
+X
+X    hp = Histlist.Hnext;
+X    if (hp == 0)
+X	return(CC_ERROR);
+X
+X    c_hsetpat();		/* Set search pattern !! */
+X
+X    for (h = 1; h < Hist_num && hp; h++) {
+X	if (hp->histline == NULL) {
+X	    Char sbuf[BUFSIZE];
+X	    hp->histline = Strsave(sprlex(sbuf, &hp->Hlex));
+X	}
+X#ifdef SDEBUG
+X	xprintf("Comparing with \"%s\"\n", short2str(hp->histline));
+X#endif
+X	if ((Strncmp(hp->histline, InputBuf, LastChar-InputBuf) || hp->histline[LastChar-InputBuf]) && c_hmatch(hp->histline))
+X	    found = h;
+X	hp = hp->Hnext;
+X    }
+X
+X    if (!found) {		/* is it the current history number? */
+X	if (!c_hmatch(HistBuf)) {
+X#ifdef SDEBUG
+X	    xprintf("not found\n"); 
+X#endif
+X	    return(CC_ERROR);
+X	}
+X    }
+X
+X    Hist_num = found;
+X
+X    return(c_get_histline());
+X}
+X
+X/*ARGSUSED*/
+CCRETVAL
+e_helpme(c)
+X    int c;
+X{
+X    PastBottom();
+X    *LastChar = '\0';		/* just in case */
+X    return(CC_HELPME);
+X}
+X
+X/*ARGSUSED*/
+CCRETVAL
+e_correct(c)
+X    int c;
+X{
+X    *LastChar = '\0';		/* just in case */
+X    return(CC_CORRECT);
+X}
+X
+X/*ARGSUSED*/
+CCRETVAL
+e_correctl(c)
+X    int c;
+X{
+X    *LastChar = '\0';		/* just in case */
+X    return(CC_CORRECT_L);
+X}
+X
+X/*ARGSUSED*/
+CCRETVAL
+e_run_fg_editor(c)
+X    int c;
+X{
+X    register struct process *pp;
+X    extern bool tellwhat;
+X
+X    if ((pp = find_stop_ed()) != NULL) {
+X	/* save our editor state so we can restore it */
+X	tellwhat = 1;
+X	copyn(WhichBuf, InputBuf, INBUFSIZE);
+X	LastWhich = WhichBuf + (LastChar - InputBuf);
+X	CursWhich = WhichBuf + (Cursor - InputBuf);
+X	HistWhich = Hist_num;
+X	Hist_num = 0;		/* for the history commands */
+X
+X	/* put the tty in a sane mode */
+X	PastBottom();
+X	(void) Cookedmode();	/* make sure the tty is set up correctly */
+X
+X	/* do it! */
+X	fg_proc_entry(pp);
+X
+X	(void) Rawmode();	/* go on */
+X	Refresh();
+X	tellwhat = 0;
+X    }
+X    return(CC_NORM);
+X}
+X
+X/*ARGSUSED*/
+CCRETVAL
+e_list_choices(c)
+X    int c;
+X{
+X    PastBottom();
+X    *LastChar = '\0';		/* just in case */
+X    return(CC_LIST_CHOICES);
+X}
+X
+X/*ARGSUSED*/
+CCRETVAL
+e_list_glob(c)
+X    int c;
+X{
+X    PastBottom();
+X    *LastChar = '\0';		/* just in case */
+X    return(CC_LIST_GLOB);
+X}
+X
+X/*ARGSUSED*/
+CCRETVAL
+e_expand_glob(c)
+X    int c;
+X{
+X    *LastChar = '\0';		/* just in case */
+X    return(CC_EXPAND_GLOB);
+X}
+X
+X/*ARGSUSED*/
+CCRETVAL
+e_normalize_path(c)
+X    int c;
+X{
+X    *LastChar = '\0';		/* just in case */
+X    return(CC_NORMALIZE_PATH);
+X}
+X/*ARGSUSED*/
+CCRETVAL
+e_expand_vars(c)
+X    int c;
+X{
+X    *LastChar = '\0';		/* just in case */
+X    return(CC_EXPAND_VARS);
+X}
+X
+X/*ARGSUSED*/
+CCRETVAL
+e_which(c)
+X    int c;
+X{				/* do a fast command line which(1) */
+X    PastBottom();
+X    *LastChar = '\0';		/* just in case */
+X    return(CC_WHICH);
+X}
+X
+X/*ARGSUSED*/
+CCRETVAL
+e_last_item(c)
+X    int c;
+X{				/* insert the last element of the prev. cmd */
+X    register Char *cp;
+X    register struct Hist *hp;
+X    register struct wordent *wp, *firstp;
+X    register int i;
+X
+X    if (Argument <= 0)
+X	return(CC_ERROR);
+X
+X    hp = Histlist.Hnext;
+X    if (hp == NULL) {	/* this is only if no history */
+X	return(CC_ERROR);
+X    }
+X
+X    wp = (hp->Hlex).prev;
+X
+X    if (wp->prev == (struct wordent *) NULL)
+X	return(CC_ERROR);	/* an empty history entry */
+X
+X    firstp = (hp->Hlex).next;
+X
+X    for (i = 0; i < Argument; i++) {	/* back up arg words in lex */
+X	wp = wp->prev;
+X	if (wp == firstp)
+X	    break;
+X    }
+X
+X    while (i > 0) {
+X	cp = wp->word;
+X
+X	if (!cp)
+X	    return(CC_ERROR);
+X
+X	if (InsertStr(cp))
+X	    return(CC_ERROR);
+X
+X	wp = wp->next;
+X	i--;
+X    }
+X
+X    return(CC_REFRESH);
+X}
+X
+X/*ARGSUSED*/
+CCRETVAL
+e_yank_kill(c)
+X    int c;
+X{				/* almost like GnuEmacs */
+X    register Char *kp, *cp;
+X
+X    if (LastKill == KillBuf)	/* if zero content */
+X	return(CC_ERROR);
+X
+X    if (LastChar + (LastKill - KillBuf) >= InputLim)
+X	return(CC_ERROR);	/* end of buffer space */
+X
+X    /* else */
+X    Mark = Cursor;		/* set the mark */
+X    cp = Cursor;		/* for speed */
+X
+X    c_insert(LastKill - KillBuf);	/* open the space, */
+X    for (kp = KillBuf; kp < LastKill; kp++)	/* copy the chars */
+X	*cp++ = *kp;
+X
+X    if (Argument == 1)		/* if an arg, cursor at beginning */
+X	Cursor = cp;		/* else cursor at end */
+X
+X    return(CC_REFRESH);
+X}
+X
+X/*ARGSUSED*/
+CCRETVAL
+v_delprev(c) 		/* Backspace key in insert mode */
+X    int c;
+X{
+X    int rc;
+X
+X    rc = CC_ERROR;
+X
+X    if (InsertPos != 0) {
+X	if (InsertPos <= Cursor - Argument) {
+X	    c_delbefore(Argument);	/* delete before */
+X	    Cursor -= Argument;
+X	    rc = CC_REFRESH;
+X	}
+X    }
+X    return(rc);
+X}   /* v_delprev  */
+X
+X/*ARGSUSED*/
+CCRETVAL
+e_delprev(c)
+X    int c;
+X{
+X    if (Cursor > InputBuf) {
+X	c_delbefore(Argument);	/* delete before dot */
+X	Cursor -= Argument;
+X	if (Cursor < InputBuf)
+X	    Cursor = InputBuf;	/* bounds check */
+X	return(CC_REFRESH);
+X    }
+X    else {
+X	return(CC_ERROR);
+X    }
+X}
+X
+X/*ARGSUSED*/
+CCRETVAL
+e_delwordprev(c)
+X    int c;
+X{
+X    register Char *cp, *p, *kp;
+X
+X    if (Cursor == InputBuf)
+X	return(CC_ERROR);
+X    /* else */
+X
+X    cp = c_prev_word(Cursor, InputBuf, Argument);
+X
+X    for (p = cp, kp = KillBuf; p < Cursor; p++)	/* save the text */
+X	*kp++ = *p;
+X    LastKill = kp;
+X
+X    c_delbefore(Cursor - cp);	/* delete before dot */
+X    Cursor = cp;
+X    if (Cursor < InputBuf)
+X	Cursor = InputBuf;	/* bounds check */
+X    return(CC_REFRESH);
+X}
+X
+X/*ARGSUSED*/
+CCRETVAL
+e_delnext(c)
+X    int c;
+X{
+X    if (Cursor == LastChar) {/* if I'm at the end */
+X	if (!VImode) {
+X	    if (Cursor == InputBuf) {	
+X		/* if I'm also at the beginning */
+X		so_write(STReof, 4);/* then do a EOF */
+X		flush();
+X		return(CC_EOF);
+X	    }
+X	    else 
+X		return(CC_ERROR);
+X	}
+X	else {
+X	    if (Cursor != InputBuf)
+X		Cursor--;
+X	    else
+X		return(CC_ERROR);
+X	}
+X    }
+X    c_delafter(Argument);	/* delete after dot */
+X    if (Cursor > LastChar)
+X	Cursor = LastChar;	/* bounds check */
+X    return(CC_REFRESH);
+X}
+X
+X/*ARGSUSED*/
+CCRETVAL
+e_list_delnext(c)
+X    int c;
+X{
+X    if (Cursor == LastChar) {	/* if I'm at the end */
+X	if (Cursor == InputBuf) {	/* if I'm also at the beginning */
+X	    so_write(STReof, 4);/* then do a EOF */
+X	    flush();
+X	    return(CC_EOF);
+X	}
+X	else {
+X	    PastBottom();
+X	    *LastChar = '\0';	/* just in case */
+X	    return(CC_LIST_CHOICES);
+X	}
+X    }
+X    else {
+X	c_delafter(Argument);	/* delete after dot */
+X	if (Cursor > LastChar)
+X	    Cursor = LastChar;	/* bounds check */
+X	return(CC_REFRESH);
+X    }
+X}
+X
+X/*ARGSUSED*/
+CCRETVAL
+e_list_eof(c)
+X    int c;
+X{
+X    if (Cursor == LastChar && Cursor == InputBuf) {
+X	so_write(STReof, 4);	/* then do a EOF */
+X	flush();
+X	return(CC_EOF);
+X    }
+X    else {
+X	PastBottom();
+X	*LastChar = '\0';	/* just in case */
+X	return(CC_LIST_CHOICES);
+X    }
+X}
+X
+X/*ARGSUSED*/
+CCRETVAL
+e_delwordnext(c)
+X    int c;
+X{
+X    register Char *cp, *p, *kp;
+X
+X    if (Cursor == LastChar)
+X	return(CC_ERROR);
+X    /* else */
+X
+X    cp = c_next_word(Cursor, LastChar, Argument);
+X
+X    for (p = Cursor, kp = KillBuf; p < cp; p++)	/* save the text */
+X	*kp++ = *p;
+X    LastKill = kp;
+X
+X    c_delafter(cp - Cursor);	/* delete after dot */
+X    if (Cursor > LastChar)
+X	Cursor = LastChar;	/* bounds check */
+X    return(CC_REFRESH);
+X}
+X
+X/*ARGSUSED*/
+CCRETVAL
+e_toend(c)
+X    int c;
+X{
+X    Cursor = LastChar;
+X    if (VImode)
+X	if (ActionFlag & DELETE) {
+X	    c_delfini();
+X	    return(CC_REFRESH);
+X	}
+X    RefCursor();		/* move the cursor */
+X    return(CC_NORM);
+X}
+X
+X/*ARGSUSED*/
+CCRETVAL
+e_tobeg(c)
+X    int c;
+X{
+X    Cursor = InputBuf;
+X
+X    if (VImode) {
+X       while (Isspace(*Cursor)) /* We want FIRST non space character */
+X	Cursor++;
+X	if (ActionFlag & DELETE) {
+X	    c_delfini();
+X	    return(CC_REFRESH);
+X	}
+X    }
+X
+X    RefCursor();		/* move the cursor */
+X    return(CC_NORM);
+X}
+X
+X/*ARGSUSED*/
+CCRETVAL
+e_killend(c)
+X    int c;
+X{
+X    register Char *kp, *cp;
+X
+X    cp = Cursor;
+X    kp = KillBuf;
+X    while (cp < LastChar)
+X	*kp++ = *cp++;		/* copy it */
+X    LastKill = kp;
+X    LastChar = Cursor;		/* zap! -- delete to end */
+X    return(CC_REFRESH);
+X}
+X
+X
+X/*ARGSUSED*/
+CCRETVAL
+e_killbeg(c)
+X    int c;
+X{
+X    register Char *kp, *cp;
+X
+X    cp = InputBuf;
+X    kp = KillBuf;
+X    while (cp < Cursor)
+X	*kp++ = *cp++;		/* copy it */
+X    LastKill = kp;
+X    c_delbefore(Cursor - InputBuf);
+X    Cursor = InputBuf;		/* zap! */
+X    return(CC_REFRESH);
+X}
+X
+X/*ARGSUSED*/
+CCRETVAL
+e_killall(c)
+X    int c;
+X{
+X    register Char *kp, *cp;
+X
+X    cp = InputBuf;
+X    kp = KillBuf;
+X    while (cp < LastChar)
+X	*kp++ = *cp++;		/* copy it */
+X    LastKill = kp;
+X    LastChar = InputBuf;	/* zap! -- delete all of it */
+X    Cursor = InputBuf;
+X    return(CC_REFRESH);
+X}
+X
+X/*ARGSUSED*/
+CCRETVAL
+e_killregion(c)
+X    int c;
+X{
+X    register Char *kp, *cp;
+X
+X    if (!Mark)
+X	return(CC_ERROR);
+X
+X    if (Mark > Cursor) {
+X	cp = Cursor;
+X	kp = KillBuf;
+X	while (cp < Mark)
+X	    *kp++ = *cp++;	/* copy it */
+X	LastKill = kp;
+X	c_delafter(cp - Cursor);/* delete it - UNUSED BY VI mode */
+X    }
+X    else {			/* mark is before cursor */
+X	cp = Mark;
+X	kp = KillBuf;
+X	while (cp < Cursor)
+X	    *kp++ = *cp++;	/* copy it */
+X	LastKill = kp;
+X	c_delbefore(cp - Mark);
+X	Cursor = Mark;
+X    }
+X    return(CC_REFRESH);
+X}
+X
+X/*ARGSUSED*/
+CCRETVAL
+e_copyregion(c)
+X    int c;
+X{
+X    register Char *kp, *cp;
+X
+X    if (!Mark)
+X	return(CC_ERROR);
+X
+X    if (Mark > Cursor) {
+X	cp = Cursor;
+X	kp = KillBuf;
+X	while (cp < Mark)
+X	    *kp++ = *cp++;	/* copy it */
+X	LastKill = kp;
+X    }
+X    else {			/* mark is before cursor */
+X	cp = Mark;
+X	kp = KillBuf;
+X	while (cp < Cursor)
+X	    *kp++ = *cp++;	/* copy it */
+X	LastKill = kp;
+X    }
+X    return(CC_NORM);		/* don't even need to Refresh() */
+X}
+X
+X/*ARGSUSED*/
+CCRETVAL
+e_charswitch(cc)
+X    int cc;
+X{
+X    register Char c;
+X
+X    if (Cursor < LastChar) {
+X	if (LastChar <= &InputBuf[1]) {
+X	    return(CC_ERROR);
+X	}
+X	else {
+X	    Cursor++;
+X	}
+X    }
+X    if (Cursor > &InputBuf[1]) {/* must have at least two chars entered */
+X	c = Cursor[-2];
+X	Cursor[-2] = Cursor[-1];
+X	Cursor[-1] = c;
+X	return(CC_REFRESH);
+X    }
+X    else {
+X	return(CC_ERROR);
+X    }
+X}
+X
+X/*ARGSUSED*/
+CCRETVAL
+e_gcharswitch(cc)
+X    int cc;
+X{				/* gosmacs style ^T */
+X    register Char c;
+X
+X    if (Cursor > &InputBuf[1]) {/* must have at least two chars entered */
+X	c = Cursor[-2];
+X	Cursor[-2] = Cursor[-1];
+X	Cursor[-1] = c;
+X	return(CC_REFRESH);
+X    }
+X    else {
+X	return(CC_ERROR);
+X    }
+X}
+X
+X/*ARGSUSED*/
+CCRETVAL
+e_charback(c)
+X    int c;
+X{
+X    if (Cursor > InputBuf) {
+X	Cursor -= Argument;
+X	if (Cursor < InputBuf)
+X	    Cursor = InputBuf;
+X
+X	if (VImode)
+X	    if (ActionFlag & DELETE) {
+X		c_delfini();
+X		return(CC_REFRESH);
+X	    }
+X
+X	RefCursor();
+X	return(CC_NORM);
+X    }
+X    else {
+X	return(CC_ERROR);
+X    }
+X}
+X
+X/*ARGSUSED*/
+CCRETVAL
+v_wordback(c)
+X    int c;
+X{
+X    if (Cursor == InputBuf)
+X	return(CC_ERROR);
+X    /* else */
+X
+X    Cursor = c_preword(Cursor, InputBuf, Argument); /* bounds check */
+X
+X    if (ActionFlag & DELETE) {
+X	c_delfini();
+X	return(CC_REFRESH);
+X    }
+X
+X    RefCursor();
+X    return(CC_NORM);
+X}
+X
+X/*ARGSUSED*/
+CCRETVAL
+e_wordback(c)
+X    int c;
+X{
+X    if (Cursor == InputBuf)
+X	return(CC_ERROR);
+X    /* else */
+X
+X    Cursor = c_prev_word(Cursor, InputBuf, Argument); /* bounds check */
+X
+X    if (VImode) 
+X	if (ActionFlag & DELETE) {
+X	    c_delfini();
+X	    return(CC_REFRESH);
+X	}
+X
+X    RefCursor();
+X    return(CC_NORM);
+X}
+X
+X/*ARGSUSED*/
+CCRETVAL
+e_charfwd(c)
+X    int c;
+X{
+X    if (Cursor < LastChar) {
+X	Cursor += Argument;
+X	if (Cursor > LastChar)
+X	    Cursor = LastChar;
+X
+X	if (VImode)
+X	    if (ActionFlag & DELETE) {
+X		c_delfini();
+X		return(CC_REFRESH);
+X	    }
+X
+X	RefCursor();
+X	return(CC_NORM);
+X    }
+X    else {
+X	return(CC_ERROR);
+X    }
+X}
+X
+X/*ARGSUSED*/
+CCRETVAL
+e_wordfwd(c)
+X    int c;
+X{
+X    if (Cursor == LastChar)
+X	return(CC_ERROR);
+X    /* else */
+X
+X    Cursor = c_next_word(Cursor, LastChar, Argument);
+X
+X    if (VImode)
+X	if (ActionFlag & DELETE) {
+X	    c_delfini();
+X	    return(CC_REFRESH);
+X	}
+X
+X    RefCursor();
+X    return(CC_NORM);
+X}
+X
+X/*ARGSUSED*/
+CCRETVAL
+v_wordfwd(c)
+X    int c;
+X{
+X    if (Cursor == LastChar)
+X	return(CC_ERROR);
+X    /* else */
+X
+X    Cursor = c_nexword(Cursor, LastChar, Argument);
+X
+X    if (VImode)
+X	if (ActionFlag & DELETE) {
+X	    c_delfini();
+X	    return(CC_REFRESH);
+X	}
+X
+X    RefCursor();
+X    return(CC_NORM);
+X}
+X
+X/*ARGSUSED*/
+CCRETVAL
+v_wordbegnext(c)
+X    int c;
+X{
+X    if (Cursor == LastChar)
+X	return(CC_ERROR);
+X    /* else */
+X
+X    Cursor = c_next_word(Cursor, LastChar, Argument);
+X    if (Cursor < LastChar)
+X	Cursor++;
+X
+X    if (VImode)
+X	if (ActionFlag & DELETE) {
+X	    c_delfini();
+X	    return(CC_REFRESH);
+X	}
+X
+X    RefCursor();
+X    return(CC_NORM);
+X}
+X
+X/*ARGSUSED*/
+static CCRETVAL
+v_repeat_srch(c)
+X    int c;
+X{
+X#ifdef SDEBUG
+X    xprintf("dir %d patlen %d patbuf %s\n", 
+X	    c, patlen, short2str(patbuf));
+X#endif
+X
+X    LastCmd = c;  /* Hack to stop c_hsetpat */
+X    LastChar = InputBuf;
+X    switch (c) {
+X    case F_DOWN_SEARCH_HIST:
+X	return(e_down_search_hist(0));
+X    case F_UP_SEARCH_HIST:
+X	return(e_up_search_hist(0));
+X    default:
+X	return(CC_ERROR);
+X    }
+X}
+X
+static CCRETVAL
+v_csearch_back(ch, count, tflag)
+X    int ch, count, tflag;
+X{
+X    Char *cp;
+X
+X    cp = Cursor;
+X    while (count--) {
+X	if (*cp == ch) 
+X	    cp--;
+X	while (cp > InputBuf && *cp != ch) 
+X	    cp--;
+X    }
+X
+X    if (cp < InputBuf || (cp == InputBuf && *cp != ch))
+X	return(CC_ERROR);
+X
+X    if (*cp == ch && tflag)
+X	cp++;
+X
+X    Cursor = cp;
+X
+X    if (ActionFlag & DELETE) {
+X	Cursor++;
+X	c_delfini();
+X	return(CC_REFRESH);
+X    }
+X
+X    RefCursor();
+X    return(CC_NORM);
+X}
+X
+static CCRETVAL
+v_csearch_fwd(ch, count, tflag)
+X    int ch, count, tflag;
+X{
+X    Char *cp;
+X
+X    cp = Cursor;
+X    while (count--) {
+X	if(*cp == ch) 
+X	    cp++;
+X	while (cp < LastChar && *cp != ch) 
+X	    cp++;
+X    }
+X
+X    if (cp >= LastChar)
+X	return(CC_ERROR);
+X
+X    if (*cp == ch && tflag)
+X	cp--;
+X
+X    Cursor = cp;
+X
+X    if (ActionFlag & DELETE) {
+X	Cursor++;
+X	c_delfini();
+X	return(CC_REFRESH);
+X    }
+X    RefCursor();
+X    return(CC_NORM);
+X}
+X
+X/*ARGSUSED*/
+static CCRETVAL
+v_action(c)
+X    int c;
+X{
+X    register Char *cp, *kp;
+X
+X    if (ActionFlag == DELETE) {
+X	ActionFlag = NOP;
+X	ActionPos = 0;
+X	
+X	UndoSize = 0;
+X	kp = UndoBuf;
+X	for (cp = InputBuf; cp < LastChar; cp++) {
+X	    *kp++ = *cp;
+X	    UndoSize++;
+X	}
+X		
+X	UndoAction = INSERT;
+X	UndoPtr  = InputBuf;
+X	LastChar = InputBuf;
+X	Cursor   = InputBuf;
+X	if (c & INSERT)
+X	    c_alternativ_key_map(0);
+X	    
+X	return(CC_REFRESH);
+X    }
+X#ifdef notdef
+X    else if (ActionFlag == NOP) {
+X#endif
+X	ActionPos = Cursor;
+X	ActionFlag = c;
+X	return(CC_ARGHACK);  /* Do NOT clear out argument */
+X#ifdef notdef
+X    }
+X    else {
+X	ActionFlag = 0;
+X	ActionPos = 0;
+X	return(CC_ERROR);
+X    }
+X#endif
+X}
+X#ifdef COMMENT
+X/* by: Brian Allison <uiucdcs!convex!allison@RUTGERS.EDU> */
+static void
+c_get_word(begin, end)
+X    Char  **begin;
+X    Char  **end;
+X{
+X    Char   *cp;
+X
+X    cp = &Cursor[0];
+X    while (Argument--) {
+X	while ((cp <= LastChar) && (isword(*cp)))
+X	    cp++;
+X	*end = --cp;
+X	while ((cp >= InputBuf) && (isword(*cp)))
+X	    cp--;
+X	*begin = ++cp;
+X    }
+X}
+X#endif				/* COMMENT */
+X
+X/*ARGSUSED*/
+CCRETVAL
+e_uppercase(c)
+X    int c;
+X{
+X    Char   *cp, *end;
+X
+X    end = c_next_word(Cursor, LastChar, Argument);
+X
+X    for (cp = Cursor; cp < end; cp++)	/* PWP: was cp=begin */
+X	if (Islower(*cp))
+X	    *cp = Toupper(*cp);
+X
+X    Cursor = end;
+X    if (Cursor > LastChar)
+X	Cursor = LastChar;
+X    return(CC_REFRESH);
+X}
+X
+X
+X/*ARGSUSED*/
+CCRETVAL
+e_capitolcase(c)
+X    int c;
+X{
+X    Char   *cp, *end;
+X
+X    end = c_next_word(Cursor, LastChar, Argument);
+X
+X    cp = Cursor;
+X    for (; cp < end; cp++) {
+X	if (Isalpha(*cp)) {
+X	    if (Islower(*cp))
+X		*cp = Toupper(*cp);
+X	    cp++;
+X	    break;
+X	}
+X    }
+X    for (; cp < end; cp++)
+X	if (Isupper(*cp))
+X	    *cp = Tolower(*cp);
+X
+X    Cursor = end;
+X    if (Cursor > LastChar)
+X	Cursor = LastChar;
+X    return(CC_REFRESH);
+X}
+X
+X/*ARGSUSED*/
+CCRETVAL
+e_lowercase(c)
+X    int c;
+X{
+X    Char   *cp, *end;
+X
+X    end = c_next_word(Cursor, LastChar, Argument);
+X
+X    for (cp = Cursor; cp < end; cp++)
+X	if (Isupper(*cp))
+X	    *cp = Tolower(*cp);
+X
+X    Cursor = end;
+X    if (Cursor > LastChar)
+X	Cursor = LastChar;
+X    return(CC_REFRESH);
+X}
+X
+X
+X/*ARGSUSED*/
+CCRETVAL
+e_set_mark(c)
+X    int c;
+X{
+X    Mark = Cursor;
+X    return(CC_NORM);
+X}
+X
+X/*ARGSUSED*/
+CCRETVAL
+e_exchange_mark(c)
+X    int c;
+X{
+X    register Char *cp;
+X
+X    cp = Cursor;
+X    Cursor = Mark;
+X    Mark = cp;
+X    RefCursor();
+X    return(CC_NORM);
+X}
+X
+X/*ARGSUSED*/
+CCRETVAL
+e_argfour(c)
+X    int c;
+X{				/* multiply current argument by 4 */
+X    if (Argument > 1000000)
+X	return CC_ERROR;
+X    DoingArg = 1;
+X    Argument *= 4;
+X    return(CC_ARGHACK);
+X}
+X
+X/*ARGSUSED*/
+CCRETVAL
+e_quote(c)
+X    int c;
+X{
+X    Char    ch;
+X    int     num;
+X
+X    QuoteModeOn();
+X    num = GetNextChar(&ch);
+X    QuoteModeOff();
+X    if (num == 1)
+X	return e_insert(ch);
+X    else
+X	return e_send_eof(0);
+X}
+X
+X/*ARGSUSED*/
+CCRETVAL
+e_metanext(c)
+X    int c;
+X{
+X    MetaNext = 1;
+X    return(CC_ARGHACK);	/* preserve argument */
+X}
+X
+X#ifdef notdef
+X/*ARGSUSED*/
+CCRETVAL
+e_extendnext(c)
+X    int c;
+X{
+X    CurrentKeyMap = CcAltMap;
+X    return(CC_ARGHACK);	/* preserve argument */
+X}
+X
+X#endif
+X
+X/*ARGSUSED*/
+CCRETVAL
+v_insbeg(c)
+X    int c;
+X{				/* move to beginning of line and start vi
+X				 * insert mode */
+X    Cursor = InputBuf;
+X    InsertPos = Cursor;
+X
+X    UndoPtr  = Cursor;
+X    UndoAction = DELETE;
+X
+X    RefCursor();		/* move the cursor */
+X    c_alternativ_key_map(0);
+X    return(CC_NORM);
+X}
+X
+X/*ARGSUSED*/
+CCRETVAL
+v_replone(c)
+X    int c;
+X{				/* vi mode overwrite one character */
+X    c_alternativ_key_map(0);
+X    inputmode = MODE_REPLACE_1;
+X    UndoAction = CHANGE;	/* Set Up for VI undo command */
+X    UndoPtr = Cursor;
+X    UndoSize = 0;
+X    return(CC_NORM);
+X}
+X
+X/*ARGSUSED*/
+CCRETVAL
+v_replmode(c)
+X    int c;
+X{				/* vi mode start overwriting */
+X    c_alternativ_key_map(0);
+X    inputmode = MODE_REPLACE;
+X    UndoAction = CHANGE;	/* Set Up for VI undo command */
+X    UndoPtr = Cursor;
+X    UndoSize = 0;
+X    return(CC_NORM);
+X}
+X
+X/*ARGSUSED*/
+CCRETVAL
+v_substchar(c)
+X    int c;
+X{				/* vi mode substitute for one char */
+X    c_delafter(Argument);
+X    c_alternativ_key_map(0);
+X    return(CC_REFRESH);
+X}
+X
+X/*ARGSUSED*/
+CCRETVAL
+v_substline(c)
+X    int c;
+X{				/* vi mode replace whole line */
+X    (void) e_killall(0);
+X    c_alternativ_key_map(0);
+X    return(CC_NORM);
+X}
+X
+X/*ARGSUSED*/
+CCRETVAL
+v_chgtoend(c)
+X    int c;
+X{				/* vi mode change to end of line */
+X    (void) e_killend(0);
+X    c_alternativ_key_map(0);
+X    return(CC_REFRESH);
+X}
+X
+X/*ARGSUSED*/
+CCRETVAL
+v_insert(c)
+X    int c;
+X{				/* vi mode start inserting */
+X    c_alternativ_key_map(0);
+X
+X    InsertPos = Cursor;
+X    UndoPtr = Cursor;
+X    UndoAction = DELETE;
+X
+X    return(CC_NORM);
+X}
+X
+X/*ARGSUSED*/
+CCRETVAL
+v_add(c)
+X    int c;
+X{				/* vi mode start adding */
+X    c_alternativ_key_map(0);
+X    if (Cursor < LastChar)
+X    {
+X	Cursor++;
+X	if (Cursor > LastChar)
+X	    Cursor = LastChar;
+X	RefCursor();
+X    }
+X
+X    InsertPos = Cursor;
+X    UndoPtr = Cursor;
+X    UndoAction = DELETE;
+X
+X    return(CC_NORM);
+X}
+X
+X/*ARGSUSED*/
+CCRETVAL
+v_addend(c)
+X    int c;
+X{				/* vi mode to add at end of line */
+X    c_alternativ_key_map(0);
+X    Cursor = LastChar;
+X
+X    InsertPos = LastChar;	/* Mark where insertion begins */
+X    UndoPtr = LastChar;
+X    UndoAction = DELETE;
+X
+X    RefCursor();
+X    return(CC_NORM);
+X}
+X
+X/*ARGSUSED*/
+CCRETVAL
+v_change_case(cc)
+X    int cc;
+X{
+X    char    c;
+X
+X    if (Cursor < LastChar) {
+X	c = *Cursor;
+X	if (Isupper(c))
+X	    *Cursor++ = Tolower(c);
+X	else if (Islower(c))
+X	    *Cursor++ = Toupper(c);
+X	else
+X	    Cursor++;
+X	RefPlusOne();		/* fast refresh for one char */
+X	return(CC_NORM);
+X    }
+X    return(CC_ERROR);
+X}
+X
+X/*ARGSUSED*/
+CCRETVAL
+e_expand(c)
+X    int c;
+X{
+X    register Char *p;
+X    extern bool justpr;
+X
+X    for (p = InputBuf; Isspace(*p); p++);
+X    if (p == LastChar)
+X	return(CC_ERROR);
+X
+X    justpr++;
+X    Expand++;
+X    return(e_newline(0));
+X}
+X
+X/*ARGSUSED*/
+CCRETVAL
+e_startover(c)
+X    int c;
+X{				/* erase all of current line, start again */
+X    ResetInLine();		/* reset the input pointers */
+X    return(CC_REFRESH);
+X}
+X
+X/*ARGSUSED*/
+CCRETVAL
+e_redisp(c)
+X    int c;
+X{
+X    ClearLines();
+X    ClearDisp();
+X    return(CC_REFRESH);
+X}
+X
+X/*ARGSUSED*/
+CCRETVAL
+e_cleardisp(c)
+X    int c;
+X{
+X    ClearScreen();		/* clear the whole real screen */
+X    ClearDisp();		/* reset everything */
+X    return(CC_REFRESH);
+X}
+X
+X/*ARGSUSED*/
+CCRETVAL
+e_tty_int(c)
+X    int c;
+X{			
+X#ifdef _MINIX
+X    /* SAK PATCH: erase all of current line, start again */
+X    ResetInLine();		/* reset the input pointers */
+X    xputchar('\n');
+X    ClearDisp();
+X    return (CC_REFRESH);
+X#else /* !_MINIX */
+X    /* do no editing */
+X    return (CC_NORM);
+X#endif /* _MINIX */
+X}
+X  
+X/*ARGSUSED*/
+CCRETVAL
+e_insovr(c)
+X    int c;
+X{
+X    inputmode = (inputmode == MODE_INSERT ? MODE_REPLACE : MODE_INSERT);
+X    return(CC_NORM);
+X}
+X
+X/*ARGSUSED*/
+CCRETVAL
+e_tty_dsusp(c)
+X    int c;
+X{
+X    /* do no editing */
+X    return(CC_NORM);
+X}
+X
+X/*ARGSUSED*/
+CCRETVAL
+e_tty_flusho(c)
+X    int c;
+X{
+X    /* do no editing */
+X    return(CC_NORM);
+X}
+X
+X/*ARGSUSED*/
+CCRETVAL
+e_tty_quit(c)
+X    int c;
+X{
+X    /* do no editing */
+X    return(CC_NORM);
+X}
+X
+X/*ARGSUSED*/
+CCRETVAL
+e_tty_tsusp(c)
+X    int c;
+X{
+X    /* do no editing */
+X    return(CC_NORM);
+X}
+X
+X/*ARGSUSED*/
+CCRETVAL
+e_tty_stopo(c)
+X    int c;
+X{
+X    /* do no editing */
+X    return(CC_NORM);
+X}
+X
+X/*ARGSUSED*/
+CCRETVAL
+e_expand_history(c)
+X    int c;
+X{
+X    *LastChar = '\0';		/* just in case */
+X    c_substitute();
+X    return(CC_NORM);
+X}
+X
+X/*ARGSUSED*/
+CCRETVAL
+e_magic_space(c)
+X    int c;
+X{
+X    *LastChar = '\0';		/* just in case */
+X    c_substitute();
+X    return(e_insert(' '));
+X}
+X
+X/*ARGSUSED*/
+CCRETVAL
+e_inc_fwd(c)
+X    int c;
+X{
+X    patlen = 0;
+X    return e_inc_search(F_DOWN_SEARCH_HIST);
+X}
+X
+X
+X/*ARGSUSED*/
+CCRETVAL
+e_inc_back(c)
+X    int c;
+X{
+X    patlen = 0;
+X    return e_inc_search(F_UP_SEARCH_HIST);
+X}
+X
+X/*ARGSUSED*/
+CCRETVAL
+e_copyprev(c)
+X    int c;
+X{
+X    register Char *cp, *oldc, *dp;
+X
+X    if (Cursor == InputBuf)
+X	return(CC_ERROR);
+X    /* else */
+X
+X    oldc = Cursor;
+X    /* does a bounds check */
+X    cp = c_prev_word(Cursor, InputBuf, Argument);	
+X
+X    c_insert(oldc - cp);
+X    for (dp = oldc; cp < oldc && dp < LastChar; cp++)
+X	*dp++ = *cp;
+X
+X    Cursor = dp;		/* put cursor at end */
+X
+X    return(CC_REFRESH);
+X}
+X
+X/*ARGSUSED*/
+CCRETVAL
+e_tty_starto(c)
+X    int c;
+X{
+X    /* do no editing */
+X    return(CC_NORM);
+X}
+X
+X/*ARGSUSED*/
+CCRETVAL
+e_load_average(c)
+X    int c;
+X{
+X    PastBottom();
+X#ifdef TIOCSTAT
+X    if (ioctl(SHIN, TIOCSTAT, 0) < 0) 
+X#endif
+X	xprintf("Load average unavailable\n");
+X    return(CC_REFRESH);
+X}
+X
+X/*ARGSUSED*/
+CCRETVAL
+v_chgmeta(c)
+X    int c;
+X{
+X    /*
+X     * Delete with insert == change: first we delete and then we leave in
+X     * insert mode.
+X     */
+X    return(v_action(DELETE|INSERT));
+X}
+X
+X/*ARGSUSED*/
+CCRETVAL
+v_delmeta(c)
+X    int c;
+X{
+X    return(v_action(DELETE));
+X}
+X
+X
+X/*ARGSUSED*/
+CCRETVAL
+v_endword(c)
+X    int c;
+X{
+X    if (Cursor == LastChar)
+X	return(CC_ERROR);
+X    /* else */
+X
+X    Cursor = c_endword(Cursor, LastChar, Argument);
+X
+X    if (ActionFlag & DELETE)
+X    {
+X	Cursor++;
+X	c_delfini();
+X	return(CC_REFRESH);
+X    }
+X
+X    RefCursor();
+X    return(CC_NORM);
+X}
+X
+X/*ARGSUSED*/
+CCRETVAL
+v_eword(c)
+X    int c;
+X{
+X    if (Cursor == LastChar)
+X	return(CC_ERROR);
+X    /* else */
+X
+X    Cursor = c_eword(Cursor, LastChar, Argument);
+X
+X    if (ActionFlag & DELETE) {
+X	Cursor++;
+X	c_delfini();
+X	return(CC_REFRESH);
+X    }
+X
+X    RefCursor();
+X    return(CC_NORM);
+X}
+X
+X/*ARGSUSED*/
+CCRETVAL
+v_char_fwd(c)
+X    int c;
+X{
+X    Char ch;
+X
+X    if (GetNextChar(&ch) != 1)
+X	return e_send_eof(0);
+X
+X    srch_dir = CHAR_FWD;
+X    srch_char = ch;
+X
+X    return v_csearch_fwd(ch, Argument, 0);
+X
+X}
+X
+X/*ARGSUSED*/
+CCRETVAL
+v_char_back(c)
+X    int c;
+X{
+X    Char ch;
+X
+X    if (GetNextChar(&ch) != 1)
+X	return e_send_eof(0);
+X
+X    srch_dir = CHAR_BACK;
+X    srch_char = ch;
+X
+X    return v_csearch_back(ch, Argument, 0);
+X}
+X
+X/*ARGSUSED*/
+CCRETVAL
+v_charto_fwd(c)
+X    int c;
+X{
+X    Char ch;
+X
+X    if (GetNextChar(&ch) != 1)
+X	return e_send_eof(0);
+X
+X    return v_csearch_fwd(ch, Argument, 1);
+X
+X}
+X
+X/*ARGSUSED*/
+CCRETVAL
+v_charto_back(c)
+X    int c;
+X{
+X    Char ch;
+X
+X    if (GetNextChar(&ch) != 1)
+X	return e_send_eof(0);
+X
+X    return v_csearch_back(ch, Argument, 1);
+X}
+X
+X/*ARGSUSED*/
+CCRETVAL
+v_rchar_fwd(c)
+X    int c;
+X{
+X    if (srch_char == 0)
+X	return CC_ERROR;
+X
+X    return srch_dir == CHAR_FWD ? v_csearch_fwd(srch_char, Argument, 0) : 
+X			          v_csearch_back(srch_char, Argument, 0);
+X}
+X
+X/*ARGSUSED*/
+CCRETVAL
+v_rchar_back(c)
+X    int c;
+X{
+X    if (srch_char == 0)
+X	return CC_ERROR;
+X
+X    return srch_dir == CHAR_BACK ? v_csearch_fwd(srch_char, Argument, 0) : 
+X			           v_csearch_back(srch_char, Argument, 0);
+X}
+X
+X/*ARGSUSED*/
+CCRETVAL
+v_undo(c)
+X    int c;
+X{
+X    register int  loop;
+X    register Char *kp, *cp;
+X    Char temp;
+X    int	 size;
+X
+X    switch (UndoAction) {
+X    case DELETE|INSERT:
+X    case DELETE:
+X	if (UndoSize == 0) return(CC_NORM);
+X	cp = UndoPtr;
+X	kp = UndoBuf;
+X	for (loop=0; loop < UndoSize; loop++)	/* copy the chars */
+X	    *kp++ = *cp++;			/* into UndoBuf   */
+X
+X	for (cp = UndoPtr; cp <= LastChar; cp++)
+X	    *cp = cp[UndoSize];
+X
+X	LastChar -= UndoSize;
+X	Cursor   =  UndoPtr;
+X	
+X	UndoAction = INSERT;
+X	break;
+X
+X    case INSERT:
+X	if (UndoSize == 0) return(CC_NORM);
+X	cp = UndoPtr;
+X	Cursor = UndoPtr;
+X	kp = UndoBuf;
+X	c_insert(UndoSize);		/* open the space, */
+X	for (loop = 0; loop < UndoSize; loop++)	/* copy the chars */
+X	    *cp++ = *kp++;
+X
+X	UndoAction = DELETE;
+X	break;
+X
+X    case CHANGE:
+X	if (UndoSize == 0) return(CC_NORM);
+X	cp = UndoPtr;
+X	Cursor = UndoPtr;
+X	kp = UndoBuf;
+X	size = (int)(Cursor-LastChar); /*  NOT NSL independant */
+X	if (size < UndoSize)
+X	    size = UndoSize;
+X	for(loop = 0; loop < size; loop++) {
+X	    temp = *kp;
+X	    *kp++ = *cp;
+X	    *cp++ = temp;
+X	}
+X	break;
+X
+X    default:
+X	return(CC_ERROR);
+X    }
+X
+X    return(CC_REFRESH);
+X}
+X
+X/*ARGSUSED*/
+CCRETVAL
+v_ush_meta(c)
+X    int c;
+X{
+X    return v_search(F_UP_SEARCH_HIST);
+X}
+X
+X/*ARGSUSED*/
+CCRETVAL
+v_dsh_meta(c)
+X    int c;
+X{
+X    return v_search(F_DOWN_SEARCH_HIST);
+X}
+X
+X/*ARGSUSED*/
+CCRETVAL
+v_rsrch_fwd(c)
+X    int c;
+X{
+X    if (patlen == 0) return(CC_ERROR);
+X    return(v_repeat_srch(searchdir));
+X}
+X
+X/*ARGSUSED*/
+CCRETVAL
+v_rsrch_back(c)
+X    int c;
+X{
+X    if (patlen == 0) return(CC_ERROR);
+X    return(v_repeat_srch(searchdir == F_UP_SEARCH_HIST ? 
+X			 F_DOWN_SEARCH_HIST : F_UP_SEARCH_HIST));
+X}
+X
+X#ifdef notdef
+void
+MoveCursor(n)			/* move cursor + right - left char */
+X    int     n;
+X{
+X    Cursor = Cursor + n;
+X    if (Cursor < InputBuf)
+X	Cursor = InputBuf;
+X    if (Cursor > LastChar)
+X	Cursor = LastChar;
+X    return;
+X}
+X
+Char   *
+GetCursor()
+X{
+X    return(Cursor);
+X}
+X
+int
+PutCursor(p)
+X    Char   *p;
+X{
+X    if (p < InputBuf || p > LastChar)
+X	return 1;		/* Error */
+X    Cursor = p;
+X    return 0;
+X}
+X#endif
+END_OF_FILE
+if test 58512 -ne `wc -c <'ed.chared.c'`; then
+    echo shar: \"'ed.chared.c'\" unpacked with wrong size!
+fi
+# end of 'ed.chared.c'
+fi
+echo shar: End of archive 17 \(of 18\).
+cp /dev/null ark17isdone
+MISSING=""
+for I in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 ; do
+    if test ! -f ark${I}isdone ; then
+	MISSING="${MISSING} ${I}"
+    fi
+done
+if test "${MISSING}" = "" ; then
+    echo You have unpacked all 18 archives.
+    rm -f ark[1-9]isdone ark[1-9][0-9]isdone
+else
+    echo You still need to unpack the following archives:
+    echo "        " ${MISSING}
+fi
+##  End of shell archive.
+exit 0

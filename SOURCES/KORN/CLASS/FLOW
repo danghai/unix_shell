@@ -1,0 +1,98 @@
+                                Flow Control
+
+     A command is either a simple-command or one of  the  follow-
+     ing.   Unless otherwise stated, the value returned by a com-
+     mand is that of the last simple-command executed in the com-
+     mand.
+
+     for identifier [ in word ... ] ;do list ;done
+          Each time a for command is executed, identifier is  set
+          to  the  next  word taken from the in word list.  If in
+          word ...  is omitted, then the for command executes the
+          do  list once for each positional parameter that is set
+          (see Parameter  Substitution  below).   Execution  ends
+          when there are no more words in the list.
+
+     select identifier [ in word ... ] ;do list;done
+          A  select  command  prints  to  standard  error   (file
+          descriptor  2),  the  set  of words, each preceded by a
+          number.  If in word ...  is  omitted,  then  the  posi-
+          tional  parameters are used instead (see Parameter Sub-
+          stitution below).  The PS3 prompt is printed and a line
+          is read from the standard input.  If this line consists
+          of the number of one of  the  listed  words,  then  the
+          value  of  the  variable  identifier is set to the word
+          corresponding to this number.  If this  line  is  empty
+          the  selection  list  is  printed again.  Otherwise the
+          value of the variable identifier is set to  NULL.  (See
+          Blank  Interpretation  about NULL). The contents of the
+          line read from standard input is  saved  in  the  shell
+          variable REPLY. The list is executed for each selection
+          until a break or end-of-file is  encountered.   If  the
+          REPLY variable is set to NULL by the execution of list,
+          then the selection list is  printed  before  displaying
+          the PS3 prompt for the next selection.
+
+     case word in [ [(]pattern [                                |
+           pattern ] ... ) list ;; ] ... esac
+          A case command executes the list  associated  with  the
+          first  pattern that matches word.  The form of the pat-
+          terns is the same as that used for file-name generation
+          (see File Name Generation below).
+
+     if list ;then list
+        [[ elif list ; then list ] ... ]; else list;fi
+          The list following if is executed and, if it returns an
+          exit  status of zero, the list following the first then
+          is executed.  Otherwise, the  list  following  elif  is
+          executed  and, if its value is zero, the list following
+          the next then is executed.  Failing that, the else list
+          is executed.  If no else list or then list is executed,
+          then the if command returns a zero exit status.
+
+     while list ;do list ;done
+     until list ;do list ;done
+          A while command repeatedly executes the while list and,
+          if  the  exit status of the last command in the list is
+          zero, executes the do list;  otherwise  the  loop  ter-
+          minates.   If  no commands in the do list are executed,
+          then the while command  returns  a  zero  exit  status;
+          until  may be used in place of while to negate the loop
+          termination test.
+
+     (list)
+          Execute list in a separate environment.  Note, that  if
+          two adjacent open parentheses are needed for nesting, a
+          space must be inserted to avoid  arithmetic  evaluation
+          as described below.
+
+     {list}
+          list is simply executed.  Note that  unlike  the  meta-
+          characters ( and ), { and } are reserved words and must
+          occur at the beginning of a line or after a ; in  order
+          to be recognized.
+
+     [[expression]]
+          Evaluates expression and returns  a  zero  exit  status
+          when  expression  is true.  See Conditional Expressions
+          below, for a description of expression.
+
+     identifier() { list ;}
+          Define a function which is  referenced  by  identifier.
+          The  body  of  the  function  is  the  list of commands
+          between { and }.  (See Functions below).
+
+     time pipeline
+          The pipeline is executed and the elapsed time  as  well
+          as  the  user  and  system time are printed to standard
+          error.
+
+     The following reserved words  are  only  recognized  as  the
+     first word of a command and when not quoted:
+
+     if then else elif fi case esac for while until do done  {  }
+     function select time [[ ]]
+
+  Comments
+     A word beginning with # causes that word and all the follow-
+     ing characters up to a new-line to be ignored.

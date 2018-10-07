@@ -1,0 +1,21 @@
+Summary of shell facilities
+
+
+                               Bourne     C        TC     Korn     BASH
+________________________________________________________
+
+command history        No   Yes   Yes   Yes    Yes
+
+command alias          No   Yes   Yes   Yes    Yes
+
+shell scripts          Yes  Yes   Yes   Yes    Yes
+
+filename completion    No   Yes*  Yes   Yes*   Yes
+
+command line editing   No   No    Yes   Yes*   Yes
+
+job control            No   Yes   Yes   Yes    Yes
+
+________________________________________________________
+
+* not the default setting for this shell

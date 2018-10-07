@@ -1,0 +1,58 @@
+---------------------------------------------------------------------------
+This is a searchable index. Enter search keywords:
+---------------------------------------------------------------------------
+
+AWK Source Code Repository
+
+All Of The Files Listed Here Are Avaiable For FTP via:
+ftp.mbnet.mb.ca/pub/natewild/awk
+
+ChangeCase is a standard AWK, GNU Copylefted function for converting the
+case of a string to either upper or lower case. It was written by
+bergman@panix.com
+
+CheckData is a standard AWK, GNU Copylefted function for checking data for
+a specified type and length. It was written by bergman@panix.com.
+
+CheckPassword is a standard AWK, GNU Copylefted function for specified
+username in local /etc/passwd and system-wide passwd. It was written by
+bergman@panix.com.
+
+Date2Date is a standard AWK, GNU Copylefted function for converting a
+date(1) format date into an American MM/DD/YY format. It was written by
+bergman@panix.com.
+
+Date2YYMMDD is a slightly modified version of this function which converts
+date(1) to the Canadian/International format YY/MM/DD.
+
+DateToWeekDay is a standard AWK, (possible mawk extensions), program to
+compute the weekday given the date.
+
+Hour2Dec is a standard AWK, GNU Copylefted function for converting HH:MM to
+hours and a decimal minute portion. i.e. It will convert 1 hour 30 minutes
+to 1.5 hours. It was written by bergman@panix.com.
+
+MakeFit is a standard AWK, GNU Copylefted function which breaks test lines
+so they fit in the specified length. It was written by bergman@panix.com.
+
+FromToday.awk is a standard AWK program which when passed an integer
+returns the date (and day) in that many days. i.e. On Dec Mon DEC 24th "awk
+-f FromToday 1" would yeild "Tue December 25th".
+
+UncompressUPC..awk is a standard AWK function which when passed a
+compressed (6 digit) UPC Code will uncompress it using the ISO rules and
+return the fill 10 digit code...
+
+PCL_Printer.awk is a collection of standard AWK programs written originally
+for GAWK. These functions provide font and printer control using Hewlett
+Packard's PCL page description langu age... Written ba B. Clarke, and
+modified for complete portability by N. Wild...
+
+SQL_Functions.awk is a collection of standard AWK functions for performing
+SQL operations in AWK. These were originally written for GAWK, but will
+work with AL standard AWKs. Written by A. Groom, B.Clarke & N. Wild...
+
+---------------------------------------------------------------------------
+
+For More Information, Or To Correct Any Invalid Information, Please Send
+Mail To: Nathan T. Wild (natewild@mbnet.mb.ca).

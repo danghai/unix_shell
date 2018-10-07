@@ -1,0 +1,2964 @@
+Newsgroups: comp.sources.unix
+From: christos@ee.cornell.edu (Christos Zoulas)
+Subject: v25i063: tcsh6.01 - a csh replacement with lots of extra goodies, Part10/18
+Message-ID: <1991Dec20.214320.7298@PA.dec.com>
+Date: Fri, 20 Dec 91 21:43:20 GMT
+Approved: vixie@pa.dec.com
+
+Submitted-By: christos@ee.cornell.edu (Christos Zoulas)
+Posting-Number: Volume 25, Issue 63
+Archive-Name: tcsh-6.01/part10
+
+#! /bin/sh
+# This is a shell archive.  Remove anything before this line, then unpack
+# it by saving it into a file and typing "sh file".  To overwrite existing
+# files, type "sh file -c".  You can also feed this as standard input via
+# unshar, or by typing "sh <file", e.g..  If this archive is complete, you
+# will see the following message at the end:
+#		"End of archive 10 (of 18)."
+# Contents:  sh.dir.c sh.exec.c sh.init.c
+# Wrapped by vixie@cognition.pa.dec.com on Fri Dec 20 13:29:27 1991
+PATH=/bin:/usr/bin:/usr/ucb ; export PATH
+if test -f 'sh.dir.c' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'sh.dir.c'\"
+else
+echo shar: Extracting \"'sh.dir.c'\" \(25428 characters\)
+sed "s/^X//" >'sh.dir.c' <<'END_OF_FILE'
+X/* $Header: /home/hyperion/mu/christos/src/sys/tcsh-6.01/RCS/sh.dir.c,v 3.8 1991/12/19 22:34:14 christos Exp $ */
+X/*
+X * sh.dir.c: Directory manipulation functions
+X */
+X/*-
+X * Copyright (c) 1980, 1991 The Regents of the University of California.
+X * All rights reserved.
+X *
+X * Redistribution and use in source and binary forms, with or without
+X * modification, are permitted provided that the following conditions
+X * are met:
+X * 1. Redistributions of source code must retain the above copyright
+X *    notice, this list of conditions and the following disclaimer.
+X * 2. Redistributions in binary form must reproduce the above copyright
+X *    notice, this list of conditions and the following disclaimer in the
+X *    documentation and/or other materials provided with the distribution.
+X * 3. All advertising materials mentioning features or use of this software
+X *    must display the following acknowledgement:
+X *	This product includes software developed by the University of
+X *	California, Berkeley and its contributors.
+X * 4. Neither the name of the University nor the names of its contributors
+X *    may be used to endorse or promote products derived from this software
+X *    without specific prior written permission.
+X *
+X * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+X * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+X * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+X * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+X * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+X * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+X * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+X * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+X * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+X * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+X * SUCH DAMAGE.
+X */
+X#include "sh.h"
+X
+RCSID("$Id: sh.dir.c,v 3.8 1991/12/19 22:34:14 christos Exp $")
+X
+X/*
+X * C Shell - directory management
+X */
+X
+static	struct directory	*dfind		__P((Char *));
+static	Char 			*dfollow	__P((Char *));
+static	void 	 	 	 printdirs	__P((void));
+static	Char 			*dgoto		__P((Char *));
+static	void 	 	 	 dnewcwd	__P((struct directory *));
+static	void 	 	 	 dset		__P((Char *));
+X
+struct directory dhead;		/* "head" of loop */
+int     printd;			/* force name to be printed */
+X
+X#ifdef CSHDIRS
+int     bequiet = 0;		/* do not print dir stack -strike */
+X
+X#endif
+static int dirflag = 0;
+X
+X/*
+X * dinit - initialize current working directory
+X */
+void
+dinit(hp)
+X    Char   *hp;
+X{
+X    register char *tcp;
+X    register Char *cp;
+X    register struct directory *dp;
+X    char    path[MAXPATHLEN];
+X    static char *emsg = "tcsh: Trying to start from \"%s\"\n";
+X
+X    /* Don't believe the login shell home, because it may be a symlink */
+X    tcp = getwd(path);		/* see ngetwd.c for System V version */
+X    if (tcp == NULL || *tcp == '\0') {
+X	(void) xprintf("tcsh: %s\n", path);
+X	if (hp && *hp) {
+X	    tcp = short2str(hp);
+X	    (void) xprintf(emsg, tcp);
+X	    if (chdir(tcp) == -1)
+X		cp = NULL;
+X	    else
+X		cp = hp;
+X	}
+X	else
+X	    cp = NULL;
+X	if (cp == NULL) {
+X	    (void) xprintf(emsg, "/");
+X	    if (chdir("/") == -1)
+X		/* I am not even try to print an error message! */
+X		xexit(1);
+X	    cp = SAVE("/");
+X	}
+X    }
+X    else {
+X#ifdef S_IFLNK
+X	struct stat swd, shp;
+X
+X	/*
+X	 * See if $HOME is the working directory we got and use that
+X	 */
+X	if (hp && *hp &&
+X	    stat(tcp, &swd) != -1 && stat(short2str(hp), &shp) != -1 &&
+X	    DEV_DEV_COMPARE(swd.st_dev, shp.st_dev)  &&
+X		swd.st_ino == shp.st_ino)
+X	    cp = hp;
+X	else {
+X	    char   *cwd;
+X
+X	    /*
+X	     * use PWD if we have it (for subshells)
+X	     */
+X	    if (cwd = getenv("PWD")) {
+X		if (stat(cwd, &shp) != -1 && 
+X			DEV_DEV_COMPARE(swd.st_dev, shp.st_dev) &&
+X		    swd.st_ino == shp.st_ino)
+X		    tcp = cwd;
+X	    }
+X	    cp = dcanon(SAVE(tcp), STRNULL);
+X	}
+X#else				/* S_IFLNK */
+X	cp = dcanon(SAVE(tcp), STRNULL);
+X#endif				/* S_IFLNK */
+X    }
+X
+X    dp = (struct directory *) xcalloc(sizeof(struct directory), 1);
+X    dp->di_name = Strsave(cp);
+X    dp->di_count = 0;
+X    dhead.di_next = dhead.di_prev = dp;
+X    dp->di_next = dp->di_prev = &dhead;
+X    printd = 0;
+X    dnewcwd(dp);
+X}
+X
+static void
+dset(dp)
+Char *dp;
+X{
+X    /*
+X     * Don't call set() directly cause if the directory contains ` or
+X     * other junk characters glob will fail. 
+X     */
+X    register Char **vec = (Char **) xmalloc((size_t) (2 * sizeof(Char **)));
+X
+X    vec[0] = Strsave(dp);
+X    vec[1] = 0;
+X    setq(STRcwd, vec, &shvhed);
+X    Setenv(STRPWD, dp);
+X}
+X
+X#define DIR_LONG 1
+X#define DIR_VERT 2
+X#define DIR_LINE 4
+X
+static void
+skipargs(v, str)
+X    Char ***v;
+X    char   *str;
+X{
+X    Char  **n = *v, *s;
+X
+X    dirflag = 0;
+X    for (n++; *n != NULL && (*n)[0] == '-'; n++)
+X	for (s = &((*n)[1]); *s; s++)
+X	    switch (*s) {
+X	    case 'l':
+X		dirflag |= DIR_LONG;
+X		break;
+X	    case 'v':
+X		dirflag |= DIR_VERT;
+X		break;
+X	    case 'n':
+X		dirflag |= DIR_LINE;
+X		break;
+X	    default:
+X		stderror(ERR_DIRUS, short2str(**v), str);
+X		break;
+X	    }
+X    *v = n;
+X}
+X
+X/*
+X * dodirs - list all directories in directory loop
+X */
+X/*ARGSUSED*/
+void
+dodirs(v, c)
+X    Char  **v;
+X    struct command *c;
+X{
+X    skipargs(&v, "");
+X
+X    if (*v != NULL)
+X	stderror(ERR_DIRUS, "dirs", "");
+X    printdirs();
+X}
+X
+static void
+printdirs()
+X{
+X    register struct directory *dp;
+X    Char   *s, *hp = value(STRhome);
+X    int     idx, len, cur;
+X    extern int T_Cols;
+X
+X    if (*hp == '\0')
+X	hp = NULL;
+X    dp = dcwd;
+X    idx = 0;
+X    cur = 0;
+X    do {
+X	if (dp == &dhead)
+X	    continue;
+X	if (dirflag & DIR_VERT) {
+X	    xprintf("%d\t", idx++);
+X	    cur = 0;
+X	}
+X	if (!(dirflag & DIR_LONG) && hp != NULL && !eq(hp, STRslash) &&
+X	    prefix(hp, dp->di_name))
+X	    len = Strlen(s = (dp->di_name + Strlen(hp))) + 2;
+X	else
+X	    len = Strlen(s = dp->di_name) + 1;
+X
+X	cur += len;
+X	if ((dirflag & DIR_LINE) && cur >= T_Cols - 1 && len < T_Cols) {
+X	    xprintf("\n");
+X	    cur = len;
+X	}
+X	xprintf(s != dp->di_name ? "~%s%c" : "%s%c",
+X		short2str(s), (dirflag & DIR_VERT) ? '\n' : ' ');
+X    } while ((dp = dp->di_prev) != dcwd);
+X    if (!(dirflag & DIR_VERT))
+X	xprintf("\n");
+X}
+X
+void
+dtildepr(home, dir)
+X    register Char *home, *dir;
+X{
+X
+X    if (!eq(home, STRslash) && prefix(home, dir))
+X	xprintf("~%s", short2str(dir + Strlen(home)));
+X    else
+X	xprintf("%s", short2str(dir));
+X}
+X
+void
+dtilde()
+X{
+X    struct directory *d = dcwd;
+X
+X    do {
+X	if (d == &dhead)
+X	    continue;
+X	d->di_name = dcanon(d->di_name, STRNULL);
+X    } while ((d = d->di_prev) != dcwd);
+X
+X    dset(dcwd->di_name);
+X}
+X
+X
+X/* dnormalize():
+X *	If the name starts with . or .. then we might need to normalize
+X *	it depending on the symbolic link flags
+X */
+Char   *
+dnormalize(cp)
+X    Char   *cp;
+X{
+X
+X#define TRM(a) ((a) & TRIM)
+X#define ISDOT(c) (TRM((c)[0]) == '.' && ((TRM((c)[1]) == '\0') || \
+X		  (TRM((c)[1]) == '/')))
+X#define ISDOTDOT(c) (TRM((c)[0]) == '.' && ISDOT(&((c)[1])))
+X
+X    if (TRM(cp[0]) == '/')
+X	return (Strsave(cp));
+X
+X#ifdef S_IFLNK
+X    if (adrof(STRignore_symlinks)) {
+X	int     dotdot = 0;
+X	Char   *dp, *cwd;
+X#ifdef apollo
+X	bool slashslash;
+X#endif
+X
+X	cwd = (Char *) xmalloc((size_t) ((Strlen(dcwd->di_name) + 3) *
+X					 sizeof(Char)));
+X	(void) Strcpy(cwd, dcwd->di_name);
+X#ifdef apollo
+X	slashslash = cwd[0] == '/' && cwd[1] == '/';
+X#endif
+X
+X	/*
+X	 * Ignore . and count ..'s
+X	 */
+X	while (*cp) {
+X	    if (ISDOT(cp)) {
+X		if (*++cp)
+X		    cp++;
+X	    }
+X	    else if (ISDOTDOT(cp)) {
+X		dotdot++;
+X		cp += 2;
+X		if (*cp)
+X		    cp++;
+X	    }
+X	    else
+X		break;
+X	}
+X	while (dotdot > 0) 
+X	    if ((dp = Strrchr(cwd, '/'))) {
+X#ifdef apollo
+X		if (dp == &cwd[1]) 
+X		    slashslash = 1;
+X#endif
+X		*dp = '\0';
+X		dotdot--;
+X	    }
+X	    else
+X		break;
+X
+X	if (*cp) {
+X	    if ((TRM(cwd[(dotdot = Strlen(cwd)) - 1])) != '/')
+X		cwd[dotdot++] = '/';
+X	    cwd[dotdot] = '\0';
+X	    dp = Strspl(cwd, cp);
+X	    xfree((ptr_t) cwd);
+X	    return dp;
+X	}
+X	else {
+X	    if (!*cwd) {
+X		cwd[0] = '/';
+X#ifdef apollo
+X		cwd[1] = '/';
+X		cwd[2] = '\0';
+X#else
+X		cwd[1] = '\0';
+X#endif
+X	    }
+X#ifdef apollo
+X	    else if (slashslash && cwd[1] == '\0') {
+X		cwd[1] = '/';
+X		cwd[2] = '\0';
+X	    }
+X#endif
+X	    return cwd;
+X	}
+X    }
+X#endif
+X    return Strsave(cp);
+X}
+X
+X/*
+X * dochngd - implement chdir command.
+X */
+X/*ARGSUSED*/
+void
+dochngd(v, c)
+X    Char  **v;
+X    struct command *c;
+X{
+X    register Char *cp;
+X    register struct directory *dp;
+X
+X    skipargs(&v, " [<dir>]");
+X    printd = 0;
+X    if (*v == NULL) {
+X	if ((cp = value(STRhome)) == NULL || *cp == 0)
+X	    stderror(ERR_NAME | ERR_NOHOMEDIR);
+X	if (chdir(short2str(cp)) < 0)
+X	    stderror(ERR_NAME | ERR_CANTCHANGE);
+X	cp = Strsave(cp);
+X    }
+X    else if (v[1] != NULL) {
+X	stderror(ERR_NAME | ERR_TOOMANY);
+X	/* NOTREACHED */
+X	return;
+X    }
+X    else if ((dp = dfind(*v)) != 0) {
+X	char   *tmp;
+X
+X	printd = 1;
+X	if (chdir(tmp = short2str(dp->di_name)) < 0)
+X	    stderror(ERR_SYSTEM, tmp, strerror(errno));
+X	dcwd->di_prev->di_next = dcwd->di_next;
+X	dcwd->di_next->di_prev = dcwd->di_prev;
+X	dfree(dcwd);
+X	dnewcwd(dp);
+X	return;
+X    }
+X    else
+X	if ((cp = dfollow(*v)) == NULL)
+X	    return;
+X    dp = (struct directory *) xcalloc(sizeof(struct directory), 1);
+X    dp->di_name = cp;
+X    dp->di_count = 0;
+X    dp->di_next = dcwd->di_next;
+X    dp->di_prev = dcwd->di_prev;
+X    dp->di_prev->di_next = dp;
+X    dp->di_next->di_prev = dp;
+X    dfree(dcwd);
+X    dnewcwd(dp);
+X}
+X
+static Char *
+dgoto(cp)
+X    Char   *cp;
+X{
+X    Char   *dp;
+X
+X    if (*cp != '/') {
+X	register Char *p, *q;
+X	int     cwdlen;
+X
+X	for (p = dcwd->di_name; *p++;);
+X	if ((cwdlen = p - dcwd->di_name - 1) == 1)	/* root */
+X	    cwdlen = 0;
+X	for (p = cp; *p++;);
+X	dp = (Char *) xmalloc((size_t)((cwdlen + (p - cp) + 1) * sizeof(Char)));
+X	for (p = dp, q = dcwd->di_name; *p++ = *q++;);
+X	if (cwdlen)
+X	    p[-1] = '/';
+X	else
+X	    p--;		/* don't add a / after root */
+X	for (q = cp; *p++ = *q++;);
+X	xfree((ptr_t) cp);
+X	cp = dp;
+X	dp += cwdlen;
+X    }
+X    else
+X	dp = cp;
+X
+X    cp = dcanon(cp, dp);
+X    return cp;
+X}
+X
+X/*
+X * dfollow - change to arg directory; fall back on cdpath if not valid
+X */
+static Char *
+dfollow(cp)
+X    register Char *cp;
+X{
+X    register Char *dp;
+X    struct varent *c;
+X    char    ebuf[MAXPATHLEN];
+X    int serrno;
+X
+X    cp = globone(cp, G_ERROR);
+X#ifdef apollo
+X    if (Strchr(cp, '`')) {
+X	char *dptr, *ptr;
+X	if (chdir(dptr = short2str(cp)) < 0) 
+X	    stderror(ERR_SYSTEM, dptr, strerror(errno));
+X	else if ((ptr = getwd(ebuf)) && *ptr != '\0') {
+X		xfree((ptr_t) cp);
+X		cp = Strsave(str2short(ptr));
+X		return dgoto(cp);
+X	}
+X	else 
+X	    stderror(ERR_SYSTEM, dptr, ebuf);
+X    }
+X#endif
+X	    
+X    /*
+X     * if we are ignoring symlinks, try to fix relatives now.
+X     */
+X    dp = dnormalize(cp);
+X    if (chdir(short2str(dp)) >= 0) {
+X	xfree((ptr_t) cp);
+X	return dgoto(dp);
+X    }
+X    else {
+X	xfree((ptr_t) dp);
+X	if (chdir(short2str(cp)) >= 0) 
+X	    return dgoto(cp);
+X	serrno = errno;
+X    }
+X
+X    if (cp[0] != '/' && !prefix(STRdotsl, cp) && !prefix(STRdotdotsl, cp)
+X	&& (c = adrof(STRcdpath))) {
+X	Char  **cdp;
+X	register Char *p;
+X	Char    buf[MAXPATHLEN];
+X
+X	for (cdp = c->vec; *cdp; cdp++) {
+X	    for (dp = buf, p = *cdp; *dp++ = *p++;);
+X	    dp[-1] = '/';
+X	    for (p = cp; *dp++ = *p++;);
+X	    if (chdir(short2str(buf)) >= 0) {
+X		printd = 1;
+X		xfree((ptr_t) cp);
+X		cp = Strsave(buf);
+X		return dgoto(cp);
+X	    }
+X	}
+X    }
+X    dp = value(cp);
+X    if ((dp[0] == '/' || dp[0] == '.') && chdir(short2str(dp)) >= 0) {
+X	xfree((ptr_t) cp);
+X	cp = Strsave(dp);
+X	printd = 1;
+X	return dgoto(cp);
+X    }
+X    (void) strcpy(ebuf, short2str(cp));
+X    xfree((ptr_t) cp);
+X#ifdef CSHDIRS
+X    /*
+X     * on login source of ~/.cshdirs, errors are eaten. the dir stack is all
+X     * directories we could get to.
+X     */
+X    if (!bequiet)
+X	stderror(ERR_SYSTEM, ebuf, strerror(serrno));
+X    else
+X	return (NULL);
+X#else
+X    stderror(ERR_SYSTEM, ebuf, strerror(serrno));
+X#endif
+X    /* NOTREACHED */
+X    return (NULL);
+X}
+X
+X
+X/*
+X * dopushd - push new directory onto directory stack.
+X *	with no arguments exchange top and second.
+X *	with numeric argument (+n) bring it to top.
+X */
+X/*ARGSUSED*/
+void
+dopushd(v, c)
+X    Char  **v;
+X    struct command *c;
+X{
+X    register struct directory *dp;
+X    register Char *cp;
+X
+X    skipargs(&v, " [<dir>|+<n>]");
+X    printd = 1;
+X    if (*v == NULL) {
+X	if (adrof(STRpushdtohome)) {
+X	    if ((cp = value(STRhome)) == NULL || *cp == 0)
+X		stderror(ERR_NAME | ERR_NOHOMEDIR);
+X	    if (chdir(short2str(cp)) < 0)
+X		stderror(ERR_NAME | ERR_CANTCHANGE);
+X	    cp = Strsave(cp);	/* hmmm... PWP */
+X	    if ((cp = dfollow(cp)) == NULL)
+X		return;
+X	    dp = (struct directory *) xcalloc(sizeof(struct directory), 1);
+X	    dp->di_name = cp;
+X	    dp->di_count = 0;
+X	    dp->di_prev = dcwd;
+X	    dp->di_next = dcwd->di_next;
+X	    dcwd->di_next = dp;
+X	    dp->di_next->di_prev = dp;
+X	}
+X	else {
+X	    char   *tmp;
+X
+X	    if ((dp = dcwd->di_prev) == &dhead)
+X		dp = dhead.di_prev;
+X	    if (dp == dcwd)
+X		stderror(ERR_NAME | ERR_NODIR);
+X	    if (chdir(tmp = short2str(dp->di_name)) < 0)
+X		stderror(ERR_SYSTEM, tmp, strerror(errno));
+X	    dp->di_prev->di_next = dp->di_next;
+X	    dp->di_next->di_prev = dp->di_prev;
+X	    dp->di_next = dcwd->di_next;
+X	    dp->di_prev = dcwd;
+X	    dcwd->di_next->di_prev = dp;
+X	    dcwd->di_next = dp;
+X	}
+X    }
+X    else if (v[1] != NULL) {
+X	stderror(ERR_NAME | ERR_TOOMANY);
+X	/* NOTREACHED */
+X	return;
+X    }
+X    else if (dp = dfind(*v)) {
+X	char   *tmp;
+X
+X	if (chdir(tmp = short2str(dp->di_name)) < 0)
+X	    stderror(ERR_SYSTEM, tmp, strerror(errno));
+X	/*
+X	 * kfk - 10 Feb 1984 - added new "extraction style" pushd +n
+X	 */
+X	if (adrof(STRdextract))
+X	    dextract(dp);
+X    }
+X    else {
+X	register Char *ccp;
+X
+X	if ((ccp = dfollow(*v)) == NULL)
+X	    return;
+X	dp = (struct directory *) xcalloc(sizeof(struct directory), 1);
+X	dp->di_name = ccp;
+X	dp->di_count = 0;
+X	dp->di_prev = dcwd;
+X	dp->di_next = dcwd->di_next;
+X	dcwd->di_next = dp;
+X	dp->di_next->di_prev = dp;
+X    }
+X    dnewcwd(dp);
+X}
+X
+X/*
+X * dfind - find a directory if specified by numeric (+n) argument
+X */
+static struct directory *
+dfind(cp)
+X    register Char *cp;
+X{
+X    register struct directory *dp;
+X    register int i;
+X    register Char *ep;
+X
+X    if (*cp++ != '+')
+X	return (0);
+X    for (ep = cp; Isdigit(*ep); ep++)
+X	continue;
+X    if (*ep)
+X	return (0);
+X    i = getn(cp);
+X    if (i <= 0)
+X	return (0);
+X    for (dp = dcwd; i != 0; i--) {
+X	if ((dp = dp->di_prev) == &dhead)
+X	    dp = dp->di_prev;
+X	if (dp == dcwd)
+X	    stderror(ERR_NAME | ERR_DEEP);
+X    }
+X    return (dp);
+X}
+X
+X/*
+X * dopopd - pop a directory out of the directory stack
+X *	with a numeric argument just discard it.
+X */
+X/*ARGSUSED*/
+void
+dopopd(v, c)
+X    Char  **v;
+X    struct command *c;
+X{
+X    register struct directory *dp, *p = NULL;
+X
+X    skipargs(&v, " [+<n>]");
+X    printd = 1;
+X    if (*v == NULL)
+X	dp = dcwd;
+X    else if (v[1] != NULL) {
+X	stderror(ERR_NAME | ERR_TOOMANY);
+X	/* NOTREACHED */
+X	return;
+X    }
+X    else if ((dp = dfind(*v)) == 0)
+X	stderror(ERR_NAME | ERR_BADDIR);
+X    if (dp->di_prev == &dhead && dp->di_next == &dhead)
+X	stderror(ERR_NAME | ERR_EMPTY);
+X    if (dp == dcwd) {
+X	char   *tmp;
+X
+X	if ((p = dp->di_prev) == &dhead)
+X	    p = dhead.di_prev;
+X	if (chdir(tmp = short2str(p->di_name)) < 0)
+X	    stderror(ERR_SYSTEM, tmp, strerror(errno));
+X    }
+X    dp->di_prev->di_next = dp->di_next;
+X    dp->di_next->di_prev = dp->di_prev;
+X    if (dp == dcwd)
+X	dnewcwd(p);
+X    else {
+X	printdirs();
+X    }
+X    dfree(dp);
+X}
+X
+X/*
+X * dfree - free the directory (or keep it if it still has ref count)
+X */
+void
+dfree(dp)
+X    register struct directory *dp;
+X{
+X
+X    if (dp->di_count != 0) {
+X	dp->di_next = dp->di_prev = 0;
+X    }
+X    else {
+X	xfree((ptr_t) dp->di_name);
+X	xfree((ptr_t) dp);
+X    }
+X}
+X
+X/*
+X * dcanon - canonicalize the pathname, removing excess ./ and ../ etc.
+X *	we are of course assuming that the file system is standardly
+X *	constructed (always have ..'s, directories have links)
+X */
+Char   *
+dcanon(cp, p)
+X    register Char *cp, *p;
+X{
+X    register Char *sp;
+X    register Char *p1, *p2;	/* general purpose */
+X    bool    slash;
+X#ifdef apollo
+X    bool    slashslash;
+X#endif
+X
+X#ifdef S_IFLNK			/* if we have symlinks */
+X    Char    link[MAXPATHLEN];
+X    char    tlink[MAXPATHLEN];
+X    int     cc;
+X    Char   *newcp;
+X#endif				/* S_IFLNK */
+X
+X    /*
+X     * christos: if the path given does not start with a slash prepend cwd. If
+X     * cwd does not start with a slash or the result would be too long abort().
+X     */
+X    if (*cp != '/') {
+X	Char    tmpdir[MAXPATHLEN];
+X
+X	p1 = value(STRcwd);
+X	if (p1 == NULL || *p1 != '/')
+X	    abort();
+X	if (Strlen(p1) + Strlen(cp) + 1 >= MAXPATHLEN)
+X	    abort();
+X	(void) Strcpy(tmpdir, p1);
+X	(void) Strcat(tmpdir, STRslash);
+X	(void) Strcat(tmpdir, cp);
+X	xfree((ptr_t) cp);
+X	cp = p = Strsave(tmpdir);
+X    }
+X
+X#ifdef COMMENT
+X    if (*cp != '/')
+X	abort();
+X#endif
+X
+X#ifdef apollo
+X    slashslash = (cp[0] == '/' && cp[1] == '/');
+X#endif
+X
+X    while (*p) {		/* for each component */
+X	sp = p;			/* save slash address */
+X	while (*++p == '/')	/* flush extra slashes */
+X	    ;
+X	if (p != ++sp)
+X	    for (p1 = sp, p2 = p; *p1++ = *p2++;);
+X	p = sp;			/* save start of component */
+X	slash = 0;
+X	while (*++p)		/* find next slash or end of path */
+X	    if (*p == '/') {
+X		slash = 1;
+X		*p = 0;
+X		break;
+X	    }
+X
+X#ifdef apollo
+X	if (&cp[1] == sp && sp[0] == '.' && sp[1] == '.' && sp[2] == '\0')
+X	    slashslash = 1;
+X#endif
+X	if (*sp == '\0')	/* if component is null */
+X	    if (--sp == cp)	/* if path is one char (i.e. /) */ 
+X		break;
+X	    else
+X		*sp = '\0';
+X	else if (sp[0] == '.' && sp[1] == 0) {
+X	    if (slash) {
+X		for (p1 = sp, p2 = p + 1; *p1++ = *p2++;);
+X		p = --sp;
+X	    }
+X	    else if (--sp != cp)
+X		*sp = '\0';
+X	}
+X	else if (sp[0] == '.' && sp[1] == '.' && sp[2] == 0) {
+X	    /*
+X	     * We have something like "yyy/xxx/..", where "yyy" can be null or
+X	     * a path starting at /, and "xxx" is a single component. Before
+X	     * compressing "xxx/..", we want to expand "yyy/xxx", if it is a
+X	     * symbolic link.
+X	     */
+X	    *--sp = 0;		/* form the pathname for readlink */
+X#ifdef S_IFLNK			/* if we have symlinks */
+X	    if (sp != cp && !adrof(STRignore_symlinks) &&
+X		(cc = readlink(short2str(cp), tlink,
+X			       sizeof tlink)) >= 0) {
+X		(void) Strcpy(link, str2short(tlink));
+X		link[cc] = '\0';
+X
+X		if (slash)
+X		    *p = '/';
+X		/*
+X		 * Point p to the '/' in "/..", and restore the '/'.
+X		 */
+X		*(p = sp) = '/';
+X		/*
+X		 * find length of p
+X		 */
+X		for (p1 = p; *p1++;);
+X		if (*link != '/') {
+X		    /*
+X		     * Relative path, expand it between the "yyy/" and the
+X		     * "/..". First, back sp up to the character past "yyy/".
+X		     */
+X		    while (*--sp != '/');
+X		    sp++;
+X		    *sp = 0;
+X		    /*
+X		     * New length is "yyy/" + link + "/.." and rest
+X		     */
+X		    p1 = newcp = (Char *) xmalloc((size_t)
+X						(((sp - cp) + cc + (p1 - p)) *
+X						 sizeof(Char)));
+X		    /*
+X		     * Copy new path into newcp
+X		     */
+X		    for (p2 = cp; *p1++ = *p2++;);
+X		    for (p1--, p2 = link; *p1++ = *p2++;);
+X		    for (p1--, p2 = p; *p1++ = *p2++;);
+X		    /*
+X		     * Restart canonicalization at expanded "/xxx".
+X		     */
+X		    p = sp - cp - 1 + newcp;
+X		}
+X		else {
+X		    /*
+X		     * New length is link + "/.." and rest
+X		     */
+X		    p1 = newcp = (Char *) xmalloc((size_t)
+X					    ((cc + (p1 - p)) * sizeof(Char)));
+X		    /*
+X		     * Copy new path into newcp
+X		     */
+X		    for (p2 = link; *p1++ = *p2++;);
+X		    for (p1--, p2 = p; *p1++ = *p2++;);
+X		    /*
+X		     * Restart canonicalization at beginning
+X		     */
+X		    p = newcp;
+X		}
+X		xfree((ptr_t) cp);
+X		cp = newcp;
+X		continue;	/* canonicalize the link */
+X	    }
+X#endif				/* S_IFLNK */
+X	    *sp = '/';
+X	    if (sp != cp)
+X		while (*--sp != '/');
+X	    if (slash) {
+X		for (p1 = sp + 1, p2 = p + 1; *p1++ = *p2++;);
+X		p = sp;
+X	    }
+X	    else if (cp == sp)
+X		*++sp = '\0';
+X	    else
+X		*sp = '\0';
+X	}
+X	else {			/* normal dir name (not . or .. or nothing) */
+X
+X#ifdef S_IFLNK			/* if we have symlinks */
+X	    if (sp != cp && adrof(STRchase_symlinks) &&
+X		!adrof(STRignore_symlinks) &&
+X		(cc = readlink(short2str(cp), tlink,
+X			       sizeof tlink)) >= 0) {
+X		(void) Strcpy(link, str2short(tlink));
+X		link[cc] = '\0';
+X
+X		/*
+X		 * restore the '/'.
+X		 */
+X		if (slash)
+X		    *p = '/';
+X
+X		/*
+X		 * point sp to p (rather than backing up).
+X		 */
+X		sp = p;
+X
+X		/*
+X		 * find length of p
+X		 */
+X		for (p1 = p; *p1++;);
+X		if (*link != '/') {
+X		    /*
+X		     * Relative path, expand it between the "yyy/" and the
+X		     * remainder. First, back sp up to the character past
+X		     * "yyy/".
+X		     */
+X		    while (*--sp != '/');
+X		    sp++;
+X		    *sp = 0;
+X		    /*
+X		     * New length is "yyy/" + link + "/.." and rest
+X		     */
+X		    p1 = newcp = (Char *) xmalloc((size_t)
+X						  (((sp - cp) + cc + (p1 - p))
+X						   * sizeof(Char)));
+X		    /*
+X		     * Copy new path into newcp
+X		     */
+X		    for (p2 = cp; *p1++ = *p2++;);
+X		    for (p1--, p2 = link; *p1++ = *p2++;);
+X		    for (p1--, p2 = p; *p1++ = *p2++;);
+X		    /*
+X		     * Restart canonicalization at expanded "/xxx".
+X		     */
+X		    p = sp - cp - 1 + newcp;
+X		}
+X		else {
+X		    /*
+X		     * New length is link + the rest
+X		     */
+X		    p1 = newcp = (Char *) xmalloc((size_t)
+X					    ((cc + (p1 - p)) * sizeof(Char)));
+X		    /*
+X		     * Copy new path into newcp
+X		     */
+X		    for (p2 = link; *p1++ = *p2++;);
+X		    for (p1--, p2 = p; *p1++ = *p2++;);
+X		    /*
+X		     * Restart canonicalization at beginning
+X		     */
+X		    p = newcp;
+X		}
+X		xfree((ptr_t) cp);
+X		cp = newcp;
+X		continue;	/* canonicalize the link */
+X	    }
+X#endif				/* S_IFLNK */
+X	    if (slash)
+X		*p = '/';
+X	}
+X    }
+X
+X    /*
+X     * fix home...
+X     */
+X#ifdef S_IFLNK
+X    p1 = value(STRhome);
+X    cc = Strlen(p1);
+X    /*
+X     * See if we're not in a subdir of STRhome
+X     */
+X    if (p1 && *p1 == '/' &&
+X	(Strncmp(p1, cp, cc) != 0 || (cp[cc] != '/' && cp[cc] != '\0'))) {
+X	static ino_t home_ino = -1;
+X	static dev_t home_dev = -1;
+X	static Char *home_ptr = NULL;
+X	struct stat statbuf;
+X
+X	/*
+X	 * Get dev and ino of STRhome
+X	 */
+X	if (home_ptr != p1 &&
+X	    stat(short2str(p1), &statbuf) != -1) {
+X	    home_dev = statbuf.st_dev;
+X	    home_ino = statbuf.st_ino;
+X	    home_ptr = p1;
+X	}
+X	/*
+X	 * Start comparing dev & ino backwards
+X	 */
+X	p2 = Strcpy(link, cp);
+X	for (sp = NULL; *p2 && stat(short2str(p2), &statbuf) != -1;) {
+X	    if (DEV_DEV_COMPARE(statbuf.st_dev, home_dev) &&
+X			statbuf.st_ino == home_ino) {
+X			sp = (Char *) - 1;
+X			break;
+X	    }
+X	    if (sp = Strrchr(p2, '/'))
+X		*sp = '\0';
+X	}
+X	/*
+X	 * See if we found it
+X	 */
+X	if (*p2 && sp == (Char *) -1) {
+X	    /*
+X	     * Use STRhome to make '~' work
+X	     */
+X	    newcp = Strspl(p1, cp + Strlen(p2));
+X	    xfree((ptr_t) cp);
+X	    cp = newcp;
+X	}
+X    }
+X#endif				/* S_IFLNK */
+X
+X#ifdef apollo
+X    if (slashslash) {
+X	if (cp[1] != '/') {
+X	    p = (Char *) xmalloc((size_t) (Strlen(cp) + 2) * sizeof(Char));
+X	    *p = '/';
+X	    (void) Strcpy(&p[1], cp);
+X	    xfree((ptr_t) cp);
+X	    cp = p;
+X	}
+X    }
+X    if (cp[1] == '/' && cp[2] == '/') 
+X	(void) Strcpy(&cp[1], &cp[2]);
+X#endif
+X    return cp;
+X}
+X
+X
+X/*
+X * dnewcwd - make a new directory in the loop the current one
+X */
+static void
+dnewcwd(dp)
+X    register struct directory *dp;
+X{
+X    dcwd = dp;
+X    dset(dcwd->di_name);
+X    if (printd && !(adrof(STRpushdsilent))	/* PWP: pushdsilent */
+X#ifdef CSHDIRS
+X	&& !bequiet		/* be quite while restoring stack -strike */
+X#endif
+X	)
+X	printdirs();
+X    cwd_cmd();			/* PWP: run the defined cwd command */
+X}
+X
+X/*
+X * getstakd - added by kfk 17 Jan 1984
+X * Support routine for the stack hack.  Finds nth directory in
+X * the directory stack, or finds last directory in stack.
+X */
+int
+getstakd(s, cnt)
+X    Char   *s;
+X    int     cnt;
+X{
+X    struct directory *dp;
+X
+X    dp = dcwd;
+X    if (cnt < 0) {		/* < 0 ==> last dir requested. */
+X	dp = dp->di_next;
+X	if (dp == &dhead)
+X	    dp = dp->di_next;
+X    }
+X    else {
+X	while (cnt-- > 0) {
+X	    dp = dp->di_prev;
+X	    if (dp == &dhead)
+X		dp = dp->di_prev;
+X	    if (dp == dcwd)
+X		return (0);
+X	}
+X    }
+X    (void) Strcpy(s, dp->di_name);
+X    return (1);
+X}
+X
+X/*
+X * Karl Kleinpaste - 10 Feb 1984
+X * Added dextract(), which is used in pushd +n.
+X * Instead of just rotating the entire stack around, dextract()
+X * lets the user have the nth dir extracted from its current
+X * position, and pushes it onto the top.
+X */
+void
+dextract(dp)
+X    struct directory *dp;
+X{
+X    if (dp == dcwd)
+X	return;
+X    dp->di_next->di_prev = dp->di_prev;
+X    dp->di_prev->di_next = dp->di_next;
+X    dp->di_next = dcwd->di_next;
+X    dp->di_prev = dcwd;
+X    dp->di_next->di_prev = dp;
+X    dcwd->di_next = dp;
+X}
+X
+X#ifdef CSHDIRS
+X/*
+X * create a file called ~/.cshdirs which has a sequence
+X * of pushd commands which will restore the dir stack to
+X * its state before exit/logout. remember that the order
+X * is reversed in the file because we are pushing.
+X * -strike
+X */
+void
+recdirs()
+X{
+X    int     fp, ftmp, oldidfds;
+X    int     cdflag = 0;
+X    extern int fast;
+X    Char    buf[BUFSIZE];
+X
+X    if (!fast) {
+X	if (!adrof(STRsavedirs))/* does it exist */
+X	    return;
+X	(void) Strcpy(buf, value(STRhome));
+X	(void) Strcat(buf, STRsldtdirs);
+X	if ((fp = creat(short2str(buf), 0666)) == -1)
+X	    return;
+X	oldidfds = didfds;
+X	didfds = 0;
+X	ftmp = SHOUT;
+X	SHOUT = fp;
+X	{
+X	    extern struct directory dhead;
+X	    extern struct directory *dcwd;
+X	    struct directory *dp = dcwd->di_next;
+X
+X	    do {
+X		if (dp == &dhead)
+X		    continue;
+X		if (cdflag == 0)
+X		    cdflag++, xprintf("cd %s\n",
+X				      short2str(dp->di_name));
+X		else
+X		    xprintf("pushd %s\n",
+X			    short2str(dp->di_name));
+X	    } while ((dp = dp->di_next) != dcwd->di_next);
+X	}
+X	xprintf("dirs\n");	/* show the dir stack */
+X
+X	(void) close(fp);
+X	SHOUT = ftmp;
+X	didfds = oldidfds;
+X    }
+X}
+X
+X#endif
+END_OF_FILE
+if test 25428 -ne `wc -c <'sh.dir.c'`; then
+    echo shar: \"'sh.dir.c'\" unpacked with wrong size!
+fi
+# end of 'sh.dir.c'
+fi
+if test -f 'sh.exec.c' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'sh.exec.c'\"
+else
+echo shar: Extracting \"'sh.exec.c'\" \(23068 characters\)
+sed "s/^X//" >'sh.exec.c' <<'END_OF_FILE'
+X/* $Header: /home/hyperion/mu/christos/src/sys/tcsh-6.01/RCS/sh.exec.c,v 3.9 1991/12/14 20:45:46 christos Exp $ */
+X/*
+X * sh.exec.c: Search, find, and execute a command!
+X */
+X/*-
+X * Copyright (c) 1980, 1991 The Regents of the University of California.
+X * All rights reserved.
+X *
+X * Redistribution and use in source and binary forms, with or without
+X * modification, are permitted provided that the following conditions
+X * are met:
+X * 1. Redistributions of source code must retain the above copyright
+X *    notice, this list of conditions and the following disclaimer.
+X * 2. Redistributions in binary form must reproduce the above copyright
+X *    notice, this list of conditions and the following disclaimer in the
+X *    documentation and/or other materials provided with the distribution.
+X * 3. All advertising materials mentioning features or use of this software
+X *    must display the following acknowledgement:
+X *	This product includes software developed by the University of
+X *	California, Berkeley and its contributors.
+X * 4. Neither the name of the University nor the names of its contributors
+X *    may be used to endorse or promote products derived from this software
+X *    without specific prior written permission.
+X *
+X * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+X * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+X * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+X * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+X * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+X * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+X * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+X * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+X * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+X * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+X * SUCH DAMAGE.
+X */
+X#include "sh.h"
+X
+RCSID("$Id: sh.exec.c,v 3.9 1991/12/14 20:45:46 christos Exp $")
+X
+X#include "tc.h"
+X#include "tw.h"
+X
+X/*
+X * C shell
+X */
+X
+X#ifndef OLDHASH
+X# define FASTHASH	/* Fast hashing is the default */
+X#endif /* OLDHASH */
+X
+X/*
+X * System level search and execute of a command.
+X * We look in each directory for the specified command name.
+X * If the name contains a '/' then we execute only the full path name.
+X * If there is no search path then we execute only full path names.
+X */
+X
+X/*
+X * As we search for the command we note the first non-trivial error
+X * message for presentation to the user.  This allows us often
+X * to show that a file has the wrong mode/no access when the file
+X * is not in the last component of the search path, so we must
+X * go on after first detecting the error.
+X */
+static char *exerr;		/* Execution error message */
+static Char *expath;		/* Path for exerr */
+X
+X/*
+X * The two part hash function is designed to let texec() call the
+X * more expensive hashname() only once and the simple hash() several
+X * times (once for each path component checked).
+X * Byte size is assumed to be 8.
+X */
+X#define BITS_PER_BYTE	8
+X
+X#ifdef FASTHASH
+X/*
+X * xhash is an array of hash buckets which are used to hash execs.  If
+X * it is allocated (havhash true), then to tell if ``name'' is
+X * (possibly) presend in the i'th component of the variable path, look
+X * at the [hashname(name)] bucket of size [hashwidth] bytes, in the [i
+X * mod size*8]'th bit.  The cache size is defaults to a length of 1024
+X * buckets, each 1 byte wide.  This implementation guarantees that
+X * objects n bytes wide will be aligned on n byte boundaries.
+X */
+X# define HSHMUL		241
+X
+static unsigned long *xhash = NULL;
+static unsigned int hashlength = 0;
+static unsigned int hashwidth = 0;
+static int hashdebug = 0;
+X
+X# define hash(a, b)	(((a) * HSHMUL + (b)) % (hashlength))
+X# define widthof(t)	(sizeof(t) * BITS_PER_BYTE)
+X# define tbit(f, i, t)	(((t *) xhash)[(f)] &  \
+X			 1 << (i & (widthof(t) - 1)))
+X# define tbis(f, i, t)	(((t *) xhash)[(f)] |= \
+X			 1 << (i & (widthof(t) - 1)))
+X# define cbit(f, i)	tbit(f, i, unsigned char)
+X# define cbis(f, i)	tbis(f, i, unsigned char)
+X# define sbit(f, i)	tbit(f, i, unsigned short)
+X# define sbis(f, i)	tbis(f, i, unsigned short)
+X# define lbit(f, i)	tbit(f, i, unsigned long)
+X# define lbis(f, i)	tbis(f, i, unsigned long)
+X
+X# define bit(f, i) (hashwidth==sizeof(unsigned char)  ? cbit(f,i) : \
+X 		   (hashwidth==sizeof(unsigned short) ? sbit(f,i) : lbit(f,i)))
+X# define bis(f, i) (hashwidth==sizeof(unsigned char)  ? cbis(f,i) : \
+X		   (hashwidth==sizeof(unsigned short) ? sbis(f,i) : lbis(f,i)))
+X
+X#else /* OLDHASH */
+X/*
+X * Xhash is an array of HSHSIZ bits (HSHSIZ / 8 chars), which are used
+X * to hash execs.  If it is allocated (havhash true), then to tell
+X * whether ``name'' is (possibly) present in the i'th component
+X * of the variable path, you look at the bit in xhash indexed by
+X * hash(hashname("name"), i).  This is setup automatically
+X * after .login is executed, and recomputed whenever ``path'' is
+X * changed.
+X */
+X# define HSHSIZ		8192	/* 1k bytes */
+X# define HSHMASK		(HSHSIZ - 1)
+X# define HSHMUL		243
+static char xhash[HSHSIZ / BITS_PER_BYTE];
+X
+X# define hash(a, b)	(((a) * HSHMUL + (b)) & HSHMASK)
+X# define bit(h, b)	((h)[(b) >> 3] & 1 << ((b) & 7))	/* bit test */
+X# define bis(h, b)	((h)[(b) >> 3] |= 1 << ((b) & 7))	/* bit set */
+X
+X#endif /* FASTHASH */
+X
+X#ifdef VFORK
+static int hits, misses;
+X#endif
+X
+X/* Dummy search path for just absolute search when no path */
+static Char *justabs[] = {STRNULL, 0};
+X
+static	void	pexerr		__P((void));
+static	void	texec		__P((Char *, Char **));
+static	int	hashname	__P((Char *));
+X
+void
+doexec(t)
+X    register struct command *t;
+X{
+X    register Char *dp, **pv, **av, *sav;
+X    register struct varent *v;
+X    register bool slash;
+X    register int hashval, i;
+X    Char   *blk[2];
+X
+X    /*
+X     * Glob the command name. We will search $path even if this does something,
+X     * as in sh but not in csh.  One special case: if there is no PATH, then we
+X     * execute only commands which start with '/'.
+X     */
+X    blk[0] = t->t_dcom[0];
+X    blk[1] = 0;
+X    gflag = 0, tglob(blk);
+X    if (gflag) {
+X	pv = globall(blk);
+X	if (pv == 0) {
+X	    setname(short2str(blk[0]));
+X	    stderror(ERR_NAME | ERR_NOMATCH);
+X	}
+X	gargv = 0;
+X    }
+X    else
+X	pv = saveblk(blk);
+X
+X    trim(pv);
+X
+X    exerr = 0;
+X    expath = Strsave(pv[0]);
+X#ifdef VFORK
+X    Vexpath = expath;
+X#endif
+X
+X    v = adrof(STRpath);
+X    if (v == 0 && expath[0] != '/') {
+X	blkfree(pv);
+X	pexerr();
+X    }
+X    slash = any(short2str(expath), '/');
+X
+X    /*
+X     * Glob the argument list, if necessary. Otherwise trim off the quote bits.
+X     */
+X    gflag = 0;
+X    av = &t->t_dcom[1];
+X    tglob(av);
+X    if (gflag) {
+X	av = globall(av);
+X	if (av == 0) {
+X	    blkfree(pv);
+X	    setname(short2str(expath));
+X	    stderror(ERR_NAME | ERR_NOMATCH);
+X	}
+X	gargv = 0;
+X    }
+X    else
+X	av = saveblk(av);
+X
+X    blkfree(t->t_dcom);
+X    t->t_dcom = blkspl(pv, av);
+X    xfree((ptr_t) pv);
+X    xfree((ptr_t) av);
+X    av = t->t_dcom;
+X    trim(av);
+X
+X    if (*av == NULL || **av == '\0')
+X	pexerr();
+X
+X    xechoit(av);		/* Echo command if -x */
+X#ifdef FIOCLEX
+X    /*
+X     * Since all internal file descriptors are set to close on exec, we don't
+X     * need to close them explicitly here.  Just reorient ourselves for error
+X     * messages.
+X     */
+X    SHIN = 0;
+X    SHOUT = 1;
+X    SHDIAG = 2;
+X    OLDSTD = 0;
+X    isoutatty = isatty(SHOUT);
+X    isdiagatty = isatty(SHDIAG);
+X#else
+X    closech();			/* Close random fd's */
+X#endif
+X    /*
+X     * We must do this AFTER any possible forking (like `foo` in glob) so that
+X     * this shell can still do subprocesses.
+X     */
+X#ifdef BSDSIGS
+X    (void) sigsetmask((sigmask_t) 0);
+X#else				/* BSDSIGS */
+X    (void) sigrelse(SIGINT);
+X    (void) sigrelse(SIGCHLD);
+X#endif				/* BSDSIGS */
+X
+X    /*
+X     * If no path, no words in path, or a / in the filename then restrict the
+X     * command search.
+X     */
+X    if (v == 0 || v->vec[0] == 0 || slash)
+X	pv = justabs;
+X    else
+X	pv = v->vec;
+X    sav = Strspl(STRslash, *av);/* / command name for postpending */
+X#ifdef VFORK
+X    Vsav = sav;
+X#endif
+X    hashval = havhash ? hashname(*av) : 0;
+X
+X    i = 0;
+X#ifdef VFORK
+X    hits++;
+X#endif
+X    do {
+X	/*
+X	 * Try to save time by looking at the hash table for where this command
+X	 * could be.  If we are doing delayed hashing, then we put the names in
+X	 * one at a time, as the user enters them.  This is kinda like Korn
+X	 * Shell's "tracked aliases".
+X	 */
+X	if (!slash && pv[0][0] == '/' && havhash) {
+X#ifdef FASTHASH
+X	    if (!bit(hashval, i))
+X		goto cont;
+X#else /* OLDHASH */
+X	    int hashval1 = hash(hashval, i);
+X	    if (!bit(xhash, hashval1))
+X		goto cont;
+X#endif /* FASTHASH */
+X	}
+X	if (pv[0][0] == 0 || eq(pv[0], STRdot))	/* don't make ./xxx */
+X	    texec(*av, av);
+X	else {
+X	    dp = Strspl(*pv, sav);
+X#ifdef VFORK
+X	    Vdp = dp;
+X#endif
+X	    texec(dp, av);
+X#ifdef VFORK
+X	    Vdp = 0;
+X#endif
+X	    xfree((ptr_t) dp);
+X	}
+X#ifdef VFORK
+X	misses++;
+X#endif
+cont:
+X	pv++;
+X	i++;
+X    } while (*pv);
+X#ifdef VFORK
+X    hits--;
+X#endif
+X#ifdef VFORK
+X    Vsav = 0;
+X#endif
+X    xfree((ptr_t) sav);
+X    pexerr();
+X}
+X
+static void
+pexerr()
+X{
+X    /* Couldn't find the damn thing */
+X    if (expath) {
+X	setname(short2str(expath));
+X#ifdef VFORK
+X	Vexpath = 0;
+X#endif
+X	xfree((ptr_t) expath);
+X	expath = 0;
+X    }
+X    else
+X	setname("");
+X    if (exerr)
+X	stderror(ERR_NAME | ERR_STRING, exerr);
+X    stderror(ERR_NAME | ERR_COMMAND);
+X}
+X
+X/*
+X * Execute command f, arg list t.
+X * Record error message if not found.
+X * Also do shell scripts here.
+X */
+static void
+texec(sf, st)
+X    Char   *sf;
+X    register Char **st;
+X{
+X    register char **t;
+X    register char *f;
+X    register struct varent *v;
+X    register Char **vp;
+X    Char   *lastsh[2];
+X    int     fd;
+X    unsigned char c;
+X    Char   *st0, **ost;
+X
+X    /* The order for the conversions is significant */
+X    t = short2blk(st);
+X    f = short2str(sf);
+X#ifdef VFORK
+X    Vt = t;
+X#endif
+X    errno = 0;			/* don't use a previous error */
+X#ifdef apollo
+X    /*
+X     * If we try to execute an nfs mounted directory on the apollo, we
+X     * hang forever. So until apollo fixes that..
+X     */
+X    {
+X	struct stat stb;
+X	if (stat(f, &stb) == 0 && S_ISDIR(stb.st_mode))
+X	    errno = EISDIR;
+X    }
+X    if (errno == 0)
+X#endif
+X    (void) execv(f, t);
+X#ifdef VFORK
+X    Vt = 0;
+X#endif
+X    blkfree((Char **) t);
+X    switch (errno) {
+X
+X    case ENOEXEC:
+X	/*
+X	 * From: casper@fwi.uva.nl (Casper H.S. Dik) If we could not execute
+X	 * it, don't feed it to the shell if it looks like a binary!
+X	 */
+X	if ((fd = open(f, O_RDONLY)) != -1) {
+X	    if (read(fd, (char *) &c, 1) == 1) {
+X		if (!Isprint(c) && (c != '\n' && c != '\t')) {
+X		    (void) close(fd);
+X		    /*
+X		     * We *know* what ENOEXEC means.
+X		     */
+X		    stderror(ERR_ARCH, f, strerror(errno));
+X		}
+X	    }
+X#ifdef _PATH_BSHELL
+X	    else
+X		c = '#';
+X#endif
+X	    (void) close(fd);
+X	}
+X	/*
+X	 * If there is an alias for shell, then put the words of the alias in
+X	 * front of the argument list replacing the command name. Note no
+X	 * interpretation of the words at this point.
+X	 */
+X	v = adrof1(STRshell, &aliases);
+X	if (v == 0) {
+X	    vp = lastsh;
+X	    vp[0] = adrof(STRshell) ? value(STRshell) : STR_SHELLPATH;
+X	    vp[1] = NULL;
+X#ifdef _PATH_BSHELL
+X	    if (fd != -1 
+X# ifndef ISC	/* Compatible with ISC's /bin/csh */
+X		&& c != '#'
+X# endif /* ISC */
+X		)
+X		vp[0] = STR_BSHELL;
+X#endif
+X	}
+X	else
+X	    vp = v->vec;
+X	st0 = st[0];
+X	st[0] = sf;
+X	ost = st;
+X	st = blkspl(vp, st);	/* Splice up the new arglst */
+X	ost[0] = st0;
+X	sf = *st;
+X	/* The order for the conversions is significant */
+X	t = short2blk(st);
+X	f = short2str(sf);
+X	xfree((ptr_t) st);
+X#ifdef VFORK
+X	Vt = t;
+X#endif
+X	(void) execv(f, t);
+X#ifdef VFORK
+X	Vt = 0;
+X#endif
+X	blkfree((Char **) t);
+X	/* The sky is falling, the sky is falling! */
+X
+X    case ENOMEM:
+X	stderror(ERR_SYSTEM, f, strerror(errno));
+X
+X#ifdef _IBMR2
+X    case 0:			/* execv fails and returns 0! */
+X#endif				/* _IBMR2 */
+X    case ENOENT:
+X	break;
+X
+X    default:
+X	if (exerr == 0) {
+X	    exerr = strerror(errno);
+X	    if (expath)
+X		xfree((ptr_t) expath);
+X	    expath = Strsave(sf);
+X#ifdef VFORK
+X	    Vexpath = expath;
+X#endif
+X	}
+X    }
+X}
+X
+X/*ARGSUSED*/
+void
+execash(t, kp)
+X    Char  **t;
+X    register struct command *kp;
+X{
+X    int     saveIN, saveOUT, saveDIAG, saveSTD;
+X    int     oSHIN;
+X    int     oSHOUT;
+X    int     oSHDIAG;
+X    int     oOLDSTD;
+X    jmp_buf osetexit;
+X    int	    my_reenter;
+X    int     odidfds;
+X#ifndef FIOCLEX
+X    int	    odidcch;
+X#endif /* FIOCLEX */
+X    sigret_t (*osigint)(), (*osigquit)(), (*osigterm)();
+X
+X    if (chkstop == 0 && setintr)
+X	panystop(0);
+X    /*
+X     * Hmm, we don't really want to do that now because we might
+X     * fail, but what is the choice
+X     */
+X    rechist();
+X
+X
+X    osigint  = signal(SIGINT, parintr);
+X    osigquit = signal(SIGQUIT, parintr);
+X    osigterm = signal(SIGTERM, parterm);
+X
+X    odidfds = didfds;
+X#ifndef FIOCLEX
+X    odidcch = didcch;
+X#endif /* FIOCLEX */
+X    oSHIN = SHIN;
+X    oSHOUT = SHOUT;
+X    oSHDIAG = SHDIAG;
+X    oOLDSTD = OLDSTD;
+X
+X    saveIN = dcopy(SHIN, -1);
+X    saveOUT = dcopy(SHOUT, -1);
+X    saveDIAG = dcopy(SHDIAG, -1);
+X    saveSTD = dcopy(OLDSTD, -1);
+X	
+X    lshift(kp->t_dcom, 1);
+X
+X    getexit(osetexit);
+X
+X    /* PWP: setjmp/longjmp bugfix for optimizing compilers */
+X#ifdef cray
+X    my_reenter = 1;             /* assume non-zero return val */
+X    if (setexit() == 0) {
+X        my_reenter = 0;         /* Oh well, we were wrong */
+X#else /* !cray */
+X    if ((my_reenter = setexit()) == 0) {
+X#endif /* cray */
+X	SHIN = dcopy(0, -1);
+X	SHOUT = dcopy(1, -1);
+X	SHDIAG = dcopy(2, -1);
+X#ifndef FIOCLEX
+X	didcch = 0;
+X#endif /* FIOCLEX */
+X	didfds = 0;
+X	/*
+X	 * Decrement the shell level
+X	 */
+X	shlvl(-1);
+X	doexec(kp);
+X    }
+X
+X    (void) sigset(SIGINT, osigint);
+X    (void) sigset(SIGQUIT, osigquit);
+X    (void) sigset(SIGTERM, osigterm);
+X
+X    doneinp = 0;
+X#ifndef FIOCLEX
+X    didcch = odidcch;
+X#endif /* FIOCLEX */
+X    didfds = odidfds;
+X    (void) close(SHIN);
+X    (void) close(SHOUT);
+X    (void) close(SHDIAG);
+X    (void) close(OLDSTD);
+X    SHIN = dmove(saveIN, oSHIN);
+X    SHOUT = dmove(saveOUT, oSHOUT);
+X    SHDIAG = dmove(saveDIAG, oSHDIAG);
+X    OLDSTD = dmove(saveSTD, oOLDSTD);
+X
+X    resexit(osetexit);
+X    if (my_reenter)
+X	stderror(ERR_SILENT);
+X}
+X
+void
+xechoit(t)
+X    Char  **t;
+X{
+X    if (adrof(STRecho)) {
+X	flush();
+X	haderr = 1;
+X	blkpr(t), xputchar('\n');
+X	haderr = 0;
+X    }
+X}
+X
+X/*ARGSUSED*/
+void
+dohash(vv, c)
+X    Char **vv;
+X    struct command *c;
+X{
+X#ifdef COMMENT
+X    struct stat stb;
+X#endif
+X    DIR    *dirp;
+X    register struct dirent *dp;
+X    int     i = 0;
+X    struct varent *v = adrof(STRpath);
+X    Char  **pv;
+X    int hashval;
+X
+X#ifdef FASTHASH
+X    if (vv && vv[1]) {
+X       hashlength = atoi(short2str(vv[1]));
+X       if (vv[2]) {
+X	  hashwidth = atoi(short2str(vv[2]));
+X	  if ((hashwidth != sizeof(unsigned char)) && 
+X	      (hashwidth != sizeof(unsigned short)) && 
+X	      (hashwidth != sizeof(unsigned long)))
+X	     hashwidth = 0;
+X	  if (vv[3])
+X	     hashdebug = atoi(short2str(vv[3]));
+X       }
+X    }
+X
+X    if (hashwidth == 0) {
+X       for (pv = v->vec; *pv; pv++, hashwidth++);
+X       if (hashwidth <= widthof(unsigned char))
+X	  hashwidth = sizeof(unsigned char);
+X       else if (hashwidth <= widthof(unsigned short))
+X	  hashwidth = sizeof(unsigned short);
+X       else
+X	  hashwidth = sizeof(unsigned long);
+X    }
+X    if (hashlength == 0) {
+X       hashlength = hashwidth * (8*64);	/* "average" files per dir in path */
+X    }
+X
+X    if (xhash)
+X       xfree((ptr_t) xhash);
+X    xhash = (unsigned long *) xcalloc(hashlength * hashwidth, 1);
+X#endif /* FASTHASH */
+X
+X    (void) getusername(NULL);	/* flush the tilde cashe */
+X    tw_clear_comm_list();
+X    havhash = 1;
+X    if (v == NULL)
+X	return;
+X    for (pv = v->vec; *pv; pv++, i++) {
+X	if (pv[0][0] != '/')
+X	    continue;
+X	dirp = opendir(short2str(*pv));
+X	if (dirp == NULL)
+X	    continue;
+X#ifdef COMMENT			/* this isn't needed.  opendir won't open
+X				 * non-dirs */
+X	if (fstat(dirp->dd_fd, &stb) < 0 || !S_ISDIR(stb.st_mode)) {
+X	    (void) closedir(dirp);
+X	    continue;
+X	}
+X#endif
+X	while ((dp = readdir(dirp)) != NULL) {
+X	    if (dp->d_ino == 0)
+X		continue;
+X	    if (dp->d_name[0] == '.' &&
+X		(dp->d_name[1] == '\0' ||
+X		 (dp->d_name[1] == '.' && dp->d_name[2] == '\0')))
+X		continue;
+X#ifdef FASTHASH
+X	    hashval = hashname(str2short(dp->d_name));
+X	    bis(hashval, i);
+X	    if (hashdebug & 1)
+X	       xprintf("hash=%-4d dir=%-2d prog=%s\n",
+X		       hashname(str2short(dp->d_name)), i, dp->d_name);
+X#else /* OLD HASH */
+X	    hashval = hash(hashname(str2short(dp->d_name)), i);
+X	    bis(xhash, hashval);
+X#endif /* FASTHASH */
+X	    /* tw_add_comm_name (dp->d_name); */
+X	}
+X	(void) closedir(dirp);
+X    }
+X}
+X
+X/*ARGSUSED*/
+void
+dounhash(v, c)
+X    Char **v;
+X    struct command *c;
+X{
+X    havhash = 0;
+X#ifdef FASTHASH
+X    if (xhash) {
+X       xfree((ptr_t) xhash);
+X       xhash = NULL;
+X    }
+X#endif /* FASTHASH */
+X}
+X
+X#ifdef VFORK
+X/*ARGSUSED*/
+void
+hashstat(v, c)
+X    Char **v;
+X    struct command *c;
+X{
+X#ifdef FASTHASH 
+X   if (havhash && hashlength && hashwidth)
+X      xprintf("%d hash buckets of %d bits each\n",
+X	      hashlength, hashwidth*8);
+X   if (hashdebug)
+X      xprintf("debug mask = 0x%08x\n", hashdebug);
+X#endif /* FASTHASH */
+X   if (hits + misses)
+X      xprintf("%d hits, %d misses, %d%%\n",
+X	      hits, misses, 100 * hits / (hits + misses));
+X}
+X
+X#endif
+X
+X/*
+X * Hash a command name.
+X */
+static int
+hashname(cp)
+X    register Char *cp;
+X{
+X    register long h;
+X
+X    for (h = 0; *cp; cp++)
+X	h = hash(h, *cp);
+X    return ((int) h);
+X}
+X
+int
+iscommand(name)
+X    Char   *name;
+X{
+X    register Char **pv;
+X    register Char *sav;
+X    register struct varent *v;
+X    register bool slash = any(short2str(name), '/');
+X    register int hashval, i;
+X
+X    v = adrof(STRpath);
+X    if (v == 0 || v->vec[0] == 0 || slash)
+X	pv = justabs;
+X    else
+X	pv = v->vec;
+X    sav = Strspl(STRslash, name);	/* / command name for postpending */
+X    hashval = havhash ? hashname(name) : 0;
+X    i = 0;
+X    do {
+X	if (!slash && pv[0][0] == '/' && havhash) {
+X#ifdef FASTHASH
+X	    if (!bit(hashval, i))
+X		goto cont;
+X#else /* OLDHASH */
+X	    int hashval1 = hash(hashval, i);
+X	    if (!bit(xhash, hashval1))
+X		goto cont;
+X#endif /* FASTHASH */
+X	}
+X	if (pv[0][0] == 0 || eq(pv[0], STRdot)) {	/* don't make ./xxx */
+X	    if (executable(NULL, name, 0)) {
+X		xfree((ptr_t) sav);
+X		return i + 1;
+X	    }
+X	}
+X	else {
+X	    if (executable(*pv, sav, 0)) {
+X		xfree((ptr_t) sav);
+X		return i + 1;
+X	    }
+X	}
+cont:
+X	pv++;
+X	i++;
+X    } while (*pv);
+X    xfree((ptr_t) sav);
+X    return 0;
+X}
+X
+X/* Also by:
+X *  Andreas Luik <luik@isaak.isa.de>
+X *  I S A  GmbH - Informationssysteme fuer computerintegrierte Automatisierung
+X *  Azenberstr. 35
+X *  D-7000 Stuttgart 1
+X *  West-Germany
+X * is the executable() routine below and changes to iscommand().
+X * Thanks again!!
+X */
+X
+X/*
+X * executable() examines the pathname obtained by concatenating dir and name
+X * (dir may be NULL), and returns 1 either if it is executable by us, or
+X * if dir_ok is set and the pathname refers to a directory.
+X * This is a bit kludgy, but in the name of optimization...
+X */
+int
+executable(dir, name, dir_ok)
+X    Char   *dir, *name;
+X    bool    dir_ok;
+X{
+X    struct stat stbuf;
+X    Char    path[MAXPATHLEN + 1];
+X    char   *strname;
+X
+X    if (dir && *dir) {
+X	copyn(path, dir, MAXPATHLEN);
+X	catn(path, name, MAXPATHLEN);
+X	strname = short2str(path);
+X    }
+X    else
+X	strname = short2str(name);
+X    return (stat(strname, &stbuf) != -1 &&
+X	    ((S_ISREG(stbuf.st_mode) &&
+X    /* save time by not calling access() in the hopeless case */
+X	      (stbuf.st_mode & (S_IXOTH | S_IXGRP | S_IXUSR)) &&
+X	      access(strname, X_OK) == 0) ||
+X	     (dir_ok && S_ISDIR(stbuf.st_mode))));
+X}
+X
+void
+tellmewhat(lex)
+X    struct wordent *lex;
+X{
+X    register int i;
+X    register struct biltins *bptr;
+X    register struct wordent *sp = lex->next;
+X    bool    aliased = 0;
+X    Char   *s0, *s1, *s2;
+X    Char    qc;
+X
+X    if (adrof1(sp->word, &aliases)) {
+X	alias(lex);
+X	sp = lex->next;
+X	aliased = 1;
+X    }
+X
+X    s0 = sp->word;		/* to get the memory freeing right... */
+X
+X    /* handle quoted alias hack */
+X    if ((*(sp->word) & (QUOTE | TRIM)) == QUOTE)
+X	(sp->word)++;
+X
+X    /* do quoting, if it hasn't been done */
+X    s1 = s2 = sp->word;
+X    while (*s2)
+X	switch (*s2) {
+X	case '\'':
+X	case '"':
+X	    qc = *s2++;
+X	    while (*s2 && *s2 != qc)
+X		*s1++ = *s2++ | QUOTE;
+X	    if (*s2)
+X		s2++;
+X	    break;
+X	case '\\':
+X	    if (*++s2)
+X		*s1++ = *s2++ | QUOTE;
+X	    break;
+X	default:
+X	    *s1++ = *s2++;
+X	}
+X    *s1 = '\0';
+X
+X    for (bptr = bfunc; bptr < &bfunc[nbfunc]; bptr++) {
+X	if (eq(sp->word, str2short(bptr->bname))) {
+X	    if (aliased)
+X		prlex(lex);
+X	    xprintf("%s: shell built-in command.\n", short2str(sp->word));
+X	    flush();
+X	    sp->word = s0;	/* we save and then restore this */
+X	    return;
+X	}
+X    }
+X
+X    if (i = iscommand(strip(sp->word))) {
+X	register Char **pv;
+X	register struct varent *v;
+X	bool    slash = any(short2str(sp->word), '/');
+X
+X	v = adrof(STRpath);
+X	if (v == 0 || v->vec[0] == 0 || slash)
+X	    pv = justabs;
+X	else
+X	    pv = v->vec;
+X
+X	while (--i)
+X	    pv++;
+X	if (pv[0][0] == 0 || eq(pv[0], STRdot)) {
+X	    sp->word = Strspl(STRdotsl, sp->word);
+X	    prlex(lex);
+X	    xfree((ptr_t) sp->word);
+X	    sp->word = s0;	/* we save and then restore this */
+X	    return;
+X	}
+X	s1 = Strspl(*pv, STRslash);
+X	sp->word = Strspl(s1, sp->word);
+X	xfree((ptr_t) s1);
+X	prlex(lex);
+X	xfree((ptr_t) sp->word);
+X    }
+X    else {
+X	if (aliased)
+X	    prlex(lex);
+X	xprintf("%s: Command not found.\n", short2str(sp->word));
+X	flush();
+X    }
+X    sp->word = s0;		/* we save and then restore this */
+X}
+X
+X/*
+X * Builtin to look at and list all places a command may be defined:
+X * aliases, shell builtins, and the path.
+X *
+X * Marc Horowitz <marc@mit.edu>
+X * MIT Student Information Processing Board
+X */
+X
+X/*ARGSUSED*/
+void
+dowhere(v, c)
+X    register Char **v;
+X    struct command *c;
+X{
+X    struct varent *var;
+X    struct biltins *bptr;
+X    Char **pv;
+X    Char *sv;
+X    int hashval, i, ex;
+X
+X    for (v++; *v; v++) {
+X	if (any(short2str(*v), '/')) {
+X	    xprintf("where: / in command makes no sense\n");
+X	    continue;
+X	}
+X
+X	/* first, look for an alias */
+X
+X	if (adrof1(*v, &aliases)) {
+X	    if (var = adrof1(*v, &aliases)) {
+X		xprintf("%s is aliased to ", short2str(*v));
+X		blkpr(var->vec);
+X		xprintf("\n");
+X	    }
+X	}
+X
+X	/* next, look for a shell builtin */
+X
+X	for (bptr = bfunc; bptr < &bfunc[nbfunc]; bptr++) {
+X	    if (eq(*v, str2short(bptr->bname))) {
+X		xprintf("%s is a shell built-in\n", short2str(*v));
+X		/* flush(); */
+X	    }
+X	}
+X
+X	/* last, look through the path for the command */
+X
+X	var = adrof(STRpath);
+X
+X	hashval = havhash ? hashname(*v) : 0;
+X
+X	sv = Strspl(STRslash, *v);
+X
+X	for (pv = var->vec, i = 0; *pv; pv++, i++) {
+X	    if (havhash && !eq(*pv, STRdot)) {
+X#ifdef FASTHASH
+X		if (!bit(hashval, i))
+X		    continue;
+X#else /* OLDHASH */
+X		int hashval1 = hash(hashval, i);
+X		if (!bit(xhash, hashval1))
+X		    continue;
+X#endif /* FASTHASH */
+X	    }
+X	    ex = executable(*pv, sv, 0);
+X#ifdef FASTHASH
+X	    if (!ex && (hashdebug & 2)) {
+X		xprintf("hash miss: ");
+X		ex = 1;	/* Force printing */
+X	    }
+X#endif /* FASTHASH */
+X	    if (ex) {
+X		xprintf("%s/",short2str(*pv));
+X		xprintf("%s\n",short2str(*v));
+X	    }
+X	}
+X	xfree((ptr_t) sv);
+X    }
+X}
+END_OF_FILE
+if test 23068 -ne `wc -c <'sh.exec.c'`; then
+    echo shar: \"'sh.exec.c'\" unpacked with wrong size!
+fi
+# end of 'sh.exec.c'
+fi
+if test -f 'sh.init.c' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'sh.init.c'\"
+else
+echo shar: Extracting \"'sh.init.c'\" \(24416 characters\)
+sed "s/^X//" >'sh.init.c' <<'END_OF_FILE'
+X/* $Header: /home/hyperion/mu/christos/src/sys/tcsh-6.01/RCS/sh.init.c,v 3.10 1991/12/14 20:45:46 christos Exp $ */
+X/*
+X * sh.init.c: Function and signal tables
+X */
+X/*-
+X * Copyright (c) 1980, 1991 The Regents of the University of California.
+X * All rights reserved.
+X *
+X * Redistribution and use in source and binary forms, with or without
+X * modification, are permitted provided that the following conditions
+X * are met:
+X * 1. Redistributions of source code must retain the above copyright
+X *    notice, this list of conditions and the following disclaimer.
+X * 2. Redistributions in binary form must reproduce the above copyright
+X *    notice, this list of conditions and the following disclaimer in the
+X *    documentation and/or other materials provided with the distribution.
+X * 3. All advertising materials mentioning features or use of this software
+X *    must display the following acknowledgement:
+X *	This product includes software developed by the University of
+X *	California, Berkeley and its contributors.
+X * 4. Neither the name of the University nor the names of its contributors
+X *    may be used to endorse or promote products derived from this software
+X *    without specific prior written permission.
+X *
+X * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+X * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+X * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+X * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+X * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+X * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+X * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+X * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+X * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+X * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+X * SUCH DAMAGE.
+X */
+X#include "sh.h"
+X
+RCSID("$Id: sh.init.c,v 3.10 1991/12/14 20:45:46 christos Exp $")
+X
+X#include "ed.h"
+X
+X/*
+X * C shell
+X */
+X
+X#define	INF	0x7fffffff
+X
+struct	biltins bfunc[] = {
+X    { "@",	dolet,		0,	INF, },
+X    { "alias",	doalias,	0,	INF, },
+X    { "aliases",	doaliases,	0,	1, /* PWP */ },
+X    { "alloc",	showall,	0,	1, },
+X    { "bg",	dobg,		0,	INF, },
+X    { "bind",	dobind,		0,	2, },
+X    { "bindkey",	dobindkey,	0,	8, },
+X    { "break",	dobreak,	0,	0, },
+X    { "breaksw",	doswbrk,	0,	0, },
+X#if defined(IIASA) || defined(KAI)
+X    { "bye",	goodbye,	0,	0, },
+X#endif
+X    { "case",	dozip,		0,	1, },
+X    { "cd",	dochngd,	0,	INF, },
+X    { "chdir",	dochngd,	0,	INF, },
+X    { "continue",	docontin,	0,	0, },
+X    { "default",	dozip,		0,	0, },
+X    { "dirs",	dodirs,		0,	INF, },
+X    { "echo",	doecho,		0,	INF, },
+X    { "echotc",	doechotc,	0,	INF, },
+X    { "else",	doelse,		0,	INF, },
+X    { "end",	doend,		0,	0, },
+X    { "endif",	dozip,		0,	0, },
+X    { "endsw",	dozip,		0,	0, },
+X    { "eval",	doeval,		0,	INF, },
+X    { "exec",	execash,	1,	INF, },
+X    { "exit",	doexit,		0,	INF, },
+X    { "fg",	dofg,		0,	INF, },
+X    { "foreach",	doforeach,	3,	INF, },
+X#ifdef TCF
+X    { "getspath",	dogetspath,	0,	0, },
+X    { "getxvers", dogetxvers,	0,	0, },
+X#endif /* TCF */
+X#ifdef IIASA
+X    { "gd",	dopushd,	0,	INF, },
+X#endif
+X    { "glob",	doglob,		0,	INF, },
+X    { "goto",	dogoto,		1,	1, },
+X#ifdef VFORK
+X    { "hashstat",	hashstat,	0,	0, },
+X#endif
+X    { "history",	dohist,		0,	2, },
+X    { "if",	doif,		1,	INF, },
+X#ifdef apollo
+X    { "inlib",    doinlib,	1,	INF, },
+X#endif
+X    { "jobs",	dojobs,		0,	1, },
+X    { "kill",	dokill,		1,	INF, },
+X#ifndef HAVENOLIMIT
+X    { "limit",	dolimit,	0,	3, },
+X#endif /* ! HAVENOLIMIT */
+X    { "linedit",	doecho,		0,	INF, },
+X#ifndef KAI
+X    { "log",	dolog,		0,	0, },
+X#endif
+X    { "login",	dologin,	0,	1, },
+X    { "logout",	dologout,	0,	0, },
+X    { "ls-F",	dolist,		0,	INF, },
+X#ifdef TCF
+X    { "migrate",	domigrate,	1,	INF, },
+X#endif /* TCF */
+X#ifdef NEWGRP
+X    { "newgrp",	donewgrp,	1,	1, },
+X#endif
+X    { "nice",	donice,		0,	INF, },
+X    { "nohup",	donohup,	0,	INF, },
+X    { "notify",	donotify,	0,	INF, },
+X    { "onintr",	doonintr,	0,	2, },
+X    { "popd",	dopopd,		0,	INF, },
+X    { "pushd",	dopushd,	0,	INF, },
+X#ifdef IIASA
+X    { "rd",	dopopd,		0,	INF, },
+X#endif
+X    { "rehash",	dohash,		0,	3, },
+X    { "repeat",	dorepeat,	2,	INF, },
+X#ifdef apollo
+X    { "rootnode", dorootnode,	1,	1, },
+X#endif
+X    { "sched",	dosched,	0,	INF, },
+X    { "set",	doset,		0,	INF, },
+X    { "setenv",	dosetenv,	0,	2, },
+X#ifdef MACH
+X    { "setpath",	dosetpath,	0,	INF, },
+X#endif	/* MACH */
+X#ifdef TCF
+X    { "setspath",	dosetspath,	1,	INF, },
+X#endif /* TCF */
+X    { "settc",	dosettc,	2,	2, },
+X    { "setty",  dosetty,	0,      INF },
+X#ifdef TCF
+X    { "setxvers",	dosetxvers,	0,	1, },
+X#endif /* TCF */
+X    { "shift",	shift,		0,	1, },
+X    { "source",	dosource,	1,	2, },
+X    { "stop",	dostop,		1,	INF, },
+X    { "suspend",	dosuspend,	0,	0, },
+X    { "switch",	doswitch,	1,	INF, },
+X    { "telltc",	dotelltc,	0,	INF, },
+X    { "time",	dotime,		0,	INF, },
+X    { "umask",	doumask,	0,	1, },
+X    { "unalias",	unalias,	1,	INF, },
+X    { "unhash",	dounhash,	0,	0, },
+X#ifdef masscomp
+X    { "universe",	douniverse,	0,	1, },
+X#endif
+X#ifndef HAVENOLIMIT
+X    { "unlimit",	dounlimit,	0,	INF, },
+X#endif /* !HAVENOLIMIT */
+X    { "unset",	unset,		1,	INF, },
+X    { "unsetenv",	dounsetenv,	1,	INF, },
+X#ifdef apollo
+X    { "ver",	dover,		0,	INF, },
+X#endif
+X    { "wait",	dowait,		0,	0, },
+X#ifdef WARP
+X    { "warp",	dowarp,		0,	2, },
+X#endif
+X#ifdef KAI
+X    { "watchlog",	dolog,		0,	0, },
+X#endif
+X    { "where",	dowhere,	1,	INF, },
+X    { "which",	dowhich,	1,	INF, },
+X    { "while",	dowhile,	1,	INF, },
+X};
+int nbfunc = sizeof bfunc / sizeof *bfunc;
+X
+struct srch srchn[] = {
+X    { "@",	T_LET, },
+X    { "break",	T_BREAK, },
+X    { "breaksw",	T_BRKSW, },
+X    { "case",	T_CASE, },
+X    { "default", 	T_DEFAULT, },
+X    { "else",	T_ELSE, },
+X    { "end",	T_END, },
+X    { "endif",	T_ENDIF, },
+X    { "endsw",	T_ENDSW, },
+X    { "exit",	T_EXIT, },
+X    { "foreach", 	T_FOREACH, },
+X    { "goto",	T_GOTO, },
+X    { "if",	T_IF, },
+X    { "label",	T_LABEL, },
+X    { "set",	T_SET, },
+X    { "switch",	T_SWITCH, },
+X    { "while",	T_WHILE, },
+X};
+int nsrchn = sizeof srchn / sizeof *srchn;
+X
+X/*
+X * Note: For some machines, (hpux eg.)
+X * NSIG = number of signals + 1...
+X * so we define 33 signals for 
+X * everybody
+X */
+struct	mesg mesg[] = {
+X/*  0 */	0,		"",
+X/*  1 */	"HUP",		"Hangup",
+X/*  2 */	"INT",		"Interrupt",	
+X/*  3 */	"QUIT",		"Quit",
+X/*  4 */	"ILL",		"Illegal instruction",
+X/*  5 */	"TRAP",		"Trace/BPT trap",
+X#if SVID > 3
+X/*  6 */	"ABRT",		"Abort",
+X#else /* SVID > 3 */
+X/*  6 */	"IOT",		"IOT trap",
+X#endif /* SVID > 3 */
+X#ifdef aiws
+X/*  7 */	"DANGER", 	"System Crash Imminent",
+X#else /* aiws */
+X/*  7 */	"EMT",		"EMT trap",
+X#endif /* aiws */
+X/*  8 */	"FPE",		"Floating exception",
+X/*  9 */	"KILL",		"Killed",
+X/* 10 */	"BUS",		"Bus error",
+X/* 11 */	"SEGV",		"Segmentation fault",
+X/* 12 */	"SYS",		"Bad system call",
+X/* 13 */	"PIPE",		"Broken pipe",
+X/* 14 */	"ALRM",		"Alarm clock",
+X/* 15 */	"TERM",		"Terminated",
+X
+X#if (SVID > 0) || defined(DGUX) || defined(IBMAIX) || defined(apollo)
+X
+X# ifdef _sigextra_
+X#  undef  _sigextra_
+X# endif /* _sigextra_ */
+X
+X#if !defined(IBMAIX) && !defined(cray)
+X/* these are the real svid signals */
+X/* 16 */	"USR1",		"User signal 1",
+X/* 17 */	"USR2", 	"User signal 2",
+X# ifdef apollo
+X/* 18 */	"CLD",		"Death of child",
+X/* 19 */	"APOLLO",  	"Apollo-specific fault",
+X# else
+X/* 18 */	"CHLD",		"Child exited",
+X/* 19 */	"PWR",  	"Power failure",
+X# endif /* apollo */
+X#endif /* IBMAIX */
+X
+X# ifdef cray
+X# define _sigextra_
+X/* 16 */	"IO",		"Input/output possible signal",
+X/* 17 */	"URG",		"Urgent condition on I/O channel",
+X/* 18 */	"CHLD",		"Child exited",
+X/* 19 */	"PWR",		"Power failure",
+X/* 20 */	"MT",		"Multitasking wake-up",
+X/* 21 */	"MTKILL",	"Multitasking kill",
+X/* 22 */	"BUFIO",	"Fortran asynchronous I/O completion",
+X/* 23 */	"RECOVERY",	"Recovery",
+X/* 24 */	"UME",		"Uncorrectable memory error",
+X/* 25 */	"DLK",		"True deadlock detected",
+X/* 26 */	"CPULIM",	"CPU time limit exceeded",
+X/* 27 */	"SHUTDN",	"System shutdown imminent",
+X# ifdef SUSPENDED
+X/* 28 */	"STOP", 	"Suspended",
+X/* 29 */	"TSTP", 	"Suspended",
+X# else /* SUSPENDED */
+X/* 28 */	"STOP", 	"Stopped",
+X/* 29 */	"TSTP", 	"Stopped",
+X# endif /* SUSPENDED */
+X/* 30 */	"CONT",   	"Continue",
+X# ifdef SUSPENDED
+X/* 31 */	"TTIN",		"Suspended (tty input)",
+X/* 32 */	"TTOU",		"Suspended (tty output)",
+X# else /* SUSPENDED */
+X/* 31 */	"TTIN",		"Stopped (tty input)",
+X/* 32 */	"TTOU",		"Stopped (tty output)",
+X# endif /* SUSPENDED */
+X/* 33 */	"WINCH",	"Window size changed",
+X/* 34 */	"RPE",		"CRAY Y-MP register parity error",
+X/* 35 */	0,		"Signal 35",
+X/* 36 */	0,		"Signal 36",
+X/* 37 */	0,		"Signal 37",
+X/* 38 */	0,		"Signal 38",
+X/* 39 */	0,		"Signal 39",
+X/* 40 */	0,		"Signal 40",
+X/* 41 */	0,		"Signal 41",
+X/* 42 */	0,		"Signal 42",
+X/* 43 */	0,		"Signal 43",
+X/* 44 */	0,		"Signal 44",
+X/* 45 */	0,		"Signal 45",
+X/* 46 */	0,		"Signal 46",
+X/* 47 */	0,		"Signal 47",
+X/* 48 */	"INFO",		"Information signal",
+X/* 49 */	"USR1",		"User-defined signal 1",
+X/* 50 */	"USR2",		"User-defined signal 2",
+X/* 51 */	0,		"Signal 51",
+X/* 52 */	0,		"Signal 52",
+X/* 53 */	0,		"Signal 53",
+X/* 54 */	0,		"Signal 54",
+X/* 55 */	0,		"Signal 55",
+X/* 56 */	0,		"Signal 56",
+X/* 57 */	0,		"Signal 57",
+X/* 58 */	0,		"Signal 58",
+X/* 59 */	0,		"Signal 59",
+X/* 60 */	0,		"Signal 60",
+X/* 61 */	0,		"Signal 61",
+X/* 62 */	0,		"Signal 62",
+X/* 63 */	0,	    	"Signal 63",
+X/* 64 */	0,		"Signal 64",
+X# endif /* cray */
+X
+X/*
+X**  In the UNIXpc these signal *ARE* used!!
+X*/
+X#ifdef UNIXPC
+X/* 20 */	"WIND",		"Window status changed",
+X/* 21 */	"PHONE", 	"Phone status changed",
+X#endif
+X
+X# ifdef OREO
+X#  define _sigextra_
+X#  ifdef SUSPENDED
+X/* 20 */	"TSTP",		"Suspended",
+X/* 21 */	"TTIN", 	"Suspended (tty input)",
+X/* 22 */	"TTOU", 	"Suspended (tty output)",
+X/* 23 */	"STOP",		"Suspended (signal)",
+X#  else
+X/* 20 */	"TSTP",		"Stopped",
+X/* 21 */	"TTIN", 	"Stopped (tty input)",
+X/* 22 */	"TTOU", 	"Stopped (tty output)",
+X/* 23 */	"STOP",		"Stopped (signal)",
+X#  endif /* SUSPENDED */
+X/* 24 */	"XCPU",		"Cputime limit exceeded",
+X/* 25 */	"XFSZ", 	"Filesize limit exceeded",
+X/* 26 */	"VTALRM", 	"Virtual time alarm",
+X/* 27 */	"PROF", 	"Profiling time alarm",
+X/* 28 */	"WINCH", 	"Window changed",
+X/* 29 */	"CONT",		"Continued",
+X/* 30 */	"URG",		"Urgent condition on IO channel",
+X/* 31 */	"IO",		"Asynchronous I/O (select)",
+X/* 32 */	0,		"Signal 32",
+X# endif /* OREO */
+X
+X# ifdef hpux
+X#  define _sigextra_
+X/* 20 */	"VTALRM", 	"Virtual time alarm",
+X/* 21 */	"PROF", 	"Profiling time alarm",
+X/* 22 */	"IO", 		"Asynchronous I/O (select)",
+X/* 23 */	"WINDOW", 	"Window changed",
+X#  ifdef SUSPENDED
+X/* 24 */	"STOP",		"Suspended (signal)",
+X/* 25 */	"TSTP",		"Suspended",
+X#  else /* SUSPENDED */
+X/* 24 */	"STOP",		"Stopped (signal)",
+X/* 25 */	"TSTP",		"Stopped",
+X#  endif /* SUSPENDED */
+X/* 26 */	"CONT",		"Continued",
+X#  ifdef SUSPENDED
+X/* 27 */	"TTIN", 	"Suspended (tty input)",
+X/* 28 */	"TTOU", 	"Suspended (tty output)",
+X#  else /* SUSPENDED */
+X/* 27 */	"TTIN", 	"Stopped (tty input)",
+X/* 28 */	"TTOU", 	"Stopped (tty output)",
+X#  endif /* SUSPENDED */
+X/* 29 */	"URG",		"Urgent condition on IO channel",
+X/* 30 */	"LOST",		"Remote lock lost (NFS)",
+X/* 31 */	0, 		"Reserved", /* Reserved */
+X/* 32 */	"DIL",		"DIL signal",
+X# endif /* hpux */
+X
+X# ifdef stellar
+X#  define _sigextra_
+X/* 20 */	"WINDOW", 	"Window changed",
+X/* 21 */	"URG",		"Urgent condition on IO channel",
+X/* 22 */	"POLL", 	"Pollable event occured",
+X#  ifdef SUSPENDED
+X/* 23 */	"STOP",		"Suspended (signal)",
+X/* 24 */	"TSTP",		"Suspended",
+X#  else /* SUSPENDED */
+X/* 23 */	"STOP",		"Stopped (signal)",
+X/* 24 */	"TSTP",		"Stopped",
+X#  endif /* SUSPENDED */
+X/* 25 */	"CONT",		"Continued",
+X#  ifdef SUSPENDED
+X/* 26 */	"TTIN", 	"Suspended (tty input)",
+X/* 27 */	"TTOU", 	"Suspended (tty output)",
+X#  else /* SUSPENDED */
+X/* 26 */	"TTIN", 	"Stopped (tty input)",
+X/* 27 */	"TTOU", 	"Stopped (tty output)",
+X#  endif /* SUSPENDED */
+X/* 28 */	"IO", 		"Asynchronous I/O (select)",
+X/* 29 */	"XCPU",		"Cputime limit exceeded",
+X/* 30 */	"XFSZ", 	"Filesize limit exceeded",
+X/* 31 */	"VTALRM", 	"Virtual time alarm",
+X/* 32 */	"PROF", 	"Profiling time alarm",
+X# endif /* stellar */
+X
+X# if SVID > 3
+X#  define _sigextra_
+X/* 20 */	"WINCH", 	"Window change",
+X/* 21 */	"URG", 		"Urgent socket condition",
+X/* 22 */	"IO", 		"Socket I/O possible",
+X#  ifdef SUSPENDED
+X/* 23 */	"STOP",		"Suspended (signal)",
+X/* 24 */	"TSTP",		"Suspended",
+X/* 25 */	"CONT",		"Continued",
+X/* 26 */	"TTIN", 	"Suspended (tty input)",
+X/* 27 */	"TTOU", 	"Suspended (tty output)",
+X#  else /* SUSPENDED */
+X/* 23 */	"STOP",		"Stopped (signal)",
+X/* 24 */	"TSTP",		"Stopped",
+X/* 25 */	"CONT",		"Continued",
+X/* 26 */	"TTIN", 	"Stopped (tty input)",
+X/* 27 */	"TTOU", 	"Stopped (tty output)",
+X#  endif /* SUSPENDED */
+X/* 28 */	"VTALRM",	"Virtual timer expired",
+X/* 29 */	"PROF",		"Profiling timer expired",
+X/* 30 */	"XCPU",		"CPU time limit exceeded",
+X/* 31 */	"XFSZ", 	"File size limit exceeded",
+X/* 32 */	0,		"Maximum number of signals",
+X# endif /* SVID > 3 */
+X# if defined(ISC) && defined(POSIX) 
+X#  define _sigextra_
+X/* 20 */	"WINCH", 	"Window change",
+X/* 21 */	0, 		"Unused", /* SIGPHONE used only for UNIXPC */
+X/* 22 */	"POLL", 	"Pollable event occured",
+X/* 23 */	"CONT", 	"Continued",
+X#  ifdef SUSPENDED
+X/* 24 */	"STOP",		"Suspended (signal)",
+X/* 25 */	"TSTP",		"Suspended",
+X/* 26 */	"TTIN", 	"Suspended (tty input)",
+X/* 27 */	"TTOU", 	"Suspended (tty output)",
+X#  else /* SUSPENDED */
+X/* 24 */	"STOP",		"Stopped (signal)",
+X/* 25 */	"TSTP",		"Stopped",
+X/* 26 */	"TTIN", 	"Stopped (tty input)",
+X/* 27 */	"TTOU", 	"Stopped (tty output)",
+X#  endif /* SUSPENDED */
+X/* 28 */	0,	  	"number of signals",
+X/* 29 */	0,		"Reserved", /* Reserved */
+X/* 30 */	0,		"Reserved", /* Reserved */
+X/* 31 */	0, 		"Reserved", /* Reserved */
+X/* 32 */	0,		"Maximum number of signals",
+X# endif /* ISC && POSIX */
+X
+X# if defined(SCO) && defined(POSIX) 
+X#  define _sigextra_
+X/* 20 */	"WINCH", 	"Window change",
+X/* 21 */	0, 		"Unused", /* SIGPHONE used only for UNIXPC */
+X/* 22 */	"POLL", 	"Pollable event occured",
+X#  ifdef SUSPENDED
+X/* 23 */	"STOP",		"Suspended (signal)",
+X/* 24 */	"TSTP",		"Suspended",
+X/* 25 */	"CONT", 	"Continued",
+X/* 26 */	"TTIN", 	"Suspended (tty input)",
+X/* 27 */	"TTOU", 	"Suspended (tty output)",
+X#  else /* SUSPENDED */
+X/* 23 */	"STOP",		"Stopped (signal)",
+X/* 24 */	"TSTP",		"Stopped",
+X/* 25 */	"CONT", 	"Continued",
+X/* 26 */	"TTIN", 	"Stopped (tty input)",
+X/* 27 */	"TTOU", 	"Stopped (tty output)",
+X#  endif /* SUSPENDED */
+X/* 28 */	0,	  	"number of signals",
+X/* 29 */	0,		"Reserved", /* Reserved */
+X/* 30 */	0,		"Reserved", /* Reserved */
+X/* 31 */	0, 		"Reserved", /* Reserved */
+X/* 32 */	0,		"Maximum number of signals",
+X# endif /* SCO && POSIX */
+X
+X# ifdef IRIS4D
+X#  define _sigextra_
+X#  ifdef SUSPENDED
+X/* 20 */	"STOP",		"Suspended (signal)",
+X/* 21 */	"TSTP",		"Suspended",
+X#  else /* SUSPENDED */
+X/* 20 */	"STOP",		"Stopped (signal)",
+X/* 21 */	"TSTP",		"Stopped",
+X#  endif /* SUSPENDED */
+X/* 22 */	"POLL", 	"Stream I/O pending",
+X/* 23 */	"IO", 		"Asynchronous I/O (select)",
+X/* 24 */	"URG",		"Urgent condition on IO channel",
+X/* 25 */	"WINCH", 	"Window changed",
+X/* 26 */	"VTALRM", 	"Virtual time alarm",
+X/* 27 */	"PROF", 	"Profiling time alarm",
+X/* 28 */	"CONT",		"Continued",
+X#  ifdef SUSPENDED
+X/* 29 */	"TTIN", 	"Suspended (tty input)",
+X/* 30 */	"TTOU", 	"Suspended (tty output)",
+X#  else /* SUSPENDED */
+X/* 29 */	"TTIN", 	"Stopped (tty input)",
+X/* 30 */	"TTOU", 	"Stopped (tty output)",
+X#  endif /* SUSPENDED */
+X/* 31 */	0,		"Signal 31",
+X/* 32 */	0,		"Signal 32",
+X# endif /* IRIS4D */
+X
+X# ifdef IRIS3D
+X#  define _sigextra_
+X/* 20 */	0,		"Signal 20",
+X/* 21 */	0,		"Signal 21",
+X/* 22 */	0,		"Signal 22",
+X/* 23 */	0,		"Signal 23",
+X/* 24 */	0,		"Signal 24",
+X/* 25 */	"WINCH", 	"Window changed",
+X/* 26 */	"IO", 		"Asynchronous I/O (select)",
+X/* 27 */	"URG",		"Urgent condition on IO channel",
+X/* 28 */	"POLL", 	"Stream I/O pending",
+X/* 29 */	0,		"Signal 29",
+X/* 30 */	0,		"Signal 30",
+X/* 31 */	0,		"Signal 31",
+X/* 32 */	0,		"Signal 32",
+X# endif /* IRIS3D */
+X
+X# ifdef apollo
+X#  define _sigextra_
+X#  ifdef SUSPENDED
+X/* 20 */	"STOP",		"Suspended (signal)",
+X/* 21 */	"TSTP",		"Suspended",
+X#  else /* SUSPENDED */
+X/* 20 */	"STOP",		"Stopped (signal)",
+X/* 21 */	"TSTP",		"Stopped",
+X#  endif /* SUSPENDED */
+X/* 22 */	"CONT",		"Continued",
+X/* 23 */	"CHLD",		"Child stopped or exited",
+X#  ifdef SUSPENDED
+X/* 24 */	"TTIN", 	"Suspended (tty input)",
+X/* 25 */	"TTOU", 	"Suspended (tty output)",
+X#  else /* SUSPENDED */
+X/* 24 */	"TTIN", 	"Stopped (tty input)",
+X/* 25 */	"TTOU", 	"Stopped (tty output)",
+X#  endif /* SUSPENDED */
+X/* 26 */	"IO", 		"Asynchronous I/O (select)",
+X/* 27 */	"XCPU",		"Cputime limit exceeded",
+X/* 28 */	"XFSZ", 	"Filesize limit exceeded",
+X/* 29 */	"VTALRM", 	"Virtual time alarm",
+X/* 30 */	"PROF", 	"Profiling time alarm",
+X/* 31 */	"URG",		"Urgent condition on IO channel",
+X/* 32 */	"WINCH", 	"Window changed",
+X# endif /* apollo */
+X
+X# ifdef aiws
+X#  define _sigextra_
+X/* 20 */	0,		"Signal 20",
+X/* 21 */	0,		"Signal 21",
+X/* 22 */	0,		"Signal 22",
+X/* 23 */	"AIO", 		"LAN Asyncronous I/O",
+X/* 24 */	"PTY", 		"PTY read/write availability",
+X/* 25 */	"IOINT", 	"I/O intervention required",
+X/* 26 */	"GRANT", 	"monitor mode granted",
+X/* 27 */	"RETRACT", 	"monitor mode retracted",
+X/* 28 */	"WINCH","Window size changed",
+X/* 29 */	0,		"Signal 29",
+X/* 30 */	"SOUND", 	"sound completed",
+X/* 31 */	"MSG", 		"input hft data pending",
+X/* 32 */	0,		"Signal 32",
+X# endif /* aiws */
+X
+X# ifdef m88k				/* Motorola 88100: POSIX/BCS signals */
+X#  define _sigextra_
+X/* 20 */	"WINCH", 	"Window changed",
+X# ifdef DGUX
+X/* 21 */	0,		"Signal 21",
+X# else
+X#  ifdef SUSPENDED
+X/* 21 */	"TTIN", 	"Suspended (tty input)",
+X#  else /* SUSPENDED */
+X/* 21 */	"TTIN", 	"Stopped (tty input)",
+X#  endif /* SUSPENDED */
+X# endif /* DGUX */
+X/* 22 */	"POLL", 	"Stream I/O pending",
+X# ifdef SUSPENDED
+X/* 23 */	"STOP",		"Suspended (signal)",
+X/* 24 */	"TSTP",		"Suspended",
+X# else /* SUSPENDED */
+X/* 23 */	"STOP",		"Stopped (signal)",
+X/* 24 */	"TSTP",		"Stopped",
+X# endif /* SUSPENDED */
+X/* 25 */	"CONT",		"Continued",
+X# ifdef SUSPENDED
+X/* 26 */	"TTIN", 	"Suspended (tty input)",
+X/* 27 */	"TTOU", 	"Suspended (tty output)",
+X# else /* SUSPENDED */
+X/* 26 */	"TTIN", 	"Stopped (tty input)",
+X/* 27 */	"TTOU", 	"Stopped (tty output)",
+X# endif /* SUSPENDED */
+X/* 28 */	0,		"Signal 28",
+X/* 29 */	0,		"Signal 29",
+X/* 30 */	0,		"Signal 30",
+X/* 31 */	0,		"Signal 31",
+X/* 32 */	0,		"Signal 32",
+X/* 33 */	"URG",		"Urgent condition on IO channel",
+X/* 34 */	"IO", 		"Asynchronous I/O (select)",
+X/* 35 */	"XCPU",		"Cputime limit exceeded",
+X/* 36 */	"XFSZ", 	"Filesize limit exceeded",
+X/* 37 */	"VTALRM", 	"Virtual time alarm",
+X/* 38 */	"PROF",		"Profiling time alarm",
+X/* 39 */	0,		"Signal 39",
+X/* 40 */	"LOST",		"Resource lost",
+X/* 41 */	0,		"Signal 41",
+X/* 42 */	0,		"Signal 42",
+X/* 43 */	0,		"Signal 43",
+X/* 44 */	0,		"Signal 44",
+X/* 45 */	0,		"Signal 45",
+X/* 46 */	0,		"Signal 46",
+X/* 47 */	0,		"Signal 47",
+X/* 48 */	0,		"Signal 48",
+X/* 49 */	0,		"Signal 49",
+X/* 50 */	0,		"Signal 50",
+X/* 51 */	0,		"Signal 51",
+X/* 52 */	0,		"Signal 52",
+X/* 53 */	0,		"Signal 53",
+X/* 54 */	0,		"Signal 54",
+X/* 55 */	0,		"Signal 55",
+X/* 56 */	0,		"Signal 56",
+X/* 57 */	0,		"Signal 57",
+X/* 58 */	0,		"Signal 58",
+X/* 59 */	0,		"Signal 59",
+X/* 60 */	0,		"Signal 60",
+X/* 61 */	0,		"Signal 61",
+X/* 62 */	0,		"Signal 62",
+X/* 63 */	0,		"Signal 63",
+X/* 64 */	0,		"Signal 64",
+X# endif /* m88k */
+X
+X
+X#ifdef IBMAIX
+X# define _sigextra_
+X
+X/* 16 */	"URG",		"Urgent condition on IO channel",
+X# ifdef SUSPENDED
+X/* 17 */	"STOP",		"Suspended (signal)",
+X/* 18 */	"TSTP",		"Suspended",
+X# else /* SUSPENDED */
+X/* 17 */	"STOP",		"Stopped (signal)",
+X/* 18 */	"TSTP",		"Stopped",
+X# endif /* SUSPENDED */
+X/* 19 */	"CONT",		"Continued",
+X/* 20 */	"CHLD",		"Child exited",
+X# ifdef SUSPENDED
+X/* 21 */	"TTIN", 	"Suspended (tty input)",
+X/* 22 */	"TTOU", 	"Suspended (tty output)",
+X# else /* SUSPENDED */
+X/* 21 */	"TTIN", 	"Stopped (tty input)",
+X/* 22 */	"TTOU", 	"Stopped (tty output)",
+X# endif /* SUSPENDED */
+X/* 23 */	"IO",   	"IO possible interrupt",
+X/* 24 */	"XCPU",		"Cputime limit exceeded",
+X/* 25 */	"XFSZ", 	"Filesize limit exceeded",
+X/* 26 */	0,		"Signal 26",
+X/* 27 */	"MSG", 		"Data in HFT ring buffer",
+X/* 28 */	"WINCH",	"Window size changed",
+X/* 29 */	"PWR",		"Power failure",
+X/* 30 */	"USR1",		"User signal 1",
+X/* 31 */	"USR2", 	"User signal 2",
+X/* 32 */	"PROF",		"Profiling time alarm",
+X/* 33 */	"DANGER", 	"System Crash Imminent",
+X/* 34 */	"VTALRM", 	"Virtual time alarm",
+X/* 35 */	"MIGRATE",	"Migrate process",
+X/* 36 */	"PRE",	  	"Programming exception",
+X/* 37 */	0,		"Signal 37",
+X/* 38 */	0,		"Signal 38",
+X/* 39 */	0,		"Signal 39",
+X/* 40 */	0,		"Signal 40",
+X/* 41 */	0,		"Signal 41",
+X/* 42 */	0,		"Signal 42",
+X/* 43 */	0,		"Signal 43",
+X/* 44 */	0,		"Signal 44",
+X/* 45 */	0,		"Signal 45",
+X/* 46 */	0,		"Signal 46",
+X/* 47 */	0,		"Signal 47",
+X/* 48 */	0,		"Signal 48",
+X/* 49 */	0,		"Signal 49",
+X/* 50 */	0,		"Signal 50",
+X/* 51 */	0,		"Signal 51",
+X/* 52 */	0,		"Signal 52",
+X/* 53 */	0,		"Signal 53",
+X/* 54 */	0,		"Signal 54",
+X/* 55 */	0,		"Signal 55",
+X/* 56 */	0,		"Signal 56",
+X/* 57 */	0,		"Signal 57",
+X/* 58 */	0,		"Signal 58",
+X/* 59 */	0,		"Signal 59",
+X/* 60 */	"GRANT", 	"HFT monitor mode granted",
+X/* 61 */	"RETRACT", 	"HFT monitor mode should be relinguished",
+X/* 62 */	"SOUND",	"HFT sound control has completed",
+X#ifdef SIGSAK
+X/* 63 */	"SAK",    	"Secure attention key",
+X#else
+X/* 63 */	0,	    	"Signal 63",
+X#endif
+X/* 64 */	0,		"Signal 64",
+X#endif /* IBMAIX */
+X
+X# ifdef _SEQUENT_
+X#  define _sigextra_
+X/* 20 */	"WINCH", 	"Window changed",
+X/* 21 */	0,		"Signal 21",
+X/* 22 */	"POLL", 	"Stream I/O pending",
+X#  ifdef SUSPENDED
+X/* 23 */	"STOP",		"Suspended (signal)",
+X/* 24 */	"TSTP",		"Suspended",
+X/* 25 */	"CONT",		"Continued",
+X/* 26 */	"TTIN", 	"Suspended (tty input)",
+X/* 27 */	"TTOU", 	"Suspended (tty output)",
+X#  else /* SUSPENDED */
+X/* 23 */	"STOP",		"Stopped (signal)",
+X/* 24 */	"TSTP",		"Stopped",
+X/* 25 */	"CONT",		"Continued",
+X/* 26 */	"TTIN", 	"Stopped (tty input)",
+X/* 27 */	"TTOU", 	"Stopped (tty output)",
+X#  endif /* SUSPENDED */
+X/* 28 */	0, 		"Signal 28",
+X/* 29 */	0,		"Signal 29",
+X/* 30 */	0, 		"Signal 30",
+X/* 31 */	0, 		"Signal 31",
+X/* 32 */	0,		"Signal 32",
+X# endif /* _SEQUENT_ */
+X
+X# ifndef _sigextra_
+X/* 20 */	0,		"Signal 20",
+X/* 21 */	0,		"Signal 21",
+X/* 22 */	0,		"Signal 22",
+X/* 23 */	0,		"Signal 23",
+X/* 24 */	0,		"Signal 24",
+X/* 25 */	0,		"Signal 25",
+X/* 26 */	0,		"Signal 26",
+X/* 27 */	0,		"Signal 27",
+X/* 28 */	0,		"Signal 28",
+X/* 29 */	0,		"Signal 29",
+X/* 30 */	0,		"Signal 30",
+X/* 31 */	0,		"Signal 31",
+X/* 32 */	0,		"Signal 32",
+X# endif /* _sigextra_ */
+X
+X
+X#else /* bsd */
+X
+X# ifdef _sigextra_
+X#  undef  _sigextra_
+X# endif /* _sigextra_ */
+X
+X/* 16 */	"URG",		"Urgent condition on IO channel",
+X# ifdef SUSPENDED
+X/* 17 */	"STOP",		"Suspended (signal)",
+X/* 18 */	"TSTP",		"Suspended",
+X# else /* SUSPENDED */
+X/* 17 */	"STOP",		"Stopped (signal)",
+X/* 18 */	"TSTP",		"Stopped",
+X# endif /* SUSPENDED */
+X/* 19 */	"CONT",		"Continued",
+X/* 20 */	"CHLD",		"Child exited",
+X# ifdef SUSPENDED
+X/* 21 */	"TTIN", 	"Suspended (tty input)",
+X/* 22 */	"TTOU", 	"Suspended (tty output)",
+X# else /* SUSPENDED */
+X/* 21 */	"TTIN", 	"Stopped (tty input)",
+X/* 22 */	"TTOU", 	"Stopped (tty output)",
+X# endif /* SUSPENDED */
+X/* 23 */	"IO",   	"IO possible interrupt",
+X/* 24 */	"XCPU",		"Cputime limit exceeded",
+X/* 25 */	"XFSZ", 	"Filesize limit exceeded",
+X/* 26 */	"VTALRM", 	"Virtual time alarm",
+X/* 27 */	"PROF",		"Profiling time alarm",
+X
+X# if defined(sun) || defined(ultrix) || defined(hp9000) || defined(convex) || defined(__convex__)
+X#  define _sigextra_
+X/* 28 */	"WINCH", 	"Window changed",
+X/* 29 */	"LOST",		"Resource lost",
+X/* 30 */	"USR1",		"User signal 1",
+X/* 31 */	"USR2",		"User signal 2",
+X/* 32 */	0,		"Signal 32",
+X# endif /* sun */
+X
+X# ifdef pyr
+X#  define _sigextra_
+X/* 28 */	"USR1",		"User signal 1",
+X/* 29 */	"USR2",		"User signal 2",
+X/* 30 */	"PWR",		"Power failure",
+X/* 31 */	0,		"Signal 31",
+X/* 32 */	0,		"Signal 32",
+X# endif /* pyr */
+X
+X# ifndef _sigextra_
+X/* 28 */	"WINCH",	"Window size changed",
+X#  ifdef RENO
+X/* 29 */	"INFO",		"Information request",
+X#  else
+X/* 29 */	0,		"Signal 29",
+X#  endif /* RENO */
+X/* 30 */	"USR1",		"User defined signal 1",
+X/* 31 */	"USR2",		"User defined signal 2",
+X/* 32 */	0,		"Signal 32",
+X# endif /* _sigextra_ */
+X
+X
+X#endif /* (SVID > 0) || DGUX || IBMAIX */
+X
+X/* These are here for systems with bad NSIG */
+X#ifndef POSIX
+X/* 33 */	0,		"Signal 33"
+X#else /* POSIX */
+X/* 65 */	0,		"Signal 65"
+X#endif /* POSIX */
+X};
+END_OF_FILE
+if test 24416 -ne `wc -c <'sh.init.c'`; then
+    echo shar: \"'sh.init.c'\" unpacked with wrong size!
+fi
+# end of 'sh.init.c'
+fi
+echo shar: End of archive 10 \(of 18\).
+cp /dev/null ark10isdone
+MISSING=""
+for I in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 ; do
+    if test ! -f ark${I}isdone ; then
+	MISSING="${MISSING} ${I}"
+    fi
+done
+if test "${MISSING}" = "" ; then
+    echo You have unpacked all 18 archives.
+    rm -f ark[1-9]isdone ark[1-9][0-9]isdone
+else
+    echo You still need to unpack the following archives:
+    echo "        " ${MISSING}
+fi
+##  End of shell archive.
+exit 0

@@ -1,0 +1,169 @@
+ MS-DOS Shell Version 2.3	README				September 1994
+
+ MS-DOS SHELL - Copyright (c) 1990,4 Data Logic Limited and Charles Forsyth
+
+ This code is based on (in part) the shell program written by Charles
+ Forsyth and is subject to the following copyright restrictions:
+
+ 1.  Redistribution and use in source and binary forms are permitted
+     provided that the above copyright notice is duplicated in the
+     source form and the copyright notice in file sh6.c is displayed
+     on entry to the program.
+
+ 2.  The sources (or parts thereof) or objects generated from the
+     sources (or parts of sources) cannot be sold under any circumstances.
+
+    $Header: /usr/users/istewart/shell/sh2.3/Release/RCS/ReadMe,v 2.3 1994/08/25 20:58:47 istewart Exp $
+
+    $Log: ReadMe,v $
+	Revision 2.3  1994/08/25  20:58:47  istewart
+	MS Shell 2.3 Release
+
+	Revision 2.2  1993/12/03  13:32:52  istewart
+	Release 2.2
+
+	Revision 2.1  1992/12/14  11:14:32  istewart
+	BETA 215 Fixes and 2.1 Release
+
+	Revision 2.0  1992/04/13  17:40:33  Ian_Stewartson
+	MS-Shell 2.0 Baseline release
+
+	
+________________________________________________________________________________
+
+This is an implementation of the Unix Shell for MSDOS.  As far as possible it
+is compatible with the System V.4 program sh(1) with ksh(1) extension.  The
+following differences are noted:
+
+1)  Background or asynchronous commands are not supported under MSDOS.  Some
+    support is provided under OS/2, but it is not as full as UNIX.  You can
+    only run one command and not a pipeline in background.
+
+2)  Certain internal commands which have no equivalent MSDOS or OS/2 supported
+    functionality support (ulimit, time etc) are not provided.
+
+3)  Command hashing and accounting are not supported.
+
+4)  Some of the ksh functionality has not yet been implemented or made ksh
+    compatible (see Notes file).
+
+5)  The Shell uses all variables starting with a ~ (tilde) internally and will
+    not allow you to display them.  I don't think this is a difference from
+    the user's view, just internally.
+
+The Shell has been tested mainly under MSDOS 3.3, 4.01, 5.2, 6.0 and 6.2, OS/2
+1.3, 2.0 and 2.1, and a prelimiary version can be built for Windows NT 3.1
+(see notes files on this).  It has exposed some shortcomings in the C6.0
+compiler and MSDOS library.  As such, using C5.1 and its library are prefered
+when re-building the shell for MSDOS.
+
+The following enhancements have been made for the MSDOS environment.  These
+enhancements are described in the appropriate section of the manual pages.
+
+1)  Under MSDOS (16-bit version), the Shell will swap itself out to one of
+    the following:
+
+    - Expanded memory
+    - Extended memory
+    - Disk (this is the slowest)
+
+    The swapping is controlled by the shell internal command swap.  If
+    swapping is enabled, the shell only uses 3K of memory whilst a child
+    process is executing.
+
+    Note: Swapping to Extended memory is probably the most dangerous unless
+	  you have an XMS memory manager available.  The shell requires the
+	  XMS manager to support the version 2 XMS specification.
+
+2)  Command line editing has been added for non VI or EMACS mode.  A
+    configuration file (sh.ini) allows the Command Line editing keys to be
+    tailored to the users requirements.
+
+3)  The command line prompt can be programmed to display 'useful' information.
+
+4)  The shell uses Unix format file names (ie slashes and not backslashes) to
+    delimit directories.  Some programs require certain environment variables
+    to be in MS-DOS format (using backslashes).  The msdos or typeset -H
+    commands allows these variables to be marked so that they are set correctly
+    when the environment for a program is set up.
+
+5)  The format of the command line which the shell passes to a program is
+    configurable between normal, indirect files and environment variables
+    (see SH.1).  A version of stdargv.c which supports the indirect file
+    format (and wildcards from a normal command line) is included.
+
+6)  Wild cards on drives (ie echo *:*.c will echo all the C files in the
+    current directories of each drive) are supported.
+
+7)  Full Interrupt 24 processing has been added.
+
+8)  Alternate command interpreters are supported in shell scripts a la
+    Unix V.4.
+
+9)  A number of OS/2 internal commands (start, detach) have been addded.
+
+10) The Notes file describes the fixes and changes between Release 2.2 and
+    2.3
+
+11) Significant parts of the shell have been re-written this release 2.1.
+
+
+The following Bugs are known to exist in the Shell.
+
+1)  See Notes file.
+
+2)  I may have mis-interpreted the functionality of either the UNIX version
+    of sh or ksh (tell me about it).
+
+The shell was built using Microsoft C 5.1 and MASM v5.1 in large model mode
+for MSDOS and Microsoft C6.0 for OS/2 (16 bit) and WATCOM 9 for both 32-bit
+versions (although EMX GCC 2.5 is supported for the 32 Bit version under
+OS/2).
+
+In addition, the version of open in your library must pass the O_NOINHERIT bit
+on the MSDOS kernel.  The Microsoft C v5.1 library (and possibly the v6.0) does
+not pass this bit on to the MSDOS open System call.  I fixed this using CodeView
+to find where the library function masks off the bottom 2 bits.  Extracted the
+object from the library and patched mask from 0x03 to 0x83 in the object and
+reload into the library.  No Problem.  The Patch.Lib document describes the
+process in more detail.
+
+You can do want you like with this software as long as you don't sell it or
+remove the Copyright notices in the sources or object.
+
+If you have any problems or want to let me know about any enhancements, I'd
+love to hear about them.  However, following this release, I will be leaving
+Data Logic in the middle of September 94.  I will not have an E-Mail address
+at my new company, until I arrange a personal account in the New Year.  I
+expect to be in Europe for three months and will not arrange the personal
+account until I return.  You should be able to contact me by surface mail
+at the address below, but don't expect a rapid response.
+
+	Ian Stewartson
+	OSI Group
+	Metropolis House
+	22 Percy Street
+	London W1P 9FF
+	United Kingdon.
+
+Please don't contact Data Logic as it is unlikely have anyone there will
+know anything about the shell. 
+
+Note:
+    Unix is a registered trademark of AT&T Bell Laboratories
+    Microsoft, MSDOS, MASM, MS Windows, Windows NT and CodeView are registered
+	trademarks of Microsoft Corporation
+    OS/2 is a registered trademark of Internation Business Machines Corporation
+
+Acknowledgements:
+
+This program is based on ideas, code or parts of code developed by:
+
+    David Korn and Steve Bourne (the original ideas)
+    Charles Forsyth (original source for the MINIX Shell program)
+    Erik Baalbergen (original source for the MINIX test program)
+    Paul Falstad (original source for the maths functions from GNU zsh program)
+    Simon J. Gerraty (the code for the new lexical analyser and the VI/EMACS
+    edit functions).
+
+    Ideas and fixes from lots of others.

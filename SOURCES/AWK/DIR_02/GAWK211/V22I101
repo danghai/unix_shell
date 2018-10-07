@@ -1,0 +1,1795 @@
+From: rsalz@uunet.uu.net (Rich Salz)
+Newsgroups: comp.sources.unix
+Subject: v22i101:  GNU AWK, version 2.11, Part15/16
+Message-ID: <2640@papaya.bbn.com>
+Date: 7 Jun 90 20:31:32 GMT
+Approved: rsalz@uunet.UU.NET
+
+Submitted-by: "Arnold D. Robbins" <arnold@unix.cc.emory.edu>
+Posting-number: Volume 22, Issue 101
+Archive-name: gawk2.11/part15
+
+#! /bin/sh
+# This is a shell archive.  Remove anything before this line, then feed it
+# into a shell via "sh file" or similar.  To overwrite existing files,
+# type "sh file -c".
+# The tool that generated this appeared in the comp.sources.unix newsgroup;
+# send mail to comp-sources-unix@uunet.uu.net if you want that tool.
+# Contents:  ./CHANGES ./Makefile ./alloca.s ./field.c
+#   ./gawk.texinfo.07 ./node.c
+# Wrapped by rsalz@litchi.bbn.com on Wed Jun  6 12:25:01 1990
+PATH=/bin:/usr/bin:/usr/ucb ; export PATH
+echo If this archive is complete, you will see the following message:
+echo '          "shar: End of archive 15 (of 16)."'
+if test -f './CHANGES' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'./CHANGES'\"
+else
+  echo shar: Extracting \"'./CHANGES'\" \(6927 characters\)
+  sed "s/^X//" >'./CHANGES' <<'END_OF_FILE'
+XChanges from 2.11beta to 2.11.1 (production)
+X--------------------------------------------
+X
+XWent from "beta" to production status!!!
+X
+XNow flushes stdout before closing pipes or redirected files to
+Xsynchonize output.
+X
+XMS-DOS changes added in.
+X
+XSignal handler return type parameterized in Makefile and awk.h and
+Xsome lint removed.  debug.c cleaned up.
+X
+XFixed FS splitting to never match null strings, per book.
+X
+XCorrection to the manual's description of FS.
+X
+XSome compilers break on char *foo = "string" + 4 so fixed version.sh and
+Xmain.c.
+X
+XChanges from 2.10beta to 2.11beta
+X---------------------------------
+X
+XThis release fixes all reported bugs that we could reproduce.  Probably
+Xsome of the changes are not documented here.
+X
+XThe next release will probably not be a beta release!
+X
+XThe most important change is the addition of the -nostalgia option. :-)
+X
+XThe documentation has been improved and brought up-to-date.
+X
+XThere has been a lot of general cleaning up of the code that is not otherwise
+Xdocumented here.  There has been a movement toward using standard-conforming
+Xlibrary routines and providing them (in missing.d) for systems lacking them.
+XImproved (hopefully) configuration through Makfile modifications and missing.c.
+XIn particular, straightened out confusion over vprintf #defines, declarations
+Xetc.
+X
+XDeleted RCS log comments from source, to reduce source size by about one third.
+XMost of them were horribly out-of-date, anyway.
+X
+XRenamed source files to reflect (for the most part) their contents.
+X
+XMore and improved error messages.  Cleanup and fixes to yyerror().
+XString constants are not altered in input buffer, so error messages come out 
+Xbetter.  Fixed usage message.  Make use of ANSI C strerror() function
+X(provided).
+X
+XPlugged many more memory leaks.  The memory consumption is now quite
+Xreasonable over a wide range of programs.
+X
+XUses volatile declaration if STDC > 0 to avoid problems due to longjmp.
+X
+XNew -a and -e options to use awk or egrep style regexps, respectively,
+Xsince POSIX says awk should use egrep regexps.  Default is -a.
+X
+XAdded -v option for setting variables before the first file is encountered.
+XVersion information now uses -V and copyleft uses -C.
+X
+XAdded a patchlevel.h file and its use for -V and -C.
+X
+XAppend_right() optimized for major improvement to programs with a *lot*
+Xof statements.
+X
+XOperator precedence has been corrected to match draft Posix.
+X
+XTightened up grammar for builtin functions so that only length
+Xmay be called without arguments or parentheses.
+X
+X/regex/ is now a normal expression that can appear in any expression
+Xcontext.
+X
+XAllow /= to begin a regexp.  Allow ..[../..].. in a regexp.
+X
+XAllow empty compound statements ({}).
+X
+XMade return and next illegal outside a function and in BEGIN/END respectively.
+X
+XDivision by zero is now illegal and causes a fatal error.
+X
+XFixed exponentiation so that x ^ 0 and x ^= 0 both return 1.
+X
+XFixed do_sqrt, do_log, and do_exp to do argument/return checking and
+Xprint an error message, per the manual.
+X
+XFixed main to catch SIGSEGV to get source and data file line numbers.
+X
+XFixed yyerror to print the ^ at the beginning of the bad token, not the end.
+X
+XFix to substr() builtin:  it was failing if the arguments
+Xweren't already strings.
+X
+XAdded new node value flag NUMERIC to indicate that a variable is
+Xpurely a number as opposed to type NUM which indicates that
+Xthe node's numeric value is valid.  This is set in make_number(),
+Xtmp_number and r_force_number() when appropriate and used in
+Xcmp_nodes().  This fixed a bug in comparison of variables that had
+Xnumeric prefixes.  The new code uses strtod() and eliminates is_a_number().
+XA simple strtod() is provided for systems lacking one.  It does no
+Xoverflow checking, so could be improved.
+X
+XSimplification and efficiency improvement in force_string.
+X
+XAdded performance tweak in r_force_number().
+X
+XFixed a bug with nested loops and break/continue in functions.
+X
+XFixed inconsistency in handling of empty fields when $0 has to be rebuilt.
+XHappens to simplify rebuild_record().
+X
+XCleaned up the code associated with opening a pipe for reading.  Gawk
+Xnow has its own popen routine (gawk_popen) that allocates an IOBUF
+Xand keeps track of the pid of the child process.  gawk_pclose
+Xmarks the appropriate child as defunct in the right struct redirect.
+X
+XCleaned up and fixed close_redir().
+X
+XFixed an obscure bug to do with redirection.  Intermingled ">" and ">>"
+Xredirects did not output in a predictable order.
+X
+XImproved handling of output bufferring:  now all print[f]s redirected to a tty
+Xor pipe are flushed immediately and non-redirected output to a tty is flushed
+Xbefore the next input record is read.
+X
+XFixed a bug in get_a_record() where bcopy() could have copied over
+Xa random pointer.
+X
+XFixed a bug when RS="" and records separated by multiple blank lines.
+X
+XGot rid of SLOWIO code which was out-of-date anyway.
+X
+XFix in get_field() for case where $0 is changed and then $(n) are
+Xchanged and then $0 is used.
+X
+XFixed infinite loop on failure to open file for reading from getline.
+XNow handles redirect file open failures properly.
+X
+XFilenames such as /dev/stdin now allowed on the command line as well as
+Xin redirects.
+X
+XFixed so that gawk '$1' where $1 is a zero tests false.
+X
+XFixed parsing so that `RLENGTH -1' parses the same as `RLENGTH - 1',
+Xfor example.
+X
+XThe return from a user-defined function now defaults to the Null node.
+XThis fixes a core-dump-causing bug when the return value  of a function
+Xis used and that function returns no value.
+X
+XNow catches floating point exceptions to avoid core dumps.
+X
+XBug fix for deleting elements of an array -- under some conditions, it was
+Xdeleting more than one element at a time.
+X
+XFix in AWKPATH code for running off the end of the string.
+X
+XFixed handling of precision in *printf calls.  %0.2d now works properly,
+Xas does %c.  [s]printf now recognizes %i and %X.
+X
+XFixed a bug in printing of very large (>240) strings.
+X
+XCleaned up erroneous behaviour for RS == "".
+X
+XAdded IGNORECASE support to index().
+X
+XSimplified and fixed newnode/freenode.
+X
+XFixed reference to $(anything) in a BEGIN block.
+X
+XEliminated use of USG rand48().
+X
+XBug fix in force_string for machines with 16-bit ints.
+X
+XReplaced use of mktemp() with tmpnam() and provided a partial implementation of
+Xthe latter for systems that don't have it.
+X
+XAdded a portability check for includes in io.c.
+X
+XMinor portability fix in alloc.c plus addition of xmalloc().
+X
+XPortability fix:  on UMAX4.2, st_blksize is zero for a pipe, thus breaking
+Xiop_alloc() -- fixed.
+X
+XWorkaround for compiler bug on Sun386i in do_sprintf.
+X
+XMore and improved prototypes in awk.h.
+X
+XConsolidated C escape parsing code into one place.
+X
+Xstrict flag is now turned on only when invoked with compatability option.
+XIt now applies to fewer things.
+X
+XChanged cast of f._ptr in vprintf.c from (unsigned char *) to (char *).
+XHopefully this is right for the systems that use this code (I don't).
+X
+XSupport for pipes under MSDOS added.
+END_OF_FILE
+  if test 6927 -ne `wc -c <'./CHANGES'`; then
+    echo shar: \"'./CHANGES'\" unpacked with wrong size!
+  fi
+  # end of './CHANGES'
+fi
+if test -f './Makefile' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'./Makefile'\"
+else
+  echo shar: Extracting \"'./Makefile'\" \(7478 characters\)
+  sed "s/^X//" >'./Makefile' <<'END_OF_FILE'
+X# Makefile for GNU Awk.
+X#
+X# Copyright (C) 1986, 1988, 1989 the Free Software Foundation, Inc.
+X# 
+X# This file is part of GAWK, the GNU implementation of the
+X# AWK Progamming Language.
+X# 
+X# GAWK is free software; you can redistribute it and/or modify
+X# it under the terms of the GNU General Public License as published by
+X# the Free Software Foundation; either version 1, or (at your option)
+X# any later version.
+X# 
+X# GAWK is distributed in the hope that it will be useful,
+X# but WITHOUT ANY WARRANTY; without even the implied warranty of
+X# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+X# GNU General Public License for more details.
+X# 
+X# You should have received a copy of the GNU General Public License
+X# along with GAWK; see the file COPYING.  If not, write to
+X# the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
+X
+X# User tunable macros
+X
+X# CFLAGS: options to the C compiler
+X#
+X#	-O	optimize
+X#	-g	include dbx/sdb info
+X#	-gg	include gdb debugging info; only for GCC (deprecated)
+X#	-pg	include new (gmon) profiling info
+X#	-p	include old style profiling info (System V)
+X#
+X#	To port GAWK, examine and adjust the following flags carefully.
+X#	In addition, you will have to look at alloca below.
+X#	The intent (eventual) is to not penalize the most-standard-conforming
+X#	systems with a lot of #define's.
+X#
+X#	-DBCOPY_MISSING		- bcopy() et al. are missing; will replace
+X#				  with a #define'd memcpy() et al. -- use at
+X#				  your own risk (should really use a memmove())
+X#	-DSPRINTF_INT		- sprintf() returns int (most USG systems)
+X#	-DBLKSIZE_MISSING	- st_blksize missing from stat() structure
+X#				  (most USG systems)
+X#	-DBSDSTDIO		- has a BSD internally-compatible stdio
+X#	-DDOPRNT_MISSING	- lacks doprnt() routine
+X#	-DDUP2_MISSING		- lacks dup2() system call (S5Rn, n < 4)
+X#	-DGCVT_MISSING		- lacks gcvt() routine
+X#	-DGETOPT_MISSING	- lacks getopt() routine
+X#	-DMEMCMP_MISSING	- lacks memcmp() routine
+X#	-DMEMCPY_MISSING	- lacks memcpy() routine
+X#	-DMEMSET_MISSING	- lacks memset() routine
+X#	-DRANDOM_MISSING	- lacks random() routine
+X#	-DSTRCASE_MISSING	- lacks strcasecmp() routine
+X#	-DSTRCHR_MISSING	- lacks strchr() and strrchr() routines
+X#	-DSTRERROR_MISSING	- lacks (ANSI C) strerror() routine
+X#	-DSTRTOD_MISSING	- lacks strtod() routine
+X#	-DTMPNAM_MISSING	- lacks or deficient tmpnam() routine
+X#	-DVPRINTF_MISSING	- lacks vprintf and associated routines
+X#	-DSIGTYPE=int		- signal routines return int (default void)
+X
+X# Sun running SunOS 4.x
+XMISSING = -DSTRERROR_MISSING -DSTRCASE_MISSING
+X
+X# SGI Personal Iris (Sys V derived)
+X# MISSING = -DSPRINTF_INT -DBLKSIZE_MISSING -DSTRERROR_MISSING -DRANDOM_MISSING
+X
+X# VAX running Ultrix 3.x
+X# MISSING = -DSTRERROR_MISSING
+X
+X# A generic 4.2 BSD machine
+X# (eliminate GETOPT_MISSING for 4.3 release)
+X# (eliminate STRCASE_MISSING and TMPNAM_MISSING for Tahoe release)
+X# MISSING = -DBSDSTDIO -DMEMCMP_MISSING -DMEMCPY_MISSING -DMEMSET_MISSING \
+X#	-DSTRERROR_MISSING -DSTRTOD_MISSING -DVPRINTF_MISSING \
+X#	-DSTRCASE_MISSING -DTMPNAM_MISSING \
+X#	-DGETOPT_MISSING -DSTRCHR_MISSING -DSIGTYPE=int
+X
+X# On Amdahl UTS, a SysVr2-derived system
+X# MISSING = -DBCOPY_MISSING -DSPRINTF_INT -DRANDOM_MISSING -DSTRERROR_MISSING \
+X#	-DSTRCASE_MISSING -DDUP2_MISSING # -DBLKSIZE_MISSING ??????
+X
+X# Comment out the next line if you don't have gcc.
+X# Also choose just one of -g and -O.
+XCC=		 gcc
+X
+XOPTIMIZE=	-O -g
+XPROFILE=	#-pg
+XDEBUG=		#-DDEBUG #-DMEMDEBUG #-DFUNC_TRACE #-DMPROF
+XDEBUGGER=	#-g -Bstatic
+XWARN=		#-W -Wunused -Wimplicit -Wreturn-type -Wcomment	# for gcc only
+X
+X# Parser to use on grammar -- if you don't have bison use the first one
+X#PARSER = yacc
+XPARSER = bison
+X
+X# ALLOCA
+X#	Set equal to alloca.o if your system is S5 and you don't have
+X#	alloca. Uncomment one of the rules below to make alloca.o from
+X#	either alloca.s or alloca.c.
+XALLOCA= #alloca.o
+X
+X#
+X# With the exception of the alloca rule referred to above, you shouldn't
+X# need to customize this file below this point.
+X#
+X
+XFLAGS= $(MISSING) $(DEBUG)
+XCFLAGS= $(FLAGS) $(DEBUGGER) $(PROFILE) $(OPTIMIZE) $(WARN)
+X
+X# object files
+XAWKOBJS = main.o eval.o builtin.o msg.o debug.o io.o field.o array.o node.o \
+X		version.o missing.o
+X
+XALLOBJS = $(AWKOBJS) awk.tab.o
+X
+X# GNUOBJS
+X#	GNU stuff that gawk uses as library routines.
+XGNUOBJS= regex.o $(ALLOCA)
+X
+X# source and documentation files
+XSRC =	main.c eval.c builtin.c msg.c \
+X	debug.c io.c field.c array.c node.c missing.c
+X
+XALLSRC= $(SRC) awk.tab.c
+X
+XAWKSRC= awk.h awk.y $(ALLSRC) version.sh patchlevel.h
+X
+XGNUSRC = alloca.c alloca.s regex.c regex.h
+X
+XCOPIES = missing.d/dup2.c missing.d/gcvt.c missing.d/getopt.c \
+X	missing.d/memcmp.c missing.d/memcpy.c missing.d/memset.c \
+X	missing.d/random.c missing.d/strcase.c missing.d/strchr.c \
+X	missing.d/strerror.c missing.d/strtod.c missing.d/tmpnam.c \
+X	missing.d/vprintf.c
+X
+XSUPPORT = support/texindex.c support/texinfo.tex
+X
+XDOCS= gawk.1 gawk.texinfo
+X
+XINFOFILES= gawk-info gawk-info-1 gawk-info-2 gawk-info-3 gawk-info-4 \
+X	   gawk-info-5 gawk-info-6 gawk.aux gawk.cp gawk.cps gawk.fn \
+X	   gawk.fns gawk.ky gawk.kys gawk.pg gawk.pgs gawk.toc \
+X	   gawk.tp gawk.tps gawk.vr gawk.vrs
+X
+XMISC = CHANGES COPYING FUTURES Makefile PROBLEMS README
+X
+XPCSTUFF= pc.d/Makefile.pc pc.d/popen.c pc.d/popen.h
+X
+XALLDOC= gawk.dvi $(INFOFILES)
+X
+XALLFILES= $(AWKSRC) $(GNUSRC) $(COPIES) $(MISC) $(DOCS) $(ALLDOC) $(PCSTUFF) $(SUPPORT)
+X
+X# Release of gawk.  There can be no leading or trailing white space here!
+XREL=2.11
+X
+X# rules to build gawk
+Xgawk: $(ALLOBJS) $(GNUOBJS)
+X	$(CC) -o gawk $(CFLAGS) $(ALLOBJS) $(GNUOBJS) -lm
+X
+X$(AWKOBJS): awk.h
+X
+Xmain.o: patchlevel.h
+X
+Xawk.tab.o: awk.h awk.tab.c
+X
+Xawk.tab.c: awk.y
+X	$(PARSER) -v awk.y
+X	-mv -f y.tab.c awk.tab.c
+X
+Xversion.c: version.sh
+X	sh version.sh $(REL) > version.c
+X
+X# Alloca: uncomment this if your system (notably System V boxen)
+X# does not have alloca in /lib/libc.a
+X#
+X#alloca.o: alloca.s
+X#	/lib/cpp < alloca.s | sed '/^#/d' > t.s
+X#	as t.s -o alloca.o
+X#	rm t.s
+X
+X# If your machine is not supported by the assembly version of alloca.s,
+X# use the C version instead.  This uses the default rules to make alloca.o.
+X#
+X#alloca.o: alloca.c
+X
+X# auxiliary rules for release maintenance
+Xlint: $(ALLSRC)
+X	lint -hcbax $(FLAGS) $(ALLSRC)
+X
+Xxref:
+X	cxref -c $(FLAGS) $(ALLSRC) | grep -v '	/' >xref
+X
+Xclean:
+X	rm -f gawk *.o core awk.output awk.tab.c gmon.out make.out version.c
+X
+Xclobber: clean
+X	rm -f $(ALLDOC) gawk.log
+X
+Xgawk.dvi: gawk.texinfo
+X	tex gawk.texinfo ; texindex gawk.??
+X	tex gawk.texinfo ; texindex gawk.??
+X	tex gawk.texinfo
+X
+X$(INFOFILES): gawk.texinfo
+X	makeinfo gawk.texinfo
+X
+Xsrcrelease: $(AWKSRC) $(GNUSRC) $(DOCS) $(MISC) $(COPIES) $(PCSTUFF) $(SUPPORT)
+X	-mkdir gawk-$(REL)
+X	cp -p $(AWKSRC) $(GNUSRC) $(DOCS) $(MISC) gawk-$(REL)
+X	-mkdir gawk-$(REL)/missing.d
+X	cp -p $(COPIES) gawk-$(REL)/missing.d
+X	-mkdir gawk-$(REL)/pc.d
+X	cp -p $(PCSTUFF) gawk-$(REL)/pc.d
+X	-mkdir gawk-$(REL)/support
+X	cp -p $(SUPPORT) gawk-$(REL)/support
+X	tar -cf - gawk-$(REL) | compress > gawk-$(REL).tar.Z
+X
+Xdocrelease: $(ALLDOC)
+X	-mkdir gawk-$(REL)-doc
+X	cp -p $(INFOFILES) gawk.dvi gawk-$(REL)-doc
+X	nroff -man gawk.1 > gawk-$(REL)-doc/gawk.1.pr
+X	tar -cf - gawk-$(REL)-doc | compress > gawk-doc-$(REL).tar.Z
+X
+Xpsrelease: docrelease
+X	-mkdir gawk-postscript
+X	dvi2ps gawk.dvi > gawk-postscript/gawk.postscript
+X	psroff -t -man gawk.1 > gawk-postscript/gawk.1.ps
+X	tar -cf - gawk-postscript | compress > gawk.postscript.tar.Z
+X
+Xrelease: srcrelease docrelease psrelease
+X	rm -fr gawk-postscript gawk-$(REL) gawk-$(REL)-doc
+X
+Xdiff:
+X	for i in RCS/*; do rcsdiff -c -b $$i > `basename $$i ,v`.diff; done
+END_OF_FILE
+  if test 7478 -ne `wc -c <'./Makefile'`; then
+    echo shar: \"'./Makefile'\" unpacked with wrong size!
+  fi
+  # end of './Makefile'
+fi
+if test -f './alloca.s' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'./alloca.s'\"
+else
+  echo shar: Extracting \"'./alloca.s'\" \(8394 characters\)
+  sed "s/^X//" >'./alloca.s' <<'END_OF_FILE'
+X/* `alloca' standard 4.2 subroutine for 68000's and 16000's and others.
+X   Also has _setjmp and _longjmp for pyramids.
+X   Copyright (C) 1985, 1986, 1988 Free Software Foundation, Inc.
+X
+XThis file is part of GNU Emacs.
+X
+XGNU Emacs is distributed in the hope that it will be useful,
+Xbut WITHOUT ANY WARRANTY.  No author or distributor
+Xaccepts responsibility to anyone for the consequences of using it
+Xor for whether it serves any particular purpose or works at all,
+Xunless he says so in writing.  Refer to the GNU Emacs General Public
+XLicense for full details.
+X
+XEveryone is granted permission to copy, modify and redistribute
+XGNU Emacs, but only under the conditions described in the
+XGNU Emacs General Public License.   A copy of this license is
+Xsupposed to have been given to you along with GNU Emacs so you
+Xcan know your rights and responsibilities.  It should be in a
+Xfile named COPYING.  Among other things, the copyright notice
+Xand this notice must be preserved on all copies.  */
+X
+X
+X/* Both 68000 systems I have run this on have had broken versions of alloca.
+X   Also, I am told that non-berkeley systems do not have it at all.
+X   So replace whatever system-provided alloca there may be
+X   on all 68000 systems.  */
+X
+X/* #include "config.h" */
+X
+X#ifndef HAVE_ALLOCA  /* define this to use system's alloca */
+X
+X#ifndef hp9000s300
+X#ifndef mc68k
+X#ifndef m68000
+X#ifndef WICAT
+X#ifndef ns16000
+X#ifndef sequent
+X#ifndef pyr
+X#ifndef ATT3B5
+X#ifndef XENIX
+Xyou
+Xlose!!
+X#endif /* XENIX */
+X#endif /* ATT3B5 */
+X#endif /* pyr */
+X#endif /* sequent */
+X#endif /* ns16000 */
+X#endif /* WICAT */
+X#endif /* m68000 */
+X#endif /* mc68k */
+X#endif /* hp9000s300 */
+X
+X
+X#ifdef hp9000s300
+X#ifdef OLD_HP_ASSEMBLER
+X	data
+X	text
+X	globl	_alloca
+X_alloca	
+X	move.l	(sp)+,a0	; pop return addr from top of stack
+X	move.l	(sp)+,d0	; pop size in bytes from top of stack
+X	add.l	#ROUND,d0	; round size up to long word
+X	and.l	#MASK,d0	; mask out lower two bits of size
+X	sub.l	d0,sp		; allocate by moving stack pointer
+X	tst.b	PROBE(sp)	; stack probe to allocate pages
+X	move.l	sp,d0		; return pointer
+X	add.l	#-4,sp		; new top of stack
+X	jmp	(a0)		; not a normal return
+XMASK	equ	-4		; Longword alignment
+XROUND	equ	3		; ditto
+XPROBE	equ	-128		; safety buffer for C compiler scratch
+X	data
+X#else /* new hp assembler syntax */
+X/*
+X  The new compiler does "move.m <registers> (%sp)" to save registers,
+X    so we must copy the saved registers when we mung the sp.
+X  The old compiler did "move.m <register> <offset>(%a6)", which
+X    gave us no trouble
+X */
+X	text
+X	set	PROBE,-128	# safety for C frame temporaries
+X	set	MAXREG,10	# d2-d7, a2-a5 may have been saved
+X	global	_alloca
+X_alloca:
+X	mov.l	(%sp)+,%a0	# return addess
+X	mov.l	(%sp)+,%d0	# number of bytes to allocate
+X	mov.l	%sp,%a1		# save old sp for register copy
+X	mov.l	%sp,%d1		# compute new sp
+X	sub.l	%d0,%d1		# space requested
+X	and.l	&-4,%d1		# round down to longword
+X	sub.l	&MAXREG*4,%d1	# space for saving registers
+X	mov.l	%d1,%sp		# save new value of sp
+X	tst.b	PROBE(%sp)	# create pages (sigh)
+X	move.w	&MAXREG-1,%d0
+Xcopy_regs_loop:			/* save caller's saved registers */
+X	mov.l	(%a1)+,(%sp)+
+X	dbra	%d0,copy_regs_loop
+X	mov.l	%sp,%d0		# return value
+X	mov.l	%d1,%sp
+X	add.l	&-4,%sp		# adjust tos
+X	jmp	(%a0)		# rts
+X#endif /* new hp assembler */
+X#else
+X#ifdef mc68k			/* SGS assembler totally different */
+X	file	"alloca.s"
+X	global	alloca
+Xalloca:
+X	mov.l	(%sp)+,%a1	# pop return addr from top of stack
+X	mov.l	(%sp)+,%d0	# pop size in bytes from top of stack
+X	add.l	&R%1,%d0	# round size up to long word
+X	and.l	&-4,%d0		# mask out lower two bits of size
+X	sub.l	%d0,%sp		# allocate by moving stack pointer
+X	tst.b	P%1(%sp)	# stack probe to allocate pages
+X	mov.l	%sp,%a0		# return pointer as pointer
+X	mov.l	%sp,%d0		# return pointer as int to avoid disaster
+X	add.l	&-4,%sp		# new top of stack
+X	jmp	(%a1)		# not a normal return
+X	set	S%1,64		# safety factor for C compiler scratch
+X	set	R%1,3+S%1	# add to size for rounding
+X	set	P%1,-132	# probe this far below current top of stack
+X
+X#else /* not mc68k */
+X
+X#ifdef m68000
+X
+X#ifdef WICAT
+X/*
+X * Registers are saved after the corresponding link so we have to explicitly
+X * move them to the top of the stack where they are expected to be.
+X * Since we do not know how many registers were saved in the calling function
+X * we must assume the maximum possible (d2-d7,a2-a5).  Hence, we end up
+X * wasting some space on the stack.
+X *
+X * The large probe (tst.b) attempts to make up for the fact that we have
+X * potentially used up the space that the caller probed for its own needs.
+X */
+X	.procss m0
+X	.config "68000 1"
+X	.module	_alloca
+XMAXREG:	.const	10
+X	.sect	text
+X	.global	_alloca
+X_alloca:
+X	move.l	(sp)+,a1	; pop return address
+X	move.l	(sp)+,d0	; pop allocation size
+X	move.l	sp,d1		; get current SP value
+X	sub.l	d0,d1		; adjust to reflect required size...
+X	sub.l	#MAXREG*4,d1	; ...and space needed for registers
+X	and.l	#-4,d1		; backup to longword boundry
+X	move.l	sp,a0		; save old SP value for register copy
+X	move.l	d1,sp		; set the new SP value
+X	tst.b	-4096(sp)	; grab an extra page (to cover caller)
+X	move.l	a2,d1		; save callers register
+X	move.l	sp,a2
+X	move.w	#MAXREG-1,d0	; # of longwords to copy
+Xloop:	move.l	(a0)+,(a2)+	; copy registers...
+X	dbra	d0,loop		; ...til there are no more
+X	move.l	a2,d0		; end of register area is addr for new space
+X	move.l	d1,a2		; restore saved a2.
+X	addq.l	#4,sp		; caller will increment sp by 4 after return.
+X	move.l	d0,a0		; return value in both a0 and d0.
+X	jmp	(a1)
+X	.end	_alloca
+X#else
+X
+X/* Some systems want the _, some do not.  Win with both kinds.  */
+X.globl	_alloca
+X_alloca:
+X.globl	alloca
+Xalloca:
+X	movl	sp@+,a0
+X	movl	a7,d0
+X	subl	sp@,d0
+X	andl	#~3,d0
+X	movl	d0,sp
+X	tstb	sp@(0)		/* Make stack pages exist  */
+X				/* Needed on certain systems
+X				   that lack true demand paging */
+X	addql	#4,d0
+X	jmp	a0@
+X
+X#endif /* not WICAT */
+X#endif /* m68000 */
+X#endif /* not mc68k */
+X#endif /* not hp9000s300 */
+X
+X#ifdef ns16000
+X
+X	.text
+X	.align	2
+X/* Some systems want the _, some do not.  Win with both kinds.  */
+X.globl	_alloca
+X_alloca:
+X.globl	alloca
+Xalloca:
+X
+X/* Two different assembler syntaxes are used for the same code
+X	on different systems.  */
+X
+X#ifdef sequent
+X#define IM
+X#define REGISTER(x) x
+X#else
+X#define IM $
+X#define REGISTER(x) 0(x)
+X#endif
+X
+X/*
+X * The ns16000 is a little more difficult, need to copy regs.
+X * Also the code assumes direct linkage call sequence (no mod table crap).
+X * We have to copy registers, and therefore waste 32 bytes.
+X *
+X * Stack layout:
+X * new	sp ->	junk	
+X *	 	registers (copy)
+X *	r0 ->	new data		
+X *		 | 	  (orig retval)
+X *		 |	  (orig arg)
+X * old  sp ->	regs	  (orig)
+X *		local data
+X *	fp ->	old fp
+X */
+X
+X	movd	tos,r1		/*  pop return addr */
+X	negd	tos,r0		/*  pop amount to allocate */
+X	sprd	sp,r2
+X	addd	r2,r0
+X	bicb	IM/**/3,r0	/*  4-byte align */
+X	lprd	sp,r0
+X	adjspb	IM/**/36	/*  space for regs, +4 for caller to pop */
+X	movmd	0(r2),4(sp),IM/**/4	/*  copy regs */
+X	movmd	0x10(r2),0x14(sp),IM/**/4
+X	jump	REGISTER(r1)	/* funky return */
+X#endif /* ns16000 */
+X
+X#ifdef pyr
+X
+X.globl _alloca
+X
+X_alloca: addw $3,pr0	# add 3 (dec) to first argument
+X	bicw $3,pr0	# then clear its last 2 bits
+X	subw pr0,sp	# subtract from SP the val in PR0
+X	andw $-32,sp	# keep sp aligned on multiple of 32.
+X	movw sp,pr0	# ret. current SP
+X	ret
+X
+X#ifdef PYRAMID_OLD /* This isn't needed in system version 4.  */
+X.globl __longjmp
+X.globl _longjmp
+X.globl __setjmp
+X.globl _setjmp
+X
+X__longjmp: jump _longjmp
+X__setjmp:  jump _setjmp
+X#endif
+X
+X#endif /* pyr */
+X
+X#ifdef ATT3B5
+X
+X	.align 4
+X	.globl alloca
+X
+Xalloca:
+X	movw %ap, %r8
+X	subw2 $9*4, %r8
+X	movw 0(%r8), %r1    /* pc */
+X	movw 4(%r8), %fp
+X	movw 8(%r8), %sp
+X	addw2 %r0, %sp /* make room */
+X	movw %sp, %r0 /* return value */
+X	jmp (%r1) /* continue... */
+X
+X#endif /* ATT3B5 */
+X
+X#ifdef XENIX
+X
+X.386
+X
+X_TEXT segment dword use32 public 'CODE'
+Xassume   cs:_TEXT
+X
+X;-------------------------------------------------------------------------
+X
+Xpublic _alloca
+X_alloca proc near
+X
+X	pop	ecx		; return address
+X	pop	eax		; amount to alloc
+X	add	eax,3		; round it to 32-bit boundary
+X	and	al,11111100B	;
+X	mov	edx,esp		; current sp in edx
+X	sub	edx,eax		; lower the stack
+X	xchg	esp,edx		; start of allocation in esp, old sp in edx
+X	mov	eax,esp		; return ptr to base in eax
+X	push	[edx+8]		; save poss. stored reg. values (esi,edi,ebx)
+X	push	[edx+4]		;  on lowered stack
+X	push	[edx]		;
+X	sub	esp,4		; allow for 'add esp, 4'
+X	jmp	ecx		; jump to return address
+X
+X_alloca endp
+X
+X_TEXT	ends
+X
+Xend
+X
+X#endif /* XENIX */
+X
+X#endif /* not HAVE_ALLOCA */
+END_OF_FILE
+  if test 8394 -ne `wc -c <'./alloca.s'`; then
+    echo shar: \"'./alloca.s'\" unpacked with wrong size!
+  fi
+  # end of './alloca.s'
+fi
+if test -f './field.c' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'./field.c'\"
+else
+  echo shar: Extracting \"'./field.c'\" \(10555 characters\)
+  sed "s/^X//" >'./field.c' <<'END_OF_FILE'
+X/*
+X * field.c - routines for dealing with fields and record parsing
+X */
+X
+X/* 
+X * Copyright (C) 1986, 1988, 1989 the Free Software Foundation, Inc.
+X * 
+X * This file is part of GAWK, the GNU implementation of the
+X * AWK Progamming Language.
+X * 
+X * GAWK is free software; you can redistribute it and/or modify
+X * it under the terms of the GNU General Public License as published by
+X * the Free Software Foundation; either version 1, or (at your option)
+X * any later version.
+X * 
+X * GAWK is distributed in the hope that it will be useful,
+X * but WITHOUT ANY WARRANTY; without even the implied warranty of
+X * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+X * GNU General Public License for more details.
+X * 
+X * You should have received a copy of the GNU General Public License
+X * along with GAWK; see the file COPYING.  If not, write to
+X * the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
+X */
+X
+X#include "awk.h"
+X
+Xextern void assoc_clear();
+Xextern int a_get_three();
+Xextern int get_rs();
+X
+Xstatic char *get_fs();
+Xstatic int re_split();
+Xstatic int parse_fields();
+Xstatic void set_element();
+X
+Xchar *line_buf = NULL;	/* holds current input line */
+X
+Xstatic char *parse_extent;	/* marks where to restart parse of record */
+Xstatic int parse_high_water=0;	/* field number that we have parsed so far */
+Xstatic char f_empty[] = "";
+Xstatic char *save_fs = " ";	/* save current value of FS when line is read,
+X				 * to be used in deferred parsing
+X				 */
+X
+X
+XNODE **fields_arr;		/* array of pointers to the field nodes */
+XNODE node0;			/* node for $0 which never gets free'd */
+Xint node0_valid = 1;		/* $(>0) has not been changed yet */
+X
+Xvoid
+Xinit_fields()
+X{
+X	emalloc(fields_arr, NODE **, sizeof(NODE *), "init_fields");
+X	node0.type = Node_val;
+X	node0.stref = 0;
+X	node0.stptr = "";
+X	node0.flags = (STR|PERM);	/* never free buf */
+X	fields_arr[0] = &node0;
+X}
+X
+X/*
+X * Danger!  Must only be called for fields we know have just been blanked, or
+X * fields we know don't exist yet.  
+X */
+X
+X/*ARGSUSED*/
+Xstatic void
+Xset_field(num, str, len, dummy)
+Xint num;
+Xchar *str;
+Xint len;
+XNODE *dummy;	/* not used -- just to make interface same as set_element */
+X{
+X	NODE *n;
+X	int t;
+X	static int nf_high_water = 0;
+X
+X	if (num > nf_high_water) {
+X		erealloc(fields_arr, NODE **, (num + 1) * sizeof(NODE *), "set_field");
+X		nf_high_water = num;
+X	}
+X	/* fill in fields that don't exist */
+X	for (t = parse_high_water + 1; t < num; t++)
+X		fields_arr[t] = Nnull_string;
+X	n = make_string(str, len);
+X	(void) force_number(n);
+X	fields_arr[num] = n;
+X	parse_high_water = num;
+X}
+X
+X/* Someone assigned a value to $(something).  Fix up $0 to be right */
+Xstatic void
+Xrebuild_record()
+X{
+X	register int tlen;
+X	register NODE *tmp;
+X	NODE *ofs;
+X	char *ops;
+X	register char *cops;
+X	register NODE **ptr;
+X	register int ofslen;
+X
+X	tlen = 0;
+X	ofs = force_string(OFS_node->var_value);
+X	ofslen = ofs->stlen;
+X	ptr = &fields_arr[parse_high_water];
+X	while (ptr > &fields_arr[0]) {
+X		tmp = force_string(*ptr);
+X		tlen += tmp->stlen;
+X		ptr--;
+X	}
+X	tlen += (parse_high_water - 1) * ofslen;
+X	emalloc(ops, char *, tlen + 1, "fix_fields");
+X	cops = ops;
+X	ops[0] = '\0';
+X	for (ptr = &fields_arr[1]; ptr <= &fields_arr[parse_high_water]; ptr++) {
+X		tmp = *ptr;
+X		if (tmp->stlen == 1)
+X			*cops++ = tmp->stptr[0];
+X		else if (tmp->stlen != 0) {
+X			memcpy(cops, tmp->stptr, tmp->stlen);
+X			cops += tmp->stlen;
+X		}
+X		if (ptr != &fields_arr[parse_high_water]) {
+X			if (ofslen == 1)
+X				*cops++ = ofs->stptr[0];
+X			else if (ofslen != 0) {
+X				memcpy(cops, ofs->stptr, ofslen);
+X				cops += ofslen;
+X			}
+X		}
+X	}
+X	tmp = make_string(ops, tlen);
+X	free(ops);
+X	deref = fields_arr[0];
+X	do_deref();
+X	fields_arr[0] = tmp;
+X}
+X
+X/*
+X * setup $0, but defer parsing rest of line until reference is made to $(>0)
+X * or to NF.  At that point, parse only as much as necessary.
+X */
+Xvoid
+Xset_record(buf, cnt)
+Xchar *buf;
+Xint cnt;
+X{
+X	register int i;
+X
+X	assign_number(&NF_node->var_value, (AWKNUM)-1);
+X	for (i = 1; i <= parse_high_water; i++) {
+X		deref = fields_arr[i];
+X		do_deref();
+X	}
+X	parse_high_water = 0;
+X	node0_valid = 1;
+X	if (buf == line_buf) {
+X		deref = fields_arr[0];
+X		do_deref();
+X		save_fs = get_fs();
+X		node0.type = Node_val;
+X		node0.stptr = buf;
+X		node0.stlen = cnt;
+X		node0.stref = 1;
+X		node0.flags = (STR|PERM);	/* never free buf */
+X		fields_arr[0] = &node0;
+X	}
+X}
+X
+XNODE **
+Xget_field(num, assign)
+Xint num;
+Xint assign;	/* this field is on the LHS of an assign */
+X{
+X	int n;
+X
+X	/*
+X	 * if requesting whole line but some other field has been altered,
+X	 * then the whole line must be rebuilt
+X	 */
+X	if (num == 0 && (node0_valid == 0 || assign)) {
+X		/* first, parse remainder of input record */
+X		if (NF_node->var_value->numbr == -1) {
+X			if (parse_high_water == 0)
+X				parse_extent = node0.stptr;
+X			n = parse_fields(HUGE-1, &parse_extent,
+X		    		node0.stlen - (parse_extent - node0.stptr),
+X		    		save_fs, set_field, (NODE *)NULL);
+X			assign_number(&NF_node->var_value, (AWKNUM)n);
+X		}
+X		if (node0_valid == 0)
+X			rebuild_record();
+X		return &fields_arr[0];
+X	}
+X	if (num > 0 && assign)
+X		node0_valid = 0;
+X	if (num <= parse_high_water)	/* we have already parsed this field */
+X		return &fields_arr[num];
+X	if (parse_high_water == 0 && num > 0)	/* starting at the beginning */
+X		parse_extent = fields_arr[0]->stptr;
+X	/*
+X	 * parse up to num fields, calling set_field() for each, and saving
+X	 * in parse_extent the point where the parse left off
+X	 */
+X	n = parse_fields(num, &parse_extent,
+X		fields_arr[0]->stlen - (parse_extent-fields_arr[0]->stptr),
+X		save_fs, set_field, (NODE *)NULL);
+X	if (num == HUGE-1)
+X		num = n;
+X	if (n < num) {	/* requested field number beyond end of record;
+X			 * set_field will just extend the number of fields,
+X			 * with empty fields
+X			 */
+X		set_field(num, f_empty, 0, (NODE *) NULL);
+X		/*
+X		 * if this field is onthe LHS of an assignment, then we want to
+X		 * set NF to this value, below
+X		 */
+X		if (assign)
+X			n = num;
+X	}
+X	/*
+X	 * if we reached the end of the record, set NF to the number of fields
+X	 * so far.  Note that num might actually refer to a field that
+X	 * is beyond the end of the record, but we won't set NF to that value at
+X	 * this point, since this is only a reference to the field and NF
+X	 * only gets set if the field is assigned to -- in this case n has
+X	 * been set to num above
+X	 */
+X	if (*parse_extent == '\0')
+X		assign_number(&NF_node->var_value, (AWKNUM)n);
+X
+X	return &fields_arr[num];
+X}
+X
+X/*
+X * this is called both from get_field() and from do_split()
+X */
+Xstatic int
+Xparse_fields(up_to, buf, len, fs, set, n)
+Xint up_to;	/* parse only up to this field number */
+Xchar **buf;	/* on input: string to parse; on output: point to start next */
+Xint len;
+Xregister char *fs;
+Xvoid (*set) ();	/* routine to set the value of the parsed field */
+XNODE *n;
+X{
+X	char *s = *buf;
+X	register char *field;
+X	register char *scan;
+X	register char *end = s + len;
+X	int NF = parse_high_water;
+X	char rs = get_rs();
+X
+X
+X	if (up_to == HUGE)
+X		NF = 0;
+X	if (*fs && *(fs + 1) != '\0') {	/* fs is a regexp */
+X		struct re_registers reregs;
+X
+X		scan = s;
+X		if (rs == 0 && STREQ(FS_node->var_value->stptr, " ")) {
+X			while ((*scan == '\n' || *scan == ' ' || *scan == '\t')
+X			    && scan < end)
+X				scan++;
+X		}
+X		s = scan;
+X		while (scan < end
+X		    && re_split(scan, (int)(end - scan), fs, &reregs) != -1
+X		    && NF < up_to) {
+X			if (reregs.end[0] == 0) {	/* null match */
+X				scan++;
+X				if (scan == end) {
+X					(*set)(++NF, s, scan - s, n);
+X					up_to = NF;
+X					break;
+X				}
+X				continue;
+X			}
+X			(*set)(++NF, s, scan - s + reregs.start[0], n);
+X			scan += reregs.end[0];
+X			s = scan;
+X		}
+X		if (NF != up_to && scan <= end) {
+X			if (!(rs == 0 && scan == end)) {
+X				(*set)(++NF, scan, (int)(end - scan), n);
+X				scan = end;
+X			}
+X		}
+X		*buf = scan;
+X		return (NF);
+X	}
+X	for (scan = s; scan < end && NF < up_to; scan++) {
+X		/*
+X		 * special case:  fs is single space, strip leading
+X		 * whitespace 
+X		 */
+X		if (*fs == ' ') {
+X			while ((*scan == ' ' || *scan == '\t') && scan < end)
+X				scan++;
+X			if (scan >= end)
+X				break;
+X		}
+X		field = scan;
+X		if (*fs == ' ')
+X			while (*scan != ' ' && *scan != '\t' && scan < end)
+X				scan++;
+X		else {
+X			while (*scan != *fs && scan < end)
+X				scan++;
+X			if (rs && scan == end-1 && *scan == *fs) {
+X				(*set)(++NF, field, (int)(scan - field), n);
+X				field = scan;
+X			}
+X		}
+X		(*set)(++NF, field, (int)(scan - field), n);
+X		if (scan == end)
+X			break;
+X	}
+X	*buf = scan;
+X	return NF;
+X}
+X
+Xstatic int
+Xre_split(buf, len, fs, reregsp)
+Xchar *buf, *fs;
+Xint len;
+Xstruct re_registers *reregsp;
+X{
+X	typedef struct re_pattern_buffer RPAT;
+X	static RPAT *rp;
+X	static char *last_fs = NULL;
+X
+X	if ((last_fs != NULL && !STREQ(fs, last_fs))
+X	    || (rp && ! strict && ((IGNORECASE_node->var_value->numbr != 0)
+X			 ^ (rp->translate != NULL))))
+X	{
+X		/* fs has changed or IGNORECASE has changed */
+X		free(rp->buffer);
+X		free(rp->fastmap);
+X		free((char *) rp);
+X		free(last_fs);
+X		last_fs = NULL;
+X	}
+X	if (last_fs == NULL) {	/* first time */
+X		emalloc(rp, RPAT *, sizeof(RPAT), "re_split");
+X		memset((char *) rp, 0, sizeof(RPAT));
+X		emalloc(rp->buffer, char *, 8, "re_split");
+X		rp->allocated = 8;
+X		emalloc(rp->fastmap, char *, 256, "re_split");
+X		emalloc(last_fs, char *, strlen(fs) + 1, "re_split");
+X		(void) strcpy(last_fs, fs);
+X		if (! strict && IGNORECASE_node->var_value->numbr != 0.0)
+X			rp->translate = casetable;
+X		else
+X			rp->translate = NULL;
+X		if (re_compile_pattern(fs, strlen(fs), rp) != NULL)
+X			fatal("illegal regular expression for FS: `%s'", fs);
+X	}
+X	return re_search(rp, buf, len, 0, len, reregsp);
+X}
+X
+XNODE *
+Xdo_split(tree)
+XNODE *tree;
+X{
+X	NODE *t1, *t2, *t3;
+X	register char *splitc;
+X	char *s;
+X	NODE *n;
+X
+X	if (a_get_three(tree, &t1, &t2, &t3) < 3)
+X		splitc = get_fs();
+X	else
+X		splitc = force_string(t3)->stptr;
+X
+X	n = t2;
+X	if (t2->type == Node_param_list)
+X		n = stack_ptr[t2->param_cnt];
+X	if (n->type != Node_var && n->type != Node_var_array)
+X		fatal("second argument of split is not a variable");
+X	assoc_clear(n);
+X
+X	tree = force_string(t1);
+X
+X	s = tree->stptr;
+X	return tmp_number((AWKNUM)
+X		parse_fields(HUGE, &s, tree->stlen, splitc, set_element, n));
+X}
+X
+Xstatic char *
+Xget_fs()
+X{
+X	register NODE *tmp;
+X	static char buf[10];
+X
+X	tmp = force_string(FS_node->var_value);
+X	if (get_rs() == 0) {
+X		if (tmp->stlen == 1) {
+X			if (tmp->stptr[0] == ' ')
+X				(void) strcpy(buf, "[ 	\n]+");
+X			else
+X				sprintf(buf, "[%c\n]", tmp->stptr[0]);
+X		} else if (tmp->stlen == 0) {
+X			buf[0] = '\n';
+X			buf[1] = '\0';
+X		} else
+X			return tmp->stptr;
+X		return buf;
+X	}
+X	return tmp->stptr;
+X}
+X
+Xstatic void
+Xset_element(num, s, len, n)
+Xint num;
+Xchar *s;
+Xint len;
+XNODE *n;
+X{
+X	*assoc_lookup(n, tmp_number((AWKNUM) (num))) = make_string(s, len);
+X}
+END_OF_FILE
+  if test 10555 -ne `wc -c <'./field.c'`; then
+    echo shar: \"'./field.c'\" unpacked with wrong size!
+  fi
+  # end of './field.c'
+fi
+if test -f './gawk.texinfo.07' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'./gawk.texinfo.07'\"
+else
+  echo shar: Extracting \"'./gawk.texinfo.07'\" \(6852 characters\)
+  sed "s/^X//" >'./gawk.texinfo.07' <<'END_OF_FILE'
+XConcatenating two strings means sticking them together, one after another,
+Xgiving a new string.  For example, the string @samp{foo} concatenated with
+Xthe string @samp{bar} gives the string @samp{foobar}.
+X@xref{Concatenation}.@refill
+X
+X@item Conditional Expression
+XAn expression using the @samp{?:} ternary operator, such as
+X@code{@var{expr1} ? @var{expr2} : @var{expr3}}.  The expression
+X@var{expr1} is evaluated; if the result is true, the value of the whole
+Xexpression is the value of @var{expr2} otherwise the value is
+X@var{expr3}.  In either case, only one of @var{expr2} and @var{expr3}
+Xis evaluated.  @xref{Conditional Exp}.@refill
+X
+X@item Constant Regular Expression
+XA constant regular expression is a regular expression written within
+Xslashes, such as @samp{/foo/}.  This regular expression is chosen
+Xwhen you write the @code{awk} program, and cannot be changed doing
+Xits execution.  @xref{Regexp Usage}.
+X
+X@item Comparison Expression
+XA relation that is either true or false, such as @code{(a < b)}.
+XComparison expressions are used in @code{if} and @code{while} statements,
+Xand in patterns to select which input records to process.
+X@xref{Comparison Ops}.@refill
+X
+X@item Curly Braces
+XThe characters @samp{@{} and @samp{@}}.  Curly braces are used in
+X@code{awk} for delimiting actions, compound statements, and function
+Xbodies.@refill
+X
+X@item Data Objects
+XThese are numbers and strings of characters.  Numbers are converted into
+Xstrings and vice versa, as needed.  @xref{Conversion}.@refill
+X
+X@item Dynamic Regular Expression
+XA dynamic regular expression is a regular expression written as an
+Xordinary expression.  It could be a string constant, such as
+X@code{"foo"}, but it may also be an expression whose value may vary.
+X@xref{Regexp Usage}.
+X
+X@item Escape Sequences
+XA special sequence of characters used for describing nonprinting
+Xcharacters, such as @samp{\n} for newline, or @samp{\033} for the ASCII
+XESC (escape) character.  @xref{Constants}.
+X
+X@item Field
+XWhen @code{awk} reads an input record, it splits the record into pieces
+Xseparated by whitespace (or by a separator regexp which you can
+Xchange by setting the built-in variable @code{FS}).  Such pieces are
+Xcalled fields.  @xref{Records}.@refill
+X
+X@item Format
+XFormat strings are used to control the appearance of output in the
+X@code{printf} statement.  Also, data conversions from numbers to strings
+Xare controlled by the format string contained in the built-in variable
+X@code{OFMT}.  @xref{Control Letters}; also @pxref{Output Separators}.@refill
+X
+X@item Function
+XA specialized group of statements often used to encapsulate general
+Xor program-specific tasks.  @code{awk} has a number of built-in
+Xfunctions, and also allows you to define your own.  @xref{Built-in};
+Xalso @pxref{User-defined}.
+X
+X@item @code{gawk}
+XThe GNU implementation of @code{awk}.
+X
+X@item Input Record
+XA single chunk of data read in by @code{awk}.  Usually, an @code{awk} input
+Xrecord consists of one line of text.  @xref{Records}.@refill
+X
+X@item Keyword
+XIn the @code{awk} language, a keyword is a word that has special
+Xmeaning.  Keywords are reserved and may not be used as variable names.
+X
+XThe keywords of @code{awk} are:
+X@code{if},
+X@code{else},
+X@code{while},
+X@code{do@dots{}while},
+X@code{for},
+X@code{for@dots{}in},
+X@code{break},
+X@code{continue},
+X@code{delete},
+X@code{next},
+X@code{function},
+X@code{func},
+Xand @code{exit}.@refill
+X
+X@item Lvalue
+XAn expression that can appear on the left side of an assignment
+Xoperator.  In most languages, lvalues can be variables or array
+Xelements.  In @code{awk}, a field designator can also be used as an
+Xlvalue.@refill
+X
+X@item Number
+XA numeric valued data object.  The @code{gawk} implementation uses double
+Xprecision floating point to represent numbers.@refill
+X
+X@item Pattern
+XPatterns tell @code{awk} which input records are interesting to which
+Xrules.
+X
+XA pattern is an arbitrary conditional expression against which input is
+Xtested.  If the condition is satisfied, the pattern is said to @dfn{match}
+Xthe input record.  A typical pattern might compare the input record against
+Xa regular expression.  @xref{Patterns}.@refill
+X
+X@item Range (of input lines)
+XA sequence of consecutive lines from the input file.  A pattern
+Xcan specify ranges of input lines for @code{awk} to process, or it can
+Xspecify single lines.  @xref{Patterns}.@refill
+X
+X@item Recursion
+XWhen a function calls itself, either directly or indirectly.
+XIf this isn't clear, refer to the entry for ``recursion''.
+X
+X@item Redirection
+XRedirection means performing input from other than the standard input
+Xstream, or output to other than the standard output stream.
+X
+XYou can redirect the output of the @code{print} and @code{printf} statements
+Xto a file or a system command, using the @samp{>}, @samp{>>}, and @samp{|}
+Xoperators.  You can redirect input to the @code{getline} statement using
+Xthe @samp{<} and @samp{|} operators.  @xref{Redirection}.@refill
+X
+X@item Regular Expression
+XSee ``regexp''.
+X
+X@item Regexp
+XShort for @dfn{regular expression}.  A regexp is a pattern that denotes a
+Xset of strings, possibly an infinite set.  For example, the regexp
+X@samp{R.*xp} matches any string starting with the letter @samp{R}
+Xand ending with the letters @samp{xp}.  In @code{awk}, regexps are
+Xused in patterns and in conditional expressions.  Regexps may contain
+Xescape sequences.  @xref{Regexp}.@refill
+X
+X@item Rule
+XA segment of an @code{awk} program, that specifies how to process single
+Xinput records.  A rule consists of a @dfn{pattern} and an @dfn{action}.
+X@code{awk} reads an input record; then, for each rule, if the input record
+Xsatisfies the rule's pattern, @code{awk} executes the rule's action.
+XOtherwise, the rule does nothing for that input record.@refill
+X
+X@item Side Effect
+XA side effect occurs when an expression has an effect aside from merely
+Xproducing a value.  Assignment expressions, increment expressions and
+Xfunction calls have side effects.  @xref{Assignment Ops}.
+X
+X@item Special File
+XA file name interpreted internally by @code{gawk}, instead of being handed
+Xdirectly to the underlying operating system.  For example, @file{/dev/stdin}.
+X@xref{Special Files}.
+X
+X@item Stream Editor
+XA program that reads records from an input stream and processes them one
+Xor more at a time.  This is in contrast with batch programs, which may
+Xexpect to read their input files in entirety before starting to do
+Xanything, and with interactive programs, which require input from the
+Xuser.@refill
+X
+X@item String
+XA datum consisting of a sequence of characters, such as @samp{I am a
+Xstring}.  Constant strings are written with double-quotes in the
+X@code{awk} language, and may contain @dfn{escape sequences}.
+X@xref{Constants}.
+X
+X@item Whitespace
+XA sequence of blank or tab characters occurring inside an input record or a
+Xstring.@refill
+X@end table
+X
+X@node Index, , Glossary, Top
+X@unnumbered Index
+X@printindex cp
+X
+X@summarycontents
+X@contents
+X@bye
+END_OF_FILE
+  if test 6852 -ne `wc -c <'./gawk.texinfo.07'`; then
+    echo shar: \"'./gawk.texinfo.07'\" unpacked with wrong size!
+  fi
+  # end of './gawk.texinfo.07'
+fi
+if test -f './node.c' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'./node.c'\"
+else
+  echo shar: Extracting \"'./node.c'\" \(6310 characters\)
+  sed "s/^X//" >'./node.c' <<'END_OF_FILE'
+X/*
+X * node.c -- routines for node management
+X */
+X
+X/* 
+X * Copyright (C) 1986, 1988, 1989 the Free Software Foundation, Inc.
+X * 
+X * This file is part of GAWK, the GNU implementation of the
+X * AWK Progamming Language.
+X * 
+X * GAWK is free software; you can redistribute it and/or modify
+X * it under the terms of the GNU General Public License as published by
+X * the Free Software Foundation; either version 1, or (at your option)
+X * any later version.
+X * 
+X * GAWK is distributed in the hope that it will be useful,
+X * but WITHOUT ANY WARRANTY; without even the implied warranty of
+X * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+X * GNU General Public License for more details.
+X * 
+X * You should have received a copy of the GNU General Public License
+X * along with GAWK; see the file COPYING.  If not, write to
+X * the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
+X */
+X
+X#include "awk.h"
+X
+Xextern double strtod();
+X
+X/*
+X * We can't dereference a variable until after we've given it its new value.
+X * This variable points to the value we have to free up 
+X */
+XNODE *deref;
+X
+XAWKNUM
+Xr_force_number(n)
+XNODE *n;
+X{
+X	char *ptr;
+X
+X#ifdef DEBUG
+X	if (n == NULL)
+X		cant_happen();
+X	if (n->type != Node_val)
+X		cant_happen();
+X	if(n->flags == 0)
+X		cant_happen();
+X	if (n->flags & NUM)
+X		return n->numbr;
+X#endif
+X	if (n->stlen == 0)
+X		n->numbr = 0.0;
+X	else if (n->stlen == 1) {
+X		if (isdigit(n->stptr[0])) {
+X			n->numbr = n->stptr[0] - '0';
+X			n->flags |= NUMERIC;
+X		} else
+X			n->numbr = 0.0;
+X	} else {
+X		errno = 0;
+X		n->numbr = (AWKNUM) strtod(n->stptr, &ptr);
+X		/* the following >= should be ==, but for SunOS 3.5 strtod() */
+X		if (errno == 0 && ptr >= n->stptr + n->stlen)
+X			n->flags |= NUMERIC;
+X	}
+X	n->flags |= NUM;
+X	return n->numbr;
+X}
+X
+X/*
+X * the following lookup table is used as an optimization in force_string
+X * (more complicated) variations on this theme didn't seem to pay off, but 
+X * systematic testing might be in order at some point
+X */
+Xstatic char *values[] = {
+X	"0",
+X	"1",
+X	"2",
+X	"3",
+X	"4",
+X	"5",
+X	"6",
+X	"7",
+X	"8",
+X	"9",
+X};
+X#define	NVAL	(sizeof(values)/sizeof(values[0]))
+X
+XNODE *
+Xr_force_string(s)
+XNODE *s;
+X{
+X	char buf[128];
+X	char *fmt;
+X	long num;
+X	char *sp = buf;
+X
+X#ifdef DEBUG
+X	if (s == NULL)
+X		cant_happen();
+X	if (s->type != Node_val)
+X		cant_happen();
+X	if (s->flags & STR)
+X		return s;
+X	if (!(s->flags & NUM))
+X		cant_happen();
+X	if (s->stref != 0)
+X		cant_happen();
+X#endif
+X	s->flags |= STR;
+X	/* should check validity of user supplied OFMT */
+X	fmt = OFMT_node->var_value->stptr;
+X	if ((num = s->numbr) == s->numbr) {
+X		/* integral value */
+X		if (num < NVAL && num >= 0) {
+X			sp = values[num];
+X			s->stlen = 1;
+X		} else {
+X			(void) sprintf(sp, "%ld", num);
+X			s->stlen = strlen(sp);
+X		}
+X	} else {
+X		(void) sprintf(sp, fmt, s->numbr);
+X		s->stlen = strlen(sp);
+X	}
+X	s->stref = 1;
+X	emalloc(s->stptr, char *, s->stlen + 1, "force_string");
+X	memcpy(s->stptr, sp, s->stlen+1);
+X	return s;
+X}
+X
+X/*
+X * Duplicate a node.  (For strings, "duplicate" means crank up the
+X * reference count.)
+X */
+XNODE *
+Xdupnode(n)
+XNODE *n;
+X{
+X	register NODE *r;
+X
+X	if (n->flags & TEMP) {
+X		n->flags &= ~TEMP;
+X		n->flags |= MALLOC;
+X		return n;
+X	}
+X	if ((n->flags & (MALLOC|STR)) == (MALLOC|STR)) {
+X		if (n->stref < 255)
+X			n->stref++;
+X		return n;
+X	}
+X	r = newnode(Node_illegal);
+X	*r = *n;
+X	r->flags &= ~(PERM|TEMP);
+X	r->flags |= MALLOC;
+X	if (n->type == Node_val && (n->flags & STR)) {
+X		r->stref = 1;
+X		emalloc(r->stptr, char *, r->stlen + 1, "dupnode");
+X		memcpy(r->stptr, n->stptr, r->stlen+1);
+X	}
+X	return r;
+X}
+X
+X/* this allocates a node with defined numbr */
+XNODE *
+Xmake_number(x)
+XAWKNUM x;
+X{
+X	register NODE *r;
+X
+X	r = newnode(Node_val);
+X	r->numbr = x;
+X	r->flags |= (NUM|NUMERIC);
+X	r->stref = 0;
+X	return r;
+X}
+X
+X/*
+X * This creates temporary nodes.  They go away quite quickly, so don't use
+X * them for anything important 
+X */
+XNODE *
+Xtmp_number(x)
+XAWKNUM x;
+X{
+X	NODE *r;
+X
+X	r = make_number(x);
+X	r->flags |= TEMP;
+X	return r;
+X}
+X
+X/*
+X * Make a string node.
+X */
+X
+XNODE *
+Xmake_str_node(s, len, scan)
+Xchar *s;
+Xint len;
+Xint scan;
+X{
+X	register NODE *r;
+X	char *pf;
+X	register char *pt;
+X	register int c;
+X	register char *end;
+X
+X	r = newnode(Node_val);
+X	emalloc(r->stptr, char *, len + 1, s);
+X	memcpy(r->stptr, s, len);
+X	r->stptr[len] = '\0';
+X	end = &(r->stptr[len]);
+X	       
+X	if (scan) {	/* scan for escape sequences */
+X		for (pf = pt = r->stptr; pf < end;) {
+X			c = *pf++;
+X			if (c == '\\') {
+X				c = parse_escape(&pf);
+X				if (c < 0)
+X					cant_happen();
+X				*pt++ = c;
+X			} else
+X				*pt++ = c;
+X		}
+X		len = pt - r->stptr;
+X		erealloc(r->stptr, char *, len + 1, "make_str_node");
+X		r->stptr[len] = '\0';
+X		r->flags |= PERM;
+X	}
+X	r->stlen = len;
+X	r->stref = 1;
+X	r->flags |= (STR|MALLOC);
+X
+X	return r;
+X}
+X
+X/* Read the warning under tmp_number */
+XNODE *
+Xtmp_string(s, len)
+Xchar *s;
+Xint len;
+X{
+X	register NODE *r;
+X
+X	r = make_string(s, len);
+X	r->flags |= TEMP;
+X	return r;
+X}
+X
+X
+X#define NODECHUNK	100
+X
+Xstatic NODE *nextfree = NULL;
+X
+XNODE *
+Xnewnode(ty)
+XNODETYPE ty;
+X{
+X	NODE *it;
+X	NODE *np;
+X
+X#ifdef MPROF
+X	emalloc(it, NODE *, sizeof(NODE), "newnode");
+X#else
+X	if (nextfree == NULL) {
+X		/* get more nodes and initialize list */
+X		emalloc(nextfree, NODE *, NODECHUNK * sizeof(NODE), "newnode");
+X		for (np = nextfree; np < &nextfree[NODECHUNK - 1]; np++)
+X			np->nextp = np + 1;
+X		np->nextp = NULL;
+X	}
+X	/* get head of freelist */
+X	it = nextfree;
+X	nextfree = nextfree->nextp;
+X#endif
+X	it->type = ty;
+X	it->flags = MALLOC;
+X#ifdef MEMDEBUG
+X	fprintf(stderr, "node: new: %0x\n", it);
+X#endif
+X	return it;
+X}
+X
+Xvoid
+Xfreenode(it)
+XNODE *it;
+X{
+X#ifdef DEBUG
+X	NODE *nf;
+X#endif
+X#ifdef MEMDEBUG
+X	fprintf(stderr, "node: free: %0x\n", it);
+X#endif
+X#ifdef MPROF
+X	free((char *) it);
+X#else
+X#ifdef DEBUG
+X	for (nf = nextfree; nf; nf = nf->nextp)
+X		if (nf == it)
+X			fatal("attempt to free free node");
+X#endif
+X	/* add it to head of freelist */
+X	it->nextp = nextfree;
+X	nextfree = it;
+X#endif
+X}
+X
+X#ifdef DEBUG
+Xpf()
+X{
+X	NODE *nf = nextfree;
+X	while (nf != NULL) {
+X		fprintf(stderr, "%0x ", nf);
+X		nf = nf->nextp;
+X	}
+X}
+X#endif
+X
+Xvoid
+Xdo_deref()
+X{
+X	if (deref == NULL)
+X		return;
+X	if (deref->flags & PERM) {
+X		deref = 0;
+X		return;
+X	}
+X	if ((deref->flags & MALLOC) || (deref->flags & TEMP)) {
+X		deref->flags &= ~TEMP;
+X		if (deref->flags & STR) {
+X			if (deref->stref > 1 && deref->stref != 255) {
+X				deref->stref--;
+X				deref = 0;
+X				return;
+X			}
+X			free(deref->stptr);
+X		}
+X		freenode(deref);
+X	}
+X	deref = 0;
+X}
+END_OF_FILE
+  if test 6310 -ne `wc -c <'./node.c'`; then
+    echo shar: \"'./node.c'\" unpacked with wrong size!
+  fi
+  # end of './node.c'
+fi
+echo shar: End of archive 15 \(of 16\).
+cp /dev/null ark15isdone
+MISSING=""
+for I in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 ; do
+    if test ! -f ark${I}isdone ; then
+	MISSING="${MISSING} ${I}"
+    fi
+done
+if test "${MISSING}" = "" ; then
+    echo You have unpacked all 16 archives.
+    rm -f ark[1-9]isdone ark[1-9][0-9]isdone
+else
+    echo You still must unpack the following archives:
+    echo "        " ${MISSING}
+fi
+exit 0
+exit 0 # Just in case...
+-- 
+Please send comp.sources.unix-related mail to rsalz@uunet.uu.net.
+Use a domain-based address or give alternate paths, or you may lose out.

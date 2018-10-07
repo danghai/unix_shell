@@ -1,0 +1,2535 @@
+Newsgroups: comp.sources.unix
+From: christos@ee.cornell.edu (Christos Zoulas)
+Subject: v25i065: tcsh6.01 - a csh replacement with lots of extra goodies, Part12/18
+Message-ID: <1991Dec20.214359.7493@PA.dec.com>
+Date: Fri, 20 Dec 91 21:43:59 GMT
+Approved: vixie@pa.dec.com
+
+Submitted-By: christos@ee.cornell.edu (Christos Zoulas)
+Posting-Number: Volume 25, Issue 65
+Archive-Name: tcsh-6.01/part12
+
+#! /bin/sh
+# This is a shell archive.  Remove anything before this line, then unpack
+# it by saving it into a file and typing "sh file".  To overwrite existing
+# files, type "sh file -c".  You can also feed this as standard input via
+# unshar, or by typing "sh <file", e.g..  If this archive is complete, you
+# will see the following message at the end:
+#		"End of archive 12 (of 18)."
+# Contents:  ed.refresh.c ed.screen.c
+# Wrapped by vixie@cognition.pa.dec.com on Fri Dec 20 13:29:28 1991
+PATH=/bin:/usr/bin:/usr/ucb ; export PATH
+if test -f 'ed.refresh.c' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'ed.refresh.c'\"
+else
+echo shar: Extracting \"'ed.refresh.c'\" \(29240 characters\)
+sed "s/^X//" >'ed.refresh.c' <<'END_OF_FILE'
+X/* $Header: /home/hyperion/mu/christos/src/sys/tcsh-6.01/RCS/ed.refresh.c,v 3.3 1991/10/12 04:23:51 christos Exp $ */
+X/*
+X * ed.refresh.c: Lower level screen refreshing functions
+X */
+X/*-
+X * Copyright (c) 1980, 1991 The Regents of the University of California.
+X * All rights reserved.
+X *
+X * Redistribution and use in source and binary forms, with or without
+X * modification, are permitted provided that the following conditions
+X * are met:
+X * 1. Redistributions of source code must retain the above copyright
+X *    notice, this list of conditions and the following disclaimer.
+X * 2. Redistributions in binary form must reproduce the above copyright
+X *    notice, this list of conditions and the following disclaimer in the
+X *    documentation and/or other materials provided with the distribution.
+X * 3. All advertising materials mentioning features or use of this software
+X *    must display the following acknowledgement:
+X *	This product includes software developed by the University of
+X *	California, Berkeley and its contributors.
+X * 4. Neither the name of the University nor the names of its contributors
+X *    may be used to endorse or promote products derived from this software
+X *    without specific prior written permission.
+X *
+X * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+X * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+X * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+X * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+X * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+X * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+X * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+X * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+X * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+X * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+X * SUCH DAMAGE.
+X */
+X#include "sh.h"
+X
+RCSID("$Id: ed.refresh.c,v 3.3 1991/10/12 04:23:51 christos Exp $")
+X
+X#include "ed.h"
+X/* #define DEBUG_UPDATE */
+X/* #define DEBUG_REFRESH */
+X/* #define DEBUG_LITERAL */
+X
+X/* refresh.c -- refresh the current set of lines on the screen */
+X
+Char   *litptr[256];
+static int vcursor_h, vcursor_v;
+X
+static	void	Draw 			__P((int));
+static	void	Vdraw 			__P((int));
+static	void	Vnewline 		__P((void));
+static	void	update_line 		__P((Char *, Char *, int));
+static	void	str_insert		__P((Char *, int, int, Char *, int));
+static	void	str_delete		__P((Char *, int, int, int));
+static	void	str_cp			__P((Char *, Char *, int));
+static	void	PutPlusOne		__P((int));
+static	void	cpy_pad_spaces		__P((Char *, Char *, int));
+X#ifdef DEBUG_UPDATE
+static	void	dprintstr		__P((char *, Char *, Char *));
+static	void	dprintf			__P((char *, ...));
+X#endif  /* DEBUG_UPDATE */
+X
+X#ifdef DEBUG_UPDATE
+static void
+dprintstr(str, f, t)
+char *str;
+Char *f, *t;
+X{
+X    dprintf("%s:\"", str);
+X    while (f < t)
+X	dprintf("%c", *f++ & ASCII);
+X    dprintf("\"\r\n");
+X} 
+X
+X/* dprintf():
+X *	Print to $DEBUGTTY, so that we can test editing on one pty, and 
+X *      print debugging stuff on another. Don't interrupt the shell while
+X *	debugging cause you'll mangle up the file descriptors!
+X */
+static void
+X#if __STDC__
+dprintf(char *fmt, ...)
+X#else
+dprintf(va_list)
+X    va_dcl
+X#endif /* __STDC__ */
+X{
+X    static int fd = -1;
+X    char *dtty;
+X
+X    if ((dtty = getenv("DEBUGTTY"))) {
+X	int o;
+X	va_list va;
+X#if __STDC__
+X	va_start(va, fmt);
+X#else
+X	char *fmt;
+X	va_start(va);
+X	fmt = va_arg(va, char *);
+X#endif /* __STDC__ */
+X
+X	if (fd == -1)
+X	    fd = open(dtty, O_RDWR);
+X	o = SHOUT;
+X	flush();
+X	SHOUT = fd;
+X	vprintf(fmt, va);
+X	va_end(va);
+X	flush();
+X	SHOUT = o;
+X    }
+X}
+X#endif  /* DEBUG_UPDATE */
+X
+static void
+Draw(c)				/* draw c, expand tabs, ctl chars */
+X    register int c;
+X{
+X    register Char ch = c & CHAR;
+X
+X    if (Isprint(ch)) {
+X	Vdraw(c);
+X	return;
+X    }
+X    /* from wolman%crltrx.DEC@decwrl.dec.com (Alec Wolman) */
+X    if (ch == '\n') {		/* expand the newline	 */
+X	Vdraw('\0');	/* assure end of line	 */
+X	vcursor_h = 0;		/* reset cursor pos	 */
+X	vcursor_v++;
+X	return;
+X    }
+X    if (ch == '\t') {		/* expand the tab 	 */
+X	for (;;) {
+X	    Vdraw(' ');
+X	    if ((vcursor_h & 07) == 0)
+X		break;		/* go until tab stop	 */
+X	}
+X    }
+X    else if (Iscntrl(ch)) {
+X	Vdraw('^');
+X	if (ch == '\177') {
+X	    Vdraw('?');
+X	}
+X	else {
+X	    /* uncontrolify it; works only for iso8859-1 like sets */
+X	    Vdraw((c | 0100));
+X	}
+X    }
+X    else {
+X	Vdraw('\\');
+X	Vdraw(((c >> 6) & 7) + '0');
+X	Vdraw(((c >> 3) & 7) + '0');
+X	Vdraw((c & 7) + '0');
+X    }
+X}
+X
+static void
+Vdraw(c)			/* draw char c onto V lines */
+X    register int c;
+X{
+X#ifdef DEBUG_REFRESH
+X# ifdef SHORT_STRINGS
+X    dprintf("Vdrawing %6.6o '%c'\r\n", c, c & ASCII);
+X# else
+X    dprintf("Vdrawing %3.3o '%c'\r\n", c, c);
+X# endif /* SHORT_STRNGS */
+X#endif  /* DEBUG_REFRESH */
+X
+X    Vdisplay[vcursor_v][vcursor_h] = c;
+X    vcursor_h++;		/* advance to next place */
+X    if (vcursor_h >= TermH) {
+X	Vdisplay[vcursor_v][TermH] = '\0';	/* assure end of line */
+X	vcursor_h = 0;		/* reset it. */
+X	vcursor_v++;
+X	if (vcursor_v >= TermV) {	/* should NEVER happen. */
+X#ifdef DEBUG_REFRESH
+X	    dprintf("\r\nVdraw: vcursor_v overflow! Vcursor_v == %d > %d\r\n",
+X		    vcursor_v, TermV);
+X	    abort();
+X#endif /* DEBUG_REFRESH */
+X	}
+X    }
+X}
+X
+static void
+Vnewline()
+X{
+X    /* needs work. */
+X}
+X
+X/*
+X *  Refresh()
+X *	draws the new virtual screen image from the current input
+X *  	line, then goes line-by-line changing the real image to the new
+X *	virtual image. The routine to re-draw a line can be replaced
+X *	easily in hopes of a smarter one being placed there.
+X */
+static int OldvcV = 0;
+void
+Refresh()
+X{
+X    register int cur_line;
+X    register Char *cp;
+X    int     cur_h, cur_v = 0, new_vcv;
+X    Char    oldgetting;
+X    unsigned int litnum = 0;
+X
+X#ifdef DEBUG_REFRESH
+X    dprintf("PromptBuf = :%s:\r\n", short2str(PromptBuf));
+X    dprintf("InputBuf = :%s:\r\n", short2str(InputBuf));
+X#endif /* DEBUG_REFRESH */
+X    oldgetting = GettingInput;
+X    GettingInput = 0;		/* avoid re-entrance via SIGWINCH */
+X
+X    /* reset the Vdraw cursor */
+X    vcursor_h = 0;
+X    vcursor_v = 0;
+X
+X    /* draw prompt, we know it's ASCIZ */
+X    for (cp = PromptBuf; *cp; cp++) {
+X	if (*cp & LITERAL) {
+X	    if (litnum < (sizeof(litptr) / sizeof(litptr[0]))) {
+X		litptr[litnum] = cp;
+X#ifdef DEBUG_LITERAL
+X		dprintf("litnum = %d, litptr = %x:\r\n",
+X			litnum, litptr[litnum]);
+X#endif /* DEBUG_LITERAL */
+X	    }
+X	    while (*cp & LITERAL)
+X		cp++;
+X	    if (*cp)
+X		Vdraw(litnum++ | LITERAL);
+X	    else {
+X		/*
+X		 * XXX: This is a bug, we lose the last literal, if it is not
+X		 * followed by a normal character, but it is too hard to fix
+X		 */
+X		break;
+X	    }
+X	}
+X	else
+X	    Draw(*cp);
+X    }
+X    cur_h = -1;			/* set flag in case I'm not set */
+X
+X    /* draw the current input buffer */
+X    for (cp = InputBuf; (cp < LastChar); cp++) {
+X	if (cp == Cursor) {
+X	    cur_h = vcursor_h;	/* save for later */
+X	    cur_v = vcursor_v;
+X	}
+X	Draw(*cp);
+X    }
+X
+X    /* to next line and draw the current search prompt if searching */
+X    if (DoingSearch) {
+X	Vnewline();
+X	for (cp = SearchPrompt; *cp; cp++)
+X	    Draw(*cp);
+X	for (cp = InputBuf; (cp < LastChar); cp++) {
+X	    if (cp == Cursor) {
+X		cur_h = vcursor_h;	/* save for later */
+X		cur_v = vcursor_v;
+X	    }
+X	    Draw(*cp);
+X	}
+X    }
+X
+X    if (cur_h == -1) {		/* if I havn't been set yet, I'm at the end */
+X	cur_h = vcursor_h;
+X	cur_v = vcursor_v;
+X    }
+X    new_vcv = vcursor_v;	/* must be done BEFORE the NUL is written */
+X    Vdraw('\0');		/* put NUL on end */
+X
+X#ifdef DEBUG_REFRESH
+X    dprintf("TermH=%d, vcur_h=%d, vcur_v=%d, Vdisplay[0]=\r\n:%80.80s:\r\n",
+X	    TermH, vcursor_h, vcursor_v, short2str(Vdisplay[0]));
+X#endif /* DEBUG_REFRESH */
+X
+X#ifdef DEBUG_UPDATE
+X    dprintf("updating %d lines.\r\n", new_vcv);
+X#endif  /* DEBUG_UPDATE */
+X    for (cur_line = 0; cur_line <= new_vcv; cur_line++) {
+X	/* NOTE THAT update_line MAY CHANGE Display[cur_line] */
+X	update_line(Display[cur_line], Vdisplay[cur_line], cur_line);
+X
+X	/*
+X	 * Copy the new line to be the current one, and pad out with spaces
+X	 * to the full width of the terminal so that if we try moving the
+X	 * cursor by writing the character that is at the end of the
+X	 * screen line, it won't be a NUL or some old leftover stuff.
+X	 */
+X	cpy_pad_spaces(Display[cur_line], Vdisplay[cur_line], TermH);
+X#ifdef notdef
+X	(void) Strncpy(Display[cur_line], Vdisplay[cur_line], TermH);
+X	Display[cur_line][TermH] = '\0';	/* just in case */
+X#endif
+X    }
+X#ifdef DEBUG_REFRESH
+X    dprintf("\r\nvcursor_v = %d, OldvcV = %d, cur_line = %d\r\n",
+X	    vcursor_v, OldvcV, cur_line);
+X#endif /* DEBUG_REFRESH */
+X    if (OldvcV > new_vcv) {
+X	for (; cur_line <= OldvcV; cur_line++) {
+X	    MoveToLine(cur_line);
+X	    MoveToChar(0);
+X	    ClearEOL(Strlen(Display[cur_line]));
+X#ifdef DEBUG_REFRESH
+X	    so_write(str2short("C\b"), 2);
+X#endif /* DEBUG_REFRESH */
+X	    *Display[cur_line] = '\0';
+X	}
+X    }
+X    OldvcV = new_vcv;		/* set for next time */
+X#ifdef DEBUG_REFRESH
+X    dprintf("\r\nCursorH = %d, CursorV = %d, cur_h = %d, cur_v = %d\r\n",
+X	    CursorH, CursorV, cur_h, cur_v);
+X#endif /* DEBUG_REFRESH */
+X    MoveToLine(cur_v);		/* go to where the cursor is */
+X    MoveToChar(cur_h);
+X    SetAttributes(0);		/* Clear all attributes */
+X    flush();			/* send the output... */
+X    GettingInput = oldgetting;	/* reset to old value */
+X}
+X
+X#ifdef notdef
+GotoBottom()
+X{				/* used to go to last used screen line */
+X    MoveToLine(OldvcV);
+X}
+X
+X#endif 
+X
+void
+PastBottom()
+X{				/* used to go to last used screen line */
+X    MoveToLine(OldvcV);
+X    (void) putraw('\r');
+X    (void) putraw('\n');
+X    ClearDisp();
+X    flush();
+X}
+X
+X
+X/* insert num characters of s into d (in front of the character) at dat,
+X   maximum length of d is dlen */
+static void
+str_insert(d, dat, dlen, s, num)
+X    register Char *d;
+X    register int dat, dlen;
+X    register Char *s;
+X    register int num;
+X{
+X    register Char *a, *b;
+X
+X    if (num <= 0)
+X	return;
+X    if (num > dlen - dat)
+X	num = dlen - dat;
+X
+X#ifdef DEBUG_REFRESH
+X    dprintf("str_insert() starting: %d at %d max %d, d == \"%s\"\n",
+X	    num, dat, dlen, short2str(d));
+X    dprintf("s == \"%s\"n", short2str(s));
+X#endif /* DEBUG_REFRESH */
+X
+X    /* open up the space for num chars */
+X    if (num > 0) {
+X	b = d + dlen - 1;
+X	a = b - num;
+X	while (a >= &d[dat])
+X	    *b-- = *a--;
+X	d[dlen] = '\0';		/* just in case */
+X    }
+X#ifdef DEBUG_REFRESH
+X    dprintf("str_insert() after insert: %d at %d max %d, d == \"%s\"\n",
+X	    num, dat, dlen, short2str(d));
+X    dprintf("s == \"%s\"n", short2str(s));
+X#endif /* DEBUG_REFRESH */
+X
+X    /* copy the characters */
+X    for (a = d + dat; (a < d + dlen) && (num > 0); num--)
+X	*a++ = *s++;
+X
+X#ifdef DEBUG_REFRESH
+X    dprintf("str_insert() after copy: %d at %d max %d, d == \"%s\"\n",
+X	    num, dat, dlen, d, short2str(s));
+X    dprintf("s == \"%s\"n", short2str(s));
+X#endif /* DEBUG_REFRESH */
+X}
+X
+X/* delete num characters d at dat, maximum length of d is dlen */
+static void
+str_delete(d, dat, dlen, num)
+X    register Char *d;
+X    register int dat, dlen, num;
+X{
+X    register Char *a, *b;
+X
+X    if (num <= 0)
+X	return;
+X    if (dat + num >= dlen) {
+X	d[dat] = '\0';
+X	return;
+X    }
+X
+X#ifdef DEBUG_REFRESH
+X    dprintf("str_delete() starting: %d at %d max %d, d == \"%s\"\n",
+X	    num, dat, dlen, short2str(d));
+X#endif /* DEBUG_REFRESH */
+X
+X    /* open up the space for num chars */
+X    if (num > 0) {
+X	b = d + dat;
+X	a = b + num;
+X	while (a < &d[dlen])
+X	    *b++ = *a++;
+X	d[dlen] = '\0';		/* just in case */
+X    }
+X#ifdef DEBUG_REFRESH
+X    dprintf("str_delete() after delete: %d at %d max %d, d == \"%s\"\n",
+X	    num, dat, dlen, short2str(d));
+X#endif /* DEBUG_REFRESH */
+X}
+X
+static void
+str_cp(a, b, n)
+X    register Char *a, *b;
+X    register int n;
+X{
+X    while (n-- && *b)
+X	*a++ = *b++;
+X}
+X
+X
+X
+X/* ****************************************************************
+X    update_line() is based on finding the middle difference of each line
+X    on the screen; vis:
+X
+X			     /old first difference
+X	/beginning of line   |              /old last same       /old EOL
+X	v		     v              v                    v
+old:	eddie> Oh, my little gruntle-buggy is to me, as lurgid as
+new:	eddie> Oh, my little buggy says to me, as lurgid as
+X	^		     ^        ^			   ^
+X	\beginning of line   |        \new last same	   \new end of line
+X			     \new first difference
+X
+X    all are character pointers for the sake of speed.  Special cases for
+X    no differences, as well as for end of line additions must be handled.
+X**************************************************************** */
+X
+X/* Minimum at which doing an insert it "worth it".  This should be about
+X * half the "cost" of going into insert mode, inserting a character, and
+X * going back out.  This should really be calculated from the termcap
+X * data...  For the moment, a good number for ANSI terminals.
+X */
+X#define MIN_END_KEEP	4
+X
+static void			/* could be changed to make it smarter */
+update_line(old, new, cur_line)
+X    register Char *old, *new;
+X    int     cur_line;
+X{
+X    register Char *o, *n, *p, c;
+X    Char   *ofd, *ols, *oe, *nfd, *nls, *ne;
+X    Char   *osb, *ose, *nsb, *nse;
+X    int     fx, sx;
+X
+X    /*
+X     * find first diff
+X     */
+X    for (o = old, n = new; *o && (*o == *n); o++, n++);
+X    ofd = o;
+X    nfd = n;
+X
+X    /*
+X     * Find the end of both old and new
+X     */
+X    while (*o)
+X	o++;
+X    /* 
+X     * Remove any trailing blanks off of the end, being careful not to
+X     * back up past the beginning.
+X     */
+X    while (ofd < o) {
+X	if (o[-1] != ' ')
+X	    break;
+X	o--;
+X    }
+X    oe = o;
+X    *oe = (Char) 0;
+X  
+X    while (*n)
+X	n++;
+X
+X    /* remove blanks from end of new */
+X    while (nfd < n) {
+X	if (n[-1] != ' ')
+X	    break;
+X	n--;
+X    }
+X    ne = n;
+X    *ne = (Char) 0;
+X  
+X    /*
+X     * if no diff, continue to next line of redraw
+X     */
+X    if (*ofd == '\0' && *nfd == '\0') {
+X#ifdef DEBUG_UPDATE
+X	dprintf("no difference.\r\n");
+X#endif /* DEBUG_UPDATE */
+X	return;
+X    }
+X
+X    /*
+X     * find last same pointer
+X     */
+X    while ((o > ofd) && (n > nfd) && (*--o == *--n));
+X    ols = ++o;
+X    nls = ++n;
+X
+X    /*
+X     * find same begining and same end
+X     */
+X    osb = ols;
+X    nsb = nls;
+X    ose = ols;
+X    nse = nls;
+X
+X    /*
+X     * case 1: insert: scan from nfd to nls looking for *ofd
+X     */
+X    if (*ofd) {
+X	for (c = *ofd, n = nfd; n < nls; n++) {
+X	    if (c == *n) {
+X		for (o = ofd, p = n; p < nls && o < ols && *o == *p; o++, p++);
+X		/*
+X		 * if the new match is longer and it's worth keeping, then we
+X		 * take it
+X		 */
+X		if (((nse - nsb) < (p - n)) && (2 * (p - n) > n - nfd)) {
+X		    nsb = n;
+X		    nse = p;
+X		    osb = ofd;
+X		    ose = o;
+X		}
+X	    }
+X	}
+X    }
+X
+X    /*
+X     * case 2: delete: scan from ofd to ols looking for *nfd
+X     */
+X    if (*nfd) {
+X	for (c = *nfd, o = ofd; o < ols; o++) {
+X	    if (c == *o) {
+X		for (n = nfd, p = o; p < ols && n < nls && *p == *n; p++, n++);
+X		/*
+X		 * if the new match is longer and it's worth keeping, then we
+X		 * take it
+X		 */
+X		if (((ose - osb) < (p - o)) && (2 * (p - o) > o - ofd)) {
+X		    nsb = nfd;
+X		    nse = n;
+X		    osb = o;
+X		    ose = p;
+X		}
+X	    }
+X	}
+X    }
+X#ifdef notdef
+X    /*
+X     * If `last same' is before `same end' re-adjust
+X     */
+X    if (ols < ose)
+X	ols = ose;
+X    if (nls < nse)
+X	nls = nse;
+X#endif
+X
+X    /*
+X     * Pragmatics I: If old trailing whitespace or not enough characters to
+X     * save to be worth it, then don't save the last same info.
+X     */
+X    if ((oe - ols) < MIN_END_KEEP) {
+X	ols = oe;
+X	nls = ne;
+X    }
+X
+X    /*
+X     * Pragmatics II: if the terminal isn't smart enough, make the data dumber
+X     * so the smart update doesn't try anything fancy
+X     */
+X
+X    /*
+X     * fx is the number of characters we need to insert/delete: in the
+X     * beginning to bring the two same begins together
+X     */
+X    fx = (nsb - nfd) - (osb - ofd);
+X    /*
+X     * sx is the number of characters we need to insert/delete: in the end to
+X     * bring the two same last parts together
+X     */
+X    sx = (nls - nse) - (ols - ose);
+X
+X    if (!T_CanIns) {
+X	if (fx > 0) {
+X	    osb = ols;
+X	    ose = ols;
+X	    nsb = nls;
+X	    nse = nls;
+X	}
+X	if (sx > 0) {
+X	    ols = oe;
+X	    nls = ne;
+X	}
+X	if ((ols - ofd) < (nls - nfd)) {
+X	    ols = oe;
+X	    nls = ne;
+X	}
+X    }
+X    if (!T_CanDel) {
+X	if (fx < 0) {
+X	    osb = ols;
+X	    ose = ols;
+X	    nsb = nls;
+X	    nse = nls;
+X	}
+X	if (sx < 0) {
+X	    ols = oe;
+X	    nls = ne;
+X	}
+X	if ((ols - ofd) > (nls - nfd)) {
+X	    ols = oe;
+X	    nls = ne;
+X	}
+X    }
+X
+X    /*
+X     * Pragmatics III: make sure the middle shifted pointers are correct if
+X     * they don't point to anything (we may have moved ols or nls).
+X     */
+X    /* if the change isn't worth it, don't bother */
+X    /* was: if (osb == ose) */
+X    if ((ose - osb) < MIN_END_KEEP) {
+X	osb = ols;
+X	ose = ols;
+X	nsb = nls;
+X	nse = nls;
+X    }
+X
+X    /*
+X     * Now that we are done with pragmatics we recompute fx, sx
+X     */
+X    fx = (nsb - nfd) - (osb - ofd);
+X    sx = (nls - nse) - (ols - ose);
+X
+X#ifdef DEBUG_UPDATE
+X    dprintf("\n");
+X    dprintf("ofd %d, osb %d, ose %d, ols %d, oe %d\n",
+X	    ofd - old, osb - old, ose - old, ols - old, oe - old);
+X    dprintf("nfd %d, nsb %d, nse %d, nls %d, ne %d\n",
+X	    nfd - new, nsb - new, nse - new, nls - new, ne - new);
+X    dprintf("xxx-xxx:\"00000000001111111111222222222233333333334\"\r\n");
+X    dprintf("xxx-xxx:\"01234567890123456789012345678901234567890\"\r\n");
+X    dprintstr("old- oe", old, oe);
+X    dprintstr("new- ne", new, ne);
+X    dprintstr("old-ofd", old, ofd);
+X    dprintstr("new-nfd", new, nfd);
+X    dprintstr("ofd-osb", ofd, osb);
+X    dprintstr("nfd-nsb", nfd, nsb);
+X    dprintstr("osb-ose", osb, ose);
+X    dprintstr("nsb-nse", nsb, nse);
+X    dprintstr("ose-ols", ose, ols);
+X    dprintstr("nse-nls", nse, nls);
+X    dprintstr("ols- oe", ols, oe);
+X    dprintstr("nls- ne", nls, ne);
+X#endif /* DEBUG_UPDATE */
+X
+X    /*
+X     * CursorV to this line cur_line MUST be in this routine so that if we
+X     * don't have to change the line, we don't move to it. CursorH to first
+X     * diff char
+X     */
+X    MoveToLine(cur_line);
+X
+X    /*
+X     * at this point we have something like this:
+X     * 
+X     * /old                  /ofd    /osb               /ose    /ols     /oe
+X     * v.....................v       v..................v       v........v
+X     * eddie> Oh, my fredded gruntle-buggy is to me, as foo var lurgid as
+X     * eddie> Oh, my fredded quiux buggy is to me, as gruntle-lurgid as
+X     * ^.....................^     ^..................^       ^........^ 
+X     * \new                  \nfd  \nsb               \nse     \nls    \ne
+X     * 
+X     * fx is the difference in length between the the chars between nfd and
+X     * nsb, and the chars between ofd and osb, and is thus the number of
+X     * characters to delete if < 0 (new is shorter than old, as above),
+X     * or insert (new is longer than short).
+X     *
+X     * sx is the same for the second differences.
+X     */
+X
+X    /*
+X     * if we have a net insert on the first difference, AND inserting the net
+X     * amount ((nsb-nfd) - (osb-ofd)) won't push the last useful character
+X     * (which is ne if nls != ne, otherwise is nse) off the edge of the screen
+X     * (TermH) else we do the deletes first so that we keep everything we need
+X     * to.
+X     */
+X
+X    /*
+X     * if the last same is the same like the end, there is no last same part,
+X     * otherwise we want to keep the last same part set p to the last useful
+X     * old character
+X     */
+X    p = (ols != oe) ? oe : ose;
+X
+X    /*
+X     * if (There is a diffence in the beginning) && (we need to insert
+X     * characters) && (the number of characters to insert is less than the term
+X     * width) We need to do an insert! else if (we need to delete characters)
+X     * We need to delete characters! else No insert or delete
+X     */
+X    if ((nsb != nfd) && fx > 0 && ((p - old) + fx <= TermH)) {
+X#ifdef DEBUG_UPDATE
+X	dprintf("first diff insert at %d...\r\n", nfd - new);
+X#endif  /* DEBUG_UPDATE */
+X	/*
+X	 * Move to the first char to insert, where the first diff is.
+X	 */
+X	MoveToChar(nfd - new);
+X	/*
+X	 * Check if we have stuff to keep at end
+X	 */
+X	if (nsb != ne) {
+X#ifdef DEBUG_UPDATE
+X	    dprintf("with stuff to keep at end\r\n");
+X#endif  /* DEBUG_UPDATE */
+X	    /*
+X	     * insert fx chars of new starting at nfd
+X	     */
+X	    if (fx > 0) {
+X#ifdef DEBUG_UPDATE
+X		if (!T_CanIns)
+X		    dprintf("   ERROR: cannot insert in early first diff\n");
+X#endif  /* DEBUG_UPDATE */
+X		Insert_write(nfd, fx);
+X		str_insert(old, ofd - old, TermH, nfd, fx);
+X	    }
+X	    /*
+X	     * write (nsb-nfd) - fx chars of new starting at (nfd + fx)
+X	     */
+X	    so_write(nfd + fx, (nsb - nfd) - fx);
+X	    str_cp(ofd + fx, nfd + fx, (nsb - nfd) - fx);
+X	}
+X	else {
+X#ifdef DEBUG_UPDATE
+X	    dprintf("without anything to save\r\n");
+X#endif  /* DEBUG_UPDATE */
+X	    so_write(nfd, (nsb - nfd));
+X	    str_cp(ofd, nfd, (nsb - nfd));
+X	    /*
+X	     * Done
+X	     */
+X	    return;
+X	}
+X    }
+X    else if (fx < 0) {
+X#ifdef DEBUG_UPDATE
+X	dprintf("first diff delete at %d...\r\n", ofd - old);
+X#endif  /* DEBUG_UPDATE */
+X	/*
+X	 * move to the first char to delete where the first diff is
+X	 */
+X	MoveToChar(ofd - old);
+X	/*
+X	 * Check if we have stuff to save
+X	 */
+X	if (osb != oe) {
+X#ifdef DEBUG_UPDATE
+X	    dprintf("with stuff to save at end\r\n");
+X#endif  /* DEBUG_UPDATE */
+X	    /*
+X	     * fx is less than zero *always* here but we check for code
+X	     * symmetry
+X	     */
+X	    if (fx < 0) {
+X#ifdef DEBUG_UPDATE
+X		if (!T_CanDel)
+X		    dprintf("   ERROR: cannot delete in first diff\n");
+X#endif /* DEBUG_UPDATE */
+X		DeleteChars(-fx);
+X		str_delete(old, ofd - old, TermH, -fx);
+X	    }
+X	    /*
+X	     * write (nsb-nfd) chars of new starting at nfd
+X	     */
+X	    so_write(nfd, (nsb - nfd));
+X	    str_cp(ofd, nfd, (nsb - nfd));
+X
+X	}
+X	else {
+X#ifdef DEBUG_UPDATE
+X	    dprintf("but with nothing left to save\r\n");
+X#endif  /* DEBUG_UPDATE */
+X	    /*
+X	     * write (nsb-nfd) chars of new starting at nfd
+X	     */
+X	    so_write(nfd, (nsb - nfd));
+X#ifdef DEBUG_REFRESH
+X	    dprintf("cleareol %d\n", (oe - old) - (ne - new));
+X#endif  /* DEBUG_UPDATE */
+X	    ClearEOL((oe - old) - (ne - new));
+X	    /*
+X	     * Done
+X	     */
+X	    return;
+X	}
+X    }
+X    else
+X	fx = 0;
+X
+X    if (sx < 0) {
+X#ifdef DEBUG_UPDATE
+X	dprintf("second diff delete at %d...\r\n", (ose - old) + fx);
+X#endif  /* DEBUG_UPDATE */
+X	/*
+X	 * Check if we have stuff to delete
+X	 */
+X	/*
+X	 * fx is the number of characters inserted (+) or deleted (-)
+X	 */
+X
+X	MoveToChar((ose - old) + fx);
+X	/*
+X	 * Check if we have stuff to save
+X	 */
+X	if (ols != oe) {
+X#ifdef DEBUG_UPDATE
+X	    dprintf("with stuff to save at end\r\n");
+X#endif  /* DEBUG_UPDATE */
+X	    /*
+X	     * Again a duplicate test.
+X	     */
+X	    if (sx < 0) {
+X#ifdef DEBUG_UPDATE
+X		if (!T_CanDel)
+X		    dprintf("   ERROR: cannot delete in second diff\n");
+X#endif  /* DEBUG_UPDATE */
+X		DeleteChars(-sx);
+X	    }
+X
+X	    /*
+X	     * write (nls-nse) chars of new starting at nse
+X	     */
+X	    so_write(nse, (nls - nse));
+X	}
+X	else {
+X#ifdef DEBUG_UPDATE
+X	    dprintf("but with nothing left to save\r\n");
+X#endif /* DEBUG_UPDATE */
+X	    so_write(nse, (nls - nse));
+X#ifdef DEBUG_REFRESH
+X	    dprintf("cleareol %d\n", (oe - old) - (ne - new));
+X#endif /* DEBUG_UPDATE */
+X	    ClearEOL((oe - old) - (ne - new));
+X	}
+X    }
+X
+X    /*
+X     * if we have a first insert AND WE HAVEN'T ALREADY DONE IT...
+X     */
+X    if ((nsb != nfd) && (osb - ofd) <= (nsb - nfd) && (fx == 0)) {
+X#ifdef DEBUG_UPDATE
+X	dprintf("late first diff insert at %d...\r\n", nfd - new);
+X#endif /* DEBUG_UPDATE */
+X
+X	MoveToChar(nfd - new);
+X	/*
+X	 * Check if we have stuff to keep at the end
+X	 */
+X	if (nsb != ne) {
+X#ifdef DEBUG_UPDATE
+X	    dprintf("with stuff to keep at end\r\n");
+X#endif /* DEBUG_UPDATE */
+X	    /* 
+X	     * We have to recalculate fx here because we set it
+X	     * to zero above as a flag saying that we hadn't done
+X	     * an early first insert.
+X	     */
+X	    fx = (nsb - nfd) - (osb - ofd);
+X	    if (fx > 0) {
+X		/*
+X		 * insert fx chars of new starting at nfd
+X		 */
+X#ifdef DEBUG_UPDATE
+X		if (!T_CanIns)
+X		    dprintf("   ERROR: cannot insert in late first diff\n");
+X#endif /* DEBUG_UPDATE */
+X		Insert_write(nfd, fx);
+X		str_insert(old, ofd - old, TermH, nfd, fx);
+X	    }
+X
+X	    /*
+X	     * write (nsb-nfd) - fx chars of new starting at (nfd + fx)
+X	     */
+X	    so_write(nfd + fx, (nsb - nfd) - fx);
+X	    str_cp(ofd + fx, nfd + fx, (nsb - nfd) - fx);
+X	}
+X	else {
+X#ifdef DEBUG_UPDATE
+X	    dprintf("without anything to save\r\n");
+X#endif /* DEBUG_UPDATE */
+X	    so_write(nfd, (nsb - nfd));
+X	    str_cp(ofd, nfd, (nsb - nfd));
+X	}
+X    }
+X
+X    /*
+X     * line is now NEW up to nse
+X     */
+X    if (sx >= 0) {
+X#ifdef DEBUG_UPDATE
+X	dprintf("second diff insert at %d...\r\n", nse - new);
+X#endif /* DEBUG_UPDATE */
+X	MoveToChar(nse - new);
+X	if (ols != oe) {
+X#ifdef DEBUG_UPDATE
+X	    dprintf("with stuff to keep at end\r\n");
+X#endif /* DEBUG_UPDATE */
+X	    if (sx > 0) {
+X		/* insert sx chars of new starting at nse */
+X#ifdef DEBUG_UPDATE
+X		if (!T_CanIns)
+X		    dprintf("   ERROR: cannot insert in second diff\n");
+X#endif /* DEBUG_UPDATE */
+X		Insert_write(nse, sx);
+X	    }
+X
+X	    /*
+X	     * write (nls-nse) - sx chars of new starting at (nse + sx)
+X	     */
+X	    so_write(nse + sx, (nls - nse) - sx);
+X	}
+X	else {
+X#ifdef DEBUG_UPDATE
+X	    dprintf("without anything to save\r\n");
+X#endif /* DEBUG_UPDATE */
+X	    so_write(nse, (nls - nse));
+X
+X	    /*
+X             * No need to do a clear-to-end here because we were doing
+X	     * a second insert, so we will have over written all of the
+X	     * old string.
+X	     */
+X	}
+X    }
+X#ifdef DEBUG_UPDATE
+X    dprintf("done.\r\n");
+X#endif /* DEBUG_UPDATE */
+X}
+X
+X
+static void
+cpy_pad_spaces(dst, src, width)
+X    register Char *dst, *src;
+X    register int width;
+X{
+X    register int i;
+X
+X    for (i = 0; i < width; i++) {
+X	if (*src == (Char) 0)
+X	    break;
+X	*dst++ = *src++;
+X    }
+X
+X    while (i < width) {
+X	*dst++ = ' ';
+X	i++;
+X    }
+X    *dst = (Char) 0;
+X}
+X
+void
+RefCursor()
+X{				/* only move to new cursor pos */
+X    register Char *cp, c;
+X    register int h, th, v;
+X
+X    if (DoingSearch) {
+X	Refresh();
+X	return;
+X    }
+X
+X    /* first we must find where the cursor is... */
+X    h = 0;
+X    v = 0;
+X    th = TermH;			/* optimize for speed */
+X
+X    for (cp = PromptBuf; *cp; cp++) {	/* do prompt */
+X	if (*cp & LITERAL)
+X	    continue;
+X	c = *cp & CHAR;		/* extra speed plus strip the inverse */
+X	h++;			/* all chars at least this long */
+X
+X	/* from wolman%crltrx.DEC@decwrl.dec.com (Alec Wolman) */
+X	/* lets handle newline as part of the prompt */
+X
+X	if (c == '\n') {
+X	    h = 0;
+X	    v++;
+X	}
+X	else {
+X	    if (c == '\t') {	/* if a tab, to next tab stop */
+X		while (h & 07) {
+X		    h++;
+X		}
+X	    }
+X	    else if (Iscntrl(c)) {	/* if control char */
+X		h++;
+X		if (h > th) {	/* if overflow, compensate */
+X		    h = 1;
+X		    v++;
+X		}
+X	    }
+X	    else if (!Isprint(c)) {
+X		h += 3;
+X		if (h > th) {	/* if overflow, compensate */
+X		    h = h - th;
+X		    v++;
+X		}
+X	    }
+X	}
+X
+X	if (h >= th) {		/* check, extra long tabs picked up here also */
+X	    h = 0;
+X	    v++;
+X	}
+X    }
+X
+X    for (cp = InputBuf; cp < Cursor; cp++) {	/* do input buffer to Cursor */
+X	c = *cp & CHAR;		/* extra speed plus strip the inverse */
+X	h++;			/* all chars at least this long */
+X
+X	if (c == '\n') {	/* handle newline in data part too */
+X	    h = 0;
+X	    v++;
+X	}
+X	else {
+X	    if (c == '\t') {	/* if a tab, to next tab stop */
+X		while (h & 07) {
+X		    h++;
+X		}
+X	    }
+X	    else if (Iscntrl(c)) {	/* if control char */
+X		h++;
+X		if (h > th) {	/* if overflow, compensate */
+X		    h = 1;
+X		    v++;
+X		}
+X	    }
+X	    else if (!Isprint(c)) {
+X		h += 3;
+X		if (h > th) {	/* if overflow, compensate */
+X		    h = h - th;
+X		    v++;
+X		}
+X	    }
+X	}
+X
+X	if (h >= th) {		/* check, extra long tabs picked up here also */
+X	    h = 0;
+X	    v++;
+X	}
+X    }
+X
+X    /* now go there */
+X    MoveToLine(v);
+X    MoveToChar(h);
+X    flush();
+X}
+X
+static void
+PutPlusOne(c)
+X    int    c;
+X{
+X    (void) putraw(c);
+X    Display[CursorV][CursorH++] = c;
+X    if (CursorH >= TermH) {	/* if we must overflow */
+X	CursorH = 0;
+X	CursorV++;
+X	OldvcV++;
+X	(void) putraw('\r');
+X	(void) putraw('\n');
+X    }
+X}
+X
+void
+RefPlusOne()
+X{				/* we added just one char, handle it fast *//* a
+X				 * ssumes that screen cursor == real cursor */
+X    register Char c, mc;
+X
+X    c = Cursor[-1] & CHAR;	/* the char we just added */
+X
+X    if (c == '\t' || Cursor != LastChar) {
+X	Refresh();		/* too hard to handle */
+X	return;
+X    }				/* else (only do at end of line, no TAB) */
+X
+X    if (DoingSearch) {
+X	Refresh();
+X	return;
+X    }
+X
+X    if (Iscntrl(c)) {		/* if control char, do caret */
+X	mc = (c == '\177') ? '?' : (c | 0100);
+X	PutPlusOne('^');
+X	PutPlusOne(mc);
+X    }
+X    else if (Isprint(c)) {	/* normal char */
+X	PutPlusOne(c);
+X    }
+X    else {
+X	PutPlusOne('\\');
+X	PutPlusOne(((c >> 6) & 7) + '0');
+X	PutPlusOne(((c >> 3) & 7) + '0');
+X	PutPlusOne((c & 7) + '0');
+X    }
+X    flush();
+X}
+X
+X/* clear the screen buffers so that new new prompt starts fresh. */
+X
+void
+ClearDisp()
+X{
+X    register int i;
+X
+X    CursorV = 0;		/* clear the display buffer */
+X    CursorH = 0;
+X    for (i = 0; i < TermV; i++)
+X	Display[i][0] = '\0';
+X    OldvcV = 0;
+X}
+X
+void
+ClearLines()
+X{				/* Make sure all lines are *really* blank */
+X    register int i;
+X
+X    if (T_CanCEOL) {
+X	MoveToChar(0);
+X	for (i = 0; i <= OldvcV; i++) {	/* for each line on the screen */
+X	    MoveToLine(i);
+X	    ClearEOL(TermH);
+X	}
+X	MoveToLine(0);
+X    }
+X    else {
+X	MoveToLine(OldvcV);	/* go to last line */
+X	(void) putraw('\r');	/* go to BOL */
+X	(void) putraw('\n');	/* go to new line */
+X    }
+X}
+END_OF_FILE
+if test 29240 -ne `wc -c <'ed.refresh.c'`; then
+    echo shar: \"'ed.refresh.c'\" unpacked with wrong size!
+fi
+# end of 'ed.refresh.c'
+fi
+if test -f 'ed.screen.c' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'ed.screen.c'\"
+else
+echo shar: Extracting \"'ed.screen.c'\" \(30015 characters\)
+sed "s/^X//" >'ed.screen.c' <<'END_OF_FILE'
+X/* $Header: /home/hyperion/mu/christos/src/sys/tcsh-6.01/RCS/ed.screen.c,v 3.11 1991/12/19 22:34:14 christos Exp $ */
+X/*
+X * ed.screen.c: Editor/termcap-curses interface
+X */
+X/*-
+X * Copyright (c) 1980, 1991 The Regents of the University of California.
+X * All rights reserved.
+X *
+X * Redistribution and use in source and binary forms, with or without
+X * modification, are permitted provided that the following conditions
+X * are met:
+X * 1. Redistributions of source code must retain the above copyright
+X *    notice, this list of conditions and the following disclaimer.
+X * 2. Redistributions in binary form must reproduce the above copyright
+X *    notice, this list of conditions and the following disclaimer in the
+X *    documentation and/or other materials provided with the distribution.
+X * 3. All advertising materials mentioning features or use of this software
+X *    must display the following acknowledgement:
+X *	This product includes software developed by the University of
+X *	California, Berkeley and its contributors.
+X * 4. Neither the name of the University nor the names of its contributors
+X *    may be used to endorse or promote products derived from this software
+X *    without specific prior written permission.
+X *
+X * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+X * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+X * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+X * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+X * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+X * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+X * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+X * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+X * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+X * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+X * SUCH DAMAGE.
+X */
+X#include "sh.h"
+X
+RCSID("$Id: ed.screen.c,v 3.11 1991/12/19 22:34:14 christos Exp $")
+X
+X#include "ed.h"
+X#include "tc.h"
+X#include "ed.defns.h"
+X
+X/*
+X * We don't prototype these, cause some systems have them wrong!
+X */
+extern char *tgoto();
+extern char *tgetstr();
+extern char *tputs();
+extern int tgetent();
+extern int tgetflag();
+extern int tgetnum();
+X
+X
+X/* #define DEBUG_LITERAL */
+X
+X/*
+X * IMPORTANT NOTE: these routines are allowed to look at the current screen
+X * and the current possition assuming that it is correct.  If this is not
+X * true, then the update will be WRONG!  This is (should be) a valid
+X * assumption...
+X */
+X
+X#define TC_BUFSIZE 2048
+X
+X#define GoodStr(a) (tstr[a].str != NULL && tstr[a].str[0] != '\0')
+X#define Str(a) tstr[a].str
+X#define Val(a) tval[a].val
+X
+static struct {
+X    char   *b_name;
+X    int     b_rate;
+X}       baud_rate[] = {
+X
+X#ifdef B0
+X    { "0", B0 },
+X#endif
+X#ifdef B50
+X    { "50", B50 },
+X#endif
+X#ifdef B75
+X    { "75", B75 },
+X#endif
+X#ifdef B110
+X    { "110", B110 },
+X#endif
+X#ifdef B134
+X    { "134", B134 },
+X#endif
+X#ifdef B150
+X    { "150", B150 },
+X#endif
+X#ifdef B200
+X    { "200", B200 },
+X#endif
+X#ifdef B300
+X    { "300", B300 },
+X#endif
+X#ifdef B600
+X    { "600", B600 },
+X#endif
+X#ifdef B900
+X    { "900", B900 },
+X#endif
+X#ifdef B1200
+X    { "1200", B1200 },
+X#endif
+X#ifdef B1800
+X    { "1800", B1800 },
+X#endif
+X#ifdef B2400
+X    { "2400", B2400 },
+X#endif
+X#ifdef B3600
+X    { "3600", B3600 },
+X#endif
+X#ifdef B4800
+X    { "4800", B4800 },
+X#endif
+X#ifdef B7200
+X    { "7200", B7200 },
+X#endif
+X#ifdef B9600
+X    { "9600", B9600 },
+X#endif
+X#ifdef EXTA
+X    { "19200", EXTA },
+X#endif
+X#ifdef B19200
+X    { "19200", B19200 },
+X#endif
+X#ifdef EXTB
+X    { "38400", EXTB },
+X#endif
+X#ifdef B38400
+X    { "38400", B38400 },
+X#endif
+X    { NULL, 0 }
+X};
+X
+static struct termcapstr {
+X    char   *name;
+X    char   *long_name;
+X    char   *str;
+X}       tstr[] = {
+X
+X#define T_al	0
+X    {	"al",	"add new blank line",		NULL },
+X#define T_bl	1
+X    {	"bl",	"audible bell",			NULL },
+X#define T_cd	2
+X    {	"cd",	"clear to bottom",		NULL },
+X#define T_ce	3
+X    {	"ce",	"clear to end of line",		NULL },
+X#define T_ch	4
+X    {	"ch",	"cursor to horiz pos",		NULL },
+X#define T_cl	5
+X    {	"cl",	"clear screen",			NULL },
+X#define	T_dc	6
+X    {	"dc",	"delete a character",		NULL },
+X#define	T_dl	7
+X    {	"dl",	"delete a line",		NULL },
+X#define	T_dm	8
+X    {	"dm",	"start delete mode",		NULL },
+X#define	T_ed	9
+X    {	"ed",	"end delete mode",		NULL },
+X#define	T_ei	10
+X    {	"ei",	"end insert mode",		NULL },
+X#define	T_fs	11
+X    {	"fs",	"cursor from status line",	NULL },
+X#define	T_ho	12
+X    {	"ho",	"home cursor",			NULL },
+X#define	T_ic	13
+X    {	"ic",	"insert character",		NULL },
+X#define	T_im	14 
+X    {	"im",	"start insert mode",		NULL },
+X#define	T_ip	15
+X    {	"ip",	"insert padding",		NULL },
+X#define	T_kd	16
+X    {	"kd",	"sends cursor down",		NULL },
+X#define	T_kl	17
+X    {	"kl",	"sends cursor left",		NULL },
+X#define T_kr	18
+X    {	"kr",	"sends cursor right",		NULL },
+X#define T_ku	19
+X    {	"ku",	"sends cursor up",		NULL },
+X#define T_md	20
+X    {	"md",	"begin bold",			NULL },
+X#define T_me	21
+X    {	"me",	"end attributes",		NULL },
+X#define T_nd	22
+X    {	"nd",	"non destructive space",	NULL },
+X#define T_se	23
+X    {	"se",	"end standout",			NULL },
+X#define T_so	24
+X    {	"so",	"begin standout",		NULL },
+X#define T_ts	25
+X    {	"ts",	"cursor to status line",	NULL },
+X#define T_up	26
+X    {	"up",	"cursor up one",		NULL },
+X#define T_us	27
+X    {	"us",	"begin underline",		NULL },
+X#define T_ue	28
+X    {	"ue",	"end underline",		NULL },
+X#define T_vb	29
+X    {	"vb",	"visible bell",			NULL },
+X#define T_DC	30
+X    {	"DC",	"delete multiple chars",	NULL },
+X#define T_DO	31
+X    {	"DO",	"cursor down multiple",		NULL },
+X#define T_IC	32
+X    {	"IC",	"insert multiple chars",	NULL },
+X#define T_LE	33
+X    {	"LE",	"cursor left multiple",		NULL },
+X#define T_RI	34
+X    {	"RI",	"cursor right multiple",	NULL },
+X#define T_UP	35
+X    {	"UP",	"cursor up multiple",		NULL },
+X#define T_str	36
+X    {	NULL,	NULL,		NULL }
+X};
+X
+static struct termcapval {
+X    char   *name;
+X    char   *long_name;
+X    int     val;
+X}       tval[] = {
+X#define T_pt	0
+X    {	"pt",	"can use physical tabs", 0 },
+X#define T_li	1
+X    {	"li",	"Number of lines",	 0 },
+X#define T_co	2
+X    {	"co",	"Number of columns",	 0 },
+X#define T_km	3
+X    {	"km",	"Has meta key",		 0 },
+X#define T_val	4
+X    {	NULL, NULL,		 0 }
+X};
+X
+static bool me_all = 0;		/* does two or more of the attributes use me */
+X
+static	void	ReBufferDisplay	__P((void));
+static	void	TCalloc		__P((struct termcapstr *, char *)); 
+X
+X
+static void
+TCalloc(t, cap)
+X    struct termcapstr *t;
+X    char   *cap;
+X{
+X    static char termcap_alloc[TC_BUFSIZE];
+X    char    termbuf[TC_BUFSIZE];
+X    struct termcapstr *ts;
+X    static int tloc = 0;
+X    int     tlen, clen;
+X
+X    if (cap == NULL || *cap == '\0') {
+X	t->str = NULL;
+X	return;
+X    }
+X    else
+X	clen = strlen(cap);
+X
+X    if (t->str == NULL)
+X	tlen = 0;
+X    else
+X	tlen = strlen(t->str);
+X
+X    /*
+X     * New string is shorter; no need to allocate space
+X     */
+X    if (clen <= tlen) {
+X	(void) strcpy(t->str, cap);
+X	return;
+X    }
+X
+X    /*
+X     * New string is longer; see if we have enough space to append
+X     */
+X    if (tloc + 3 < TC_BUFSIZE) {
+X	(void) strcpy(t->str = &termcap_alloc[tloc], cap);
+X	tloc += clen + 1;	/* one for \0 */
+X	return;
+X    }
+X
+X    /*
+X     * Compact our buffer; no need to check compaction, cause we know it
+X     * fits...
+X     */
+X    tlen = 0;
+X    for (ts = tstr; ts->name != NULL; ts++)
+X	if (t != ts && ts->str != NULL && ts->str[0] != '\0') {
+X	    char   *ptr;
+X
+X	    for (ptr = ts->str; *ptr != '\0'; termbuf[tlen++] = *ptr++);
+X	    termbuf[tlen++] = '\0';
+X	}
+X    copy(termcap_alloc, termbuf, TC_BUFSIZE);
+X    tloc = tlen;
+X    if (tloc + 3 >= TC_BUFSIZE) {
+X	stderror(ERR_NAME | ERR_TCNOSTR);
+X	return;
+X    }
+X    (void) strcpy(t->str = &termcap_alloc[tloc], cap);
+X    tloc += clen + 1;		/* one for \0 */
+X    return;
+X}
+X
+X
+X/*ARGSUSED*/
+void
+TellTC(what)
+X    char   *what;
+X{
+X    struct termcapstr *t;
+X
+X    xprintf("\n\tTcsh thinks your terminal has the\n");
+X    xprintf("\tfollowing characteristics:\n\n");
+X    xprintf("\tIt has %d columns and %d lines\n",
+X	    Val(T_co), Val(T_li));
+X    xprintf("\tIt has %s meta key\n", T_HasMeta ? "a" : "no");
+X    xprintf("\tIt can%suse tabs\n", T_Tabs ? " " : "not ");
+X
+X    for (t = tstr; t->name != NULL; t++)
+X	xprintf("\t%25s (%s) == %s\n", t->long_name, t->name,
+X		t->str && *t->str ? t->str : "(empty)");
+X    xprintf("\n");
+X}
+X
+X
+static void
+ReBufferDisplay()
+X{
+X    register int i;
+X    Char  **b;
+X    Char  **bufp;
+X
+X    b = Display;
+X    Display = NULL;
+X    if (b != NULL) {
+X	for (bufp = b; *bufp != NULL; bufp++)
+X	    xfree((ptr_t) * bufp);
+X	xfree((ptr_t) b);
+X    }
+X    b = Vdisplay;
+X    Vdisplay = NULL;
+X    if (b != NULL) {
+X	for (bufp = b; *bufp != NULL; bufp++)
+X	    xfree((ptr_t) * bufp);
+X	xfree((ptr_t) b);
+X    }
+X    /* make this public, -1 to avoid wraps */
+X    TermH = Val(T_co) - 1;
+X    TermV = (INBUFSIZE * 4) / TermH + 1;
+X    b = (Char **) xmalloc((size_t) (sizeof(Char *) * (TermV + 1)));
+X    for (i = 0; i < TermV; i++)
+X	b[i] = (Char *) xmalloc((size_t) (sizeof(Char) * (TermH + 1)));
+X    b[TermV] = NULL;
+X    Display = b;
+X    b = (Char **) xmalloc((size_t) (sizeof(Char *) * (TermV + 1)));
+X    for (i = 0; i < TermV; i++)
+X	b[i] = (Char *) xmalloc((size_t) (sizeof(Char) * (TermH + 1)));
+X    b[TermV] = NULL;
+X    Vdisplay = b;
+X}
+X
+void
+SetTC(what, how)
+X    char   *what, *how;
+X{
+X    struct termcapstr *ts;
+X    struct termcapval *tv;
+X
+X    /*
+X     * Do the strings first
+X     */
+X    setname("settc");
+X    for (ts = tstr; ts->name != NULL; ts++)
+X	if (strcmp(ts->name, what) == 0)
+X	    break;
+X    if (ts->name != NULL) {
+X	TCalloc(ts, how);
+X	/*
+X	 * Reset variables
+X	 */
+X	if (GoodStr(T_me) && GoodStr(T_ue))
+X	    me_all = (strcmp(Str(T_me), Str(T_ue)) == 0);
+X	else
+X	    me_all = 0;
+X	if (GoodStr(T_me) && GoodStr(T_se))
+X	    me_all |= (strcmp(Str(T_me), Str(T_se)) == 0);
+X
+X	T_CanCEOL = GoodStr(T_ce);
+X	T_CanDel = GoodStr(T_dc) || GoodStr(T_DC);
+X	T_CanIns = GoodStr(T_im) || GoodStr(T_ic) || GoodStr(T_IC);
+X	T_CanUP = GoodStr(T_up) || GoodStr(T_UP);
+X	return;
+X    }
+X
+X    /*
+X     * Do the numeric ones second
+X     */
+X    for (tv = tval; tv->name != NULL; tv++)
+X	if (strcmp(tv->name, what) == 0)
+X	    break;
+X
+X    if (tv->name != NULL) {
+X	if (tv == &tval[T_pt] || tv == &tval[T_km]) {
+X	    if (strcmp(how, "yes") == 0)
+X		tv->val = 1;
+X	    else if (strcmp(how, "no") == 0)
+X		tv->val = 0;
+X	    else {
+X		stderror(ERR_SETTCUS, tv->name);
+X		return;
+X	    }
+X	    T_Tabs = Val(T_pt);
+X	    T_HasMeta = Val(T_km);
+X	    return;
+X	}
+X	else {
+X	    tv->val = atoi(how);
+X	    T_Cols = Val(T_co);
+X	    T_Lines = Val(T_li);
+X	    if (tv == &tval[T_co] || tv == &tval[T_li])
+X		ChangeSize(Val(T_li), Val(T_co));
+X	    return;
+X	}
+X    }
+X    stderror(ERR_NAME | ERR_TCCAP, what);
+X    return;
+X}
+X
+X
+X/*
+X * Print the termcap string out with variable substitution
+X */
+void
+XEchoTC(v)
+X    Char  **v;
+X{
+X    char   *cap, *scap, cv[BUFSIZE];
+X    int     arg_need, arg_cols, arg_rows;
+X    int     verbose = 0, silent = 0;
+X    char   *area;
+X    static char *fmts = "%s\n", *fmtd = "%d\n";
+X    char    buf[TC_BUFSIZE];
+X
+X    area = buf;
+X
+X    setname("echotc");
+X
+X    tglob(v);
+X    if (gflag) {
+X	v = globall(v);
+X	if (v == 0)
+X	    stderror(ERR_NAME | ERR_NOMATCH);
+X    }
+X    else
+X	v = gargv = saveblk(v);
+X    trim(v);
+X
+X    if (!*v || *v[0] == '\0')
+X	return;
+X    if (v[0][0] == '-') {
+X	switch (v[0][1]) {
+X	case 'v':
+X	    verbose = 1;
+X	    break;
+X	case 's':
+X	    silent = 1;
+X	    break;
+X	default:
+X	    stderror(ERR_NAME | ERR_TCUSAGE);
+X	    break;
+X	}
+X	v++;
+X    }
+X    if (!*v || *v[0] == '\0')
+X	return;
+X    (void) strcpy(cv, short2str(*v));
+X    if (strcmp(cv, "tabs") == 0) {
+X	xprintf(fmts, T_Tabs ? "yes" : "no");
+X	flush();
+X	return;
+X    }
+X    else if (strcmp(cv, "meta") == 0) {
+X	xprintf(fmts, Val(T_km) ? "yes" : "no");
+X	flush();
+X	return;
+X    }
+X    else if (strcmp(cv, "baud") == 0) {
+X	int     i;
+X
+X	for (i = 0; baud_rate[i].b_name != NULL; i++)
+X	    if (T_Speed == baud_rate[i].b_rate) {
+X		xprintf(fmts, baud_rate[i].b_name);
+X		flush();
+X		return;
+X	    }
+X	xprintf(fmtd, 0);
+X	flush();
+X	return;
+X    }
+X    else if (strcmp(cv, "rows") == 0 || strcmp(cv, "lines") == 0) {
+X	xprintf(fmtd, Val(T_li));
+X	flush();
+X	return;
+X    }
+X    else if (strcmp(cv, "cols") == 0) {
+X	xprintf(fmtd, Val(T_co));
+X	flush();
+X	return;
+X    }
+X
+X    /*
+X     * Count home many values we need for this capability.
+X     */
+X    scap = tgetstr(cv, &area);
+X    if (!scap || scap[0] == '\0') {
+X	if (silent)
+X	    return;
+X	else
+X	    stderror(ERR_NAME | ERR_TCCAP, cv);
+X    }
+X
+X    for (cap = scap, arg_need = 0; *cap; cap++)
+X	if (*cap == '%')
+X	    switch (*++cap) {
+X	    case 'd':
+X	    case '2':
+X	    case '3':
+X	    case '.':
+X	    case '+':
+X		arg_need++;
+X		break;
+X	    case '%':
+X	    case '>':
+X	    case 'i':
+X	    case 'r':
+X	    case 'n':
+X	    case 'B':
+X	    case 'D':
+X		break;
+X	    default:
+X		/*
+X		 * hpux has lot's of them...
+X		 */
+X		if (verbose)
+X		    stderror(ERR_NAME | ERR_TCPARM, *cap);
+X		/* This is bad, but I won't complain */
+X		break;
+X	    }
+X
+X    switch (arg_need) {
+X    case 0:
+X	v++;
+X	if (*v && *v[0]) {
+X	    if (silent)
+X		return;
+X	    else
+X		stderror(ERR_NAME | ERR_TCARGS, cv, arg_need);
+X	}
+X	(void) tputs(scap, 1, putraw);
+X	break;
+X    case 1:
+X	v++;
+X	if (!*v || *v[0] == '\0')
+X	    stderror(ERR_NAME | ERR_TCNARGS, cv, 1);
+X	arg_rows = 0;
+X	arg_cols = atoi(short2str(*v));
+X	v++;
+X	if (*v && *v[0]) {
+X	    if (silent)
+X		return;
+X	    else
+X		stderror(ERR_NAME | ERR_TCARGS, cv, arg_need);
+X	}
+X	(void) tputs(tgoto(scap, arg_cols, arg_rows), 1, putraw);
+X	break;
+X    default:
+X	/* This is wrong, but I will ignore it... */
+X	if (verbose)
+X	    stderror(ERR_NAME | ERR_TCARGS, cv, arg_need);
+X    case 2:
+X	v++;
+X	if (!*v || *v[0] == '\0') {
+X	    if (silent)
+X		return;
+X	    else
+X		stderror(ERR_NAME | ERR_TCNARGS, cv, 2);
+X	}
+X	arg_cols = atoi(short2str(*v));
+X	v++;
+X	if (!*v || *v[0] == '\0') {
+X	    if (silent)
+X		return;
+X	    else
+X		stderror(ERR_NAME | ERR_TCNARGS, cv, 2);
+X	}
+X	arg_rows = atoi(short2str(*v));
+X	v++;
+X	if (*v && *v[0]) {
+X	    if (silent)
+X		return;
+X	    else
+X		stderror(ERR_NAME | ERR_TCARGS, cv, arg_need);
+X	}
+X	(void) tputs(tgoto(scap, arg_cols, arg_rows), arg_rows, putraw);
+X	break;
+X    }
+X    flush();
+X    if (gargv) {
+X	blkfree(gargv);
+X	gargv = 0;
+X    }
+X}
+X
+bool    GotTermCaps = 0;
+X
+void
+BindArrowKeys()
+X{
+X    KEYCMD *map, *dmap;
+X    int     i, j;
+X    char   *p;
+X    static struct {
+X	int     key, fun;
+X    }       ar[] =
+X    {
+X	{ T_kd, F_DOWN_HIST },
+X	{ T_ku, F_UP_HIST   },
+X	{ T_kl, F_CHARBACK  },
+X	{ T_kr, F_CHARFWD   }
+X    };
+X
+X    if (!GotTermCaps)
+X	return;
+X    map = VImode ? CcAltMap : CcKeyMap;
+X    dmap = VImode ? CcViCmdMap : CcEmacsMap;
+X
+X    for (i = 0; i < 4; i++) {
+X	p = tstr[ar[i].key].str;
+X	if (p && *p) {
+X	    j = (unsigned char) *p;
+X	    /*
+X	     * Assign the arrow keys only if:
+X	     *
+X	     * 1. They are multi-character arrow keys and the user 
+X	     *    has not re-assigned the leading character, or 
+X	     *    has re-assigned the leading character to be F_XKEY
+X	     * 2. They are single arrow keys pointing to an unassigned key.
+X	     */
+X	    if (p[1] && (dmap[j] == map[j] || map[j] == F_XKEY)) {
+X		AddXkey(str2short(p), XmapCmd(ar[i].fun), XK_CMD);
+X		map[j] = F_XKEY;
+X	    }
+X	    else if (map[j] == F_UNASSIGNED) {
+X		ClearXkey(map, str2short(p));
+X		map[j] = ar[i].fun;
+X	    }
+X	}
+X    }
+X}
+X
+static Char cur_atr = 0;	/* current attributes */
+X
+void
+SetAttributes(atr)
+X    int     atr;
+X{
+X    atr &= ATTRIBUTES;
+X    if (atr != cur_atr) {
+X	if (me_all && GoodStr(T_me)) {
+X	    if (((cur_atr & BOLD) && !(atr & BOLD)) ||
+X		((cur_atr & UNDER) && !(atr & UNDER)) ||
+X		((cur_atr & STANDOUT) && !(atr & STANDOUT))) {
+X		(void) tputs(Str(T_me), 1, putpure);
+X		cur_atr = 0;
+X	    }
+X	}
+X	if ((atr & BOLD) != (cur_atr & BOLD)) {
+X	    if (atr & BOLD) {
+X		if (GoodStr(T_md) && GoodStr(T_me)) {
+X		    (void) tputs(Str(T_md), 1, putpure);
+X		    cur_atr |= BOLD;
+X		}
+X	    }
+X	    else {
+X		if (GoodStr(T_md) && GoodStr(T_me)) {
+X		    (void) tputs(Str(T_me), 1, putpure);
+X		    if ((cur_atr & STANDOUT) && GoodStr(T_se)) {
+X			(void) tputs(Str(T_se), 1, putpure);
+X			cur_atr &= ~STANDOUT;
+X		    }
+X		    if ((cur_atr & UNDER) && GoodStr(T_ue)) {
+X			(void) tputs(Str(T_ue), 1, putpure);
+X			cur_atr &= ~UNDER;
+X		    }
+X		    cur_atr &= ~BOLD;
+X		}
+X	    }
+X	}
+X	if ((atr & STANDOUT) != (cur_atr & STANDOUT)) {
+X	    if (atr & STANDOUT) {
+X		if (GoodStr(T_so) && GoodStr(T_se)) {
+X		    (void) tputs(Str(T_so), 1, putpure);
+X		    cur_atr |= STANDOUT;
+X		}
+X	    }
+X	    else {
+X		if (GoodStr(T_se)) {
+X		    (void) tputs(Str(T_se), 1, putpure);
+X		    cur_atr &= ~STANDOUT;
+X		}
+X	    }
+X	}
+X	if ((atr & UNDER) != (cur_atr & UNDER)) {
+X	    if (atr & UNDER) {
+X		if (GoodStr(T_us) && GoodStr(T_ue)) {
+X		    (void) tputs(Str(T_us), 1, putpure);
+X		    cur_atr |= UNDER;
+X		}
+X	    }
+X	    else {
+X		if (GoodStr(T_ue)) {
+X		    (void) tputs(Str(T_ue), 1, putpure);
+X		    cur_atr &= ~UNDER;
+X		}
+X	    }
+X	}
+X    }
+X}
+X
+X/* PWP 6-27-88 -- if the tty driver thinks that we can tab, we ask termcap */
+int
+CanWeTab()
+X{
+X    return (Val(T_pt));
+X}
+X
+void
+MoveToLine(where)		/* move to line <where> (first line == 0) */
+X    int     where;		/* as efficiently as possible; */
+X{
+X    int     del, i;
+X
+X    if (where == CursorV)
+X	return;
+X
+X    if (where > TermV) {
+X#ifdef DEBUG_SCREEN
+X	xprintf("MoveToLine: where is ridiculous: %d\r\n", where);
+X	flush();
+X#endif /* DEBUG_SCREEN */
+X	return;
+X    }
+X
+X    if ((del = where - CursorV) > 0) {
+X	if ((del > 1) && GoodStr(T_DO))
+X	    (void) tputs(tgoto(Str(T_DO), del, del), del, putpure);
+X	else {
+X	    for (i = 0; i < del; i++)
+X		(void) putraw('\n');
+X	    CursorH = 0;	/* because the \n will become \r\n */
+X	}
+X    }
+X    else {			/* del < 0 */
+X	if (GoodStr(T_UP) && (-del > 1 || !GoodStr(T_up)))
+X	    (void) tputs(tgoto(Str(T_UP), -del, -del), -del, putpure);
+X	else {
+X	    if (GoodStr(T_up))
+X		for (i = 0; i < -del; i++)
+X		    (void) tputs(Str(T_up), 1, putpure);
+X	}
+X    }
+X    CursorV = where;		/* now where is here */
+X}
+X
+void
+MoveToChar(where)		/* move to character position (where) */
+X    int     where;
+X{				/* as efficiently as possible */
+X    int     del, i;
+X
+mc_again:
+X    if (where == CursorH)
+X	return;
+X
+X    if (where > (TermH + 1)) {
+X#ifdef DEBUG_SCREEN
+X	xprintf("MoveToChar: where is riduculous: %d\r\n", where);
+X	flush();
+X#endif /* DEBUG_SCREEN */
+X	return;
+X    }
+X
+X    if (!where) {		/* if where is first column */
+X	(void) putraw('\r');	/* do a CR */
+X	CursorH = 0;
+X	return;
+X    }
+X
+X    del = where - CursorH;
+X
+X    if ((del < -4 || del > 4) && GoodStr(T_ch))
+X	/* go there directly */
+X	(void) tputs(tgoto(Str(T_ch), where, where), where, putpure);
+X    else {
+X	if (del > 0) {		/* moving forward */
+X	    if ((del > 4) && GoodStr(T_RI))
+X		(void) tputs(tgoto(Str(T_RI), del, del), del, putpure);
+X	    else {
+X		if (T_Tabs) {	/* if I can do tabs, use them */
+X		    if ((CursorH & 0370) != (where & 0370)) {
+X			/* if not within tab stop */
+X			for (i = (CursorH & 0370); i < (where & 0370); i += 8)
+X			    (void) putraw('\t');	/* then tab over */
+X			CursorH = where & 0370;
+X		    }
+X		}
+X		/* it's usually cheaper to just write the chars, so we do. */
+X
+X		/* NOTE THAT so_write() WILL CHANGE CursorH!!! */
+X		so_write(&Display[CursorV][CursorH], where - CursorH);
+X
+X	    }
+X	}
+X	else {			/* del < 0 := moving backward */
+X	    if ((-del > 4) && GoodStr(T_LE))
+X		(void) tputs(tgoto(Str(T_LE), -del, -del), -del, putpure);
+X	    else {		/* can't go directly there */
+X		/* if the "cost" is greater than the "cost" from col 0 */
+X		if (T_Tabs ? (-del > ((where >> 3) + (where & 07)))
+X		    : (-del > where)) {
+X		    (void) putraw('\r');	/* do a CR */
+X		    CursorH = 0;
+X		    goto mc_again;	/* and try again */
+X		}
+X		for (i = 0; i < -del; i++)
+X		    (void) putraw('\b');
+X	    }
+X	}
+X    }
+X    CursorH = where;		/* now where is here */
+X}
+X
+void
+so_write(cp, n)
+X    register Char *cp;
+X    register int n;
+X{
+X    if (n <= 0)
+X	return;			/* catch bugs */
+X
+X    if (n > (TermH + 1)) {
+X#ifdef DEBUG_SCREEN
+X	xprintf("so_write: n is riduculous: %d\r\n", n);
+X	flush();
+X#endif /* DEBUG_SCREEN */
+X	return;
+X    }
+X
+X    do {
+X	if (*cp & LITERAL) {
+X	    extern Char *litptr[];
+X	    Char   *d;
+X
+X#ifdef DEBUG_LITERAL
+X	    xprintf("so: litnum %d, litptr %x\r\n",
+X		    *cp & CHAR, litptr[*cp & CHAR]);
+X#endif /* DEBUG_LITERAL */
+X	    for (d = litptr[*cp++ & CHAR]; *d & LITERAL; d++)
+X		(void) putraw(*d & CHAR);
+X	    (void) putraw(*d);
+X
+X	}
+X	else
+X	    (void) putraw(*cp++);
+X	CursorH++;
+X    } while (--n);
+X}
+X
+X
+void
+DeleteChars(num)		/* deletes <num> characters */
+X    int     num;
+X{
+X    if (num <= 0)
+X	return;
+X
+X    if (!T_CanDel) {
+X#ifdef DEBUG_EDIT
+X	xprintf("   ERROR: cannot delete   \n");
+X#endif /* DEBUG_EDIT */
+X	flush();
+X	return;
+X    }
+X
+X    if (num > TermH) {
+X#ifdef DEBUG_SCREEN
+X	xprintf("DeleteChars: num is riduculous: %d\r\n", num);
+X	flush();
+X#endif /* DEBUG_SCREEN */
+X	return;
+X    }
+X
+X    if (GoodStr(T_DC))		/* if I have multiple delete */
+X	if ((num > 1) || !GoodStr(T_dc)) {	/* if dc would be more expen. */
+X	    (void) tputs(tgoto(Str(T_DC), num, num), num, putpure);
+X	    return;
+X	}
+X
+X    if (GoodStr(T_dm))		/* if I have delete mode */
+X	(void) tputs(Str(T_dm), 1, putpure);
+X
+X    if (GoodStr(T_dc))		/* else do one at a time */
+X	while (num--)
+X	    (void) tputs(Str(T_dc), 1, putpure);
+X
+X    if (GoodStr(T_ed))		/* if I have delete mode */
+X	(void) tputs(Str(T_ed), 1, putpure);
+X}
+X
+void
+Insert_write(cp, num)		/* Puts terminal in insert character mode, */
+X    register Char *cp;
+X    register int num;		/* or inserts num characters in the line */
+X{
+X    if (num <= 0)
+X	return;
+X    if (!T_CanIns) {
+X#ifdef DEBUG_EDIT
+X	xprintf("   ERROR: cannot insert   \n");
+X#endif /* DEBUG_EDIT */
+X	flush();
+X	return;
+X    }
+X
+X    if (num > TermH) {
+X#ifdef DEBUG_SCREEN
+X	xprintf("StartInsert: num is riduculous: %d\r\n", num);
+X	flush();
+X#endif /* DEBUG_SCREEN */
+X	return;
+X    }
+X
+X    if (GoodStr(T_IC))		/* if I have multiple insert */
+X	if ((num > 1) || !GoodStr(T_ic)) {	/* if ic would be more expen. */
+X	    (void) tputs(tgoto(Str(T_IC), num, num), num, putpure);
+X	    so_write(cp, num);	/* this updates CursorH */
+X	    return;
+X	}
+X
+X    if (GoodStr(T_im) && GoodStr(T_ei)) { /* if I have insert mode */
+X	(void) tputs(Str(T_im), 1, putpure);
+X
+X	CursorH += num;
+X	do 
+X	    (void) putraw(*cp++);
+X	while (--num);
+X
+X	if (GoodStr(T_ip))	/* have to make num chars insert */
+X	    (void) tputs(Str(T_ip), 1, putpure);
+X
+X	(void) tputs(Str(T_ei), 1, putpure);
+X	return;
+X    }
+X
+X    do {
+X	if (GoodStr(T_ic))	/* have to make num chars insert */
+X	    (void) tputs(Str(T_ic), 1, putpure);	/* insert a char */
+X
+X	(void) putraw(*cp++);
+X
+X	CursorH++;
+X
+X	if (GoodStr(T_ip))	/* have to make num chars insert */
+X	    (void) tputs(Str(T_ip), 1, putpure);/* pad the inserted char */
+X
+X    } while (--num);
+X
+X}
+X
+void
+ClearEOL(num)			/* clear to end of line.  There are num */
+X    int     num;		/* characters to clear */
+X{
+X    register int i;
+X
+X    if (T_CanCEOL && GoodStr(T_ce))
+X	(void) tputs(Str(T_ce), 1, putpure);
+X    else {
+X	for (i = 0; i < num; i++)
+X	    (void) putraw(' ');
+X	CursorH += num;		/* have written num spaces */
+X    }
+X}
+X
+void
+ClearScreen()
+X{				/* clear the whole screen and home */
+X    if (GoodStr(T_cl))
+X	/* send the clear screen code */
+X	(void) tputs(Str(T_cl), Val(T_li), putpure);
+X    else if (GoodStr(T_ho) && GoodStr(T_cd)) {
+X	(void) tputs(Str(T_ho), Val(T_li), putpure);	/* home */
+X	/* clear to bottom of screen */
+X	(void) tputs(Str(T_cd), Val(T_li), putpure);
+X    }
+X    else {
+X	(void) putraw('\r');
+X	(void) putraw('\n');
+X    }
+X}
+X
+void
+Beep()
+X{				/* produce a sound */
+X    beep_cmd ();
+X    if (adrof(STRnobeep))
+X	return;
+X
+X    if (GoodStr(T_vb) && adrof(STRvisiblebell))
+X	(void) tputs(Str(T_vb), 1, putpure);	/* visible bell */
+X    else if (GoodStr(T_bl))
+X	/* what termcap says we should use */
+X	(void) tputs(Str(T_bl), 1, putpure);
+X    else
+X	(void) putraw('\007');	/* an ASCII bell; ^G */
+X}
+X
+void
+ClearToBottom()
+X{				/* clear to the bottom of the screen */
+X    if (GoodStr(T_cd))
+X	(void) tputs(Str(T_cd), Val(T_li), putpure);
+X    else if (GoodStr(T_ce))
+X	(void) tputs(Str(T_ce), Val(T_li), putpure);
+X}
+X
+void
+GetTermCaps()
+X{				/* read in the needed terminal capabilites */
+X    register int i;
+X    char   *ptr;
+X    char    buf[TC_BUFSIZE];
+X    static char bp[TC_BUFSIZE];
+X    char   *area;
+X    extern char *getenv();
+X    struct termcapstr *t;
+X
+X
+X#ifdef SIG_WINDOW
+X# ifdef BSDSIGS
+X    sigmask_t omask;
+X# endif /* BSDSIGS */
+X    int     lins, cols;
+X
+X    /* don't want to confuse things here */
+X# ifdef BSDSIGS
+X    omask = sigblock(sigmask(SIG_WINDOW)) & ~sigmask(SIG_WINDOW);
+X# else /* BSDSIGS */
+X    (void) sighold(SIG_WINDOW);
+X# endif /* BSDSIGS */
+X#endif /* SIG_WINDOW */
+X    area = buf;
+X
+X    GotTermCaps = 1;
+X
+X    setname("gettermcaps");
+X    ptr = getenv("TERM");
+X
+X#ifdef apollo
+X    /*
+X     * If we are on a pad, we pretend that we are dumb. Otherwise the termcap
+X     * library will put us in a weird screen mode, thinking that we are going
+X     * to use curses
+X     */
+X    if (isapad())
+X	ptr = "dumb";
+X#endif /* apollo */
+X
+X    if (!ptr || !ptr[0])
+X	ptr = "dumb";
+X
+X    setzero(bp, TC_BUFSIZE);
+X
+X    i = tgetent(bp, ptr);
+X    if (i <= 0) {
+X	if (i == -1) {
+X#if (SVID == 0) || defined(IRIS3D)
+X	    xprintf("tcsh: Cannot open /etc/termcap.\n");
+X	}
+X	else if (i == 0) {
+X#endif /* SVID */
+X	    xprintf("tcsh: No entry for terminal type \"%s\"\n",
+X		    getenv("TERM"));
+X	}
+X	xprintf("tcsh: using dumb terminal settings.\n");
+X	Val(T_co) = 80;		/* do a dumb terminal */
+X	Val(T_pt) = Val(T_km) = Val(T_li) = 0;
+X	for (t = tstr; t->name != NULL; t++)
+X	    TCalloc(t, NULL);
+X    }
+X    else {
+X	/* Can we tab */
+X	Val(T_pt) = tgetflag("pt") && !tgetflag("xt");
+X	/* do we have a meta? */
+X	Val(T_km) = (tgetflag("km") || tgetflag("MT"));
+X	Val(T_co) = tgetnum("co");
+X	Val(T_li) = tgetnum("li");
+X	for (t = tstr; t->name != NULL; t++)
+X	    TCalloc(t, tgetstr(t->name, &area));
+X    }
+X    if (Val(T_co) < 2)
+X	Val(T_co) = 80;		/* just in case */
+X    if (Val(T_li) < 1)
+X	Val(T_li) = 24;
+X
+X    T_Cols = Val(T_co);
+X    T_Lines = Val(T_li);
+X    if (T_Tabs)
+X	T_Tabs = Val(T_pt);
+X    T_HasMeta = Val(T_km);
+X    T_CanCEOL = GoodStr(T_ce);
+X    T_CanDel = GoodStr(T_dc) || GoodStr(T_DC);
+X    T_CanIns = GoodStr(T_im) || GoodStr(T_ic) || GoodStr(T_IC);
+X    T_CanUP = GoodStr(T_up) || GoodStr(T_UP);
+X    if (GoodStr(T_me) && GoodStr(T_ue))
+X	me_all = (strcmp(Str(T_me), Str(T_ue)) == 0);
+X    else
+X	me_all = 0;
+X    if (GoodStr(T_me) && GoodStr(T_se))
+X	me_all |= (strcmp(Str(T_me), Str(T_se)) == 0);
+X
+X
+X#ifdef DEBUG_SCREEN
+X    if (!T_CanUP) {
+X	xprintf("tcsh: WARNING: Your terminal cannot move up.\n");
+X	xprintf("Editing may be odd for long lines.\n");
+X    }
+X    if (!T_CanCEOL)
+X	xprintf("no clear EOL capability.\n");
+X    if (!T_CanDel)
+X	xprintf("no delete char capability.\n");
+X    if (!T_CanIns)
+X	xprintf("no insert char capability.\n");
+X#endif /* DEBUG_SCREEN */
+X
+X
+X
+X#ifdef SIG_WINDOW
+X    (void) GetSize(&lins, &cols);	/* get the correct window size */
+X    ChangeSize(lins, cols);
+X
+X# ifdef BSDSIGS
+X    (void) sigsetmask(omask);	/* can change it again */
+X# else /* BSDSIGS */
+X    (void) sigrelse(SIG_WINDOW);
+X# endif /* BSDSIGS */
+X#else /* SIG_WINDOW */
+X    ChangeSize(Val(T_li), Val(T_co));
+X#endif /* SIG_WINDOW */
+X
+X    BindArrowKeys();
+X}
+X
+X#ifdef SIG_WINDOW
+X/* GetSize():
+X *	Return the new window size in lines and cols, and
+X *	true if the size was changed. This can fail if SHIN
+X *	is not a tty, but it will work in most cases.
+X */
+int
+GetSize(lins, cols)
+X    int    *lins, *cols;
+X{
+X    *cols = Val(T_co);
+X    *lins = Val(T_li);
+X
+X#ifdef TIOCGWINSZ
+X# define KNOWsize
+X# ifndef lint
+X    {
+X	struct winsize ws;	/* from 4.3 */
+X
+X	if (ioctl(SHIN, TIOCGWINSZ, (ioctl_t) &ws) != -1) {
+X	    if (ws.ws_col)
+X		*cols = ws.ws_col;
+X	    if (ws.ws_row)
+X		*lins = ws.ws_row;
+X	}
+X    }
+X# endif /* !lint */
+X#else /* TIOCGWINSZ */
+X# ifdef TIOCGSIZE
+X#  define KNOWsize
+X    {
+X	struct ttysize ts;	/* from Sun */
+X
+X	if (ioctl(SHIN, TIOCGSIZE, (ioctl_t) &ts) != -1) {
+X	    if (ts.ts_cols)
+X		*cols = ts.ts_cols;
+X	    if (ts.ts_lines)
+X		*lins = ts.ts_lines;
+X	}
+X    }
+X# endif /* TIOCGSIZE */
+X#endif /* TIOCGWINSZ */
+X
+X    return (Val(T_co) != *cols || Val(T_li) != *lins);
+X}
+X
+X#endif /* SIGWINDOW */
+X
+void
+ChangeSize(lins, cols)
+X    int     lins, cols;
+X{
+X    /*
+X     * Just in case
+X     */
+X    Val(T_co) = (cols < 2) ? 80 : cols;
+X    Val(T_li) = (lins < 1) ? 24 : lins;
+X
+X#ifdef KNOWsize
+X    /*
+X     * We want to affect the environment only when we have a valid
+X     * setup, not when we get bad settings. Consider the following scenario:
+X     * We just logged in, and we have not initialized the editor yet.
+X     * We reset termcap with tset, and not $TERMCAP has the right
+X     * terminal size. But since the editor is not initialized yet, and
+X     * the kernel's notion of the terminal size might be wrong we arrive
+X     * here with lines = columns = 0. If we reset the environment we lose
+X     * our only chance to get the window size right.
+X     */
+X    if (Val(T_co) == cols && Val(T_li) == lins) {
+X	Char    buf[10];
+X	char   *tptr;
+X
+X	if (getenv("COLUMNS")) {
+X	    Itoa(Val(T_co), buf);
+X	    Setenv(STRCOLUMNS, buf);
+X	}
+X
+X	if (getenv("LINES")) {
+X	    Itoa(Val(T_li), buf);
+X	    Setenv(STRLINES, buf);
+X	}
+X
+X	if (tptr = getenv("TERMCAP")) {
+X	    Char    termcap[1024], backup[1024], *ptr;
+X	    int     i;
+X
+X	    ptr = str2short(tptr);
+X	    (void) Strncpy(termcap, ptr, 1024);
+X	    termcap[1023] = '\0';
+X
+X	    /* update termcap string; first do columns */
+X	    buf[0] = 'c';
+X	    buf[1] = 'o';
+X	    buf[2] = '#';
+X	    buf[3] = '\0';
+X	    if ((ptr = Strstr(termcap, buf)) == NULL) {
+X		(void) Strcpy(backup, termcap);
+X	    }
+X	    else {
+X		i = ptr - termcap + Strlen(buf);
+X		(void) Strncpy(backup, termcap, i);
+X		backup[i] = '\0';
+X		Itoa(Val(T_co), buf);
+X		(void) Strcat(backup + i, buf);
+X		ptr = Strchr(ptr, ':');
+X		(void) Strcat(backup, ptr);
+X	    }
+X
+X	    /* now do lines */
+X	    buf[0] = 'l';
+X	    buf[1] = 'i';
+X	    buf[2] = '#';
+X	    buf[3] = '\0';
+X	    if ((ptr = Strstr(backup, buf)) == NULL) {
+X		(void) Strcpy(termcap, backup);
+X	    }
+X	    else {
+X		i = ptr - backup + Strlen(buf);
+X		(void) Strncpy(termcap, backup, i);
+X		termcap[i] = '\0';
+X		Itoa(Val(T_li), buf);
+X		(void) Strcat(termcap, buf);
+X		ptr = Strchr(ptr, ':');
+X		(void) Strcat(termcap, ptr);
+X	    }
+X	    Setenv(STRTERMCAP, termcap);
+X	}
+X    }
+X#endif /* KNOWsize */
+X
+X    ReBufferDisplay();		/* re-make display buffers */
+X    ClearDisp();
+X}
+END_OF_FILE
+if test 30015 -ne `wc -c <'ed.screen.c'`; then
+    echo shar: \"'ed.screen.c'\" unpacked with wrong size!
+fi
+# end of 'ed.screen.c'
+fi
+echo shar: End of archive 12 \(of 18\).
+cp /dev/null ark12isdone
+MISSING=""
+for I in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 ; do
+    if test ! -f ark${I}isdone ; then
+	MISSING="${MISSING} ${I}"
+    fi
+done
+if test "${MISSING}" = "" ; then
+    echo You have unpacked all 18 archives.
+    rm -f ark[1-9]isdone ark[1-9][0-9]isdone
+else
+    echo You still need to unpack the following archives:
+    echo "        " ${MISSING}
+fi
+##  End of shell archive.
+exit 0

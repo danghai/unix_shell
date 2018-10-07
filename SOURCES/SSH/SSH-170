@@ -1,0 +1,37 @@
+                                 tool: ssh
+
+---------------------------------------------------------------------------
+ Language:    ssh (Steve's Shell)
+ Version:     1.7
+ Parts:       interpreter
+
+ Author:      Steve Baker <ice@judy.indstate.edu> with help from Thomas
+              Moore
+ Location:    comp.sources.unix volume 26
+ Description: A unix shell with a lot of csh/ksh-like features.
+ Ports:       sequent, sun, next, ultrix, bsdi
+ Updated:     April 15th, 1993
+
+---------------------------------------------------------------------------
+
+                               Related Items
+
+category: command shells summary, or expanded.
+
+category: glue summary, or expanded.
+
+category: scripting languages summary, or expanded.
+
+---------------------------------------------------------------------------
+---------------------------------------------------------------------------
+This work supported by Idiom Consulting. Idiom Consulting         [ aqui ]
+provides Internet access and perl programming in the SF Bay
+Area.
+
+Please send updates to free-compilers@idiom.com
+
+The HTML is maintained by David Muir Sharnoff and the entries themselves
+are maintained by Steve Robenalt.
+
+Copyright (c) 1992, 1993, 1994, David Muir Sharnoff, All Rights Reserved
+Copyright (c) 1994, 1995, 1996, Steven Allen Robenalt, All Rights Reserved

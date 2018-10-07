@@ -1,0 +1,98 @@
+
+			    WinXs Version 1.4
+		      Copyright	(C) 1996 Mick Meaden
+			   All Rights Reserved
+
+       LICENSE AGREEMENT
+
+       You should carefully read the following terms and conditions
+       before  using  this  software.	Unless you have	a different
+       license agreement signed	by the copyright holder,  your	use
+       of this software	indicates acceptance of	this license agree-
+       ment and	warranty.
+
+       EVALUATION AND REGISTRATION
+
+       This is not free	software.  You are hereby licensed  to	use
+       this  software  for evaluation purposes without charge for a
+       period of 21 days.  If you use this software  after  the	 21
+       day  evaluation	period,	 a registration	fee of 15 (fifteen)
+       dollars U.S., or	10 (ten) pounds	Sterling, is required.	The
+       quickest	 and  easiest way to register is via the CompuServe
+       Shareware Registration Database (GO SWREG); the Registration
+       ID for WinXs is 7400.
+
+       Alternatively, you can use the registration form	included in
+       the file	REGISTER.TXT.  Payment can be made by cheque (draw-
+       able on a U.K. bank) or postal order and	should be sent to:
+
+	    M.R.Meaden
+	    39 Roman Way
+	    Elworth
+	    Sandbach
+	    Cheshire
+	    CW11 9EW
+	    U.K.
+
+       When registering	WinXs, you should include your name, postal
+       address	and  email  address (if	possible) on all correspon-
+       dance.
+
+       Acknowledgment of registration and your	WinXs  Registration
+       ID  will	 be communicated within	7 working days of notifica-
+       tion  of	 registration  (sooner	if  an	email  address	 is
+       included).   This  acknowledgement  should  be retained in a
+       safe place as it	may be required	to receive further  product
+       updates (free of	charge to registered users).
+
+       Unregistered use	of WinXs after the 21-day evaluation period
+       is in violation of U.S. and International copyright laws.
+
+       DISTRIBUTION
+
+       You are hereby licensed	to  make  as  many  copies  of	the
+       Shareware  version of this software and documentation as	you
+       wish; give exact	copies of the original Shareware version to
+       anyone; and distribute the Shareware version of the software
+       and documentation in  its  unmodified  form  via	 electronic
+       means.  There is	no charge for any of the above.
+
+       You are specifically prohibited from charging, or requesting
+       donations,  for any such	copies,	however	made; and from dis-
+       tributing the software and/or documentation with	other  pro-
+       ducts  (commercial  or otherwise) without prior written per-
+       mission,	with one exception:  Disk Vendors approved  by	the
+       Association  of	Shareware  Professionals  are  permitted to
+       redistribute  WinXs,  subject  to  the  conditions  in  this
+       license,	without	specific written permission.
+
+       REGISTERED VERSION
+
+       One registered copy of WinXs may	either be used by a  single
+       person  who uses	the software personally	on one or more com-
+       puters, or installed on a single	workstation used  nonsimul-
+       taneously by multiple people, but not both.
+
+       You may access the registered version  of  WinXs	 through  a
+       network,	provided that you have obtained	individual licenses
+       for the software	covering all workstations that will  access
+       the  software  through the network.  For	instance, if 8 dif-
+       ferent workstations will	access WinXs on	the  network,  each
+       workstation  must  have its own WinXs license, regardless of
+       whether they use	WinXs at different times or concurrently.
+
+       DISCLAIMER OF WARRANTY
+
+       THIS SOFTWARE AND THE ACCOMPANYING FILES	ARE  SOLD  "AS	IS"
+       AND  WITHOUT WARRANTIES AS TO PERFORMANCE OF MERCHANTABILITY
+       OR  ANY	OTHER  WARRANTIES  WHETHER  EXPRESSED  OR  IMPLIED.
+       Because	of  the	 various hardware and software environments
+       into which WinXs	may be put, NO WARRANTY	OF  FITNESS  FOR  A
+       PARTICULAR PURPOSE IS OFFERED.
+
+       Good data processing procedure dictates that any	program	 be
+       thoroughly  tested  with	non-critical data before relying on
+       it.  The	user must assume the entire risk of using the  pro-
+       gram.	ANY   LIABILITY	 OF  THE  SELLER  WILL	BE  LIMITED
+       EXCLUSIVELY TO PRODUCT REPLACEMENT  OR  REFUND  OF  PURCHASE
+       PRICE.

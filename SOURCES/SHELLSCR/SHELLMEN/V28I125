@@ -1,0 +1,2478 @@
+From: how%milhow1@uunet.uu.net (Mike Howard)
+Newsgroups: comp.sources.unix
+Subject: v28i125: simple_menu-3.1 - a simple shell-level menu system, V3.1, Part01/09
+Date: 5 Oct 1994 01:21:01 -0700
+Organization: Vixie Enterprises
+Sender: vixie@vix.com
+Approved: vixie@gw.home.vix.com
+Message-ID: <1.781345221.914@gw.home.vix.com>
+
+Submitted-By: how%milhow1@uunet.uu.net (Mike Howard)
+Posting-Number: Volume 28, Issue 125
+Archive-Name: simple_menu-3.1/part01
+
+  I wrote this program to make it easier to create, maintain, modify,
+and extend menus of common operating system tasks for our users.
+Typically, our users need to run fairly complex pipelines and/or shell
+scripts.  Command line execution is not an option, especially for
+clerical personnel [even more so for executive personnel].  This is
+especially true for infrequently executed tasks.  Writing menus in
+shell script did not prove satisfactory because:
+  -  writing the prompt-request-response-execute/Error loop for the
+     zillionth time is a drag
+  -  modifying a shell script menu often breaks the code
+  -  The shell menus become excessively large, so that I found I had
+     to actually read and understand the old code in order to make
+     modifications. 
+
+  This programs addresses those problems by:
+  -  implementing the prompt-request-response-execute loop in a pretty
+     clean way.
+  -  embeds the shell script which does the work in a higher level
+     language.
+     -  This keeps the individual shell scripts small.
+     -  It isolates individual tasks from each other and makes them
+        easier to find.
+     -  each shell script executes in its own isolated environment, so
+        that modifying one script does not break another [unless you
+        really want to, of course.  but you have to work at it a bit]
+     -  The menus still work even if you break a script
+   -  supports modifying and setting shell variables in controlled
+      ways.  Each settable variable has a user displayed prompt
+      associated with it and may have a default value, so that *users*
+      never have to deal with the shell or options in any cryptic way
+   -  supports sub-menus
+   -  supports a minimal set of menu cosmetics
+
+  The use of a menu language is unavoidable.  I've tried to keep it
+minimal so that it is easly learn, re-learn, and relatively non-cryptic.
+
+  This program is known to compile and run on SCO Xenix 2.3.x, SCO
+UNIX ?, IBM AIX/RS-6000 3.2.5, and on Sun SPARC's SUNOS 4.1.3.  Please
+send patches, fixes, and comments and suggestions to me.
+
+  It is now distributed under the conditions of GNU Public Licence, see
+GPL-2, enclosed.
+
+Note: two previous versions of this program were distributed in
+comp.sources.misc.  A previous version was submitted to
+comp.sources.reviewed, but the revised version was not resubmitted.  I
+have attempted to address all of the issues raised by the reviewers
+and, consequently, this is a much better program than it was
+previously.  I have decided not to re-submit to comp.sources.unix because
+the group appears to be relatively inactive.
+
+[ moderator's note - i have a huge backlog but have been unable to 
+  process it - the inactive state is not representative of my queue.
+							--vix ]
+
+INSTALLATION: the package now uses GNU autoconf to produce automatic
+configurations.
+  1. unpack the archives
+  2. type `./configure'
+  3. type 'make'
+  4. to test and play with samples: `./tty_src/simple_menu ./samples/menu.def'
+  5. type `make install' to install
+  6. read the doc.
+
+DOCUMENTATION: This distribution includes a manual page
+`simple_menu.1' and a texinfo tutorial `simple_menu.texi'.  Both are
+found in the `doc' subdirectory.  Also included is an ms-macro version
+of `simple_menu.texi' which was produced by running `texi2roff'.  As
+distributed, both `simple_menu.texi' and `simple_menu.ms' are broken
+into several pieces.  They may be reconstructed by `cd doc ; make
+simple_menu.texi simple_menu.ms'.
+
+Mike Howard
+how%milhow1@uunet.uu.net
+
+#! /bin/sh
+# This is a shell archive.  Remove anything before this line, then unpack
+# it by saving it into a file and typing "sh file".  To overwrite existing
+# files, type "sh file -c".  You can also feed this as standard input via
+# unshar, or by typing "sh <file", e.g..  If this archive is complete, you
+# will see the following message at the end:
+#		"End of archive 1 (of 9)."
+# Contents:  . ./ChangeLog ./Makefile.in ./common_src
+#   ./common_src/Makefile.in ./common_src/generic_dsp.c
+#   ./common_src/port.c ./configure.in ./doc ./doc/Makefile.in ./incl
+#   ./incl/Makefile.in ./incl/config.h.in ./incl/includes.h
+#   ./incl/patchlevel.h ./incl/prototypes.h ./install.sh ./samples
+#   ./samples/backup.menu ./samples/bad.menu ./samples/directory
+#   ./samples/ev-values ./samples/foo.menu ./samples/login.menu
+#   ./samples/menu.def ./samples/print.menu ./samples/readme1.menu
+#   ./samples/readme2.menu ./samples/readme3.menu
+#   ./samples/sample-1.menu ./samples/sub.menu ./samples/tst.menu
+#   ./tty_src ./tty_src/Makefile.in MANIFEST
+# Wrapped by mike@clove2 on Wed Sep 28 06:55:56 1994
+PATH=/bin:/usr/bin:/usr/ucb ; export PATH
+if test -f './ChangeLog' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'./ChangeLog'\"
+else
+echo shar: Extracting \"'./ChangeLog'\" \(3425 characters\)
+sed "s/^X//" >'./ChangeLog' <<'END_OF_FILE'
+XFri Sep 23 13:11:48 1994  Mike Howard  (mike@clove2)
+X
+X	* Release-3.1 submitted to comp.sources.unix
+X	* quite a few changes since 1994.  too numerous to mention.
+X
+XFri Nov 27 18:06:50 1992  Mike Howard  (mike at milhow4)
+X
+X	* simple_menu.[ch], grammar.y, scanner.c: added support for new
+X	option 'scope-variables'.  Added function 'push_environment()'.
+X
+X	* Makefile.bot.top: added edits for @SPECIALLIB@ when constructing
+X	program Makefiles
+X
+XThu May 21 16:29:21 1992  Mike Howard  (mike at milhow4)
+X
+X	* added from-user for global variables and GPL-2.
+X
+XFri May  1 04:20:05 1992  Mike Howard  (mike at milhow4)
+X
+X	* Added Prompts to 'skip' item so we can insert bold text in
+X	addition to blank lines
+X
+XFri May 17 21:35:14 1991  Mike Howard  (mike at milhow4)
+X
+X	* added from-shell env-variable assignments.  Both in the
+X	environment section and in reset/temp-set menu items.  This is
+X	restricted to the stdout of scripts which take no input.  I don't
+X	know how useful this will be - for example, it's tough to have the
+X	user select and option which does some stuff and then capture a
+X	state change in an env-variable this way.
+X
+XFri Apr 19 16:22:17 1991  Mike Howard  (mike at milhow4)
+X
+X	* added beep() to display.c requirements.
+X
+X	* fixed short_title so it is always terminated.
+X
+X	* removed last vestage of printf/putchar from simple_menu.c
+X
+X	* fixed interesting bug in get_user_rsp()/do_menu() interaction by
+X	defining MENU_... return codes.
+X
+XThu Apr 18 16:22:17 1991  Mike Howard  (mike at milhow4)
+X
+X	* changed tmpnam() to tempnam() and added a home made version for
+X	BSD systems.  Re-write Makefile defines a little better to support
+X	various portability combinations.  This was in response to WAF's
+X	input.
+X
+XMon Apr 15 14:51:32 1991  Mike Howard  (mike at milhow4)
+X
+X	* Added display_msg() and undisplay_msg() functions to
+X	requirements for display drivers.
+X
+X	* changed all prompts to concatination of static strings and
+X	menu-environment variable definitions.  Added appropriate
+X	functions and did cursory check-out.
+X
+XFri Apr 12 13:58:46 1991  Mike Howard  (mike at milhow4)
+X
+X	* fixed bug in display logic which caused a submenu not to be
+X	properly displayed the first time out.
+X
+X	* added global variables - menu-global variables which are defined
+X	within the menu and cannot be redefined from the environment or a
+X	file.  Added menu items to 'reset-global' and 'temp-set-global'
+X	menu-environment variables.  The difference is whether or not the
+X	values are restored when the current menu terminates or not.
+X	changed init_parms_defaults() to run prior to running as part of
+X	invoking an item rather than at program startup.
+X
+XMon Mar 25 14:55:04 1991  Mike Howard  (mike at milhow4)
+X
+X	* moved ALL display stuff to tty_display.c (and descendants)
+X
+X	* restructured everything so that we can build an X or other GUI
+X	front end
+X
+X	* added shell-path and asg-fmt to the language
+X
+XFri Mar 22 13:44:31 1991  Mike Howard  (mike at milhow4)
+X
+X	* added menu-environment variables from both named file(s) and the user
+X	environment strings.  Added feature to allow parm's to be
+X	intitialized from menu-environment variables.
+X
+XThu Mar 21 13:07:50 1991  Mike Howard  (mike at milhow4)
+X
+X	* fixed bug which disallowed dynamically constructed by changing
+X	isatty() test in init() from stdin to stdout, which is what it 
+X	should have been to begin with.
+X
+X	* fixed problem of empty line causing simple_menu to quit in
+X	get_user_rsp() and do_menu()
+X
+X
+END_OF_FILE
+if test 3425 -ne `wc -c <'./ChangeLog'`; then
+    echo shar: \"'./ChangeLog'\" unpacked with wrong size!
+fi
+# end of './ChangeLog'
+fi
+if test -f './Makefile.in' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'./Makefile.in'\"
+else
+echo shar: Extracting \"'./Makefile.in'\" \(2331 characters\)
+sed "s/^X//" >'./Makefile.in' <<'END_OF_FILE'
+X#### Start of system configuration section. ####
+X
+Xsrcdir = @srcdir@
+XVPATH = @srcdir@
+X
+XCC = @CC@
+XYACC = @YACC@
+X
+XINSTALL = @INSTALL@
+XINSTALL_PROGRAM = @INSTALL_PROGRAM@
+XINSTALL_DATA = @INSTALL_DATA@
+XAWK	=	@AWK@
+X
+XLIBS = @LIBS@
+XSHELL = /bin/sh
+X
+Xprefix = /usr/local
+Xbinprefix = $(prefix)
+Xlibprefix = $(prefix)
+Xmanprefix = $(prefix)
+Xinfoprefix = $(prefix)
+X
+Xbindir = $(binprefix)/bin
+Xlibdir = $(libprefix)/lib/simple_menu
+Xmandir = $(manprefix)/man/man1
+Xinfodir = $(infoprefix)/lib/emacs/info
+Xmanext = 1
+X
+XCOMMON_OBJ = \
+X	../common_src/scanner.o \
+X	../common_src/grammar.o \
+X	../common_src/simple_menu.o \
+X	../common_src/port.o
+X
+X#### End of system configuration section. ####
+X# bottom portion of toplevel Makefile.bot.top
+X
+XTOP_LIST = \
+X	Makefile.in \
+X	configure \
+X	COPYING-2 \
+X	ChangeLog \
+X	README	\
+X	install.sh
+XSUBDIRS = common_src doc incl tty_src
+X#	 curses_src Xaw_src
+X
+Xall:	simple_menu
+X#	 curses_menu Xaw_menu
+X
+Xsimple_menu:
+X	for DIR in common_src tty_src ; do \
+X	cd $$DIR ; \
+X	$(MAKE) all ; \
+X	cd .. ; \
+X	done
+X
+Xcurses_menu:
+X	for DIR in common_src curses_src ; do \
+X	cd $$DIR ; \
+X	$(MAKE) all ; \
+X	cd .. ; \
+X	done
+X
+XXaw_menu:
+X	for DIR in common_src Xaw_src ; do \
+X	cd $$DIR ; \
+X	$(MAKE) all ; \
+X	cd .. ; \
+X	done
+X
+X.c.o:
+X	$(CC) -c $(CFLAGS) $(CPPFLAGS) $(DEFS) -I$(srcdir) $<
+X
+X
+Xinstall: all
+X	for DIR in $(SUBDIRS) ; do \
+X	( cd $$DIR ; make install ) ; \
+X	done
+X
+Xclean:
+X	rm -f *.o core *~
+X	for DIR in $(SUBDIRS) ; do \
+X	( cd $$DIR ; $(MAKE) clean ; ) ; \
+X	done
+X
+Xmostlyclean: clean
+X
+Xdistclean:
+X	rm -f Makefile config.status
+X	$(MAKE) clean
+X	for DIR in $(SUBDIRS) ; do \
+X	( cd $$DIR ; $(MAKE) distclean ) ; \
+X	done
+X
+Xrealclean: distclean
+X	rm -f TAGS
+X	for DIR in $(SUBDIRS) ; do \
+X	( cd $$DIR ; $(MAKE) realclean ; ) ; \
+X	done
+X
+Xdist:
+X	echo $(TOP_LIST) >dist.filelist
+X	@rm -f samples/*~
+X	ls samples | sed -e 'sx^xsamples/x' >>dist.filelist
+X	for DIR in $(SUBDIRS) ; do \
+X	cd $$DIR ; \
+X	pwd ; \
+X	$(MAKE) dist | sed -e "s?^?$${DIR}/?" -e '/make\[/d' \
+X			 >>../dist.filelist ; \
+X	cd .. ; \
+X	done
+X	cat dist.filelist
+X	$(MAKE) \
+X	RELEASE=`awk ' $$2 == "RELEASE" { print $$3 } ' incl/patchlevel.h` \
+X		release
+X
+Xrelease:
+X	-[ -z "$(RELEASE)" ] && exit 1
+X	[ ! -d $(RELEASE) ] && mkdir $(RELEASE) || ( cd $(RELEASE) ; rm -rf * )
+X	tar cf - `cat dist.filelist` | ( cd $(RELEASE) ; tar xf - )
+X		 >$(RELEASE)/Makefile.in
+X	for x in $(SUBDIRS) ; do \
+X	echo $$x ; \
+END_OF_FILE
+if test 2331 -ne `wc -c <'./Makefile.in'`; then
+    echo shar: \"'./Makefile.in'\" unpacked with wrong size!
+fi
+# end of './Makefile.in'
+fi
+if test ! -d './common_src' ; then
+    echo shar: Creating directory \"'./common_src'\"
+    mkdir './common_src'
+fi
+if test -f './common_src/Makefile.in' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'./common_src/Makefile.in'\"
+else
+echo shar: Extracting \"'./common_src/Makefile.in'\" \(1658 characters\)
+sed "s/^X//" >'./common_src/Makefile.in' <<'END_OF_FILE'
+X#### Start of system configuration section. ####
+X
+Xsrcdir = @srcdir@
+XVPATH = @srcdir@
+X
+XCC = @CC@
+XYACC = @YACC@
+X
+XINSTALL = @INSTALL@
+XINSTALL_PROGRAM = @INSTALL_PROGRAM@
+XINSTALL_DATA = @INSTALL_DATA@
+XAWK	=	@AWK@
+X
+XLIBS = @LIBS@
+XSHELL = /bin/sh
+X
+Xprefix = /usr/local
+Xbinprefix = $(prefix)
+Xlibprefix = $(prefix)
+Xmanprefix = $(prefix)
+Xinfoprefix = $(prefix)
+X
+Xbindir = $(binprefix)/bin
+Xlibdir = $(libprefix)/lib/simple_menu
+Xmandir = $(manprefix)/man/man1
+Xinfodir = $(infoprefix)/lib/emacs/info
+Xmanext = 1
+X
+XCOMMON_OBJ = \
+X	../common_src/scanner.o \
+X	../common_src/grammar.o \
+X	../common_src/simple_menu.o \
+X	../common_src/port.o
+X
+X#### End of system configuration section. ####
+X#  common_src - bottom of Makefile
+X
+Xincldir = @srcdir@/../incl
+XCFLAGS = -g -I$(incldir)
+XYFLAGS = -d
+X
+XSRCS = scanner.c grammar.y simple_menu.c port.c
+XCSRCS = scanner.c grammar.c simple_menu.c port.c
+XOBJS = scanner.o grammar.o simple_menu.o port.o
+XHDRS = $(incldir)/simple_menu.h $(incldir)/prototypes.h $(incldir)/includes.h \
+X	$(incldir)/patchlevel.h $(incldir)/config.h
+X
+Xall: $(OBJS)
+X
+X.c.o:
+X	$(CC) -c $(CFLAGS) $(CPPFLAGS) -I$(srcdir) $<
+X
+X.y.o:
+X	$(YACC) $(YFLAGS) $<
+X	mv y.tab.c $*.c
+X	$(CC) -c $(CFLAGS) $(CPPFLAGS) -I$(srcdir) $<
+X
+X.y.c:
+X	$(YACC) $(YFLAGS) $<
+X	mv y.tab.c $@
+X
+Xy.tab.h: grammar.c
+X	
+X
+Xinstall:
+X
+Xclean:
+X	rm -f *.o *~ core grammar.c y.tab.h
+X
+Xmostlyclean: clean
+X
+Xdistclean: clean
+X	rm -f Makefile config.status
+X
+Xrealclean: distclean
+X	rm -f TAGS
+X
+Xdist:
+X	@echo scanner.c
+X	@echo grammar.y
+X	@echo simple_menu.c
+X	@echo port.c
+X	@echo generic_dsp.c
+X
+Xcheck:
+X
+XTAGS:
+X	$(TAGS_PROG) $(SRCS)
+X
+X# dependancies
+X
+Xgrammar.o: $(HDRS)
+Xscanner.o: $(HDRS) y.tab.h
+Xsimple_menu.o: $(HDRS)
+Xport.o: $(HDRS)
+END_OF_FILE
+if test 1658 -ne `wc -c <'./common_src/Makefile.in'`; then
+    echo shar: \"'./common_src/Makefile.in'\" unpacked with wrong size!
+fi
+# end of './common_src/Makefile.in'
+fi
+if test -f './common_src/generic_dsp.c' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'./common_src/generic_dsp.c'\"
+else
+echo shar: Extracting \"'./common_src/generic_dsp.c'\" \(3395 characters\)
+sed "s/^X//" >'./common_src/generic_dsp.c' <<'END_OF_FILE'
+X/*
+X  this is a stubs file, used only to generate prototypes.h and to
+X  define the functions needed to support a new display
+X
+X  $Id: generic_dsp.c,v 3.1 1994/09/21 18:18:46 mike Exp $
+X  $Author: mike $
+X  $Date: 1994/09/21 18:18:46 $
+X  $Log: generic_dsp.c,v $
+X * Revision 3.1  1994/09/21  18:18:46  mike
+X * added hooks for multi-page menus
+X *
+X * Revision 3.0  1993/11/10  20:29:46  mike
+X * revision 3.0
+X *
+X*/
+X
+Xstatic char *cpy_str =
+X  "Copyright (c), Mike Howard, 1990,1991, 1992 all rights reserved";
+X
+X/* 
+X  simple_menu - a script based menu program for encapsulating shell
+X  commands in a in simple to use and simple to maintain scripts
+X
+X  Copyright (C) 1990,1991, 1992  Mike Howard
+X
+X  This program is free software; you can redistribute it and/or modify
+X  it under the terms of the GNU General Public License as published by
+X  the Free Software Foundation; either version 2 of the License, or
+X  (at your option) any later version.
+X  
+X  This program is distributed in the hope that it will be useful,
+X  but WITHOUT ANY WARRANTY; without even the implied warranty of
+X  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+X  GNU General Public License for more details.
+X
+X  You should have received a copy of the GNU General Public License
+X  along with this program; if not, write to the Free Software
+X  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+X*/
+X
+X/* this is a template for building writing a display dependant module.
+X
+X   must define these functions:
+X   init_terminal() - initializes the display - a tty for tty based stuff
+X   prepare_for_subshell() - this and the companion routine do whatever
+X   return_from_subshell() -  is required to the display to run a subshell
+X   close_terminal() - does whatever closedown is required for terminal
+X
+X   display_menu() - draws the menu on the display
+X   init_menu() - does whatever is necessary when we start a menu
+X   close_menu() - does whatever is necessary when we quit from a menu
+X   re_paginate_menu() - re-paginates menu after ev-variable evals
+X   change_menu_page_next() - display next page of multi-page menu
+X   change_menu_page_previous() - display previous page of multi-page menu
+X
+X   get_user_rsp() - returns single character user choice.
+X   get_variable_value(prompt, def) - returns Malloc'ed value of parameter
+X                                 after talking to user
+X   do_pause(flag) - implements a timed pause.  It should return after a user
+X                    action or default_timeout seconds have passed.  The
+X		    flag is 0 for an illegal menu choice and 1 if exiting
+X		    a menu
+X   display_msg(char *) - displays a message until cleared
+X   undisplay_msg() - clears the previously displayed message
+X*/
+X
+X#include <includes.h>
+X
+X/* terminal handling */
+X
+XVOID_TYPE
+Xinit_terminal()
+X{
+X}
+X
+XVOID_TYPE
+Xprepare_for_subshell()
+X{
+X}
+X
+XVOID_TYPE
+Xreturn_from_subshell()
+X{
+X}
+X
+XVOID_TYPE
+Xclose_terminal()
+X{
+X}
+X
+X/* menu handling */
+X
+XVOID_TYPE
+Xinit_menu(menu_ptr)
+Xstruct menu *menu_ptr;
+X{
+X}
+X
+XVOID_TYPE
+Xclose_menu(menu_ptr)
+Xstruct menu *menu_ptr;
+X{
+X}
+X
+XVOID_TYPE
+Xdisplay_menu()
+X{
+X}
+X
+XVOID_TYPE
+Xre_paginate_menu()
+X{
+X}
+X
+XVOID_TYPE
+Xchange_menu_page_next()
+X{
+X}
+X
+XVOID_TYPE
+Xchange_menu_page_previous()
+X{
+X}
+X
+Xint
+Xget_user_rsp()
+X{
+X}
+X
+Xchar *
+Xget_variable_value(prompt, deflt)
+Xchar *prompt;
+Xchar *deflt;
+X{
+X}
+X
+XVOID_TYPE
+Xdo_pause(flag)
+Xint flag;
+X{
+X}
+X
+XVOID_TYPE
+Xdisplay_msg(text)
+Xchar *text;
+X{
+X}
+X
+XVOID_TYPE
+Xundisplay_msg()
+X{
+X}
+X
+XVOID_TYPE
+Xbeep()
+X{
+X}
+END_OF_FILE
+if test 3395 -ne `wc -c <'./common_src/generic_dsp.c'`; then
+    echo shar: \"'./common_src/generic_dsp.c'\" unpacked with wrong size!
+fi
+# end of './common_src/generic_dsp.c'
+fi
+if test -f './common_src/port.c' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'./common_src/port.c'\"
+else
+echo shar: Extracting \"'./common_src/port.c'\" \(2465 characters\)
+sed "s/^X//" >'./common_src/port.c' <<'END_OF_FILE'
+X/*
+X  $Id: port.c,v 3.1 1994/01/27 20:36:00 mike Exp $
+X  $Author: mike $
+X  $Date: 1994/01/27 20:36:00 $
+X  $Log: port.c,v $
+X * Revision 3.1  1994/01/27  20:36:00  mike
+X * removed conditioning on HAVE_TEMPNAM when creating prototypes.h
+X *
+X * Revision 3.1  1994/01/27  20:36:00  mike
+X * removed conditioning on HAVE_TEMPNAM when creating prototypes.h
+X *
+X * Revision 3.0  1993/11/10  20:30:27  mike
+X * *** empty log message ***
+X *
+X*/
+X
+X#include <includes.h>
+X
+X/* if doing prototypes, then undef all conditionals - conditionals are
+X   re-inserted in prototype construction script */
+X#ifdef DOING_PROTO
+X# undef HAVE_TEMPNAM
+X#endif /* DOING_PROTO */
+X
+X#ifndef HAVE_TEMPNAM
+X/* this is an implementation of tempnam(3) based only on the manual page in
+X   The UNIX System User's Manual - AT&T, 1986, based on Sys V, Issue 2
+X   of the SVID */
+X
+X#ifndef P_tmpdir
+X# define P_tmpdir  "/tmp"
+X#endif
+X
+X#include <sys/types.h>
+X#include <sys/stat.h>
+X
+X#ifndef S_IFMT
+X# define S_IFMT  0170000
+X# define S_IFDIR 0040000
+X#endif
+X
+X#ifndef S_IRWXU
+X# define S_IRWXU  0000700
+X# define S_IRWXG  0000070
+X# define S_IRWXO  0000007
+X#endif
+X
+Xstatic int
+Xbad_dir(path)
+Xchar *path;
+X{
+X  struct stat stat_buf;
+X
+X  if (stat(path, &stat_buf))
+X    return 1;
+X  if ((stat_buf.st_mode & S_IFMT) != S_IFDIR)
+X    return 1;
+X  if (stat_buf.st_uid == geteuid()) {
+X    return (stat_buf.st_mode & S_IRWXU) == S_IRWXU ? 0 : 1;
+X  }
+X  if (stat_buf.st_gid == getegid()) {
+X    return (stat_buf.st_mode & S_IRWXG) == S_IRWXG ? 0 : 1;
+X  }
+X  return (stat_buf.st_mode & S_IRWXO) == S_IRWXO ? 0 : 1;
+X}
+X
+Xstatic int
+Xinc_fname(fname)
+Xchar *fname;
+X{
+X  char *cp = fname + 5;
+X
+X  while (cp >= fname) {
+X    if (++(*cp) <= 'z')
+X      return 0;
+X    *cp-- = 'a';
+X  }
+X  return -1;
+X}
+X
+Xchar *
+Xtempnam(dir, prf)
+Xchar *dir;
+Xchar *prf;
+X{
+X  int   fd;
+X  char *getenv();
+X  char *path;
+X  char *fname;
+X
+X  /* allow user over-ride of tmp directory */
+X  if (path = getenv("TMPDIR"))
+X    dir = path;
+X
+X  if (!dir && !(dir = P_tmpdir))
+X    dir = "/tmp";
+X
+X  if (bad_dir(dir) && bad_dir(dir = "/tmp"))
+X    return (char *)0;
+X
+X  strcpy(path = Malloc(strlen(dir) + 16), dir);
+X  fname = path + strlen(path);
+X  if (fname[-1] != '/')
+X    *fname++ = '/';
+X
+X  strncpy(fname, prf ? prf : "tmp", 5);
+X  fname += strlen(fname);
+X  strcpy(fname, "aaaaaaaaa");
+X  while ((fd = open(path, O_RDWR | O_CREAT | O_EXCL, 0666)) < 0) {
+X    if (inc_fname(fname)) {
+X      Free(path);
+X      return (char *)0;
+X    }
+X  }
+X  close(fd);
+X  unlink(path);
+X
+X  return path;
+X}
+X
+X#endif /* HAVE_TEMPNAM */
+END_OF_FILE
+if test 2465 -ne `wc -c <'./common_src/port.c'`; then
+    echo shar: \"'./common_src/port.c'\" unpacked with wrong size!
+fi
+# end of './common_src/port.c'
+fi
+if test -f './configure.in' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'./configure.in'\"
+else
+echo shar: Extracting \"'./configure.in'\" \(1847 characters\)
+sed "s/^X//" >'./configure.in' <<'END_OF_FILE'
+Xdnl Process this file with autoconf1.1 or higher to produce a configure script.
+XAC_INIT(common_src/simple_menu.c)
+XAC_CONFIG_HEADER(incl/config.h)
+XPROGS=""
+Xdnl check for programs
+XAC_SUBST(PROGS)dnl
+XAC_PROG_YACC
+XAC_PROG_CC
+XAC_PROG_CPP
+XAC_PROG_AWK
+XAC_PROG_INSTALL
+XAC_PROGRAMS_CHECK(TAGS_PROG, etags ctags)
+Xdnl check for UNIX varients
+Xdnl check for header files
+X
+XAC_STDC_HEADERS
+XAC_HAVE_HEADERS( unistd.h termio.h sgtty.h memory.h string.h )
+Xdnl check for typedefs
+XAC_PID_T
+XAC_UID_T
+XAC_RETSIGTYPE
+XAC_COMPILE_CHECK(void datatypes, ,
+X void foo(); foo(); } void foo(){int x; x=1;,
+X AC_DEFINE(VOID_TYPE, void), AC_DEFINE(VOID_TYPE, int))
+Xdnl check for functions
+XAC_HAVE_FUNCS(tempnam)
+Xdnl check for structure members
+Xdnl check for compiler charactersitics
+Xdnl check for OS services
+XAC_RESTARTABLE_SYSCALLS
+Xdnl looking for Curses/Terminfo/Termcap
+XLIBS_SAVE=$LIBS
+XTERMLIBS=
+XLIBS=-lcurses
+XAC_COMPILE_CHECK(terminfo, [#include <curses.h>], [
+X  { initscr(); } ],
+X [TERMLIBS=TERMINFO])
+Xif test -z "$TERMLIBS" ; then
+XLIBS='-ltermcap'
+XAC_COMPILE_CHECK(termcap, [#include <curses.h>], [
+X  { char *bp, *tm; tgetent(bp, tm); }
+X ],
+X [TERMLIBS=TERMCAP])
+Xfi
+Xcase $TERMLIBS in
+X  TERMCAP)
+X    AC_DEFINE(CURSESLIBS, [-lcurses -ltermcap])
+X    CURSESLIBS='-lcurses -ltermcap'
+X    AC_DEFINE(TERMLIB, [-ltermcap])
+X    TERMLIB='-ltermcap'
+X    AC_DEFINE(HAVE_TERMCAP)
+X  ;;
+X  TERMINFO)
+X    AC_HAVE_HEADERS( term.h )
+X    AC_DEFINE(CURSESLIBS, [-lcurses])
+X    CURSESLIBS='-lcurses'
+X    AC_DEFINE(TERMLIB, [-lcurses])
+X    TERMLIB='-lcurses'
+X    AC_DEFINE(HAVE_TERMINFO)
+X  ;;
+X  *)
+X    echo "Must have either TERMCAP or TERMINFO"
+X    exit 1
+X  ;;
+Xesac
+XLIBS="$LIBS_SAVE"
+XAC_SUBST(CURSESLIBS)
+XAC_SUBST(TERMLIB)
+Xdnl other checks for UNIX variants
+XAC_OUTPUT([Makefile \
+X common_src/Makefile \
+X tty_src/Makefile \
+X curses_src/Makefile \
+X Xaw_src/Makefile \
+X doc/Makefile \
+X incl/Makefile])
+END_OF_FILE
+if test 1847 -ne `wc -c <'./configure.in'`; then
+    echo shar: \"'./configure.in'\" unpacked with wrong size!
+fi
+# end of './configure.in'
+fi
+if test ! -d './doc' ; then
+    echo shar: Creating directory \"'./doc'\"
+    mkdir './doc'
+fi
+if test -f './doc/Makefile.in' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'./doc/Makefile.in'\"
+else
+echo shar: Extracting \"'./doc/Makefile.in'\" \(1669 characters\)
+sed "s/^X//" >'./doc/Makefile.in' <<'END_OF_FILE'
+X#### Start of system configuration section. ####
+X
+Xsrcdir = @srcdir@
+XVPATH = @srcdir@
+X
+XCC = @CC@
+XYACC = @YACC@
+X
+XINSTALL = @INSTALL@
+XINSTALL_PROGRAM = @INSTALL_PROGRAM@
+XINSTALL_DATA = @INSTALL_DATA@
+XAWK	=	@AWK@
+X
+XLIBS = @LIBS@
+XSHELL = /bin/sh
+X
+Xprefix = /usr/local
+Xbinprefix = $(prefix)
+Xlibprefix = $(prefix)
+Xmanprefix = $(prefix)
+Xinfoprefix = $(prefix)
+X
+Xbindir = $(binprefix)/bin
+Xlibdir = $(libprefix)/lib/simple_menu
+Xmandir = $(manprefix)/man/man1
+Xinfodir = $(infoprefix)/lib/emacs/info
+Xmanext = 1
+X
+XCOMMON_OBJ = \
+X	../common_src/scanner.o \
+X	../common_src/grammar.o \
+X	../common_src/simple_menu.o \
+X	../common_src/port.o
+X
+X#### End of system configuration section. ####
+X# bottom part of makefile - subdirectory specific
+X
+XTROFF	= groff -t
+X#TROFF	= tbl | troff
+X
+XTARGETS = \
+X	simple_menu.info \
+X	simple_menu.ps \
+X	simple_menu.txt
+X
+Xall: $(TARGETS) $(OTHERS)
+X
+X
+X# Add-to-Dist-Start
+Xsimple_menu.ms:
+X	cat s_menu.ms* >simple_menu.ms
+X
+Xsimple_menu.mm:
+X	cat s_menu.mm* >simple_menu.mm
+X
+Xsimple_menu.me:
+X	cat s_menu.me* >simple_menu.me
+X
+Xsimple_menu.texi:
+X	cat s_menu.texi* >simple_menu.texi
+X
+Xsimple_menu.ps:
+X	cat s_menu.ps* >simple_menu.ps
+X
+X# Add-to-Dist-End
+X
+Xsimple_menu.info: simple_menu.texi
+X	makeinfo simple_menu.texi
+X
+Xinstall:
+X	-[ -x $(bindir)/simple_menu ] && \
+X	$(INSTALL_DATA) simple_menu.1 $(mandir)/simple_menu.$(manext)
+X	( $(INSTALL_DATA) simple_menu.info $(infodir)/simple_menu.info ; \
+X	echo "Make & Install simple_menu.info in $(infodir)/dir" )
+X	
+Xuninstall:
+X	rm -f $(mandir)/simple_menu.$(manext)
+X	[ -x $(infodir) ] && \
+X	rm -f $(infodir)/simple_menu.info
+X
+Xmostlyclean clean:
+X	rm -f core *~
+X
+Xdistclean: clean
+X	rm -f Makefile
+X	rm s_menu.*
+X
+Xrealclean: clean
+X
+XTAGS :
+X
+Xcheck:
+END_OF_FILE
+if test 1669 -ne `wc -c <'./doc/Makefile.in'`; then
+    echo shar: \"'./doc/Makefile.in'\" unpacked with wrong size!
+fi
+# end of './doc/Makefile.in'
+fi
+if test ! -d './incl' ; then
+    echo shar: Creating directory \"'./incl'\"
+    mkdir './incl'
+fi
+if test -f './incl/Makefile.in' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'./incl/Makefile.in'\"
+else
+echo shar: Extracting \"'./incl/Makefile.in'\" \(908 characters\)
+sed "s/^X//" >'./incl/Makefile.in' <<'END_OF_FILE'
+X#### Start of system configuration section. ####
+X
+Xsrcdir = @srcdir@
+XVPATH = @srcdir@
+X
+XCC = @CC@
+XYACC = @YACC@
+X
+XINSTALL = @INSTALL@
+XINSTALL_PROGRAM = @INSTALL_PROGRAM@
+XINSTALL_DATA = @INSTALL_DATA@
+XAWK	=	@AWK@
+X
+XLIBS = @LIBS@
+XSHELL = /bin/sh
+X
+Xprefix = /usr/local
+Xbinprefix = $(prefix)
+Xlibprefix = $(prefix)
+Xmanprefix = $(prefix)
+Xinfoprefix = $(prefix)
+X
+Xbindir = $(binprefix)/bin
+Xlibdir = $(libprefix)/lib/simple_menu
+Xmandir = $(manprefix)/man/man1
+Xinfodir = $(infoprefix)/lib/emacs/info
+Xmanext = 1
+X
+XCOMMON_OBJ = \
+X	../common_src/scanner.o \
+X	../common_src/grammar.o \
+X	../common_src/simple_menu.o \
+X	../common_src/port.o
+X
+X#### End of system configuration section. ####
+X# bottom part of makefile - subdirectory specific
+X
+Xall:
+X
+X
+Xinstall: 
+X
+Xuninstall:
+X
+Xmostlyclean clean:
+X	rm -f core *~
+X
+Xdistclean: clean
+X	rm -f Makefile
+X
+Xrealclean: clean
+X
+XTAGS :
+X
+Xdist:
+X	@ls *.h | sed -e '/config.h/d'
+X	@echo config.h.in
+X
+Xcheck:
+END_OF_FILE
+if test 908 -ne `wc -c <'./incl/Makefile.in'`; then
+    echo shar: \"'./incl/Makefile.in'\" unpacked with wrong size!
+fi
+# end of './incl/Makefile.in'
+fi
+if test -f './incl/config.h.in' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'./incl/config.h.in'\"
+else
+echo shar: Extracting \"'./incl/config.h.in'\" \(1587 characters\)
+sed "s/^X//" >'./incl/config.h.in' <<'END_OF_FILE'
+X/* incl/config.h.in.  Generated automatically from configure.in by autoheader.  */
+X
+X/* Define to the type of elements in the array set by `getgroups'.
+X   Usually this is either `int' or `gid_t'.  */
+X#undef GETGROUPS_T
+X
+X/* Define to `int' if <sys/types.h> doesn't define.  */
+X#undef gid_t
+X
+X/* Define if system calls automatically restart after interruption
+X   by a signal.  */
+X#undef HAVE_RESTARTABLE_SYSCALLS
+X
+X/* Define to `int' if <sys/types.h> doesn't define.  */
+X#undef pid_t
+X
+X/* Define as the return type of signal handlers (int or void).  */
+X#undef RETSIGTYPE
+X
+X/* Define if you have the ANSI C header files.  */
+X#undef STDC_HEADERS
+X
+X/* Define to `int' if <sys/types.h> doesn't define.  */
+X#undef uid_t
+X
+X/* compiler entry for curses library */
+X#undef CURSESLIBS
+X
+X/* compile entry needed to get at the term control library */
+X#undef TERMLIB
+X
+X/* define if have TERMCAP style terminal control */
+X#undef HAVE_TERMCAP
+X
+X/* define if have TERMINFO style terminal control */
+X#undef HAVE_TERMINFO
+X
+X/* void type - use this name to avoid conflict with SunOS <curses.h>*/
+X#undef VOID_TYPE
+X
+X/* Define if you have tempnam.  */
+X#undef HAVE_TEMPNAM
+X
+X/* Define if you have the <memory.h> header file.  */
+X#undef HAVE_MEMORY_H
+X
+X/* Define if you have the <sgtty.h> header file.  */
+X#undef HAVE_SGTTY_H
+X
+X/* Define if you have the <string.h> header file.  */
+X#undef HAVE_STRING_H
+X
+X/* Define if you have the <term.h> header file.  */
+X#undef HAVE_TERM_H
+X
+X/* Define if you have the <termio.h> header file.  */
+X#undef HAVE_TERMIO_H
+X
+X/* Define if you have the <unistd.h> header file.  */
+X#undef HAVE_UNISTD_H
+END_OF_FILE
+if test 1587 -ne `wc -c <'./incl/config.h.in'`; then
+    echo shar: \"'./incl/config.h.in'\" unpacked with wrong size!
+fi
+# end of './incl/config.h.in'
+fi
+if test -f './incl/includes.h' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'./incl/includes.h'\"
+else
+echo shar: Extracting \"'./incl/includes.h'\" \(1466 characters\)
+sed "s/^X//" >'./incl/includes.h' <<'END_OF_FILE'
+X/*
+X  includes.  Designed to work with config.h generated by configure
+X
+X  $Id: includes.h,v 3.1 1994/09/20 20:27:14 mike Exp $
+X  $Author: mike $
+X  $Date: 1994/09/20 20:27:14 $
+X
+X  $Log: includes.h,v $
+X * Revision 3.1  1994/09/20  20:27:14  mike
+X * *** empty log message ***
+X *
+X * Revision 3.1  1994/09/20  20:27:14  mike
+X * *** empty log message ***
+X *
+X * Revision 3.1  1994/01/29  20:22:52  mike
+X * dded pwd.h to include list.  Hope it is general enough not to test for
+X * Needed to support meaning of 'restricted' keyword
+X *
+X * Revision 3.0  1993/11/10  20:32:23  mike
+X * version 3.0
+X *
+X * Revision 1.1  1992/10/16  16:40:20  mike
+X * Initial revision
+X *
+X*/
+X
+X/* standard includes - always available */
+X
+X#include <stdio.h>
+X#include <fcntl.h>
+X#include <signal.h>
+X#include <ctype.h>
+X#include <pwd.h>
+X
+X/* portability crud */
+X#include <config.h>
+X
+X/* string and memory functions */
+X#if STDC_HEADERS || HAVE_STRING_H
+X# include <string.h>
+X# if !STDC_HEADERS && HAVE_MEMORY_H
+X#  include <memory.h>
+X# endif /* NEED_MEMORY_H */
+X# define bzero(s, n) memset((s), 0, (n))
+X#else /* not USG */
+X# include <strings.h>
+X# define strchr index
+X# define strrchr rindex
+X# define memcpy(d, s, n)  bcopy((s), (d), (n))
+X# define memcmp(s1, s2, n) bcmp((s1), (s2), (n))
+X#endif /* not USG */
+X
+X/* POSIXness */
+X#ifdef HAVE_UNISTD_H
+X#include <sys/types.h>
+X#include <unistd.h>
+X#endif /* HAVE_UNISTD_H */
+X
+X/* local includes */
+X
+X#include <simple_menu.h>
+X#include <patchlevel.h>
+X#include <prototypes.h>
+END_OF_FILE
+if test 1466 -ne `wc -c <'./incl/includes.h'`; then
+    echo shar: \"'./incl/includes.h'\" unpacked with wrong size!
+fi
+# end of './incl/includes.h'
+fi
+if test -f './incl/patchlevel.h' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'./incl/patchlevel.h'\"
+else
+echo shar: Extracting \"'./incl/patchlevel.h'\" \(70 characters\)
+sed "s/^X//" >'./incl/patchlevel.h' <<'END_OF_FILE'
+X#define VERSION    3
+X#define PATCHLEVEL 1
+X#define RELEASE Release-3.1
+END_OF_FILE
+if test 70 -ne `wc -c <'./incl/patchlevel.h'`; then
+    echo shar: \"'./incl/patchlevel.h'\" unpacked with wrong size!
+fi
+# end of './incl/patchlevel.h'
+fi
+if test -f './incl/prototypes.h' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'./incl/prototypes.h'\"
+else
+echo shar: Extracting \"'./incl/prototypes.h'\" \(3822 characters\)
+sed "s/^X//" >'./incl/prototypes.h' <<'END_OF_FILE'
+X#if defined(__STDC__) || defined(__cplusplus)
+X#define P_(s) s
+X#else
+X#define P_(s) ()
+X#endif
+X
+X
+X/* scanner.c */
+Xint match_token P_((char *s));
+Xint make_lower P_((int c));
+Xint yylex P_((void));
+Xint scan_in_token_state P_((void));
+Xint scan_in_name_state P_((void));
+Xint scan_in_string_state P_((void));
+Xint scan_in_text_state P_((void));
+Xint scan_in_old_text_state P_((void));
+Xvoid unget_char P_((int c));
+Xint next_char P_((int fd));
+Xvoid flush_char_input P_((void));
+Xvoid add_char P_((int c));
+Xvoid strip_white_space P_((void));
+Xchar *take_saved_text P_((void));
+X
+X/* grammar.c */
+Xint yyparse P_((void));
+X
+X/* simple_menu.c */
+Xint menu_main P_((int argc, char **argv));
+Xvoid display_parsed_menus P_((void));
+Xvoid init P_((int argc, char **argv));
+Xstruct prompt_string *make_new_prompt_string P_((int segment_type, char *fragment));
+Xvoid eval_prompt_string P_((struct prompt_string *ps_ptr));
+Xstruct parm *make_new_parm P_((int flag, char *identifier, struct prompt_string *prompt, char *def_or_evname));
+Xstruct item *make_new_item P_((struct prompt_string *prompt, char *command, struct parm *parms, int action));
+Xstruct action_list *make_new_action_list P_((struct item *item));
+Xstruct action_list *add_to_action_list P_((struct action_list *action_list, struct item *item));
+Xstruct menu *make_new_menu P_((void));
+Xstruct ev_var *make_new_ev_var P_((int flag, char *identifier, char *deflt, char *fname));
+Xstruct ev_var_val *make_new_ev_var_val P_((char *identifier, char *value, char *script, int flag));
+Xchar *get_ev_val_from_file P_((struct ev_var *ev_ptr, char *fname));
+Xvoid reset_ev_vars P_((struct ev_var_val *ev_val_list));
+Xvoid reset_ev_var P_((struct ev_var_val *evv_ptr));
+Xvoid init_ev_vars P_((void));
+Xvoid push_environment P_((void));
+Xvoid pop_environment P_((void));
+Xstruct ev_var *find_ev_var_by_name P_((char *name));
+Xvoid init_item_parm_defaults P_((struct item *i_ptr));
+Xint privileged_user P_((char *s));
+Xvoid push_menu P_((struct menu *menu_ptr));
+Xint pop_menu P_((void));
+Xstruct menu *find_menu P_((char *name));
+Xint check_menu P_((void));
+Xint check_items P_((struct item *item_ptr, char *menu_name, int *errorcount_ptr));
+Xint do_menu P_((void));
+Xvoid do_item P_((struct item *selected_item, int item_parent));
+Xvoid do_shell_script P_((struct item *selected_item));
+Xchar *output_of_shell P_((char *script));
+Xvoid output_var_asg P_((FILE *file, char *identifier, char *value));
+Xvoid do_prelude P_((void));
+Xvoid do_epilogue P_((void));
+Xvoid fatal P_((char *s));
+Xvoid trapoid P_((int sig));
+Xvoid do_longjmp P_((int sig));
+Xvoid wait_for_child P_((pid_t pid));
+Xvoid set_signals P_((int flag));
+Xvoid reset_signals P_((void));
+Xint open_menu_file P_((void));
+Xint search_menu_path P_((char *path, char *fname));
+Xchar *Malloc P_((unsigned size));
+Xchar *Realloc P_((char *ptr, unsigned size));
+Xvoid Free P_((char *ptr));
+Xvoid yyerror P_((char *s));
+Xvoid prt_item P_((struct item *item_ptr, int action_list_idx));
+Xvoid prt_prompt_string P_((struct prompt_string *p_ptr, int action_list_idx));
+Xint prt_command P_((char *cmd, int action_list_idx));
+Xvoid prt_evv_ptr P_((struct ev_var_val *evv_ptr, int action_list_idx));
+Xvoid simple_menu_exit P_((int code));
+X
+X/* port.c */
+Xchar* tempname P_((char*, char*));
+X
+X/* generic_dsp.c */
+Xvoid init_terminal P_((void));
+Xvoid prepare_for_subshell P_((void));
+Xvoid return_from_subshell P_((void));
+Xvoid close_terminal P_((void));
+Xvoid init_menu P_((struct menu *menu_ptr));
+Xvoid close_menu P_((struct menu *menu_ptr));
+Xvoid display_menu P_((void));
+Xvoid re_paginate_menu P_((void));
+Xvoid change_menu_page_next P_((void));
+Xvoid change_menu_page_previous P_((void));
+Xint get_user_rsp P_((void));
+Xchar *get_variable_value P_((char *prompt, char *deflt));
+Xvoid do_pause P_((int flag));
+Xvoid display_msg P_((char *text));
+Xvoid undisplay_msg P_((void));
+Xvoid beep P_((void));
+X
+X#undef P_
+END_OF_FILE
+if test 3822 -ne `wc -c <'./incl/prototypes.h'`; then
+    echo shar: \"'./incl/prototypes.h'\" unpacked with wrong size!
+fi
+# end of './incl/prototypes.h'
+fi
+if test -f './install.sh' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'./install.sh'\"
+else
+echo shar: Extracting \"'./install.sh'\" \(2186 characters\)
+sed "s/^X//" >'./install.sh' <<'END_OF_FILE'
+X#!/bin/sh
+X
+X#
+X# install - install a program, script, or datafile
+X# This comes from X11R5; it is not part of GNU.
+X#
+X# $XConsortium: install.sh,v 1.2 89/12/18 14:47:22 jim Exp $
+X#
+X# This script is compatible with the BSD install script, but was written
+X# from scratch.
+X#
+X
+X
+X# set DOITPROG to echo to test this script
+X
+X# Don't use :- since 4.3BSD and earlier shells don't like it.
+Xdoit="${DOITPROG-}"
+X
+X
+X# put in absolute paths if you don't have them in your path; or use env. vars.
+X
+Xmvprog="${MVPROG-mv}"
+Xcpprog="${CPPROG-cp}"
+Xchmodprog="${CHMODPROG-chmod}"
+Xchownprog="${CHOWNPROG-chown}"
+Xchgrpprog="${CHGRPPROG-chgrp}"
+Xstripprog="${STRIPPROG-strip}"
+Xrmprog="${RMPROG-rm}"
+X
+Xinstcmd="$mvprog"
+Xchmodcmd=""
+Xchowncmd=""
+Xchgrpcmd=""
+Xstripcmd=""
+Xrmcmd="$rmprog -f"
+Xmvcmd="$mvprog"
+Xsrc=""
+Xdst=""
+X
+Xwhile [ x"$1" != x ]; do
+X    case $1 in
+X	-c) instcmd="$cpprog"
+X	    shift
+X	    continue;;
+X
+X	-m) chmodcmd="$chmodprog $2"
+X	    shift
+X	    shift
+X	    continue;;
+X
+X	-o) chowncmd="$chownprog $2"
+X	    shift
+X	    shift
+X	    continue;;
+X
+X	-g) chgrpcmd="$chgrpprog $2"
+X	    shift
+X	    shift
+X	    continue;;
+X
+X	-s) stripcmd="$stripprog"
+X	    shift
+X	    continue;;
+X
+X	*)  if [ x"$src" = x ]
+X	    then
+X		src=$1
+X	    else
+X		dst=$1
+X	    fi
+X	    shift
+X	    continue;;
+X    esac
+Xdone
+X
+Xif [ x"$src" = x ]
+Xthen
+X	echo "install:  no input file specified"
+X	exit 1
+Xfi
+X
+Xif [ x"$dst" = x ]
+Xthen
+X	echo "install:  no destination specified"
+X	exit 1
+Xfi
+X
+X
+X# If destination is a directory, append the input filename; if your system
+X# does not like double slashes in filenames, you may need to add some logic
+X
+Xif [ -d $dst ]
+Xthen
+X	dst="$dst"/`basename $src`
+Xfi
+X
+X# Make a temp file name in the proper directory.
+X
+Xdstdir=`dirname $dst`
+Xdsttmp=$dstdir/#inst.$$#
+X
+X# Move or copy the file name to the temp name
+X
+X$doit $instcmd $src $dsttmp
+X
+X# and set any options; do chmod last to preserve setuid bits
+X
+Xif [ x"$chowncmd" != x ]; then $doit $chowncmd $dsttmp; fi
+Xif [ x"$chgrpcmd" != x ]; then $doit $chgrpcmd $dsttmp; fi
+Xif [ x"$stripcmd" != x ]; then $doit $stripcmd $dsttmp; fi
+Xif [ x"$chmodcmd" != x ]; then $doit $chmodcmd $dsttmp; fi
+X
+X# Now rename the file to the real destination.
+X
+X$doit $rmcmd $dst
+X$doit $mvcmd $dsttmp $dst
+X
+X
+Xexit 0
+END_OF_FILE
+if test 2186 -ne `wc -c <'./install.sh'`; then
+    echo shar: \"'./install.sh'\" unpacked with wrong size!
+fi
+chmod +x './install.sh'
+# end of './install.sh'
+fi
+if test ! -d './samples' ; then
+    echo shar: Creating directory \"'./samples'\"
+    mkdir './samples'
+fi
+if test -f './samples/backup.menu' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'./samples/backup.menu'\"
+else
+echo shar: Extracting \"'./samples/backup.menu'\" \(2174 characters\)
+sed "s/^X//" >'./samples/backup.menu' <<'END_OF_FILE'
+Xtitle 'System Wide Backup Menu'
+X
+Xbold
+X
+Xitem 'Full Backup Local System on Local Device'
+X%(
+X  date >/inc_date_new
+X  find / -print | /usr/local/bin/afio -o -z -c 100 /dev/mt0 && (
+X  [ -f inc_date ] && mv inc_date inc_date_old
+X  mv inc_date_new inc_date
+X  }
+X%)
+X;
+X
+Xitem 'Incremental Backup Local System on Local Device'
+X%(
+X  date >/inc_date_new
+X  if [ -f /inc_date ] ; then
+X    find / -print -newer /inc_date |
+X       /usr/local/bin/afio -o -c 100 -z /dev/mt0
+X  else
+X    find / -print | /usr/local/bin/afio -o -c 100 -z /dev/mt0
+X  fi && (
+X  [ -f inc_date ] && mv inc_date inc_date_old
+X  mv inc_date_new inc_date
+X  }
+X%)
+X;
+X
+Xskip ;
+X
+Xitem 'Full Backup Remote System on Device on Same System'
+X%(
+X  rsh $SYSTEM '
+X  date >/inc_date_new
+X  find / -print | /usr/local/bin/afio -o -z -c 100 /dev/mt0 && (
+X  [ -f /inc_date ] && mv /inc_date /inc_date_old
+X  mv /inc_date_new /inc_date
+X  }
+X  '
+X%)
+Xparm "SYSTEM" 'System to Backup'
+X;
+X
+Xitem 'Incremental Backup Local System on Device on Same System'
+X%(
+X  rsh $SYSTEM '
+X  date >/inc_date_new
+X  if [ -f /inc_date ] ; then
+X    find / -print -newer /inc_date |
+X       /usr/local/bin/afio -o -c 100 -z /dev/mt0
+X  else
+X    find / -print | /usr/local/bin/afio -o -c 100 -z /dev/mt0
+X  fi && (
+X  [ -f /inc_date ] && mv /inc_date /inc_date_old
+X  mv /inc_date_new /inc_date
+X  }
+X  '
+X%)
+Xparm "SYSTEM" 'System to Backup'
+X;
+X
+Xskip ;
+X
+Xitem 'Full Backup Remote System on Device on Another System'
+X%(
+X  rsh $SYSTEM '
+X  date >/inc_date_new
+X  find / -print | /usr/local/bin/afio -o -z -c 100 $TAPE_SYS:/dev/mt0 && (
+X  [ -f /inc_date ] && mv /inc_date /inc_date_old
+X  mv /inc_date_new /inc_date
+X  }
+X  '
+X%)
+Xparm "SYSTEM" 'System to Backup'
+Xparm "TAPE_SYS" 'System with Archive Device'
+X;
+X
+Xitem 'Incremental Backup Local System on Device on Another System'
+X%(
+X  rsh $SYSTEM '
+X  date >/inc_date_new
+X  if [ -f /inc_date ] ; then
+X    find / -print -newer /inc_date |
+X       /usr/local/bin/afio -o -c 100 -z /dev/mt0
+X  else
+X    find / -print | /usr/local/bin/afio -o -c 100 -z $TAPE_SYS:/dev/mt0
+X  fi && (
+X  [ -f /inc_date ] && mv /inc_date /inc_date_old
+X  mv /inc_date_new /inc_date
+X  }
+X  '
+X%)
+Xparm "SYSTEM" 'System to Backup'
+Xparm "TAPE_SYS" 'System with Archive Device'
+X;
+END_OF_FILE
+if test 2174 -ne `wc -c <'./samples/backup.menu'`; then
+    echo shar: \"'./samples/backup.menu'\" unpacked with wrong size!
+fi
+# end of './samples/backup.menu'
+fi
+if test -f './samples/bad.menu' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'./samples/bad.menu'\"
+else
+echo shar: Extracting \"'./samples/bad.menu'\" \(72 characters\)
+sed "s/^X//" >'./samples/bad.menu' <<'END_OF_FILE'
+Xtitle 'A Menu with Bugs' ==
+X
+Xbold clear
+X
+Xshell 'bafo'
+X%( echo barf %)
+X;
+END_OF_FILE
+if test 72 -ne `wc -c <'./samples/bad.menu'`; then
+    echo shar: \"'./samples/bad.menu'\" unpacked with wrong size!
+fi
+# end of './samples/bad.menu'
+fi
+if test -f './samples/directory' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'./samples/directory'\"
+else
+echo shar: Extracting \"'./samples/directory'\" \(227 characters\)
+sed "s/^X//" >'./samples/directory' <<'END_OF_FILE'
+Xsimple_menu.1:The Manual Page
+Xscanner.c:The Lexical Analyzer
+Xsimple_menu.c:Main Program
+Xgrammary.y:The Parser
+Xtty_display.c:A tty display handler
+Xsimple_menu.h:Function definition header file
+Xprototypes.h:Prototype definitions
+END_OF_FILE
+if test 227 -ne `wc -c <'./samples/directory'`; then
+    echo shar: \"'./samples/directory'\" unpacked with wrong size!
+fi
+# end of './samples/directory'
+fi
+if test -f './samples/ev-values' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'./samples/ev-values'\"
+else
+echo shar: Extracting \"'./samples/ev-values'\" \(131 characters\)
+sed "s/^X//" >'./samples/ev-values' <<'END_OF_FILE'
+X# environment file definitions
+X
+XEV_FROMFILE_NO_INIT = a new value from file
+X
+XEV_FROMFILE_DEFINED = the non-default value from file
+END_OF_FILE
+if test 131 -ne `wc -c <'./samples/ev-values'`; then
+    echo shar: \"'./samples/ev-values'\" unpacked with wrong size!
+fi
+# end of './samples/ev-values'
+fi
+if test -f './samples/foo.menu' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'./samples/foo.menu'\"
+else
+echo shar: Extracting \"'./samples/foo.menu'\" \(241 characters\)
+sed "s/^X//" >'./samples/foo.menu' <<'END_OF_FILE'
+X
+Xglobal "FOO" = 'foo' ;
+X
+Xtitle 'foo menu ' + "FOO"
+X
+Xalways-show
+X
+Xreset-global 'Reset Globals Interactively [' + "FOO" + ']'
+Xfrom-user "FOO" 'Interacive Reset'
+X;
+X
+Xreset-global 'Reset Globals to Default [' + "FOO" + ']'
+Xglobal "FOO" = 'foo'
+X;
+END_OF_FILE
+if test 241 -ne `wc -c <'./samples/foo.menu'`; then
+    echo shar: \"'./samples/foo.menu'\" unpacked with wrong size!
+fi
+# end of './samples/foo.menu'
+fi
+if test -f './samples/login.menu' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'./samples/login.menu'\"
+else
+echo shar: Extracting \"'./samples/login.menu'\" \(495 characters\)
+sed "s/^X//" >'./samples/login.menu' <<'END_OF_FILE'
+X#	a sample login menu
+X
+Xfrom-env "EDITOR" = 'vi' ;
+Xfrom-env "PAGER"  = 'more' ;
+X
+Xtitle 'Login Menu'
+X
+Xclear always-show
+X
+Xprelude 'checking for mail ...'
+X%( mail %)
+X;
+X
+Xepilogue 'checking for mail'
+X%( mail %)
+X;
+X
+Xshell 'Edit a File'
+X%( ${EDITOR} $FILE %)
+Xparm "FILE"='work.doc' 'Name of File to Edit'
+X;
+X
+Xshell 'Browse a File'
+X%( ${PAGER} $FILE %)
+Xparm "FILE"='work.doc' 'Name of File to View'
+X;
+X
+Xshell 'Mail to a User'
+X%( mail -s "$SUBJECT" $TO_WHOM %)
+Xparm "SUBJECT" 'Subject'
+Xparm "TO_WHOM" 'To'
+X;
+END_OF_FILE
+if test 495 -ne `wc -c <'./samples/login.menu'`; then
+    echo shar: \"'./samples/login.menu'\" unpacked with wrong size!
+fi
+# end of './samples/login.menu'
+fi
+if test -f './samples/menu.def' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'./samples/menu.def'\"
+else
+echo shar: Extracting \"'./samples/menu.def'\" \(4149 characters\)
+sed "s/^X//" >'./samples/menu.def' <<'END_OF_FILE'
+X# environment definitions
+X
+Xfrom-file './ev-values' "EV_FROMFILE_NO_INIT" ;
+X
+Xfrom-file './ev-values' "EV_FROMFILE_DEFINED" = 'initial value of file value' ;
+X
+Xfrom-file './ev-values' "EV_FROMEFILE_NOT_THERE" ;
+X
+Xfrom-env "EV_DEFINED" = 'value of EV_DEFINED' ;
+X
+Xfrom-env "EV_UNDEFINED" ;
+X
+Xglobal "GLOBAL_NODEF" ;
+Xglobal "GLOBAL_DEF" = 'Menu value for Global Variable' ;
+X
+Xfrom-shell  "DATE" = %( date %) ;
+Xfrom-shell  "FOO"  = %( echo -n foo %);
+X
+X
+X#This is the beginning of the main menu
+X# since it is not named, the name will default to MAIN
+X
+Xtitle 'Test Menu' +n 'value of GLOBAL_DEF:' + "GLOBAL_DEF" +n
+X'Current Date:' +"DATE" +n 'Value of foo:' + "FOO"
+X
+X# clear will cause the screen to be cleared prior to each
+X#  redisplay.
+X# bold will cause the text 'Test Menu' to be displayed in
+X#  standout mode - if the terminal type is defined and supports
+X#  it
+X# always-show will cause the choices to always displayed
+X
+Xclear bold always-show
+X
+X# this is a simple example
+X
+Xshell 'First Item'
+X%( echo $PARM1 %)  # this is the shell script which will be executed
+Xparm "PARM1" 'Input Parm 1'  # this paramter is set by the user
+X;
+X
+Xshell 'Second Item'
+X%( echo "This is $PARM and $FOO and $BARF" %)
+Xparm "PARM" 'input value for PARM'
+Xparm "FOO"='foo value' 'input value for FOO'
+Xparm "BARF" = "EV_DEFINED" 'environment variable EV_DEFINED default'
+X;
+X
+X# this line causes the words 'Command Execution' to be displayed in bold
+X
+Xskip 'Command Execution' ;
+X
+Xshell 'Execute a Command'
+X%(
+X $CMD
+X%)
+Xparm "CMD" 'Command Line'
+X;
+X
+X# this will cause a line to be skipped so as to block the first
+X#  two items together
+X
+Xskip ;
+X
+X#  three types of sub-menus folow.  The first is an internal
+X#   sub menu defined later in this file
+X
+Xdo-menu "SUB_MENU" 'An Internal Submenu - allows resetting variables'
+X;
+X
+X# this is a sub menu defined in a second file
+X
+Xshell 'Another Submenu in a Separate File'
+X%(  ./simple_menu ./sub.menu %)
+X;
+X
+X#  this sub menu is constructed dynamically by building a
+X#  menu and feeding it to simple_menu
+X
+Xshell 'A Dynamically constructed Submenu'
+X%( awk -F: '
+XBEGIN {
+X  print "title %( A dynamically constructed submenu %%)"
+X  print "clear bold"
+X}
+X{
+X  print "shell %( Browse " $2 " %%) %( " pager " " $1 " %%) ;"
+X}
+X' pager=$PAGER directory | ./simple_menu  -
+X%)
+Xparm "PAGER" = 'more' 'name of your pager'
+X;
+X
+Xskip ;
+X
+Xdo-menu "VAR_MENU" 'The old Global Variable Menu - EV_DEFINED:' +
+X	"EV_DEFINED"
+X;
+X
+X# ============================================================
+X
+X# sub menu definition
+X
+Xmenu "SUB_MENU"
+X
+Xtitle 'a sub menu'
+X
+Xbold alpha
+X
+Xshell 'spawn a shell'
+X%( /bin/sh -i %)
+X;
+X
+Xshell 'do nothing'
+X%( echo "did nothing" %)
+X;
+X
+Xskip ;
+X
+Xreset-global 'Reset Global Variables'
+Xglobal "EV_FROMFILE_NO_INIT" = 'reset-global value'
+Xglobal "GLOBAL_DEF" = 'Global_Def reset-global value'
+Xfrom-shell "DATE" = 'date'
+Xfrom-user "FOO" 'Input a New Permanent Value for FOO'
+X;
+X
+X#================================================================
+X
+Xdo-menu "VAR_MENU" 'The old Global Variable Menu'
+X;
+X
+Xmenu "VAR_MENU"
+X
+Xtitle 'The old Global Variable Menu'
+X
+Xbold always-show once
+X
+Xshell 'Display all Menu-Environment Variables and values'
+X%(
+X  echo "EV_FROMFILE_NO_INIT: $EV_FROMFILE_NO_INIT"
+X  echo "EV_FROMFILE_DEFINED: $EV_FROMFILE_DEFINED"
+X  echo "EV_FROMEFILE_NOT_THERE: $EV_FROMEFILE_NOT_THERE"
+X  echo "EV_DEFINED: $EV_DEFINED"
+X  echo "EV_UNDEFINED: $EV_UNDEFINED"
+X  echo "GLOBAL_NODEF: $GLOBAL_NODEF"
+X  echo "GLOBAL_DEF: $GLOBAL_DEF"
+X  echo "FOO: $FOO"
+X%)
+X;
+X
+X
+Xshell 'Display From-File Menu-Environment Variables and values'
+X%(
+X  echo "EV_FROMFILE_NO_INIT: $EV_FROMFILE_NO_INIT"
+X  echo "EV_FROMFILE_DEFINED: $EV_FROMFILE_DEFINED"
+X  echo "EV_FROMEFILE_NOT_THERE: $EV_FROMEFILE_NOT_THERE"
+X%)
+X;
+X
+X
+Xshell 'Display From-Environment Menu-Environment Variables and values'
+X%(
+X  echo "EV_DEFINED: $EV_DEFINED"
+X  echo "EV_UNDEFINED: $EV_UNDEFINED"
+X%)
+X;
+X
+X
+Xshell 'Display Menu-Defined-Only Menu-Environment Variables and values'
+X%(
+X  echo "GLOBAL_NODEF: $GLOBAL_NODEF"
+X  echo "GLOBAL_DEF: $GLOBAL_DEF"
+X%)
+X;
+X
+X
+Xshell 'Display Changable Menu-Environment Variables and values'
+X%(
+X  echo "EV_FROMFILE_NO_INIT: $EV_FROMFILE_NO_INIT"
+X  echo "GLOBAL_DEF: $GLOBAL_DEF"
+X  echo "DATE: $DATE"
+X%)
+X;
+END_OF_FILE
+if test 4149 -ne `wc -c <'./samples/menu.def'`; then
+    echo shar: \"'./samples/menu.def'\" unpacked with wrong size!
+fi
+# end of './samples/menu.def'
+fi
+if test -f './samples/print.menu' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'./samples/print.menu'\"
+else
+echo shar: Extracting \"'./samples/print.menu'\" \(3271 characters\)
+sed "s/^X//" >'./samples/print.menu' <<'END_OF_FILE'
+Xtitle { Printing Menu - Revised }
+X
+Xbold clear always-show
+X
+Xitem ' typeset a file with Letter-Head on Plain-Paper Laser'
+X{ mprt_white ${DIR:-/u/usr/local/filearea\}/$FILE }
+Xparm "FILE" { Name of File }
+Xparm "DIR" { Directory file is in (default is /u/usr/local/filearea) }
+X;
+X
+Xitem ' typeset a file on Letter-Head on the Good-paper Laser '
+X{ mprt_good ${DIR:-/u/usr/local/filearea\}/$FILE }
+Xparm "FILE" { Name of File }
+Xparm "DIR" { Directory file is in (default is /u/usr/local/filearea) }
+X;
+X
+Xitem ' typeset a file with Manual Feed on Letter-Head on the Good-paper Laser '
+X{ mprt_good -d xmanual ${DIR:-/u/usr/local/filearea\}/$FILE }
+Xparm "FILE" { Name of File }
+Xparm "DIR" { Directory file is in (default is /u/usr/local/filearea) }
+X;
+X
+Xitem { typeset a file on plain paper }
+X{ tbl ${DIR:-/u/usr/local/filearea\}/$FILE | troff -ms | ditplus |
+X lp -dwhite_laser }
+Xparm "FILE" { Name of File }
+Xparm "DIR" { Directory file is in (default is /u/usr/local/filearea) }
+X;
+X
+Xitem { typeset a file with Automatic Feed on Good paper Laser feed }
+X{ tbl ${DIR:-/u/usr/local/filearea\}/$FILE | troff -ms |
+X   ditplus | lp -dgood_laser }
+Xparm "FILE" { Name of File }
+Xparm "DIR" { Directory file is in (default is /u/usr/local/filearea) }
+X;
+X
+Xitem { typeset a file with Manual Feed on Good paper Laser feed }
+X{ tbl ${DIR:-/u/usr/local/filearea\}/$FILE | troff -ms |
+X   ditplus -xmanual | lp -dgood_laser }
+Xparm "FILE" { Name of File }
+Xparm "DIR" { Directory file is in (default is /u/usr/local/filearea) }
+X;
+X
+Xskip ;
+X
+Xitem { print a file w/o typesetting }
+X{ lp -d${LP:-lp1\} ${DIR:-/u/usr/local/filearea\}/$FILE }
+Xparm "FILE" { Name of File }
+Xparm "DIR" { Directory file is in (default is /u/usr/local/filearea) }
+Xparm "LP" { Printer? (lp1 or laser) [default is lp1] }
+X;
+X
+Xitem { print Fax cover sheets }
+X{ troff -ms /usr/how/forms/fax_cover | ditplus -xcopies=$COPIES | lp -dlaser }
+Xparm "COPIES" { Number of Copies }
+X;
+X
+Xitem { print blank labels }
+X{ troff /usr/how/forms/blank.laser | ditplus -xmanual | lp -dlaser }
+X;
+X
+Xitem { print mailing labels with addresses }
+X{ troff ${DIR:-/u/usr/local/filearea\}/$FILE | ditplus -xmanual | lp -dlaser }
+Xparm "DIR" { Directory file is in (default is /u/usr/local/filearea) }
+Xparm "FILE" { Name of Label file }
+X;
+X
+Xskip ;
+X
+Xitem { print some Brochure Contents }
+X{
+X  dumb_menu -m /usr/local/lib/dumb_menu/broch.menu
+X}
+X;
+X
+Xskip ;
+X
+Xitem { Print addresses on envelops }
+X{ sh /usr/how/bin/prt_on_env.sh ${DIR:-/u/usr/local/filearea\}/$FILE }
+Xparm "FILE" { Name of File }
+Xparm "DIR" { Directory file is in (default is /u/usr/local/filearea) }
+X;
+X
+Xitem { Print `Client List' memo }
+X{ mprt -d xmanual -d xcopies=${COPIES:-1\} /u/usr/local/filearea/clients.ltr }
+Xparm "COPIES" { Number of Copies }
+X;
+X
+Xitem { Quarterly Report Menu }
+X{ dumb_menu -m /usr/local/lib/dumb_menu/quarterly.menu }
+X;
+X
+Xskip ;
+X
+Xitem { Print a flier }
+X{ troff -mflier ${DIR:-/u/usr/local/filearea\}/$FILE |
+X   ditplus -xcopies=${COPIES:-1\} | lp -dlasesr }
+Xparm "FILE" { Name of File }
+Xparm "DIR" { Directory file is in (default is /u/usr/local/filearea) }
+Xparm "COPIES" { Number of Copies }
+X;
+X
+Xitem { Better Than Bonds Brochure Menu }
+X{ dumb_menu -v bb-broch.menu }
+X;
+X
+Xitem { Print Red/Green Lists }
+X{ dumb_menu red.grn.menu }
+X;
+X
+Xitem 'Mail Merge Print Menu'
+X%( simple_menu mail.menu %)
+X;
+X
+END_OF_FILE
+if test 3271 -ne `wc -c <'./samples/print.menu'`; then
+    echo shar: \"'./samples/print.menu'\" unpacked with wrong size!
+fi
+# end of './samples/print.menu'
+fi
+if test -f './samples/readme1.menu' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'./samples/readme1.menu'\"
+else
+echo shar: Extracting \"'./samples/readme1.menu'\" \(830 characters\)
+sed "s/^X//" >'./samples/readme1.menu' <<'END_OF_FILE'
+X
+Xfrom-shell "CUR_DIR" = %( echo $HOME %) ;
+X
+Xtitle 'This is a menu title'
+X
+Xalways-show
+X
+Xshell 'List the current Directory:' + "CUR_DIR"
+X%(
+X cd $CUR_DIR
+X ls -l | more
+X%)
+X;
+X
+Xreset-global 'Change Current Directory'
+Xfrom-user "CUR_DIR" 'New Directory?'
+X  through %(
+X    cd $CUR_DIR
+X    if [ -z "$USER_RESPONSE" ] ; then
+X      echo "$CUR_DIR"
+X    elif [ ! -d "$USER_RESPONSE" ] ; then
+X      echo "$CUR_DIR"
+X    else
+X      echo "$CUR_DIR $USER_RESPONSE" |
+X      awk '
+X       substr($2, 1, 1) == "/" { print $2 ; exit }
+X       substr($1, length($1), 1) == "/" { print $1 $2 ; exit }
+X       { print $1 "/" $2 }
+X      ' -
+X    fi
+X  %)
+X;
+X
+Xreset-global 'Reset to Home Directory'
+Xfrom-shell "CUR_DIR" = %( echo $HOME %)
+X;
+X
+Xskip ;
+X
+Xshell 'List the Names of the Machines known to UUCP'
+X%(
+X  uuname -l
+X%)
+X;
+X
+Xshell 'Get a Fortune'
+X%(  fortune %)
+X;
+END_OF_FILE
+if test 830 -ne `wc -c <'./samples/readme1.menu'`; then
+    echo shar: \"'./samples/readme1.menu'\" unpacked with wrong size!
+fi
+# end of './samples/readme1.menu'
+fi
+if test -f './samples/readme2.menu' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'./samples/readme2.menu'\"
+else
+echo shar: Extracting \"'./samples/readme2.menu'\" \(951 characters\)
+sed "s/^X//" >'./samples/readme2.menu' <<'END_OF_FILE'
+Xfrom-shell "CUR_DIR" = %( echo $HOME %) ;
+X
+Xtitle 'This is a menu title'
+X
+Xalways-show
+X
+Xshell 'List the current Directory:' + "CUR_DIR"
+X%(
+X cd $CUR_DIR
+X ls -l | more
+X%)
+X;
+X
+Xreset-global 'Change Current Directory'
+Xfrom-user "CUR_DIR" 'New Directory?'
+X  through %(
+X    cd $CUR_DIR
+X    if [ -z "$USER_RESPONSE" ] ; then
+X      echo "$CUR_DIR"
+X    elif [ ! -d "$USER_RESPONSE" ] ; then
+X      echo "$CUR_DIR"
+X    else
+X      echo "$CUR_DIR $USER_RESPONSE" |
+X      awk '
+X       substr($2, 1, 1) == "/" { print $2 ; exit }
+X       substr($1, length($1), 1) == "/" { print $1 $2 ; exit }
+X       { print $1 "/" $2 }
+X      ' -
+X    fi
+X  %)
+X;
+X
+Xreset-global 'Reset to Home Directory'
+Xfrom-shell "CUR_DIR" = %( echo $HOME %)
+X;
+X
+Xskip ;
+X
+Xshell 'List the Names of the Machines known to UUCP'
+X%(
+X  uuname -l
+X%)
+X;
+X
+Xshell 'Get a Fortune'
+X%(  fortune %)
+X;
+X
+Xshell 'Read your Mail'
+X%( mail %)
+X;
+X
+Xshell 'Mail to a user'
+X%( mail $SENDTO %)
+Xparm "SENDTO" 'User-Id to Send Mail to'
+X;
+END_OF_FILE
+if test 951 -ne `wc -c <'./samples/readme2.menu'`; then
+    echo shar: \"'./samples/readme2.menu'\" unpacked with wrong size!
+fi
+# end of './samples/readme2.menu'
+fi
+if test -f './samples/readme3.menu' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'./samples/readme3.menu'\"
+else
+echo shar: Extracting \"'./samples/readme3.menu'\" \(1206 characters\)
+sed "s/^X//" >'./samples/readme3.menu' <<'END_OF_FILE'
+Xfrom-shell "CUR_DIR" = %( echo $HOME %) ;
+X
+Xtitle 'This is a menu title'
+X
+Xalways-show
+Xdo-menu "DIR_MENU" 'Directory Listing Submenu'
+X;
+X
+Xskip ;
+X
+Xshell 'List the Names of the Machines known to UUCP'
+X%(
+X  uuname -l
+X%)
+X;
+X
+Xshell 'Get a Fortune'
+X%(  fortune %)
+X;
+X
+Xdo-menu "MAIL_MENU" 'E-Mail menu'
+X;
+X
+X# Directory mucking menu
+X
+Xmenu "DIR_MENU"
+X
+Xtitle 'Directory Listing Submenu'
+X
+Xalways-show clear
+X
+Xshell 'List the current Directory:' + "CUR_DIR"
+X%(
+X cd $CUR_DIR
+X ls -l | more
+X%)
+X;
+X
+Xreset-global 'Change Current Directory'
+Xfrom-user "CUR_DIR" 'New Directory?'
+X  through %(
+X    cd $CUR_DIR
+X    if [ -z "$USER_RESPONSE" ] ; then
+X      echo "$CUR_DIR"
+X    elif [ ! -d "$USER_RESPONSE" ] ; then
+X      echo "$CUR_DIR"
+X    else
+X      echo "$CUR_DIR $USER_RESPONSE" |
+X      awk '
+X       substr($2, 1, 1) == "/" { print $2 ; exit }
+X       substr($1, length($1), 1) == "/" { print $1 $2 ; exit }
+X       { print $1 "/" $2 }
+X      ' -
+X    fi
+X  %)
+X;
+X
+Xreset-global 'Reset to Home Directory'
+Xfrom-shell "CUR_DIR" = %( echo $HOME %)
+X;
+X
+X# Mail menu
+X
+Xmenu "MAIL_MENU"
+X
+Xtitle 'Mail Submenu'
+X
+Xalways-show clear
+X
+Xshell 'Read your Mail'
+X%( mail %)
+X;
+X
+Xshell 'Mail to a user'
+X%( mail $SENDTO %)
+Xparm "SENDTO" 'User-Id to Send Mail to'
+X;
+END_OF_FILE
+if test 1206 -ne `wc -c <'./samples/readme3.menu'`; then
+    echo shar: \"'./samples/readme3.menu'\" unpacked with wrong size!
+fi
+# end of './samples/readme3.menu'
+fi
+if test -f './samples/sample-1.menu' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'./samples/sample-1.menu'\"
+else
+echo shar: Extracting \"'./samples/sample-1.menu'\" \(1363 characters\)
+sed "s/^X//" >'./samples/sample-1.menu' <<'END_OF_FILE'
+X# Global Variable Section
+Xfrom-env "EDITOR" = 'vi' ;  #initialize EDITOR from environment or to
+X                            # 'vi' if not defined
+X
+X# This consists only of the MAIN menu, so the menu statement is not used
+Xtitle 'Friendly Menu'
+X
+Xbold          # show the title in standout mode
+Xalways-show   # always display the menu options
+Xclear         # clear screen before displaying
+X
+X# do this before displaying the menu
+Xprelude 'Checking for Mail . . .'
+X%( mail %)
+X;
+X
+X# do this after the user quits
+Xepilogue 'cleaning up . . .'
+X%( find $HOME -name core -exec rm -i {} \; %)
+X;
+X
+X# This is the menu
+Xshell 'Mail something to someone'
+X%(
+X [ -z "$TO" ] && exit
+X if [ -n "$SUBJECT" ] ; then
+X   mail -s $SUBJECT $TO
+X else
+X   mail $TO
+X fi
+X%)
+Xparm "SUBJECT" 'Subject of Mail'    # a parameter initialized to NULL
+Xparm "TO" 'Recipient'    # a parameter initialized to NULL
+X;
+X
+Xshell 'Read Mail'
+X%( mail %)
+X;
+X
+Xshell 'Edit A file'
+X%( $THIS_EDITOR $FILE %)
+Xparm "THIS_EDITOR" = "EDITOR" 'Editor to use' # a parameter initialized
+X                                              # to the value of EDITOR
+Xparm "FILE" 'File to edit'    # a parameter initialized to NULL
+X;
+X
+Xshell 'Print a File'
+X%(
+X [ -n "$FILE" ] && lpr -P$PRT $FILE
+X%)
+Xparm "PRT" = 'lp1' 'Printer to use' # a parameter initialized to static text
+Xparm "FILE" 'File to Print'    # a parameter initialized to NULL
+X;
+END_OF_FILE
+if test 1363 -ne `wc -c <'./samples/sample-1.menu'`; then
+    echo shar: \"'./samples/sample-1.menu'\" unpacked with wrong size!
+fi
+# end of './samples/sample-1.menu'
+fi
+if test -f './samples/sub.menu' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'./samples/sub.menu'\"
+else
+echo shar: Extracting \"'./samples/sub.menu'\" \(231 characters\)
+sed "s/^X//" >'./samples/sub.menu' <<'END_OF_FILE'
+X
+Xtitle 'A non-descript submenu
+XWith a multi-line' +n
+X'   title'
+X
+Xclear wait
+X
+Xshell 'Sub-Item 1' +n 'long prompt'
+X%( echo "Sub-Item 1" %)
+X;
+X
+Xshell 'Sub-Item 2'
+X%( echo "Sub-Item 2" %)
+X;
+X
+Xshell 'Sub-Item 3'
+X%( echo "Sub-Item 3" %)
+X;
+END_OF_FILE
+if test 231 -ne `wc -c <'./samples/sub.menu'`; then
+    echo shar: \"'./samples/sub.menu'\" unpacked with wrong size!
+fi
+# end of './samples/sub.menu'
+fi
+if test -f './samples/tst.menu' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'./samples/tst.menu'\"
+else
+echo shar: Extracting \"'./samples/tst.menu'\" \(140 characters\)
+sed "s/^X//" >'./samples/tst.menu' <<'END_OF_FILE'
+Xglobal "GV1" = 'Value of GV1' ;
+X
+Xtitle 'main menu'
+X
+Xshell 'Show value of GV1'
+X%( echo $GV1 %)
+Xparm "GV1" = "GV1" 'Assigne a value to GV1'
+X;
+END_OF_FILE
+if test 140 -ne `wc -c <'./samples/tst.menu'`; then
+    echo shar: \"'./samples/tst.menu'\" unpacked with wrong size!
+fi
+# end of './samples/tst.menu'
+fi
+if test ! -d './tty_src' ; then
+    echo shar: Creating directory \"'./tty_src'\"
+    mkdir './tty_src'
+fi
+if test -f './tty_src/Makefile.in' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'./tty_src/Makefile.in'\"
+else
+echo shar: Extracting \"'./tty_src/Makefile.in'\" \(1367 characters\)
+sed "s/^X//" >'./tty_src/Makefile.in' <<'END_OF_FILE'
+X#### Start of system configuration section. ####
+X
+Xsrcdir = @srcdir@
+XVPATH = @srcdir@
+X
+XCC = @CC@
+XYACC = @YACC@
+X
+XINSTALL = @INSTALL@
+XINSTALL_PROGRAM = @INSTALL_PROGRAM@
+XINSTALL_DATA = @INSTALL_DATA@
+XAWK	=	@AWK@
+X
+XLIBS = @LIBS@
+XSHELL = /bin/sh
+X
+Xprefix = /usr/local
+Xbinprefix = $(prefix)
+Xlibprefix = $(prefix)
+Xmanprefix = $(prefix)
+Xinfoprefix = $(prefix)
+X
+Xbindir = $(binprefix)/bin
+Xlibdir = $(libprefix)/lib/simple_menu
+Xmandir = $(manprefix)/man/man1
+Xinfodir = $(infoprefix)/lib/emacs/info
+Xmanext = 1
+X
+XCOMMON_OBJ = \
+X	../common_src/scanner.o \
+X	../common_src/grammar.o \
+X	../common_src/simple_menu.o \
+X	../common_src/port.o
+X
+X#### End of system configuration section. ####
+X# bottom part of makefile - subdirectory specific
+X
+Xincldir = @srcdir@/../incl
+XCFLAGS = -g -I$(incldir)
+XLFLAGS = -g
+X
+XDISPLAY_SRC = tty_display.c
+XDISPLAY_OBJ = tty_display.o
+XTARGET = simple_menu
+X
+Xall: $(TARGET)
+X
+X
+X$(TARGET): $(DISPLAY_OBJ) $(COMMON_OBJ)
+X	$(CC) $(LFLAGS)  $(DISPLAY_OBJ) $(COMMON_OBJ) $(LIBS) @TERMLIB@ \
+X		-o $(TARGET)
+X
+Xinstall: all
+X	$(INSTALL_PROGRAM) $(TARGET) $(bindir)/$(TARGET)
+X
+Xuninstall:
+X	rm -f $(bindir)/$(TARGET)
+X
+Xmostlyclean clean:
+X	rm -f *.o core *~
+X
+Xdistclean: clean
+X	rm -f Makefile
+X
+Xrealclean: clean
+X	$(TARGET) TAGS tags
+X
+XTAGS :
+X	$(TAGS_PROG) $(DISPLAY_SRC) $(COMMON_SRC)
+X
+Xdist:
+X	@echo $(DISPLAY_SRC)
+X
+Xcheck:
+X	$(TARGET) -DD ../samples/menu.def | diff ../samples/test.out -
+END_OF_FILE
+if test 1367 -ne `wc -c <'./tty_src/Makefile.in'`; then
+    echo shar: \"'./tty_src/Makefile.in'\" unpacked with wrong size!
+fi
+# end of './tty_src/Makefile.in'
+fi
+if test -f 'MANIFEST' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'MANIFEST'\"
+else
+echo shar: Extracting \"'MANIFEST'\" \(1728 characters\)
+sed "s/^X//" >'MANIFEST' <<'END_OF_FILE'
+X   File Name		Archive #	Description
+X-----------------------------------------------------------
+X .                          1	
+X ./COPYING-2                3	
+X ./ChangeLog                1	
+X ./Makefile.in              1	
+X ./README                   2	
+X ./common_src               1	
+X ./common_src/Makefile.in   1	
+X ./common_src/generic_dsp.c  1	
+X ./common_src/grammar.y     7	
+X ./common_src/port.c        1	
+X ./common_src/scanner.c     2	
+X ./common_src/simple_menu.c  9	
+X ./configure                8	
+X ./configure.in             1	
+X ./doc                      1	
+X ./doc/Makefile.in          1	
+X ./doc/gpl.texinfo          3	
+X ./doc/s_menu.msaa          5	
+X ./doc/s_menu.msab          5	
+X ./doc/s_menu.msac          6	
+X ./doc/s_menu.msad          2	
+X ./doc/s_menu.texiaa        7	
+X ./doc/s_menu.texiab        6	
+X ./doc/s_menu.texiac        2	
+X ./doc/simple_menu.1        4	
+X ./incl                     1	
+X ./incl/Makefile.in         1	
+X ./incl/config.h.in         1	
+X ./incl/includes.h          1	
+X ./incl/patchlevel.h        1	
+X ./incl/prototypes.h        1	
+X ./incl/simple_menu.h       2	
+X ./install.sh               1	
+X ./samples                  1	
+X ./samples/backup.menu      1	
+X ./samples/bad.menu         1	
+X ./samples/directory        1	
+X ./samples/ev-values        1	
+X ./samples/foo.menu         1	
+X ./samples/login.menu       1	
+X ./samples/menu.def         1	
+X ./samples/print.menu       1	
+X ./samples/readme1.menu     1	
+X ./samples/readme2.menu     1	
+X ./samples/readme3.menu     1	
+X ./samples/sample-1.menu    1	
+X ./samples/sub.menu         1	
+X ./samples/tst.menu         1	
+X ./tty_src                  1	
+X ./tty_src/Makefile.in      1	
+X ./tty_src/tty_display.c    4	
+X MANIFEST                   1	This shipping list
+END_OF_FILE
+if test 1728 -ne `wc -c <'MANIFEST'`; then
+    echo shar: \"'MANIFEST'\" unpacked with wrong size!
+fi
+# end of 'MANIFEST'
+fi
+echo shar: End of archive 1 \(of 9\).
+cp /dev/null ark1isdone
+MISSING=""
+for I in 1 2 3 4 5 6 7 8 9 ; do
+    if test ! -f ark${I}isdone ; then
+	MISSING="${MISSING} ${I}"
+    fi
+done
+if test "${MISSING}" = "" ; then
+    echo You have unpacked all 9 archives.
+    rm -f ark[1-9]isdone ark[1-9][0-9]isdone
+else
+    echo You still need to unpack the following archives:
+    echo "        " ${MISSING}
+fi
+##  End of shell archive.
+exit 0
+

@@ -1,0 +1,67 @@
+                            language: Korn Shell
+
+---------------------------------------------------------------------------
+ Language:      Korn Shell
+ Package:       pdksh
+ Version:       5.1.3
+ Parts:         interpreter, documentation (complete man page)
+ Author:        Michael Rendell <michael@cs.mun.ca> (maintainer)
+ Location:      ftp://ftp.cs.mun.ca:pub/pdksh/pdksh.tar.gz
+                pdksh is a public domain implementation of ksh88. pdksh
+                was started by Eric Gisin based on Charles Forsyth's
+ Description:   version of sh. It has since been maintained by John R
+                MacMillan and Simon J. Gerraty and is currently maintained
+                by Michael Rendell.
+                Only major feature not implemented (yet) is Korn's
+ Conformance:   @(patter1|pattern2|..) style pattern matching. A few other
+                things are also missing like trap DEBUG (see NOTES file in
+                distribution for details).
+ Bugs:          should be reported to pdksh@cs.mun.ca.
+ Restriction:   none
+ Ports:         Most unix boxes (uses GNU autoconf), OS2.
+
+ Status:        active (missing ksh88 features being added, being made
+                POSIX conforming)
+ Support:       pdksh@cs.mun.ca
+                posted to comp.unix.shells newsgroup (also, send mail to
+ Announcements: pdksh-request to be placed on a mailing list for
+                announcements)
+ Updated:       December 22nd, 1994
+
+---------------------------------------------------------------------------
+ Language:    Korn Shell
+ Package:     SKsh
+ Version:     2.1
+ Parts:       interpreter, utilities
+ Author:      Steve Koren <koren@hpfcogv.fc.hp.com>
+ Location:    ftp://hubcap.clemson.edu/pub/amiga/incom*/utils/SKsh021.lzh
+              SKsh is a Unix ksh-like shell which runs under AmigaDos. it
+              provides a Unix like environment but supports many AmigaDos
+ Description: features such as resident commands, ARexx, etc. Scripts can
+              be written to run under either ksh or SKsh, and many of the
+              useful Unix commands such as xargs, grep, find, etc. are
+              provided.
+ Ports:       Amiga
+ Updated:     December 16th, 1992
+
+---------------------------------------------------------------------------
+
+                               Related Items
+
+category: command shells summary, or expanded.
+
+category: glue summary, or expanded.
+
+---------------------------------------------------------------------------
+---------------------------------------------------------------------------
+This work supported by Idiom Consulting. Idiom Consulting         [ aqui ]
+provides Internet access and perl programming in the SF Bay
+Area.
+
+Please send updates to free-compilers@idiom.com
+
+The HTML is maintained by David Muir Sharnoff and the entries themselves
+are maintained by Steve Robenalt.
+
+Copyright (c) 1992, 1993, 1994, David Muir Sharnoff, All Rights Reserved
+Copyright (c) 1994, 1995, 1996, Steven Allen Robenalt, All Rights Reserved

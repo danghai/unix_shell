@@ -1,0 +1,25 @@
+[Software Porting & Archive Centre For HP-UX]
+
+bash-1.14.6
+
+GNU Bourne-Again SHell compatible with the Bourne Shell. Bash has
+extensions taken from both the Korn and C shells and supports cursor key
+command recall and editing inside an xterm. Includes command-line
+completion, functions, aliases and many other features.
+
+Author: Chet Ramey <chet@po.cwru.edu>
+
+   * README file
+
+   * Man Page
+
+   * Packages Available:
+
+     HP-UX 9.03 Statically Linked Binary (gzipped)
+     (Size: 360 K, Archived: 22 Feb 1996)
+
+     HP-UX 9.03 Dynamically Linked Binary (gzipped)
+     (Size: 281 K, Archived: 22 Feb 1996)
+
+     HP-UX 9.03 Source Code (gzipped)
+     (Size: 1.49 MB, Archived: 22 Feb 1996)

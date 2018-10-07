@@ -1,0 +1,22 @@
+ftp.sterling.com
+
+<PRE><HR>If you have problems using this FTP server, try using a dash (-) as the 
+first character of your  password.  This disables continuation messages 
+which  may be confusing your ftp client.  Questions, requests, comments 
+or problems should be sent to archive@sterling.com.
+
+Available RETRIEVE command Extensions:
+True Filename Specified Filename               Action
+------------- ------------------ ---------------------------------------
+"filename"    "filename".Z       Compress "filename" before sending
+"filename".Z  "filename"         Uncompress "filename.Z" before sending
+"filename"    "filename".gz      Gzip "filename" before sending
+"filename".gz "filename"         Gunzip "filename.gz" before sending
+"filename"    "filename".tar     Tar "filename" before sending
+"filename"    "filename".tar.Z   Tar && compress "filename" before sending
+"directory"   "directory".tar.Z  Tar && compress "directory" before sending
+"filename"    "filename".tar.gz  Tar && gzip "filename" before sending
+"directory"   "directory".tar.gz Tar && gzip "directory" before sending
+
+Please read the file README
+  it was last modified on Thu May  2 11:39:15 1996 - 34 days ago

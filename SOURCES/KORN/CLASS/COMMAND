@@ -1,0 +1,579 @@
+<HTML>
+<HEAD>
+<TITLE>Commands</TITLE>
+<CENTER><H1>Commands</H1></CENTER>
+</HEAD>
+<BODY>
+<PRE>
+     alias [ -tx ] [ name[ =value ] ] ...
+          alias with no arguments prints the list of  aliases  in
+          the  form  name=value  on standard output.  An alias is
+          defined for each name whose value is given.  A trailing
+          space  in  value causes the next word to be checked for
+          alias substitution.  The -t flag is  used  to  set  and
+          list  tracked aliases.  The value of a tracked alias is
+          the full pathname corresponding to the given name.  The
+          value becomes undefined when the value of PATH is reset
+          but the aliases remained tracked.  Without the -t flag,
+          for  each  name in the argument list for which no value
+          is given, the name and value of the alias  is  printed.
+          The   -x flag is used to set or print exported aliases.
+          An exported alias is defined  for  scripts  invoked  by
+          name.   The exit status is non-zero if a name is given,
+          but no value, and no alias has  been  defined  for  the
+          name.
+
+     bg [ %job... ]
+          This command is only on systems that support  job  con-
+          trol.   Puts  each  specified  job into the background.
+          The current job is put in the background if job is  not
+          specified.  See Jobs for a description of the format of
+          job.
+
+     break [ n ]
+          Exit from the enclosed for,  while,  until,  or  select
+          loop, if any.  If n is specified then break n levels.
+
+     continue [ n ]
+          Resume the next iteration of the enclosed  for,  while,
+          until,  or  select loop.  If n is specified then resume
+          at the n-th enclosed loop.
+
+     cd [ arg ]
+     cd old new
+          This command can be in either of  two  forms.   In  the
+          first form it changes the current directory to arg.  If
+          arg is - the  directory  is  changed  to  the  previous
+          directory.  The shell variable HOME is the default arg.
+          The variable PWD is set to the current directory.   The
+          shell  variable  CDPATH defines the search path for the
+          directory containing arg.  Alternative directory  names
+          are  separated  by  a  colon  (:).  The default path is
+          <null> (specifying the current directory).   Note  that
+          the current directory is specified by a NULL path name,
+          which can appear immediately after the  equal  sign  or
+          between  the colon delimiters anywhere else in the path
+          list.  If arg begins with a / then the search  path  is
+          not  used.  Otherwise,  each  directory  in the path is
+          searched for arg.
+
+          The second form of cd substitutes the  string  new  for
+          the  string  old in the current directory name, PWD and
+          tries to change to this new directory.
+
+          The cd command may not be executed by rksh.
+
+     echo [ arg ... ]
+          See echo(1) for usage and description.
+
+     eval [ arg ... ]
+          The arguments are read as input to the  shell  and  the
+          resulting command(s) executed.
+
+     exec [ arg ... ]
+          If arg is given, the command specified by the arguments
+          is  executed  in place of this shell without creating a
+          new process.  Input/output  arguments  may  appear  and
+          affect  the  current process. If no arguments are given
+          the effect of this command is to modify  file  descrip-
+          tors  as  prescribed  by  the  input/output redirection
+          list.   In  this  case,  any  file  descriptor  numbers
+          greater  than 2 that are opened with this mechanism are
+          closed when invoking another program.
+
+     exit [ n ]
+          Causes the shell to exit with the exit status specified
+          by  n.   The value will be the least significant 8 bits
+          of the specified status.  If n is omitted then the exit
+          status is that of the last command executed.  When exit
+          occurs when executing a trap, the last  command  refers
+          to  the  command  that  executed  before  the  trap was
+          invoked.  An end-of-file will also cause the  shell  to
+          exit  except for a shell which has the ignoreeof option
+          (See set below) turned on.
+
+     export [ name[=value] ] ...
+          The given names are marked for automatic export to  the
+          environment of subsequently-executed commands.
+
+     fc [ -e ename  ] -nlr ] [ first [ last ] ]
+     fc -e - [ old=new ] [ command ]
+          In the first form, a range of commands  from  first  to
+          last  is  selected from the last HISTSIZE commands that
+          were typed at the terminal.  The  arguments  first  and
+          last  may  be  specified as a number or as a string.  A
+          string is used to locate the most recent command start-
+          ing  with  the given string.  A negative number is used
+          as an offset to the current command number.  If the - l
+          flag  is  selected, the commands are listed on standard
+          output.  Otherwise, the editor program ename is invoked
+          on a file containing these keyboard commands.  If ename
+          is not supplied, then the value of the variable  FCEDIT
+          (default  /bin/ed) is used as the editor.  When editing
+          is complete, the edited  command(s)  is  executed.   If
+          last is not specified then it will be set to first.  If
+          first is not specified the default is the previous com-
+          mand for editing and -16 for listing.  The flag -r rev-
+          erses the order of  the  commands  and  the  flag   - n
+          suppresses command numbers when listing.  In the second
+          form the command is re-executed after the  substitution
+          old=new is performed.
+
+     fg [ %job... ]
+          This command is only on systems that support  job  con-
+          trol.  Each job specified is brought to the foreground.
+          Otherwise, the current job is brought  into  the  fore-
+          ground.   See  Jobs  for a description of the format of
+          job.
+
+     getopts optstring name [ arg ... ]
+          Checks arg for legal options.  If arg is  omitted,  the
+          positional  parameters  are  used.   An option argument
+          begins with a + or a -.  An option not beginning with +
+          or   -  or the argument -- ends the options.  optstring
+          contains the letters that  getopts  recognizes.   If  a
+          letter  is  followed by a :, that option is expected to
+          have an argument.  The options can  be  separated  from
+          the argument by blanks.
+
+          getopts places the next option letter it  finds  inside
+          variable  name  each  time  it  is  invoked  with  a  +
+          prepended when arg begins with a +.  The index  of  the
+          next  arg is stored in OPTIND.  The option argument, if
+          any, gets stored in OPTARG.
+
+          A leading : in optstring causes getopts  to  store  the
+          letter  of an invalid option in OPTARG, and to set name
+          to ? for an unknown option and to  :  when  a  required
+          option  is missing.  Otherwise, getopts prints an error
+          message.  The exit status is non-zero when there are no
+          more  options.  See getoptcvt(1) for usage and descrip-
+          tion.
+
+     jobs [ -lnp ] [ %job ... ]
+          Lists information about each given job; or  all  active
+          jobs  if job is omitted.  The -l flag lists process ids
+          in addition to the normal information.  The   - n  flag
+          only  displays  jobs  that have stopped or exited since
+          last notified.  The -p flag  causes  only  the  process
+          group  to be listed.  See Jobs for a description of the
+          format of job.
+
+     kill [ -sig ] %job ...
+     kill -l
+          Sends either the TERM (terminate) signal or the  speci-
+          fied  signal  to the specified jobs or processes.  Sig-
+          nals are either given by number or by names  (as  given
+          in  signal(5)  stripped  of the prefix ``SIG'' with the
+          exception that SIGCHD is named CHLD).   If  the  signal
+          being  sent  is  TERM (terminate) or HUP (hangup), then
+          the job or process will be sent a CONT (continue)  sig-
+          nal if it is stopped.  The argument job can be the pro-
+          cess id of a process that is not a member of one of the
+          active  jobs.  See Jobs for a description of the format
+          of job.  In the  second  form,  kill  - l,  the  signal
+          numbers and names are listed.
+
+     let arg...
+          Each arg is a  separate  arithmetic  expression  to  be
+          evaluated.   See  Arithmetic  Evaluation  above,  for a
+          description of arithmetic expression evaluation.
+
+     The exit status is 0 if the value of the last expression  is
+     non-zero, and 1 otherwise.
+
+     newgrp [ arg ... ]
+          Equivalent to exec /bin/newgrp arg ....
+
+     print [ -Rnprsu[n ] ] [ arg ... ]
+          The shell output mechanism.  With no flags or with flag
+           -  or --, the arguments are printed on standard output
+          as described by echo(1).  The exit status is 0,  unless
+          the output file is not open for writing.
+
+          -n         suppresses new-line from being added to  the
+                    output.
+
+          -R
+          -r         (raw mode) ignore the escape conventions  of
+                    echo.   The   -R option will print all subse-
+                    quent arguments and options other than -n.
+
+          -p         causes the arguments to be written onto  the
+                    pipe  of  the process spawned with |& instead
+                    of standard output.
+
+          -s         causes the arguments to be written onto  the
+                    history file instead of standard output.
+
+          -u [ n ]   flag can be used to specify a one digit file
+                    descriptor  unit number n on which the output
+                    will be placed.  The default is 1.
+
+     pwd  Equivalent to print -r - $PWD print -r - $PWD
+
+     read [ -prsu[ n ] ] [ name?prompt ] [ name ... ]
+          The shell input mechanism.  One line  is  read  and  is
+          broken  up  into  fields using the characters in IFS as
+          separators.  The escape  character,  (\),  is  used  to
+          remove  any  special meaning for the next character and
+          for line continuation.  In raw mode, -r, the \  charac-
+          ter  is  not  treated  specially.   The  first field is
+          assigned to the first name, the  second  field  to  the
+          second name, etc., with leftover fields assigned to the
+          last name.  The -p option causes the input line  to  be
+          taken  from  the input pipe of a process spawned by the
+          shell using |&.  If the -s flag is present,  the  input
+          will  be  saved  as a command in the history file.  The
+          flag -u can  be  used  to  specify  a  one  digit  file
+          descriptor  unit  n  to read from.  The file descriptor
+          can be opened  with  the  exec  special  command.   The
+          default value of n is 0.  If name is omitted then REPLY
+          is used as the default name.   The  exit  status  is  0
+          unless  the  input  file  is not open for reading or an
+          end-of-file is encountered.  An end-of-file with the -p
+          option  causes cleanup for this process so that another
+          can be spawned.  If the first argument  contains  a  ?,
+          the remainder of this word is used as a prompt on stan-
+          dard error when the shell  is  interactive.   The  exit
+          status is 0 unless an end-of-file is encountered.
+
+     readonly [ name[=value] ] ...
+          The given names are marked  readonly  and  these  names
+          cannot be changed by subsequent assignment.
+
+     return [ n ]
+          Causes a shell function or '.' script to return to  the
+          invoking  script with the return status specified by n.
+          The value will be the least significant 8 bits  of  the
+          specified  status.   If  n  is  omitted then the return
+          status is that of the last command executed.  If return
+          is  invoked  while  not  in a function or a '.' script,
+          then it is the same as an exit.
+
+     set [    +_   aefhkmnopstuvx ] [    +_   o option ]... [     +_
+          A name ]  [ arg ... ]
+          The flags for this command have meaning as follows:
+
+          -A       Array assignment.  Unset the variable name and
+                  assign  values  sequentially from the list arg.
+                  If +A is used, the variable name is  not  unset
+                  first.
+
+          -a       All subsequent variables that are defined  are
+                  automatically exported.
+
+          -e       If a command has a non-zero exit status,  exe-
+                  cute the ERR trap, if set, and exit.  This mode
+                  is disabled while reading profiles.
+
+          -f       Disables file name generation.
+
+          -h       Each command  becomes  a  tracked  alias  when
+                  first encountered.
+
+          -k       All variable assignment arguments  are  placed
+                  in  the  environment  for  a  command, not just
+                  those that precede the command name.
+
+          -m       Background jobs will run in a separate process
+                  group  and  a  line will print upon completion.
+                  The exit status of background jobs is  reported
+                  in  a  completion message.  On systems with job
+                  control, this flag is turned  on  automatically
+                  for interactive shells.
+
+          - n       Read  commands  and  check  them  for  syntax
+                  errors,  but  do not execute them.  Ignored for
+                  interactive shells.
+
+          -o       The following argument can be one of the  fol-
+                  lowing option names:
+
+                  allexport
+                          Same as -a.
+
+                  errexit Same as -e.
+
+                  bgnice  All background jobs are run at a  lower
+                          priority.  This is the default mode.
+
+                  emacs   Puts you in an emacs style in-line edi-
+                          tor for command entry.
+
+                  gmacs   Puts you in a gmacs style in-line  edi-
+                          tor for command entry.
+
+                  ignoreeof
+                          The shell will not exit on end-of-file.
+                          The command exit must be used.
+
+                  keyword Same as -k.
+
+                  markdirs
+                          All directory names resulting from file
+                          name   generation  have  a  trailing  /
+                          appended.
+
+                  monitor Same as -m.
+
+                  noclobber
+                          Prevents redirection > from  truncating
+                          existing files.  Require >| to truncate
+                          a file when turned on.
+
+                  noexec  Same as -n.
+
+                  noglob  Same as -f.
+
+                  nolog   Do not  save  function  definitions  in
+                          history file.
+
+                  nounset Same as -u.
+
+                  privileged
+                          Same as -p.
+
+                  verbose Same as -v.
+
+                  trackall
+                          Same as -h.
+
+                  vi      Puts you in insert mode of a  vi  style
+                          in-line  editor  until  you  hit escape
+                          character  033.   This  puts   you   in
+                          control mode.  A return sends the line.
+
+                  viraw   Each character is processed  as  it  is
+                          typed in vi mode.
+
+                  xtrace  Same as -x.
+
+                  If no option name is supplied then the current
+                          option settings are printed.
+
+          -p       Disables processing of the $HOME/.profile file
+                  and  uses the file /etc/suid_profile instead of
+                  the ENV file.  This mode  is  on  whenever  the
+                  effective  uid is not equal to the real uid, or
+                  when the effective gid is not equal to the real
+                  gid.  Turning this off causes the effective uid
+                  and gid to be set to the real uid and gid.
+
+          -s       Sort the positional  parameters  lexicographi-
+                  cally.
+
+          -t       Exit after reading and executing one command.
+
+          -u       Treat unset parameters as an error  when  sub-
+                  stituting.
+
+          -v       Print shell input lines as they are read.
+
+          -x       Print commands and their arguments as they are
+                  executed.
+
+          -        Turns off -x and -v flags and stops  examining
+                  arguments for flags.
+
+          --        Do not change any of  the  flags;  useful  in
+                  setting  $1 to a value beginning with -.  If no
+                  arguments follow this flag then the  positional
+                  parameters are unset.
+
+          Using + rather than - causes these flags to  be  turned
+          off.   These  flags can also be used upon invocation of
+          the shell.  The current set of flags may be found in $-
+          .   Unless -A is specified, the remaining arguments are
+          positional parameters and are assigned, in order, to $1
+          $2  ....   If no arguments are given then the names and
+          values of all variables are  printed  on  the  standard
+          output.
+
+     shift [ n ]
+          The positional  parameters  from  $n+1  $n+1  ...   are
+          renamed $1 ..., default n is 1.  The parameter n can be
+          any arithmetic expression  that  evaluates  to  a  non-
+          negative number less than or equal to $#.
+
+     stop %jobid ...
+     stop pid ...
+          stop stops the execution  of  a  background  job(s)  by
+          using  its  jobid,  or of any process by using its pid.
+          (see ps(1)).
+
+     suspend
+          Stops the execution of the current shell (but not if it
+          is the login shell).
+
+     times
+          Print the accumulated user and  system  times  for  the
+          shell and for processes run from the shell.
+
+     trap [ arg ] [ sig ] ...
+          arg is a command to be read and executed when the shell
+          receives signal(s) sig.  (Note that arg is scanned once
+          when the trap is set and once when the trap is  taken.)
+          Each sig can be given as a number or as the name of the
+          signal.  trap commands are executed in order of  signal
+          number.  Any attempt to set a trap on a signal that was
+          ignored on entry to the current shell  is  ineffective.
+          If  arg  is  omitted or is -, then the trap(s) for each
+          sig are reset to their original values.  If arg is  the
+          NULL  (the  empty  string,  e.g., "" ) string then this
+          signal is ignored by the shell and by the  commands  it
+          invokes.  If sig is ERR then arg will be executed when-
+          ever a command has a non-zero exit status.  If  sig  is
+          DEBUG then arg will be executed after each command.  If
+          sig is 0 or EXIT and the  trap  statement  is  executed
+          inside  the body of a function, then the command arg is
+          executed after the function completes.  If sig is 0  or
+          EXIT  for a trap set outside any function then the com-
+          mand arg is executed on exit from the shell.  The  trap
+          command  with  no  arguments  prints a list of commands
+          associated with each signal number.
+
+     typeset [ +_HLRZfilrtux[n] ]  [ name[=value ]  ] ...
+          Sets attributes and  values  for  shell  variables  and
+          functions.   When typeset is invoked inside a function,
+          a new instance of the variables name is  created.   The
+          variables value and type are restored when the function
+          completes.  The following list  of  attributes  may  be
+          specified:
+          -H    This flag provides UNIX to host-name file mapping
+               on non-UNIX machines.
+          -L    Left  justify  and  remove  leading  blanks  from
+               value.   If  n is non-zero it defines the width of
+               the field; otherwise,  it  is  determined  by  the
+               width  of the value of first assignment.  When the
+               variable is assigned to, it is filled on the right
+               with  blanks  or  truncated,  if necessary, to fit
+               into the field.  Leading zeros are removed if the
+               -Z flag is also set.  The -R flag is turned off.
+          -R    Right justify and fill with leading blanks.  If n
+               is  non-zero  it  defines  the width of the field,
+               otherwise it is determined by  the  width  of  the
+               value  of  first  assignment.   The  field is left
+               filled with blanks or truncated from  the  end  if
+               the variable is reassigned.  The -L flag is turned
+               off.
+          -Z    Right justify and fill with leading zeros if  the
+               first  non-blank  character  is a digit and the -L
+               flag has not  been  set.   If  n  is  non-zero  it
+               defines  the  width of the field; otherwise, it is
+               determined by the width  of  the  value  of  first
+               assignment.
+          -f    The names refer to  function  names  rather  than
+               variable  names.   No  assignments can be made and
+               the only other valid flags are -t, -u and -x.  The
+               flag  -t turns on execution tracing for this func-
+               tion.  The flag -u  causes  this  function  to  be
+               marked  undefined.   The  FPATH  variable  will be
+               searched to find the function definition when  the
+               function  is  referenced.   The flag -x allows the
+               function definition to  remain  in  effect  across
+               shell procedures invoked by name.
+          -i    Parameter is an integer.  This  makes  arithmetic
+               faster.   If  n  is non-zero it defines the output
+               arithmetic base; otherwise, the  first  assignment
+               determines the output base.
+           - l    All  upper-case  characters  are  converted  to
+               lower-case.   The  upper-case  flag,  -u is turned
+               off.
+          -r    The given names are  marked  readonly  and  these
+               names cannot be changed by subsequent assignment.
+          -t    Tags the variables.  Tags are user definable  and
+               have no special meaning to the shell.
+           - u    All  lower-case  characters  are  converted  to
+               upper-case characters.  The lower-case flag, -l is
+               turned off.
+          -x    The given names are marked for  automatic  export
+               to  the  environment of subsequently-executed com-
+               mands.
+
+          The -i attribute can not be specified along with -R,  -
+          L, -Z, or -f.
+
+          Using + rather than - causes these flags to  be  turned
+          off.   If  no  name  arguments  are given but flags are
+          specified, a list of names (and optionally the  values)
+          of the variables which have these flags set is printed.
+
+          (Using + rather than -  keeps  the  values  from  being
+          printed.)  If  no  names and flags are given, the names
+          and attributes of all variables are printed.
+
+     ulimit [ -HSacdfmnpstv ] [ limit ]
+          Set  or  display  a  resource  limit.   The   available
+          resources limits are listed below.  Many systems do not
+          contain one or more of these limits.  The limit  for  a
+          specified resource is set when limit is specified.  The
+          value of limit can be a number in  the  unit  specified
+          below  with each resource, or the value unlimited.  The
+          H and S flags specify whether the  hard  limit  or  the
+          soft limit for the given resource is set.  A hard limit
+          cannot be increased once it is set.  A soft  limit  can
+          be  increased  up  to  the value of the hard limit.  If
+          neither the H or S  options  is  specified,  the  limit
+          applies to both.  The current resource limit is printed
+          when limit is omitted.  In this case the soft limit  is
+          printed  unless  H  is  specified.   When more that one
+          resource is specified, then the limit name and unit  is
+          printed before the value.
+          -a    Lists all of the current resource limits.
+          -c    The number of 512-byte blocks on the size of core
+               dumps.
+          -d    The number of K-bytes on the  size  of  the  data
+               area.
+          -f    The number of 512-byte blocks on files written by
+               child processes (files of any size may be read).
+          -m    The number of K-bytes on  the  size  of  physical
+               memory.
+          -n    The number of file descriptors plus 1.
+          -p    The number of 512-byte blocks for pipe buffering.
+          -s    The number of K-bytes on the size  of  the  stack
+               area.
+          -t    The number of seconds to be used by each process.
+          -v    The number of K-bytes for virtual memory.
+
+          If no option is given, -f is assumed.
+
+     umask [ mask ]
+          The  user  file-creation  mask  is  set  to  mask  (see
+          umask(2)).   mask  can  either  be an octal number or a
+          symbolic value as described in chmod(1).  If a symbolic
+          value  is  given, the new umask value is the complement
+          of the result of applying mask to the complement of the
+          previous  umask value.  If mask is omitted, the current
+          value of the mask is printed.
+
+     unalias name...
+          The aliases given by the list of names are removed from
+          the alias list.
+
+     unset [ -f ] name ...
+          The variables given by the  list  of  names  are  unas-
+          signed,  i.e.,  their values and attributes are erased.
+          readonly variables cannot be unset.  If the -f, flag is
+          set, then the names refer to function names.  Unsetting
+          ERRNO,  LINENO,  MAILCHECK,  OPTARG,  OPTIND,   RANDOM,
+          SECONDS,  TMOUT,  and  _  removes their special meaning
+          even if they are subsequently assigned to.
+
+      wait [ job ]
+          Wait for the specified job and report  its  termination
+          status.   If job is not given then all currently active
+          child processes are waited for.  The exit  status  from
+          this  command  is  that of the process waited for.  See
+          Jobs for a description of the format of job.
+
+     whence [ -pv ] name ...
+          For each name, indicate how it would be interpreted  if
+          used as a command name.
+
+          The -v flag produces a more verbose report.
+
+          The -p flag does a path search for name even if name is
+          an alias, a function, or a reserved word.
+
+</PRE></BODY></HTML>

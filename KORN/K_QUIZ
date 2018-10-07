@@ -1,0 +1,10 @@
+#!/bin/ksh
+# Script name: quiz
+
+read answer?"Who was the U.S. President in 1992? "
+while [[ "$answer" != "Bush" ]]
+do
+ 	     print "Wrong try again!"
+read answer
+done
+print Good guess! 

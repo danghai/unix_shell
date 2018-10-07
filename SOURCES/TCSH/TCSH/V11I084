@@ -1,0 +1,2660 @@
+Subject:  v11i084:  Tcsh for 4.3 CSH, Part01/02
+Newsgroups: comp.sources.unix
+Sender: sources
+Approved: rs@uunet.UU.NET
+
+Submitted-by: chris@nrcvax.uucp (Chris Grevstad)
+Posting-number: Volume 11, Issue 84
+Archive-name: tcsh.4.3/part01
+
+This stuff is to adapt Paul Placeway's tcsh to BSD4.3 csh.
+
+The files tcsh.DIFF* are to replace the DIFFS* files that got distributed
+with the tcsh stuff in volume 11 of comp.sources.unix.
+
+Be sure to replace DIFFS.1 with tcsh.DIFFS.1 and DIFFS.2 with tcsh.DIFFS.2.
+At that point you should be able to follow the directions included in the
+README file.
+
+	Chris Grevstad
+	chris@nrcvax.UUCP
+	..!ihnp4!nrcvax!chris
+	chris@trwind.trw.com
+
+#! /bin/sh
+# This is a shell archive, meaning:
+# 1. Remove everything above the #! /bin/sh line.
+# 2. Save the resulting text in a file.
+# 3. Execute the file with /bin/sh (not csh) to create:
+#	DIFFS.1
+# This archive created: Thu Sep 24 16:28:11 1987
+export PATH; PATH=/bin:/usr/bin:$PATH
+if test -f 'DIFFS.1'
+then
+	echo shar: "will not over-write existing file 'DIFFS.1'"
+else
+cat << \SHAR_EOF > 'DIFFS.1'
+*** sh.c	Sat Mar 29 07:17:01 1986
+--- /usr/src/local/tcsh/sh.c	Thu Sep 17 23:22:08 1987
+***************
+*** 7,12
+  #ifndef lint
+  static char *sccsid = "@(#)sh.c	5.3 (Berkeley) 3/29/86";
+  #endif
+  
+  #include "sh.h"
+  #include <sys/ioctl.h>
+
+--- 7,13 -----
+  #ifndef lint
+  static char *sccsid = "@(#)sh.c	5.3 (Berkeley) 3/29/86";
+  #endif
++ static char *Version = "tcsh 5.4 (Ohio State) 7/18/87 Patch level 0";
+  
+  #include "sh.h"
+  /* #include <sys/ioctl.h> */
+***************
+*** 9,15
+  #endif
+  
+  #include "sh.h"
+! #include <sys/ioctl.h>
+  /*
+   * C Shell
+   *
+
+--- 10,27 -----
+  static char *Version = "tcsh 5.4 (Ohio State) 7/18/87 Patch level 0";
+  
+  #include "sh.h"
+! /* #include <sys/ioctl.h> */
+! 
+! #ifdef SVID
+! struct termio termiob;
+! 
+! # ifdef OREO
+! struct ltchars ltcbuf;
+! #include <compat.h>
+! # endif OREO
+! 
+! #endif SVID
+! 
+  /*
+   * C Shell
+   *
+***************
+*** 18,23
+   *
+   * Jim Kulp, IIASA, Laxenburg, Austria
+   * April 1980
+   */
+  
+  char	*pathlist[] =	{ ".", "/usr/ucb", "/bin", "/usr/bin", 0 };
+
+--- 30,55 -----
+   *
+   * Jim Kulp, IIASA, Laxenburg, Austria
+   * April 1980
++  *
++  * Filename recognition added:
++  * Ken Greer, Ind. Consultant, Palo Alto CA
++  * October 1983.
++  *
++  * Karl Kleinpaste, Computer Consoles, Inc.
++  * Added precmd, periodic/tperiod, prompt changes,
++  * directory stack hack, and login watch.
++  * Sometime March 1983 - Feb 1984.
++  *
++  * Added scheduled commands, including the "sched" command,
++  * plus the call to sched_run near the precmd et al
++  * routines.
++  * Upgraded scheduled events for running events while
++  * sitting idle at command input.
++  *
++  * Paul Placeway, Ohio State
++  * added stuff for running with twenex/inputl  9 Oct 1984.
++  *
++  * ported to Apple Unix (TM) (OREO)  26 -- 29 Jun 1987
+   */
+  
+  char	*pathlist[] =	{ ".", "/usr/ucb", "/bin", "/usr/bin", 0 };
+***************
+*** 23,30
+  char	*pathlist[] =	{ ".", "/usr/ucb", "/bin", "/usr/bin", 0 };
+  char	*dumphist[] =	{ "history", "-h", 0, 0 };
+  char	*loadhist[] =	{ "source", "-h", "~/.history", 0 };
+! char	HIST = '!';
+! char	HISTSUB = '^';
+  bool	nofile;
+  bool	reenter;
+  bool	nverbose;
+
+--- 55,62 -----
+  char	*pathlist[] =	{ ".", "/usr/ucb", "/bin", "/usr/bin", 0 };
+  char	*dumphist[] =	{ "history", "-h", 0, 0 };
+  char	*loadhist[] =	{ "source", "-h", "~/.history", 0 };
+! /* char	HIST = '!'; */
+! /* char	HISTSUB = '^'; */
+  bool	nofile;
+  bool	reenter;
+  bool	nverbose;
+***************
+*** 34,39
+  bool	batch;
+  bool	prompt = 1;
+  bool	enterhist = 0;
+  
+  extern	gid_t getegid(), getgid();
+  extern	uid_t geteuid(), getuid();
+
+--- 66,79 -----
+  bool	batch;
+  bool	prompt = 1;
+  bool	enterhist = 0;
++ bool	tellwhat = 0;
++ int	phup();
++ time_t	t_period;
++ time_t	watch_period = 0;
++ struct who *wholist;
++ bool	precmd_active = 0;
++ bool	periodic_active = 0;
++ char    buff[128];		/* for gethostname(2), and printprompt() */
+  
+  extern	gid_t getegid(), getgid();
+  extern	uid_t geteuid(), getuid();
+***************
+*** 38,43
+  extern	gid_t getegid(), getgid();
+  extern	uid_t geteuid(), getuid();
+  
+  main(c, av)
+  	int c;
+  	char **av;
+
+--- 78,111 -----
+  extern	gid_t getegid(), getgid();
+  extern	uid_t geteuid(), getuid();
+  
++ #define DEFAULT_AUTOLOGOUT	"60"	/* 1 Hour Alarm default */
++ 
++ auto_logout ()
++ {
++     printf ("auto-logout\n");
++     close (SHIN);
++     set ("logout", "automatic");
++     child++;
++     goodbye ();
++ }
++ 
++ alrmcatch ()
++ {
++ 	extern	struct	sched_event *sched_ptr;
++ 	time_t	cl;
++ 
++ 	if (!sched_ptr)
++ 		auto_logout();	/* no other possibility - logout */
++ 	time(&cl);
++ 	if (sched_ptr->t_when <= cl + 1)
++ 		sched_run();
++ 	else
++ 		auto_logout();
++ 	setalarm();
++ }
++ 
++ char    *ttyname();
++ 
+  main(c, av)
+  	int c;
+  	char **av;
+***************
+*** 47,52
+  	struct sigvec osv;
+  
+  	settimes();			/* Immed. estab. timing base */
+  	v = av;
+  	if (eq(v[0], "a.out"))		/* A.out's are quittable */
+  		quitit = 1;
+
+--- 115,128 -----
+  	struct sigvec osv;
+  
+  	settimes();			/* Immed. estab. timing base */
++ #ifdef OREO
++ 	set42sig();
++ 	setcompat (COMPAT_BSDPROT | COMPAT_BSDNBIO | COMPAT_BSDSIGNALS |
++ 		  COMPAT_SYSCALLS);
++ #endif
++ 	HIST = '!';
++ 	HISTSUB = '^';
++ 
+  	v = av;
+  	if (eq(v[0], "a.out"))		/* A.out's are quittable */
+  		quitit = 1;
+***************
+*** 56,61
+  		(void) time(&chktim);
+  
+  	/*
+  	 * Move the descriptors to safe places.
+  	 * The variable didfds is 0 while we have only FSH* to work with.
+  	 * When didfds is true, we have 0,1,2 and prefer to use these.
+
+--- 132,144 -----
+  		(void) time(&chktim);
+  
+  	/*
++ 	 * Initialize for periodic command intervals.
++ 	 * Also, initialize the dummy tty list for login-watch.
++ 	 */
++ 	time(&t_period);
++ 	initwatch();
++ 
++ 	/*
+  	 * Move the descriptors to safe places.
+  	 * The variable didfds is 0 while we have only FSH* to work with.
+  	 * When didfds is true, we have 0,1,2 and prefer to use these.
+***************
+*** 69,74
+  	 * CHILD is munged when forking/waiting
+  	 */
+  
+  	set("status", "0");
+  	dinit(cp = getenv("HOME"));	/* dinit thinks that HOME == cwd in a
+  					 * login shell */
+
+--- 152,181 -----
+  	 * CHILD is munged when forking/waiting
+  	 */
+  
++ 	/* 7-10-87 Paul Placeway
++ 	 * autologout should be set ONLY on login shells and on shells
++ 	 * running as root.  Out of these, autologout should NOT be set
++ 	 * for any psudo-terminals (this catches most window systems)
++ 	 * and not for any terminal running X windows.
++ 	 *
++ 	 * At Ohio State, we have had problems with a user having his
++ 	 * X session drop out from under him (on a Sun) because the shell
++ 	 * in his master xterm timed out and exited.
++ 	 *
++ 	 * Really, this should be done with a program external to the
++ 	 * shell, that watches for no activity (and NO running programs,
++ 	 * such as dump) on a terminal for a long peroid of time, and
++ 	 * then SIGHUPS the shell on that terminal.
++ 	 */
++ 	if (loginsh || getuid() == 0) { /* only for login shells or root */
++ 	    cp = ttyname(SHIN);
++ 	    if ((strncmp (cp, "ttyp", 4) != 0) &&
++ 		(strncmp (cp, "ttyp", 4) != 0))
++ 		if (getenv("DISPLAY") == NOSTR) /* NOT on X window shells */
++ 		    set("autologout", DEFAULT_AUTOLOGOUT);
++ 	}
++ 
++ 	signal(SIGALRM, alrmcatch);
+  	set("status", "0");
+  	set("tcsh", "1");		/* so I can tell the difference */
+  	dinit(cp = getenv("HOME"));	/* dinit thinks that HOME == cwd in a
+***************
+*** 70,75
+  	 */
+  
+  	set("status", "0");
+  	dinit(cp = getenv("HOME"));	/* dinit thinks that HOME == cwd in a
+  					 * login shell */
+  	if (cp == NOSTR)
+
+--- 177,183 -----
+  
+  	signal(SIGALRM, alrmcatch);
+  	set("status", "0");
++ 	set("tcsh", "1");		/* so I can tell the difference */
+  	dinit(cp = getenv("HOME"));	/* dinit thinks that HOME == cwd in a
+  					 * login shell */
+  	if (cp == NOSTR)
+***************
+*** 84,89
+  		set("user", savestr(cp));
+  	if ((cp = getenv("TERM")) != NOSTR)
+  		set("term", savestr(cp));
+  	/*
+  	 * Re-initialize path if set in environment
+  	 */
+
+--- 192,199 -----
+  		set("user", savestr(cp));
+  	if ((cp = getenv("TERM")) != NOSTR)
+  		set("term", savestr(cp));
++ 
++ 	set ("version", Version); /* publish the shell version */
+  	/*
+  	 * set usefull environment things for the user
+  	 */
+***************
+*** 85,90
+  	if ((cp = getenv("TERM")) != NOSTR)
+  		set("term", savestr(cp));
+  	/*
+  	 * Re-initialize path if set in environment
+  	 */
+  	if ((cp = getenv("PATH")) == NOSTR)
+
+--- 195,235 -----
+  
+  	set ("version", Version); /* publish the shell version */
+  	/*
++ 	 * set usefull environment things for the user
++ 	 */
++ 	itoa (getuid(), buff);
++ 	set ("uid", buff);
++ 	if ((cp = getenv("HOST")) == NOSTR) { /* if not allready set */
++ 	    gethostname (buff, sizeof(buff));
++ 	    buff[sizeof(buff) -1] = '\0'; /* just in case */
++ 	    setenv ("HOST", buff);
++ 	}
++ 	if ((cp = getenv("HOSTTYPE")) == NOSTR) { /* if not allready set */
++ #ifdef vax
++ 	    setenv ("HOSTTYPE", "vax");
++ #endif
++ #ifdef sun
++ # ifdef mc68010
++ 	    setenv ("HOSTTYPE", "sun2");
++ # else
++ #  ifdef mc68020
++ 	    setenv ("HOSTTYPE", "sun3");
++ #  else
++ 	    setenv ("HOSTTYPE", "sun");
++ #  endif
++ # endif
++ #endif
++ #ifdef pyr			/* pyramid */
++ 	    setenv ("HOSTTYPE", "pyramid");
++ #endif
++ #ifdef OREO
++ 	    setenv ("HOSTTYPE", "mac2");
++ #endif OREO
++ #ifdef ns32000                  /* ugh!  This should change */
++             setenv ("HOSTTYPE", "multimax");
++ #endif
++ 	}
++ 	/*
+  	 * Re-initialize path if set in environment
+  	 */
+  	if ((cp = getenv("PATH")) == NOSTR)
+***************
+*** 205,210
+  		}
+  		file = v[0];
+  		SHIN = dmove(nofile, FSHIN);	/* Replace FSHIN */
+  		(void) ioctl(SHIN, FIOCLEX, (char *)0);
+  		prompt = 0;
+  		c--, v++;
+
+--- 350,356 -----
+  		}
+  		file = v[0];
+  		SHIN = dmove(nofile, FSHIN);	/* Replace FSHIN */
++ #ifdef BSD4_3
+  		(void) ioctl(SHIN, FIOCLEX, (char *)0);
+  #endif
+  		prompt = 0;
+***************
+*** 206,211
+  		file = v[0];
+  		SHIN = dmove(nofile, FSHIN);	/* Replace FSHIN */
+  		(void) ioctl(SHIN, FIOCLEX, (char *)0);
+  		prompt = 0;
+  		c--, v++;
+  	}
+
+--- 352,358 -----
+  		SHIN = dmove(nofile, FSHIN);	/* Replace FSHIN */
+  #ifdef BSD4_3
+  		(void) ioctl(SHIN, FIOCLEX, (char *)0);
++ #endif
+  		prompt = 0;
+  		c--, v++;
+  	}
+***************
+*** 239,246
+  	/*
+  	 * Set up the prompt.
+  	 */
+! 	if (prompt)
+! 		set("prompt", uid == 0 ? "# " : "% ");
+  
+  	/*
+  	 * If we are an interactive shell, then start fiddling
+
+--- 386,395 -----
+  	/*
+  	 * Set up the prompt.
+  	 */
+! 	if (prompt) {
+! 		set("prompt", uid == 0 ? "# " : "> ");
+! 		set("prompt2", "\277 "); /* that's a meta-questionmark */
+! 	}
+  
+  	/*
+  	 * If we are an interactive shell, then start fiddling
+***************
+*** 275,280
+  			else
+  				f = -1;
+  retry:
+  			if (ioctl(f, TIOCGPGRP, (char *)&tpgrp) == 0 &&
+  			    tpgrp != -1) {
+  				int ldisc;
+
+--- 424,430 -----
+  			else
+  				f = -1;
+  retry:
++ #ifdef BSDJOBS			/* if we have tty job control */
+  			if (ioctl(f, TIOCGPGRP, (char *)&tpgrp) == 0 &&
+  			    tpgrp != -1) {
+  				int ldisc;
+***************
+*** 286,291
+  				}
+  				if (ioctl(f, TIOCGETD, (char *)&oldisc) != 0) 
+  					goto notty;
+  				if (oldisc != NTTYDISC) {
+  #ifdef DEBUG
+  					printf("Switching to new tty driver...\n");
+
+--- 436,468 -----
+  				}
+  				if (ioctl(f, TIOCGETD, (char *)&oldisc) != 0) 
+  					goto notty;
++ # ifdef OREO
++ 			if (ioctl(f, TCGETA, &termiob) != 0)
++ 				    goto notty;
++ 				if ((getcompat(COMPAT_BSDTTY) & COMPAT_BSDTTY)
++ 				    != COMPAT_BSDTTY) {
++ #  ifdef DEBUG
++ 				    printf("Switching to new tty driver...\n");
++ #  endif DEBUG
++ 				    setcompat(COMPAT_BSDTTY);
++ 				    if (ioctl (f, TIOCGLTC, &ltcbuf) < 0) {
++ 					printf ("Couldn't get local chars.\n");
++ 				    } else {
++ #  ifdef DEBUG
++ 					printf ("Setting ^Z, etc....\n");
++ #  endif DEBUG
++ 					ltcbuf.t_suspc = '\032'; /* ^Z */
++ 					ltcbuf.t_dsuspc = '\031'; /* ^Y */
++ 					ltcbuf.t_rprntc = '\022'; /* ^R */
++ 					ltcbuf.t_flushc = '\017'; /* ^O */
++ 					ltcbuf.t_werasc = '\027'; /* ^W */
++ 					ltcbuf.t_lnextc = '\026'; /* ^V */
++ 					ioctl (f, TIOCSLTC, &ltcbuf);
++ 				    }
++ 				    termiob.c_cc[VSWTCH] = '\0';
++ 				    ioctl(f, TCSETAF, &termiob);
++ 				}
++ # else OREO
+  				if (oldisc != NTTYDISC) {
+  #  ifdef DEBUG
+  					printf("Switching to new tty driver...\n");
+***************
+*** 287,293
+  				if (ioctl(f, TIOCGETD, (char *)&oldisc) != 0) 
+  					goto notty;
+  				if (oldisc != NTTYDISC) {
+! #ifdef DEBUG
+  					printf("Switching to new tty driver...\n");
+  #endif DEBUG
+  					ldisc = NTTYDISC;
+
+--- 464,470 -----
+  				}
+  # else OREO
+  				if (oldisc != NTTYDISC) {
+! #  ifdef DEBUG
+  					printf("Switching to new tty driver...\n");
+  #  endif DEBUG
+  					ldisc = NTTYDISC;
+***************
+*** 289,295
+  				if (oldisc != NTTYDISC) {
+  #ifdef DEBUG
+  					printf("Switching to new tty driver...\n");
+! #endif DEBUG
+  					ldisc = NTTYDISC;
+  					(void) ioctl(f, TIOCSETD,
+  						(char *)&ldisc);
+
+--- 466,472 -----
+  				if (oldisc != NTTYDISC) {
+  #  ifdef DEBUG
+  					printf("Switching to new tty driver...\n");
+! #  endif DEBUG
+  					ldisc = NTTYDISC;
+  					(void) ioctl(f, TIOCSETD,
+  						(char *)&ldisc);
+***************
+*** 295,300
+  						(char *)&ldisc);
+  				} else
+  					oldisc = -1;
+  				opgrp = shpgrp;
+  				shpgrp = getpid();
+  				tpgrp = shpgrp;
+
+--- 472,478 -----
+  						(char *)&ldisc);
+  				} else
+  					oldisc = -1;
++ # endif OREO
+  				opgrp = shpgrp;
+  				shpgrp = getpid();
+  				tpgrp = shpgrp;
+***************
+*** 307,312
+    printf("Warning: no access to tty; thus no job control in this shell...\n");
+  				tpgrp = -1;
+  			}
+  		}
+  	}
+  	if (setintr == 0 && parintr == SIG_DFL)
+
+--- 485,494 -----
+    printf("Warning: no access to tty; thus no job control in this shell...\n");
+  				tpgrp = -1;
+  			}
++ #else BSDJOBS			/* don't have job control, so frotz it */
++ 			tpgrp = -1;
++ 			printf ("Warning: jobs not implemented yet.\n");
++ #endif BSDJOBS
+  		}
+  	}
+  	if (setintr == 0 && parintr == SIG_DFL)
+***************
+*** 321,326
+  	haderr = 0;		/* In case second time through */
+  	if (!fast && reenter == 0) {
+  		reenter++;
+  		/* Will have value("home") here because set fast if don't */
+  		srccat(value("home"), "/.cshrc");
+  		if (!fast && !arginp && !onelflg && !havhash)
+
+--- 503,512 -----
+  	haderr = 0;		/* In case second time through */
+  	if (!fast && reenter == 0) {
+  		reenter++;
++                 if (!fast && !arginp && !onelflg) { /* PWP setup stuff */
++ 		    ed_Init();	/* init the new line editor */
++ 		    /* PWP: setup the editor BEFORE doing .cshrc, else bugs! */
++ 		}    
+  		/* Will have value("home") here because set fast if don't */
+  		srccat(value("home"), "/.cshrc");	/* upward compat. */
+  		if (!fast && !arginp && !onelflg && !havhash)
+***************
+*** 322,328
+  	if (!fast && reenter == 0) {
+  		reenter++;
+  		/* Will have value("home") here because set fast if don't */
+! 		srccat(value("home"), "/.cshrc");
+  		if (!fast && !arginp && !onelflg && !havhash)
+  			dohash();
+  		if (loginsh) {
+
+--- 508,514 -----
+  		    /* PWP: setup the editor BEFORE doing .cshrc, else bugs! */
+  		}    
+  		/* Will have value("home") here because set fast if don't */
+! 		srccat(value("home"), "/.cshrc");	/* upward compat. */
+  		if (!fast && !arginp && !onelflg && !havhash)
+  			dohash();
+  		if (loginsh) {
+***************
+*** 350,360
+  	/*
+  	 * Mop-up.
+  	 */
+! 	if (loginsh) {
+! 		printf("logout\n");
+! 		(void) close(SHIN);
+! 		child++;
+! 		goodbye();
+  	}
+  	rechist();
+  	exitstat();
+
+--- 536,550 -----
+  	/*
+  	 * Mop-up.
+  	 */
+! 	if (intty) {
+! 		if (loginsh) {
+! 			printf("logout\n");
+! 			(void) close(SHIN);
+! 			child++;
+! 			goodbye();
+! 		} else {
+! 			printf ("exit\n");
+! 		}
+  	}
+  	rechist();
+  	exitstat();
+***************
+*** 362,368
+  
+  untty()
+  {
+! 
+  	if (tpgrp > 0) {
+  		(void) setpgrp(0, opgrp);
+  		(void) ioctl(FSHTTY, TIOCSPGRP, (char *)&opgrp);
+
+--- 552,558 -----
+  
+  untty()
+  {
+! #ifdef BSDJOBS
+  	if (tpgrp > 0) {
+  		(void) setpgrp(0, opgrp);
+  		(void) ioctl(FSHTTY, TIOCSPGRP, (char *)&opgrp);
+***************
+*** 366,371
+  	if (tpgrp > 0) {
+  		(void) setpgrp(0, opgrp);
+  		(void) ioctl(FSHTTY, TIOCSPGRP, (char *)&opgrp);
+  		if (oldisc != -1 && oldisc != NTTYDISC) {
+  #ifdef DEBUG
+  			printf("\nReverting to old tty driver...\n");
+
+--- 556,562 -----
+  	if (tpgrp > 0) {
+  		(void) setpgrp(0, opgrp);
+  		(void) ioctl(FSHTTY, TIOCSPGRP, (char *)&opgrp);
++ # ifndef OREO
+  		if (oldisc != -1 && oldisc != NTTYDISC) {
+  #  ifdef DEBUG
+  			printf("\nReverting to old tty driver...\n");
+***************
+*** 367,373
+  		(void) setpgrp(0, opgrp);
+  		(void) ioctl(FSHTTY, TIOCSPGRP, (char *)&opgrp);
+  		if (oldisc != -1 && oldisc != NTTYDISC) {
+! #ifdef DEBUG
+  			printf("\nReverting to old tty driver...\n");
+  #endif DEBUG
+  			(void) ioctl(FSHTTY, TIOCSETD, (char *)&oldisc);
+
+--- 558,564 -----
+  		(void) ioctl(FSHTTY, TIOCSPGRP, (char *)&opgrp);
+  # ifndef OREO
+  		if (oldisc != -1 && oldisc != NTTYDISC) {
+! #  ifdef DEBUG
+  			printf("\nReverting to old tty driver...\n");
+  #  endif DEBUG
+  			(void) ioctl(FSHTTY, TIOCSETD, (char *)&oldisc);
+***************
+*** 369,375
+  		if (oldisc != -1 && oldisc != NTTYDISC) {
+  #ifdef DEBUG
+  			printf("\nReverting to old tty driver...\n");
+! #endif DEBUG
+  			(void) ioctl(FSHTTY, TIOCSETD, (char *)&oldisc);
+  		}
+  	}
+
+--- 560,566 -----
+  		if (oldisc != -1 && oldisc != NTTYDISC) {
+  #  ifdef DEBUG
+  			printf("\nReverting to old tty driver...\n");
+! #  endif DEBUG
+  			(void) ioctl(FSHTTY, TIOCSETD, (char *)&oldisc);
+  		}
+  # endif OREO
+***************
+*** 372,377
+  #endif DEBUG
+  			(void) ioctl(FSHTTY, TIOCSETD, (char *)&oldisc);
+  		}
+  	}
+  }
+  
+
+--- 563,569 -----
+  #  endif DEBUG
+  			(void) ioctl(FSHTTY, TIOCSETD, (char *)&oldisc);
+  		}
++ # endif OREO
+  	}
+  #endif BSDJOBS
+  }
+***************
+*** 373,378
+  			(void) ioctl(FSHTTY, TIOCSETD, (char *)&oldisc);
+  		}
+  	}
+  }
+  
+  importpath(cp)
+
+--- 565,571 -----
+  		}
+  # endif OREO
+  	}
++ #endif BSDJOBS
+  }
+  
+  importpath(cp)
+***************
+*** 421,426
+  	register char *ep = strspl(cp, dp);
+  	register int unit = dmove(open(ep, 0), -1);
+  
+  	(void) ioctl(unit, FIOCLEX, (char *)0);
+  	xfree(ep);
+  #ifdef INGRES
+
+--- 614,620 -----
+  	register char *ep = strspl(cp, dp);
+  	register int unit = dmove(open(ep, 0), -1);
+  
++ #ifdef BSD4_3
+  	(void) ioctl(unit, FIOCLEX, (char *)0);
+  #endif
+  	xfree(ep);
+***************
+*** 422,427
+  	register int unit = dmove(open(ep, 0), -1);
+  
+  	(void) ioctl(unit, FIOCLEX, (char *)0);
+  	xfree(ep);
+  #ifdef INGRES
+  	srcunit(unit, 0, 0);
+
+--- 616,622 -----
+  
+  #ifdef BSD4_3
+  	(void) ioctl(unit, FIOCLEX, (char *)0);
++ #endif
+  	xfree(ep);
+  #ifdef INGRES
+  	srcunit(unit, 0, 0);
+***************
+*** 464,471
+  	if (onlyown) {
+  		struct stat stb;
+  
+! 		if (fstat(unit, &stb) < 0 ||
+! 		    (stb.st_uid != uid && stb.st_gid != getgid())) {
+  			(void) close(unit);
+  			return;
+  		}
+
+--- 659,667 -----
+  	if (onlyown) {
+  		struct stat stb;
+  
+! 		if (fstat(unit, &stb) < 0
+! 		/*    || (stb.st_uid != uid && stb.st_gid != getgid()) */
+! 		    ) {
+  			(void) close(unit);
+  			return;
+  		}
+***************
+*** 573,578
+  
+  goodbye()
+  {
+  	if (loginsh) {
+  		(void) signal(SIGQUIT, SIG_IGN);
+  		(void) signal(SIGINT, SIG_IGN);
+
+--- 769,775 -----
+  
+  goodbye()
+  {
++ 	rechist();
+  	if (loginsh) {
+  		(void) signal(SIGQUIT, SIG_IGN);
+  		(void) signal(SIGINT, SIG_IGN);
+***************
+*** 578,583
+  		(void) signal(SIGINT, SIG_IGN);
+  		(void) signal(SIGTERM, SIG_IGN);
+  		setintr = 0;		/* No interrupts after "logout" */
+  		if (adrof("home"))
+  			srccat(value("home"), "/.logout");
+  	}
+
+--- 775,782 -----
+  		(void) signal(SIGINT, SIG_IGN);
+  		(void) signal(SIGTERM, SIG_IGN);
+  		setintr = 0;		/* No interrupts after "logout" */
++ 		if (!(adrof("logout")))
++ 			set ("logout", "normal");
+  		if (adrof("home"))
+  			srccat(value("home"), "/.logout");
+  	}
+***************
+*** 581,587
+  		if (adrof("home"))
+  			srccat(value("home"), "/.logout");
+  	}
+- 	rechist();
+  	exitstat();
+  }
+  
+
+--- 780,785 -----
+  		if (adrof("home"))
+  			srccat(value("home"), "/.logout");
+  	}
+  	exitstat();
+  }
+  
+***************
+*** 654,661
+  		if (v = gargv)
+  			gargv = 0, blkfree(v);
+  		reset();
+! 	} else if (intty && wantnl)
+! 		printf("\n");		/* Some like this, others don't */
+  	error(NOSTR);
+  }
+  
+
+--- 852,862 -----
+  		if (v = gargv)
+  			gargv = 0, blkfree(v);
+  		reset();
+! 	} else if (intty && wantnl) {
+! 		/* printf("\n");	/* Some like this, others don't */
+! 		putraw ('\r');
+! 		putraw ('\n');
+! 	}
+  	error(NOSTR);
+  }
+  
+***************
+*** 730,735
+  		if (intty && prompt && evalvec == 0) {
+  			mailchk();
+  			/*
+  			 * If we are at the end of the input buffer
+  			 * then we are going to read fresh stuff.
+  			 * Otherwise, we are rereading input and don't
+
+--- 931,946 -----
+  		if (intty && prompt && evalvec == 0) {
+  			mailchk();
+  			/*
++ 			 * Watch for logins/logouts.
++ 			 * Next is scheduled commands stored previously using "sched."
++ 			 * Then execute periodic commands.
++ 			 * Following that, the prompt precmd is run.
++ 			 */
++ 			watch_login();
++ 			sched_run();
++ 			period_cmd();
++ 			precmd();
++ 			/*
+  			 * If we are at the end of the input buffer
+  			 * then we are going to read fresh stuff.
+  			 * Otherwise, we are rereading input and don't
+***************
+*** 737,742
+  			 */
+  			if (fseekp == feobp)
+  				printprompt();
+  		}
+  		err = 0;
+  
+
+--- 948,954 -----
+  			 */
+  			if (fseekp == feobp)
+  				printprompt();
++ 			setalarm();
+  		}
+  		err = 0;
+  
+***************
+*** 744,750
+  		 * Echo not only on VERBOSE, but also with history expansion.
+  		 * If there is a lexical error then we forego history echo.
+  		 */
+! 		if (lex(&paraml) && !err && intty ||
+  		    adrof("verbose")) {
+  			haderr = 1;
+  			prlex(&paraml);
+
+--- 956,962 -----
+  		 * Echo not only on VERBOSE, but also with history expansion.
+  		 * If there is a lexical error then we forego history echo.
+  		 */
+! 		if (lex(&paraml) && !err && intty && !tellwhat ||
+  		    adrof("verbose")) {
+  			haderr = 1;
+  			prlex(&paraml);
+***************
+*** 750,755
+  			prlex(&paraml);
+  			haderr = 0;
+  		}
+  
+  		/*
+  		 * The parser may lose space if interrupted.
+
+--- 962,968 -----
+  			prlex(&paraml);
+  			haderr = 0;
+  		}
++ 		alarm (0);				/* Autologout OFF */
+  
+  		/*
+  		 * The parser may lose space if interrupted.
+***************
+*** 763,769
+  		 * is from the terminal at the top level and not
+  		 * in a loop.
+  		 */
+! 		if (enterhist || catch && intty && !whyles)
+  			savehist(&paraml);
+  
+  		/*
+
+--- 976,982 -----
+  		 * is from the terminal at the top level and not
+  		 * in a loop.
+  		 */
+! 		if (enterhist || catch && intty && !whyles && !tellwhat)
+  			savehist(&paraml);
+  
+  		/*
+***************
+*** 783,788
+  		alias(&paraml);
+  
+  		/*
+  		 * Parse the words of the input into a parse tree.
+  		 */
+  		t = syntax(paraml.next, &paraml, 0);
+
+--- 996,1009 -----
+  		alias(&paraml);
+  
+  		/*
++ 		 * If had a tell_what from twenex() then do
++ 		 */
++ 		if (tellwhat) {
++ 			tellmewhat(&paraml);
++ 			reset();
++ 		}
++ 
++ 		/*
+  		 * Parse the words of the input into a parse tree.
+  		 */
+  		t = syntax(paraml.next, &paraml, 0);
+***************
+*** 821,826
+  	xfree(f);
+  	if (u < 0 && !hflg)
+  		Perror(f);
+  	(void) ioctl(u, FIOCLEX, (char *)0);
+  	srcunit(u, 0, hflg);
+  }
+
+--- 1042,1048 -----
+  	xfree(f);
+  	if (u < 0 && !hflg)
+  		Perror(f);
++ #ifdef BSD4_3
+  	(void) ioctl(u, FIOCLEX, (char *)0);
+  #endif
+  	srcunit(u, 0, hflg);
+***************
+*** 822,827
+  	if (u < 0 && !hflg)
+  		Perror(f);
+  	(void) ioctl(u, FIOCLEX, (char *)0);
+  	srcunit(u, 0, hflg);
+  }
+  
+
+--- 1044,1050 -----
+  		Perror(f);
+  #ifdef BSD4_3
+  	(void) ioctl(u, FIOCLEX, (char *)0);
++ #endif
+  	srcunit(u, 0, hflg);
+  }
+  
+***************
+*** 870,876
+  	chktim = t;
+  }
+  
+! #include <pwd.h>
+  /*
+   * Extract a home directory from the password file
+   * The argument points to a buffer where the name of the
+
+--- 1093,1099 -----
+  	chktim = t;
+  }
+  
+! /* #include <pwd.h> */
+  /*
+   * Extract a home directory from the password file
+   * The argument points to a buffer where the name of the
+***************
+*** 896,901
+  {
+  
+  	didfds = 0;			/* 0, 1, 2 aren't set up */
+  	(void) ioctl(SHIN = dcopy(0, FSHIN), FIOCLEX, (char *)0);
+  	(void) ioctl(SHOUT = dcopy(1, FSHOUT), FIOCLEX, (char *)0);
+  	(void) ioctl(SHDIAG = dcopy(2, FSHDIAG), FIOCLEX, (char *)0);
+
+--- 1119,1125 -----
+  {
+  
+  	didfds = 0;			/* 0, 1, 2 aren't set up */
++ #ifdef BSD4_3
+  	(void) ioctl(SHIN = dcopy(0, FSHIN), FIOCLEX, (char *)0);
+  	(void) ioctl(SHOUT = dcopy(1, FSHOUT), FIOCLEX, (char *)0);
+  	(void) ioctl(SHDIAG = dcopy(2, FSHDIAG), FIOCLEX, (char *)0);
+***************
+*** 900,905
+  	(void) ioctl(SHOUT = dcopy(1, FSHOUT), FIOCLEX, (char *)0);
+  	(void) ioctl(SHDIAG = dcopy(2, FSHDIAG), FIOCLEX, (char *)0);
+  	(void) ioctl(OLDSTD = dcopy(SHIN, FOLDSTD), FIOCLEX, (char *)0);
+  	closem();
+  }
+  
+
+--- 1124,1135 -----
+  	(void) ioctl(SHOUT = dcopy(1, FSHOUT), FIOCLEX, (char *)0);
+  	(void) ioctl(SHDIAG = dcopy(2, FSHDIAG), FIOCLEX, (char *)0);
+  	(void) ioctl(OLDSTD = dcopy(SHIN, FOLDSTD), FIOCLEX, (char *)0);
++ #else
++ 	SHIN = dcopy(0, FSHIN);
++ 	SHOUT = dcopy(1, FSHOUT);
++ 	SHDIAG = dcopy(2, FSHDIAG);
++ 	OLDSTD = dcopy(SHIN, FOLDSTD);
++ #endif
+  	closem();
+  }
+  
+***************
+*** 903,908
+  	closem();
+  }
+  
+  #ifdef PROF
+  done(i)
+  #else
+
+--- 1133,1541 -----
+  	closem();
+  }
+  
++   
++ /*
++  * Karl Kleinpaste, 21oct1983.
++  * Added precmd(), which checks for the alias
++  * precmd in aliases.  If it's there, the alias
++  * is executed as a command.  This is done
++  * after mailchk() and just before print-
++  * ing the prompt.  Useful for things like printing
++  * one's current directory just before each command.
++  */
++ precmd()
++ {
++ 	int	omask;
++ 
++ 	omask = sighold (SIGINT);
++ 	if (precmd_active) {	/* an error must have been caught */
++ 		aliasrun (2, "unalias", "precmd");
++ 		printf ("Faulty alias 'precmd' removed.\n");
++ 		goto leave;
++ 	}
++ 	precmd_active++;
++ 	if (!whyles && adrof1 ("precmd", &aliases))
++ 		aliasrun (1, "precmd", (char *) 0);
++ leave:
++ 	precmd_active = 0;
++ 	sigsetmask(omask);
++ }
++ 
++ /*
++  * Karl Kleinpaste, 18 Jan 1984.
++  * Added period_cmd(), which executes the alias "periodic" every
++  * $tperiod minutes.  Useful for occasional checking of msgs and such.
++  */
++ period_cmd()
++ {
++ 	register char *vp;
++ 	time_t t, interval;
++ 	int	omask;
++ 
++ 	omask = sighold (SIGINT);
++ 	if (periodic_active) {	/* an error must have been caught */
++ 		aliasrun (2, "unalias", "periodic");
++ 		printf ("Faulty alias 'periodic' removed.\n");
++ 		goto leave;
++ 	}
++ 	periodic_active++;
++ 	if (!whyles && adrof1 ("periodic", &aliases)) {
++ 		vp = value ("tperiod");
++ 		if (vp == (char *) 0)
++ 			return;
++ 		interval = getn (vp);
++ 		time (&t);
++ 		if (t - t_period >= interval * 60) {
++ 			t_period = t;
++ 			aliasrun (1, "periodic", (char *) 0);
++ 		}
++ 	}
++ leave:
++ 	periodic_active = 0;
++ 	sigsetmask(omask);
++ }
++ 
++ /*
++  * Karl Kleinpaste, 21oct1983.
++  * Set up a one-word alias command, for use for special things.
++  * This code is based on the mainline of process().
++  */
++ aliasrun (cnt, s1, s2)
++ 	int cnt;
++ 	char *s1, *s2;
++ {
++ 	struct	wordent	w, *new1, *new2;	/* for holding alias name */
++ 	struct	command	*t = (struct command *) 0;
++ 
++ 	err = NOSTR;			/* don't repeatedly print err msg. */
++ 	w.word = "";
++ 	new1 = (struct wordent *) calloc (1, sizeof w);
++ 	new1->word = savestr (s1);
++ 	if (cnt == 1) {
++ 		/* build a lex list with one word. */
++ 		w.next = w.prev = new1;
++ 		new1->next = new1->prev = &w;
++ 	} else {
++ 		/* build a lex list with two words. */
++ 		new2 = (struct wordent *) calloc (1, sizeof w);
++ 		new2->word = savestr (s2);
++ 		w.next = new2->prev = new1;
++ 		new1->next = w.prev = new2;
++ 		new1->prev = new2->next = &w;
++ 	}
++ 
++ 	/* expand aliases like process() does. */
++ 	alias (&w);
++ 	/* build a syntax tree for the command. */
++ 	t = syntax (w.next, &w, 0);
++ 	if (err)
++ 		error (err);
++ 	/* execute the parse tree. */
++ 	execute (t, -1);
++ 	/* done. free the lex list and parse tree. */
++ 	freelex (&w), freesyn (t);
++ }
++ 
++ /*
++  * Karl Kleinpaste, 26 Jan 1984.
++  * Initialize the dummy tty list for login watch.
++  * This dummy list eliminates boundary conditions
++  * when doing pointer-chase searches.
++  */
++ initwatch()
++ {
++ 	wholist = (struct who *) calloc (1, sizeof *wholist);
++ 	wholist->w_next = (struct who *) calloc (1, sizeof *wholist);
++ 	wholist->w_next->w_prev = wholist;
++ 	strcpy (wholist->w_tty, "\01\01\01\01\01");
++ 	strcpy (wholist->w_next->w_tty, "~~~~~");
++ #ifdef WHODEBUG
++ 	debugwholist ((struct who *) 0, (struct who *) 0);
++ #endif WHODEBUG
++ }
++ 
++ /*
++  * Karl Kleinpaste, 26 Jan 1984.
++  * Watch /etc/utmp for login/logout changes.
++  */
++ watch_login()
++ {
++ 	int utmpfd, comparison, alldone, cnt;
++ 	struct utmp utmp;
++ 	struct who *wp, *wpnew;
++ 	struct varent *v;
++ 	char **vp, *cp;
++ 	time_t t, interval;
++ 	int	omask;
++ 
++ 	/* stop SIGINT, lest our login list get trashed. */
++ 	omask = sighold (SIGINT);
++ 
++ 	v = adrof ("watch");
++ 	if (v == (struct varent *) 0) {
++ 		sigsetmask(omask);
++ 		return;			/* no names to watch */
++ 	}
++ 	vp = v->vec;
++ 	cnt = blklen (vp);
++ 	if (cnt % 2) {			/* odd # args: 1st == # minutes. */
++ 		interval = (number (*vp)) ? getn (*vp++) : MAILINTVL;
++ 		cnt--;
++ 	}
++ 	time (&t);
++ 	if (t - watch_period < interval * 60) {
++ 		sigsetmask(omask);
++ 		return;			/* not long enough yet... */
++ 	}
++ 	watch_period = t;
++ 
++ 	if ((utmpfd = open ("/etc/utmp", 0)) < 0) {
++ 		printf ("/etc/utmp cannot be opened.  Please \"unset watch\".\n");
++ 		sigsetmask(omask);
++ 		return;
++ 	}
++ 
++ 	/*
++ 	 * Read in the utmp file, sort the entries, and update existing
++ 	 * entries or add new entries to the status list.
++ 	 */
++ 	while (read (utmpfd, &utmp, sizeof utmp) == sizeof utmp) {
++ 		if (utmp.ut_name[0] == '\0' && utmp.ut_line[0] == '\0')
++ 			continue;	/* completely void entry */
++ 		wp = wholist;
++ 		while ((comparison = strncmp (wp->w_tty, utmp.ut_line, 8)) < 0)
++ 			wp = wp->w_next;	/* find that tty! */
++ 
++ 		if (comparison == 0) {		/* found the tty... */
++ 			if (utmp.ut_name[0] == '\0')
++ 				wp->w_status = OFFLINE;
++ 			else			/* someone is logged in */
++ 				if (strncmp (utmp.ut_name, wp->w_name, 8) == 0)
++ 					wp->w_status = 0;	/* same guy */
++ 				else {
++ 					strncpy (wp->w_new, utmp.ut_name, 8);
++ 					if (wp->w_name[0] == '\0')
++ 						wp->w_status = ONLINE;
++ 					else
++ 						wp->w_status = CHANGED;
++ 				}
++ 		} else {			/* new tty in utmp */
++ 			wpnew = (struct who *) calloc (1, sizeof *wpnew);
++ 			strncpy (wpnew->w_tty, utmp.ut_line, 8);
++ 			if (utmp.ut_name[0] == '\0')
++ 				wpnew->w_status = OFFLINE;
++ 			else {
++ 				strncpy (wpnew->w_new, utmp.ut_name, 8);
++ 				wpnew->w_status = ONLINE;
++ 			}
++ #ifdef WHODEBUG
++ 			debugwholist(wpnew, wp);
++ #endif WHODEBUG
++ 
++ 			wpnew->w_next = wp;	/* link in a new 'who' */
++ 			wpnew->w_prev = wp->w_prev;
++ 			wpnew->w_prev->w_next = wpnew;
++ 			wp->w_prev = wpnew;	/* linked in now */
++ 		}
++ 	}
++ 	close (utmpfd);
++ 
++ 	/*
++ 	 * The state of all logins is now known, so we can search
++ 	 * the user's list of watchables to print the interesting ones.
++ 	 */
++ 	for (alldone = 0; !alldone && *vp != (char *) 0 && **vp != '\0' &&
++ 			*(vp+1) != (char *) 0 && **(vp+1) != '\0';
++ 			vp += 2) {		/* args used in pairs... */
++ 
++ 		if (eq (*vp, "any") && eq (*(vp+1), "any"))
++ 			alldone++;
++ 
++ 		for (wp = wholist; wp != (struct who *) 0; wp = wp->w_next) {
++ 			if (wp->w_status & ANNOUNCE		||
++ 			    (!eq (*vp, "any") && !eq (*vp, wp->w_name) &&
++ 			    !eq (*vp, wp->w_new))		||
++ 			    (!eq (*(vp+1), wp->w_tty) && !eq (*(vp+1), "any")))
++ 				continue;	/* entry doesn't qualify */
++ 				/* already printed or not right one to print */
++ 
++ 			if ((wp->w_status & OFFLINE) &&
++ 			    (wp->w_name[0] != '\0')) {
++ 				printf ("%s has logged off %s.\n",
++ 					wp->w_name, wp->w_tty);
++ 				wp->w_name[0] = '\0';
++ 				wp->w_status |= ANNOUNCE;
++ 				continue;
++ 			}
++ 			if (wp->w_status & ONLINE) {
++ 				printf ("%s has logged on %s.\n",
++ 					wp->w_new, wp->w_tty);
++ 				strcpy (wp->w_name, wp->w_new);
++ 				wp->w_status |= ANNOUNCE;
++ 				continue;
++ 			}
++ 			if (wp->w_status & CHANGED) {
++ 				printf ("%s has replaced %s on %s.\n",
++ 					wp->w_new, wp->w_name, wp->w_tty);
++ 				strcpy (wp->w_name, wp->w_new);
++ 				wp->w_status |= ANNOUNCE;
++ 				continue;
++ 			}
++ 		}
++ 	}
++ 	sigsetmask(omask);
++ }
++ 
++ #ifdef WHODEBUG
++ debugwholist (new, wp)
++ register struct who *new, *wp;
++ {
++ 	register struct who *a;
++ 
++ 	a = wholist;
++ 	while (a != (struct who *) 0) {
++ 		printf ("%s/%s -> ", a->w_name, a->w_tty);
++ 		a = a->w_next;
++ 	}
++ 	printf ("NULL\n");
++ 	a = wholist;
++ 	printf ("backward: ");
++ 	while (a->w_next != (struct who *) 0)
++ 		a = a->w_next;
++ 	while (a != (struct who *) 0) {
++ 		printf ("%s/%s -> ", a->w_name, a->w_tty);
++ 		a = a->w_prev;
++ 	}
++ 	printf ("NULL\n");
++ 	if (new)
++ 		printf ("new: %s/%s\n", new->w_name, new->w_tty);
++ 	if (wp)
++ 		printf ("wp: %s/%s\n", wp->w_name, wp->w_tty);
++ }
++ #endif WHODEBUG
++ 
++ /*
++  * kfk 21oct1983 -- add @ (time) and / ($cwd) in prompt.
++  * PWP 4/27/87 -- rearange for tcsh.
++  */
++ 
++ printprompt ()
++ {
++     register char *cp, *p, *z;
++     register char underlining = 0;
++ 
++     PromptBuf[0] = '\0';
++     p = PromptBuf;
++     if (whyles)
++ 	cp = value("prompt2");
++     else
++ 	cp = value("prompt");
++ 
++     for (; *cp; cp++) {
++ 	if (*cp == '%') {
++ 	    cp++;
++ 	    if (*cp == HIST || *cp == 'h') {
++ 		itoa(eventno + 1, buff);
++ 		for (z = buff; *z; z++)
++ 		    *p++ = underlining | *z;
++ 	    } else if (*cp == '@' || *cp == 't') {
++ 		struct tm *t;
++ 		long clock;
++ 		char ampm = 'a';
++ 
++ 		time (&clock);
++ 		t = localtime(&clock);
++ 		if (t->tm_hour >= 12) {
++ 		    if (t->tm_hour > 12)
++ 			t->tm_hour -= 12;
++ 		    ampm = 'p';
++ 		} else if (t->tm_hour == 0)
++ 		    t->tm_hour = 12;
++ 		
++ 		itoa(t->tm_hour, buff);
++ 		*p++ = underlining | buff[0];
++ 		if (buff[1]) *p++ = underlining | buff[1];
++ 		*p++ = underlining | ':';
++ 		itoa(t->tm_min, buff);
++ 		if (buff[1]) {
++ 		    *p++ = underlining | buff[0];
++ 		    *p++ = underlining | buff[1];
++ 		} else {
++ 		    *p++ = underlining | '0';
++ 		    *p++ = underlining | buff[0];
++ 		}
++ 		*p++ = underlining | ampm;
++ 		*p++ = underlining | 'm';
++ 	    } else if (*cp == 'M') {
++ 		for (z = getenv("HOST"); *z; z++)
++ 		    *p++ = underlining | *z;
++ 	    } else if (*cp == 'm') {
++ 		for (z = getenv("HOST"); *z && *z != '.'; z++)
++ 		    *p++ = underlining | *z;
++ 	    } else if (*cp == '/' || *cp == 'd') {
++ 		for (z = value("cwd"); *z; z++)
++ 		    *p++ = underlining | *z;
++ 	    } else if (*cp == '.' || *cp == 'c') {
++ 		strcpy (buff, value("cwd"));
++ 		if (!buff[1]) {	/* if CWD == / */
++ 		    *p++ = underlining | buff[0];
++ 		} else {
++ 		    if (strcmp(buff, value("home")) == 0) {
++ 			*p++ = underlining | '~';
++ 		    } else {
++ 			for (z = buff; *z; z++) ; /* find the end */
++ 			while ((z > buff) && (*z != '/')) z--; /* back up */
++ 			if (*z == '/') z++;
++ 			while (*z)
++ 			    *p++ = underlining | *z++;
++ 		    }
++ 		}
++ 
++ 	    } else if (*cp == 'S' || *cp == 'U') { /* start standout */
++ 		underlining = 0200;
++ 	    } else if (*cp == 's' || *cp == 'u') { /* end standout */
++ 		underlining = 0;
++ 	    } else if (*cp == '%') {
++ 		*p++ = underlining | '%';
++ 	    } else {
++ 		*p++ = underlining | '%';
++ 		*p++ = underlining | *cp;
++ 	    }
++ 	} else {
++ 	    *p++ = underlining | *cp;		/* normal character */
++ 	}
++     }
++     *p = '\0';
++     /*
++     cp = PromptBuf;
++     while (*cp)
++ 	    putchar(*cp++ | QUOTE);
++     */
++     flush();
++ }
++ 
++ setalarm()
++ {
++ 	struct varent *vp;
++ 	char *cp;
++ 	int alrm_time = 0;
++ 	long cl, sched_dif;
++ 	extern	struct	sched_event *sched_ptr;
++ 
++ 	if (vp = adrof("autologout"))
++ 	{
++ 		if (cp = vp->vec[0])
++ 			alrm_time = (atoi (cp) * 60);
++ 	}
++ 	if (sched_ptr) {
++ 		time(&cl);
++ 		sched_dif = sched_ptr->t_when - cl;
++ 		if ((alrm_time == 0) || (sched_dif < alrm_time))
++ 			alrm_time = ((int) sched_dif) + 1;
++ 	}
++ 	alarm (alrm_time);	/* Autologout ON */
++ }
++ 
+  #ifdef PROF
+  done(i)
+  #else
+***************
+*** 915,938
+  	_exit(i);
+  }
+  
+- printprompt()
+- {
+- 	register char *cp;
+- 
+- 	if (!whyles) {
+- 		for (cp = value("prompt"); *cp; cp++)
+- 			if (*cp == HIST)
+- 				printf("%d", eventno + 1);
+- 			else {
+- 				if (*cp == '\\' && cp[1] == HIST)
+- 					cp++;
+- 				putchar(*cp | QUOTE);
+- 			}
+- 	} else
+- 		/* 
+- 		 * Prompt for forward reading loop
+- 		 * body content.
+- 		 */
+- 		printf("? ");
+- 	flush();
+- }
+
+--- 1548,1550 -----
+  	_exit(i);
+  }
+  
+*** sh.char.c	Sat Mar 29 07:37:20 1986
+--- /usr/src/local/tcsh/sh.char.c	Mon Aug 17 23:30:38 1987
+***************
+*** 60,66
+  	_META,		0,		_META,		_GLOB,
+  
+  /*	@		A		B		C	*/
+! 	0,		_LET,		_LET,		_LET,
+  
+  /*	D		E		F		G	*/
+  	_LET,		_LET,		_LET,		_LET,
+
+--- 60,66 -----
+  	_META,		0,		_META,		_GLOB,
+  
+  /*	@		A		B		C	*/
+! 	0,		_LET|_HEX|_UP,	_LET|_HEX|_UP,	_LET|_HEX|_UP,
+  
+  /*	D		E		F		G	*/
+  	_LET|_HEX|_UP,	_LET|_HEX|_UP,	_LET|_HEX|_UP,	_LET|_UP,
+***************
+*** 63,69
+  	0,		_LET,		_LET,		_LET,
+  
+  /*	D		E		F		G	*/
+! 	_LET,		_LET,		_LET,		_LET,
+  
+  /*	H		I		J		K	*/
+  	_LET,		_LET,		_LET,		_LET,
+
+--- 63,69 -----
+  	0,		_LET|_HEX|_UP,	_LET|_HEX|_UP,	_LET|_HEX|_UP,
+  
+  /*	D		E		F		G	*/
+! 	_LET|_HEX|_UP,	_LET|_HEX|_UP,	_LET|_HEX|_UP,	_LET|_UP,
+  
+  /*	H		I		J		K	*/
+  	_LET|_UP,	_LET|_UP,	_LET|_UP,	_LET|_UP,
+***************
+*** 66,72
+  	_LET,		_LET,		_LET,		_LET,
+  
+  /*	H		I		J		K	*/
+! 	_LET,		_LET,		_LET,		_LET,
+  
+  /*	L		M		N		O	*/
+  	_LET,		_LET,		_LET,		_LET,
+
+--- 66,72 -----
+  	_LET|_HEX|_UP,	_LET|_HEX|_UP,	_LET|_HEX|_UP,	_LET|_UP,
+  
+  /*	H		I		J		K	*/
+! 	_LET|_UP,	_LET|_UP,	_LET|_UP,	_LET|_UP,
+  
+  /*	L		M		N		O	*/
+  	_LET|_UP,	_LET|_UP,	_LET|_UP,	_LET|_UP,
+***************
+*** 69,75
+  	_LET,		_LET,		_LET,		_LET,
+  
+  /*	L		M		N		O	*/
+! 	_LET,		_LET,		_LET,		_LET,
+  
+  /*	P		Q		R		S	*/
+  	_LET,		_LET,		_LET,		_LET,
+
+--- 69,75 -----
+  	_LET|_UP,	_LET|_UP,	_LET|_UP,	_LET|_UP,
+  
+  /*	L		M		N		O	*/
+! 	_LET|_UP,	_LET|_UP,	_LET|_UP,	_LET|_UP,
+  
+  /*	P		Q		R		S	*/
+  	_LET|_UP,	_LET|_UP,	_LET|_UP,	_LET|_UP,
+***************
+*** 72,78
+  	_LET,		_LET,		_LET,		_LET,
+  
+  /*	P		Q		R		S	*/
+! 	_LET,		_LET,		_LET,		_LET,
+  
+  /*	T		U		V		W	*/
+  	_LET,		_LET,		_LET,		_LET,
+
+--- 72,78 -----
+  	_LET|_UP,	_LET|_UP,	_LET|_UP,	_LET|_UP,
+  
+  /*	P		Q		R		S	*/
+! 	_LET|_UP,	_LET|_UP,	_LET|_UP,	_LET|_UP,
+  
+  /*	T		U		V		W	*/
+  	_LET|_UP,	_LET|_UP,	_LET|_UP,	_LET|_UP,
+***************
+*** 75,81
+  	_LET,		_LET,		_LET,		_LET,
+  
+  /*	T		U		V		W	*/
+! 	_LET,		_LET,		_LET,		_LET,
+  
+  /*	X		Y		Z		[	*/
+  	_LET,		_LET,		_LET,		_GLOB,
+
+--- 75,81 -----
+  	_LET|_UP,	_LET|_UP,	_LET|_UP,	_LET|_UP,
+  
+  /*	T		U		V		W	*/
+! 	_LET|_UP,	_LET|_UP,	_LET|_UP,	_LET|_UP,
+  
+  /*	X		Y		Z		[	*/
+  	_LET|_UP,	_LET|_UP,	_LET|_UP,	_GLOB,
+***************
+*** 78,84
+  	_LET,		_LET,		_LET,		_LET,
+  
+  /*	X		Y		Z		[	*/
+! 	_LET,		_LET,		_LET,		_GLOB,
+  
+  /*	\		]		^		_	*/
+  	_ESC,		0,		0,		_LET,
+
+--- 78,84 -----
+  	_LET|_UP,	_LET|_UP,	_LET|_UP,	_LET|_UP,
+  
+  /*	X		Y		Z		[	*/
+! 	_LET|_UP,	_LET|_UP,	_LET|_UP,	_GLOB,
+  
+  /*	\		]		^		_	*/
+  	_ESC,		0,		0,		_LET,
+***************
+*** 84,90
+  	_ESC,		0,		0,		_LET,
+  
+  /*	`		a		b		c	*/
+! 	_Q1|_GLOB,	_LET,		_LET,		_LET,
+  
+  /*	d		e		f		g	*/
+  	_LET,		_LET,		_LET,		_LET,
+
+--- 84,90 -----
+  	_ESC,		0,		0,		_LET,
+  
+  /*	`		a		b		c	*/
+! 	_Q1|_GLOB,	_LET|_HEX|_LOW,	_LET|_HEX|_LOW,	_LET|_HEX|_LOW,
+  
+  /*	d		e		f		g	*/
+  	_LET|_HEX|_LOW,	_LET|_HEX|_LOW,	_LET|_HEX|_LOW,	_LET|_LOW,
+***************
+*** 87,93
+  	_Q1|_GLOB,	_LET,		_LET,		_LET,
+  
+  /*	d		e		f		g	*/
+! 	_LET,		_LET,		_LET,		_LET,
+  
+  /*	h		i		j		k	*/
+  	_LET,		_LET,		_LET,		_LET,
+
+--- 87,93 -----
+  	_Q1|_GLOB,	_LET|_HEX|_LOW,	_LET|_HEX|_LOW,	_LET|_HEX|_LOW,
+  
+  /*	d		e		f		g	*/
+! 	_LET|_HEX|_LOW,	_LET|_HEX|_LOW,	_LET|_HEX|_LOW,	_LET|_LOW,
+  
+  /*	h		i		j		k	*/
+  	_LET|_LOW,	_LET|_LOW,	_LET|_LOW,	_LET|_LOW,
+***************
+*** 90,96
+  	_LET,		_LET,		_LET,		_LET,
+  
+  /*	h		i		j		k	*/
+! 	_LET,		_LET,		_LET,		_LET,
+  
+  /*	l		m		n		o	*/
+  	_LET,		_LET,		_LET,		_LET,
+
+--- 90,96 -----
+  	_LET|_HEX|_LOW,	_LET|_HEX|_LOW,	_LET|_HEX|_LOW,	_LET|_LOW,
+  
+  /*	h		i		j		k	*/
+! 	_LET|_LOW,	_LET|_LOW,	_LET|_LOW,	_LET|_LOW,
+  
+  /*	l		m		n		o	*/
+  	_LET|_LOW,	_LET|_LOW,	_LET|_LOW,	_LET|_LOW,
+***************
+*** 93,99
+  	_LET,		_LET,		_LET,		_LET,
+  
+  /*	l		m		n		o	*/
+! 	_LET,		_LET,		_LET,		_LET,
+  
+  /*	p		q		r		s	*/
+  	_LET,		_LET,		_LET,		_LET,
+
+--- 93,99 -----
+  	_LET|_LOW,	_LET|_LOW,	_LET|_LOW,	_LET|_LOW,
+  
+  /*	l		m		n		o	*/
+! 	_LET|_LOW,	_LET|_LOW,	_LET|_LOW,	_LET|_LOW,
+  
+  /*	p		q		r		s	*/
+  	_LET|_LOW,	_LET|_LOW,	_LET|_LOW,	_LET|_LOW,
+***************
+*** 96,102
+  	_LET,		_LET,		_LET,		_LET,
+  
+  /*	p		q		r		s	*/
+! 	_LET,		_LET,		_LET,		_LET,
+  
+  /*	t		u		v		w	*/
+  	_LET,		_LET,		_LET,		_LET,
+
+--- 96,102 -----
+  	_LET|_LOW,	_LET|_LOW,	_LET|_LOW,	_LET|_LOW,
+  
+  /*	p		q		r		s	*/
+! 	_LET|_LOW,	_LET|_LOW,	_LET|_LOW,	_LET|_LOW,
+  
+  /*	t		u		v		w	*/
+  	_LET|_LOW,	_LET|_LOW,	_LET|_LOW,	_LET|_LOW,
+***************
+*** 99,105
+  	_LET,		_LET,		_LET,		_LET,
+  
+  /*	t		u		v		w	*/
+! 	_LET,		_LET,		_LET,		_LET,
+  
+  /*	x		y		z		{	*/
+  	_LET,		_LET,		_LET,		_GLOB,
+
+--- 99,105 -----
+  	_LET|_LOW,	_LET|_LOW,	_LET|_LOW,	_LET|_LOW,
+  
+  /*	t		u		v		w	*/
+! 	_LET|_LOW,	_LET|_LOW,	_LET|_LOW,	_LET|_LOW,
+  
+  /*	x		y		z		{	*/
+  	_LET|_LOW,	_LET|_LOW,	_LET|_LOW,	_GLOB,
+***************
+*** 102,108
+  	_LET,		_LET,		_LET,		_LET,
+  
+  /*	x		y		z		{	*/
+! 	_LET,		_LET,		_LET,		_GLOB,
+  
+  /*	|		}		~		del	*/
+  	_META,		0,		0,		0,
+
+--- 102,108 -----
+  	_LET|_LOW,	_LET|_LOW,	_LET|_LOW,	_LET|_LOW,
+  
+  /*	x		y		z		{	*/
+! 	_LET|_LOW,	_LET|_LOW,	_LET|_LOW,	_GLOB,
+  
+  /*	|		}		~		del	*/
+  	_META,		0,		0,		0,
+*** sh.char.h	Sat Mar 29 07:37:14 1986
+--- /usr/src/local/tcsh/sh.char.h	Mon Aug 17 23:28:06 1987
+***************
+*** 24,29
+  #define _DOL	0x80		/* $ */
+  #define _DIG   0x100		/* 0-9 */
+  #define _LET   0x200		/* a-z, A-Z, _ */
+  
+  #define cmap(c, bits)	(_cmap[(unsigned char)(c)] & (bits))
+  
+
+--- 24,32 -----
+  #define _DOL	0x80		/* $ */
+  #define _DIG   0x100		/* 0-9 */
+  #define _LET   0x200		/* a-z, A-Z, _ */
++ #define	_HEX   0x400		/* Hex digits */
++ #define	_LOW   0x800		/* Lower case */
++ #define	_UP   0x1000		/* Upper case */
+  
+  #define cmap(c, bits)	(_cmap[(unsigned char)(c)] & (bits))
+  
+***************
+*** 32,36
+  #define isspnl(c)	cmap(c, _SP|_NL)
+  #define ismeta(c)	cmap(c, _META)
+  #define digit(c)	cmap(c, _DIG)
+  #define letter(c)	cmap(c, _LET)
+  #define alnum(c)	(digit(c) || letter(c))
+
+--- 35,41 -----
+  #define isspnl(c)	cmap(c, _SP|_NL)
+  #define ismeta(c)	cmap(c, _META)
+  #define digit(c)	cmap(c, _DIG)
++ #define isdigit(c)	cmap(c, _DIG)
+  #define letter(c)	cmap(c, _LET)
+  #define isalpha(c)	cmap(c, _LET)
+  #define islower(c)	cmap(c, _LOW)
+***************
+*** 33,36
+  #define ismeta(c)	cmap(c, _META)
+  #define digit(c)	cmap(c, _DIG)
+  #define letter(c)	cmap(c, _LET)
+  #define alnum(c)	(digit(c) || letter(c))
+
+--- 37,46 -----
+  #define digit(c)	cmap(c, _DIG)
+  #define isdigit(c)	cmap(c, _DIG)
+  #define letter(c)	cmap(c, _LET)
++ #define isalpha(c)	cmap(c, _LET)
++ #define islower(c)	cmap(c, _LOW)
++ #define isupper(c)	cmap(c, _UP)
++ #define isxdigit(c)	cmap(c, _HEX)
+  #define alnum(c)	(digit(c) || letter(c))
+  #define toupper(c)	((c)-'a'+'A')
+  #define tolower(c)	((c)-'A'+'a')
+***************
+*** 34,36
+  #define digit(c)	cmap(c, _DIG)
+  #define letter(c)	cmap(c, _LET)
+  #define alnum(c)	(digit(c) || letter(c))
+
+--- 42,46 -----
+  #define isupper(c)	cmap(c, _UP)
+  #define isxdigit(c)	cmap(c, _HEX)
+  #define alnum(c)	(digit(c) || letter(c))
++ #define toupper(c)	((c)-'a'+'A')
++ #define tolower(c)	((c)-'A'+'a')
+*** sh.dir.c	Tue Jun 11 18:59:53 1985
+--- /usr/src/local/tcsh/sh.dir.c	Mon Aug 17 19:58:48 1987
+***************
+*** 230,235
+  	} else if (dp = dfind(*v)) {
+  		if (chdir(dp->di_name) < 0)
+  			Perror(dp->di_name);
+  	} else {
+  		register char *cp;
+  
+
+--- 230,240 -----
+  	} else if (dp = dfind(*v)) {
+  		if (chdir(dp->di_name) < 0)
+  			Perror(dp->di_name);
++ 		/*
++ 		 * kfk - 10 Feb 1984 - added new "extraction style" pushd +n
++ 		 */
++ 		if (adrof ("dextract"))
++ 			dextract (dp);
+  	} else {
+  		register char *cp;
+  
+***************
+*** 471,473
+  	if (printd)
+  		dodirs(fakev);
+  }
+
+--- 476,530 -----
+  	if (printd)
+  		dodirs(fakev);
+  }
++ 
++ /*
++  * getstakd - added by kfk 17 Jan 1984
++  * Support routine for the stack hack.  Finds nth directory in
++  * the directory stack, or finds last directory in stack.
++  */
++ getstakd (s, cnt, callerr)
++ 	char *s;
++ 	int cnt, callerr;
++ {
++ 	struct directory *dp;
++ 
++ 	dp = dcwd;
++ 	if (cnt < 0) {		/* < 0 ==> last dir requested. */
++ 		dp = dp->di_next;
++ 		if (dp == &dhead)
++ 			dp = dp->di_next;
++ 	} else {
++ 		while (cnt-- > 0) {
++ 			dp = dp->di_prev;
++ 			if (dp == &dhead)
++ 				dp = dp->di_prev;
++ 			if (dp == dcwd) {
++ 				if (callerr)
++ 					error ("Not that many dir stack entries");
++ 				else
++ 					return;
++ 			}
++ 		}
++ 	}
++ 	strcpy (s, dp->di_name);
++ }
++ 
++ /*
++  * Karl Kleinpaste - 10 Feb 1984
++  * Added dextract(), which is used in pushd +n.
++  * Instead of just rotating the entire stack around, dextract()
++  * lets the user have the nth dir extracted from its current
++  * position, and pushes it onto the top.
++  */
++ dextract(dp)
++ struct directory *dp;
++ {
++ 	if (dp == dcwd)
++ 		return;
++ 	dp->di_next->di_prev = dp->di_prev;
++ 	dp->di_prev->di_next = dp->di_next;
++ 	dp->di_next = dcwd->di_next;
++ 	dp->di_prev = dcwd;
++ 	dp->di_next->di_prev = dp;
++ 	dcwd->di_next = dp;
++  }
+*** sh.err.c	Tue May 13 01:03:05 1986
+--- /usr/src/local/tcsh/sh.err.c	Mon Aug 17 19:58:49 1987
+***************
+*** 9,15
+  #endif
+  
+  #include "sh.h"
+! #include <sys/ioctl.h>
+  
+  /*
+   * C Shell
+
+--- 9,15 -----
+  #endif
+  
+  #include "sh.h"
+! /* #include <sys/ioctl.h> */
+  
+  /*
+   * C Shell
+***************
+*** 78,83
+  	btoeof();
+  
+  	setq("status", onev, &shvhed);
+  	if (tpgrp > 0)
+  		(void) ioctl(FSHTTY, TIOCSPGRP, (char *)&tpgrp);
+  	reset();		/* Unwind */
+
+--- 78,84 -----
+  	btoeof();
+  
+  	setq("status", onev, &shvhed);
++ #ifdef BSDJOBS
+  	if (tpgrp > 0)
+  		(void) ioctl(FSHTTY, TIOCSPGRP, (char *)&tpgrp);
+  #endif
+***************
+*** 80,85
+  	setq("status", onev, &shvhed);
+  	if (tpgrp > 0)
+  		(void) ioctl(FSHTTY, TIOCSPGRP, (char *)&tpgrp);
+  	reset();		/* Unwind */
+  }
+  
+
+--- 81,87 -----
+  #ifdef BSDJOBS
+  	if (tpgrp > 0)
+  		(void) ioctl(FSHTTY, TIOCSPGRP, (char *)&tpgrp);
++ #endif
+  	reset();		/* Unwind */
+  }
+  
+*** sh.exec.c	Thu Jun  6 13:15:32 1985
+--- /usr/src/local/tcsh/sh.exec.c	Thu Sep 24 15:06:55 1987
+***************
+*** 9,15
+  #endif
+  
+  #include "sh.h"
+! #include <sys/dir.h>
+  
+  /*
+   * C shell
+
+--- 9,15 -----
+  #endif
+  
+  #include "sh.h"
+! /* #include <sys/dir.h> */
+  
+  /*
+   * C shell
+***************
+*** 287,292
+  	char **pv;
+  	int hashval;
+  
+  	havhash = 1;
+  	for (cnt = 0; cnt < sizeof xhash; cnt++)
+  		xhash[cnt] = 0;
+
+--- 287,293 -----
+  	char **pv;
+  	int hashval;
+  
++ 	tw_clear_comm_list();
+  	havhash = 1;
+  	for (cnt = 0; cnt < sizeof xhash; cnt++)
+  		xhash[cnt] = 0;
+***************
+*** 298,303
+  		dirp = opendir(*pv);
+  		if (dirp == NULL)
+  			continue;
+  		if (fstat(dirp->dd_fd, &stb) < 0 || !isdir(stb)) {
+  			closedir(dirp);
+  			continue;
+
+--- 299,305 -----
+  		dirp = opendir(*pv);
+  		if (dirp == NULL)
+  			continue;
++ #ifdef COMMENT	/* this isn't needed.  opendir won't open non-dirs */
+  		if (fstat(dirp->dd_fd, &stb) < 0 || !isdir(stb)) {
+  			closedir(dirp);
+  			continue;
+***************
+*** 302,307
+  			closedir(dirp);
+  			continue;
+  		}
+  		while ((dp = readdir(dirp)) != NULL) {
+  			if (dp->d_ino == 0)
+  				continue;
+
+--- 304,310 -----
+  			closedir(dirp);
+  			continue;
+  		}
++ #endif
+  		while ((dp = readdir(dirp)) != NULL) {
+  			if (dp->d_ino == 0)
+  				continue;
+***************
+*** 331,336
+  			hits, misses, 100 * hits / (hits + misses));
+  }
+  #endif
+  
+  /*
+   * Hash a command name.
+
+--- 334,435 -----
+  			hits, misses, 100 * hits / (hits + misses));
+  }
+  #endif
++ 
++ int
++ iscommand(name)
++ 	char *name;
++ {
++ 	char *sav;
++ 	register char *dp, **pv;
++ 	register struct varent *v;
++ 	bool slash = any('/', name);
++ 	int hashval, i;
++ 
++ 	v = adrof("path");
++ 	if (v == 0 || v->vec[0] == 0 || slash)
++ 		pv = justabs;
++ 	else
++ 		pv = v->vec;
++ 	sav = strspl("/", name);		/* / command name for postpending */
++ 	if (havhash)
++ 		hashval = hashname(name);
++ 	i = 0;
++ 	do {
++ 		if (!slash && pv[0][0] == '/' && havhash && (hashval & (1 << (i % 8))) == 0)
++ 			goto cont;
++ 		if (pv[0][0] == 0 || eq(pv[0], ".")) {	/* don't make ./xxx */
++ 			if (access(name, 1) == 0) {
++ 				xfree(sav);
++ 				return i+1;
++ 			}
++ 		} else {
++ 			dp = strspl(*pv, sav);
++ 			if (access(dp, 1) == 0) {
++ 				xfree(sav);
++ 				xfree(dp);
++ 				return i+1;
++ 			}
++ 			xfree(dp);
++ 		}
++ cont:
++ 		pv++;
++ 		i++;
++ 	} while (*pv);
++ 	xfree(sav);
++ 	return 0;
++ }
++ 
++ tellmewhat(lex)
++ 	struct wordent *lex;
++ {
++     register char *cp;
++     register int i;
++     register struct biltins *bptr;
++     register struct wordent *sp = lex->next;
++ 
++ 
++     for (bptr = bfunc; bptr < &bfunc[nbfunc]; bptr++) {
++ #ifdef	OUTDEF
++     for (bptr = bfunc; cp = bptr->bname; bptr++) {
++ #endif
++ 	if (strcmp(sp->word, bptr->bname) == 0) {
++ 	    prlex(lex);
++ 	    printf("%s: is built in.\n", sp->word);
++ 	    flush();
++ 	    return;
++ 	}
++     }
++ 
++     while (*(sp->word) & 0200) (sp->word)++;
++     if (i = iscommand(strip(sp->word))) {
++ 	char *s1;
++ 	register char **pv;
++ 	register struct varent *v;
++ 	bool slash = any('/', sp->word);
++ 
++ 	v = adrof("path");
++ 	if (v == 0 || v->vec[0] == 0 || slash)
++ 	    pv = justabs;
++ 	else
++ 	    pv = v->vec;
++ 
++ 	while (--i) pv++;
++ 	if (pv[0][0] == 0 || eq(pv[0], ".")) {
++ 	    prlex(lex);
++ 	    return;
++ 	}
++ 	s1 = strspl(*pv, "/");
++ 	sp->word = strspl(s1, sp->word);
++ 	xfree(s1);
++ 	prlex(lex);
++ 	xfree(sp->word);
++ 	sp->word = (char *)0;
++     } else {
++ 	prlex(lex);
++ 	printf("%s: Command not found.\n", sp->word);
++ 	flush();
++     }
++ }
+  
+  /*
+   * Hash a command name.
+*** sh.file.c	Sun May 18 23:01:20 1986
+--- /usr/src/local/tcsh/sh.file.c	Mon Aug 17 19:21:52 1987
+***************
+*** 174,179
+  	return (' ');
+  }
+  
+  static struct winsize win;
+  
+  /*
+
+--- 174,188 -----
+  	return (' ');
+  }
+  
++ #ifndef	BSD4_3
++ struct	winsize {
++ 	unsigned short	ws_row;
++ 	unsigned short	ws_col;
++ 	unsigned short	ws_xpixel;
++ 	unsigned short	ws_ypixel;
++ };
++ #endif
++ 
+  static struct winsize win;
+  
+  /*
+***************
+*** 185,190
+  {
+  	register int i, rows, r, c, maxwidth = 0, columns;
+  
+  	if (ioctl(SHOUT, TIOCGWINSZ, (char *)&win) < 0 || win.ws_col == 0)
+  		win.ws_col = 80;
+  	for (i = 0; i < count; i++)
+
+--- 194,200 -----
+  {
+  	register int i, rows, r, c, maxwidth = 0, columns;
+  
++ #ifdef	BSD4_3
+  	if (ioctl(SHOUT, TIOCGWINSZ, (char *)&win) < 0 || win.ws_col == 0)
+  #endif
+  		win.ws_col = 80;
+***************
+*** 186,191
+  	register int i, rows, r, c, maxwidth = 0, columns;
+  
+  	if (ioctl(SHOUT, TIOCGWINSZ, (char *)&win) < 0 || win.ws_col == 0)
+  		win.ws_col = 80;
+  	for (i = 0; i < count; i++)
+  		maxwidth = maxwidth > (r = strlen(items[i])) ? maxwidth : r;
+
+--- 196,202 -----
+  
+  #ifdef	BSD4_3
+  	if (ioctl(SHOUT, TIOCGWINSZ, (char *)&win) < 0 || win.ws_col == 0)
++ #endif
+  		win.ws_col = 80;
+  	for (i = 0; i < count; i++)
+  		maxwidth = maxwidth > (r = strlen(items[i])) ? maxwidth : r;
+*** sh.func.c	Tue May 13 01:03:48 1986
+--- /usr/src/local/tcsh/sh.func.c	Thu Sep 24 15:08:48 1987
+***************
+*** 9,15
+  #endif
+  
+  #include "sh.h"
+! #include <sys/ioctl.h>
+  
+  /*
+   * C shell
+
+--- 9,15 -----
+  #endif
+  
+  #include "sh.h"
+! /* #include <sys/ioctl.h> */
+  
+  /*
+   * C shell
+***************
+*** 175,181
+  	islogin();
+  	rechist();
+  	(void) signal(SIGTERM, parterm);
+! 	execl("/bin/login", "login", v[1], 0);
+  	untty();
+  	exit(1);
+  }
+
+--- 175,181 -----
+  	islogin();
+  	rechist();
+  	(void) signal(SIGTERM, parterm);
+! 	execl("/bin/login", "login", v[1], (char *) 0);
+  	untty();
+  	exit(1);
+  }
+***************
+*** 180,185
+  	exit(1);
+  }
+  
+  #ifdef NEWGRP
+  donewgrp(v)
+  	char **v;
+
+--- 180,204 -----
+  	exit(1);
+  }
+  
++ dolog()
++ {
++ 	extern struct who *wholist;
++ 	extern time_t watch_period;
++ 	struct who *wp;
++ 	struct varent *v;
++ 
++ 	if ((v = adrof ("watch")) == (struct varent *) 0)
++ 		error ("No $watch variable set");
++ 	blkpr (v->vec);
++ 	printf ("\n");
++ 	watch_period = 0;
++ 	wp = wholist;
++ 	while (wp != (struct who *) 0) {
++ 		wp->w_name[0] = '\0';
++ 		wp = wp->w_next;
++ 	}
++ }
++ 
+  #ifdef NEWGRP
+  donewgrp(v)
+  	char **v;
+***************
+*** 188,195
+  	if (chkstop == 0 && setintr)
+  		panystop(0);
+  	(void) signal(SIGTERM, parterm);
+! 	execl("/bin/newgrp", "newgrp", v[1], 0);
+! 	execl("/usr/bin/newgrp", "newgrp", v[1], 0);
+  	untty();
+  	exit(1);
+  }
+
+--- 207,214 -----
+  	if (chkstop == 0 && setintr)
+  		panystop(0);
+  	(void) signal(SIGTERM, parterm);
+! 	execl("/bin/newgrp", "newgrp", v[1], (char *) 0);
+! 	execl("/usr/bin/newgrp", "newgrp", v[1], (char *) 0);
+  	untty();
+  	exit(1);
+  }
+***************
+*** 532,538
+  		bseek((off_t)0);
+  	do {
+  		if (intty && fseekp == feobp)
+! 			printf("? "), flush();
+  		aword[0] = 0;
+  		(void) getword(aword);
+  		switch (srchx(aword)) {
+
+--- 551,557 -----
+  		bseek((off_t)0);
+  	do {
+  		if (intty && fseekp == feobp)
+! 			printprompt(); /* printf("? "), flush(); */
+  		aword[0] = 0;
+  		(void) getword(aword);
+  		switch (srchx(aword)) {
+***************
+*** 866,872
+  	(void) umask(i);
+  }
+  
+! 
+  struct limits {
+  	int	limconst;
+  	char	*limname;
+
+--- 885,891 -----
+  	(void) umask(i);
+  }
+  
+! #ifndef OREO
+  struct limits {
+  	int	limconst;
+  	char	*limname;
+***************
+*** 1074,1079
+  	}
+  	return (0);
+  }
+  
+  dosuspend()
+  {
+
+--- 1093,1099 -----
+  	}
+  	return (0);
+  }
++ #endif OREO
+  
+  #ifdef SVID
+  extern struct termio termiob;
+***************
+*** 1075,1080
+  	return (0);
+  }
+  
+  dosuspend()
+  {
+  	int ldisc, ctpgrp;
+
+--- 1095,1104 -----
+  }
+  #endif OREO
+  
++ #ifdef SVID
++ extern struct termio termiob;
++ #endif SVID
++ 
+  dosuspend()
+  {
+  	int ldisc, ctpgrp;
+***************
+*** 1087,1092
+  	(void) kill(0, SIGTSTP);
+  	/* the shell stops here */
+  	(void) signal(SIGTSTP, old);
+  	if (tpgrp != -1) {
+  retry:
+  		(void) ioctl(FSHTTY, TIOCGPGRP, (char *)&ctpgrp);
+
+--- 1111,1117 -----
+  	(void) kill(0, SIGTSTP);
+  	/* the shell stops here */
+  	(void) signal(SIGTSTP, old);
++ #ifdef BSDJOBS
+  	if (tpgrp != -1) {
+  retry:
+  		(void) ioctl(FSHTTY, TIOCGPGRP, (char *)&ctpgrp);
+***************
+*** 1099,1104
+  		(void) ioctl(FSHTTY, TIOCSPGRP, (char *)&shpgrp);
+  		(void) setpgrp(0, shpgrp);
+  	}
+  	(void) ioctl(FSHTTY, TIOCGETD, (char *)&oldisc);
+  	if (oldisc != NTTYDISC) {
+  		printf("Switching to new tty driver...\n");
+
+--- 1124,1141 -----
+  		(void) ioctl(FSHTTY, TIOCSPGRP, (char *)&shpgrp);
+  		(void) setpgrp(0, shpgrp);
+  	}
++ #endif BSDJOBS
++ 
++ #ifdef SVID
++ 	(void) ioctl(FSHTTY, TCGETA, &termiob);
++ 	if (termiob.c_cc[VSWTCH] != CSWTCH) {
++ #ifdef DEBUG
++ 		printf ("Setting ^Z...\n");
++ #endif DEBUG
++ 		termiob.c_cc[VSWTCH] = CSWTCH;
++ 		(void) ioctl(FSHTTY, TCSETA, &termiob);
++ 	}
++ #else SVID
+  	(void) ioctl(FSHTTY, TIOCGETD, (char *)&oldisc);
+  	if (oldisc != NTTYDISC) {
+  		printf("Switching to new tty driver...\n");
+***************
+*** 1105,1110
+  		ldisc = NTTYDISC;
+  		(void) ioctl(FSHTTY, TIOCSETD, (char *)&ldisc);
+  	}
+  }
+  
+  doeval(v)
+
+--- 1142,1148 -----
+  		ldisc = NTTYDISC;
+  		(void) ioctl(FSHTTY, TIOCSETD, (char *)&ldisc);
+  	}
++ #endif SVID
+  }
+  
+  doeval(v)
+***************
+*** 1146,1148
+  	if (reenter >= 2)
+  		error(NOSTR);
+  }
+
+--- 1184,1366 -----
+  	if (reenter >= 2)
+  		error(NOSTR);
+  }
++ 
++ /*
++  * kfk - added scheduled event functions
++  */
++ struct sched_event *sched_ptr;
++ 
++ dosched(v)
++ 	register char **v;
++ {
++ 	register struct sched_event *tp, *tp1, *tp2;
++ 	long cur_time;
++ 	int count, hours, minutes, dif_hour, dif_min;
++ 	char *cp;
++ 	bool relative;		/* time specified as +hh:mm */
++ 	struct tm *ltp;
++ 	char *timeline;
++ 	char *ctime();
++ 
++ 	v++;
++ 	cp = *v++;
++ 	if (cp == (char *) 0) {
++ 		/* print list of scheduled events */
++ 		for (count = 1, tp = sched_ptr; tp; count++, tp = tp->t_next) {
++ 			timeline = ctime(&tp->t_when);
++ 			timeline[16] = '\0';
++ 			printf ("%6d\t%s\t", count, timeline);
++ 			blkpr (tp->t_lex);
++ 			printf ("\n");
++ 		}
++ 		return;
++ 	}
++ 
++ 	if (*cp == '-') {
++ 		/* remove item from list */
++ 		if (!sched_ptr)
++ 			error ("No scheduled events");
++ 		if (*v)
++ 			error ("Too many args for 'sched -<item#>'");
++ 		count = atoi (++cp);
++ 		if (count <= 0)
++ 			error ("Usage to delete: sched -<item#>");
++ 		tp = sched_ptr;
++ 		tp1 = 0;
++ 		while (--count) {
++ 			if (tp->t_next == 0)
++ 				break;
++ 			else {
++ 				tp1 = tp;
++ 				tp = tp->t_next;
++ 			}
++ 		}
++ 		if (count)
++ 			error ("Not that many scheduled events");
++ 		if (tp1 == 0)
++ 			sched_ptr = tp->t_next;
++ 		else
++ 			tp1->t_next = tp->t_next;
++ 		blkfree (tp->t_lex);
++ 		xfree ((char *) tp);
++ 		return;
++ 	}
++ 
++ 	/* else, add an item to the list */
++ 	if (!*v)
++ 		error ("No command to run");
++ 	relative = 0;
++ 	if (!digit(*cp)) {		/* not abs. time */
++ 		if (*cp != '+')
++ 			error ("Usage: sched [+]hh:mm <command>");
++ 		cp++, relative++;
++ 	}
++ 	minutes = 0;
++ 	hours = atoi(cp);
++ 	while (*cp && *cp != ':' && *cp != 'a' && *cp != 'p')
++ 		cp++;
++ 	if (*cp && *cp == ':')
++ 		minutes = atoi(++cp);
++ 	if ((hours < 0) || (minutes < 0) ||
++ 	    (hours > 23) || (minutes > 59))
++ 		error ("Invalid time for event");
++ 	while (*cp && *cp != 'p' && *cp != 'a')
++ 		cp++;
++ 	if (*cp && relative)
++ 		error ("Relative time inconsistent with am/pm");
++ 	if (*cp == 'p')
++ 		hours += 12;
++ 	time(&cur_time);
++ 	ltp = localtime(&cur_time);
++ 	if (relative) {
++ 		dif_hour = hours;
++ 		dif_min = minutes;
++ 	} else {
++ 		if ((dif_hour = hours - ltp->tm_hour) < 0)
++ 			dif_hour += 24;
++ 		if ((dif_min = minutes - ltp->tm_min) < 0) {
++ 			dif_min += 60;
++ 			if ((--dif_hour) < 0)
++ 				dif_hour = 23;
++ 		}
++ 	}
++ 	tp = (struct sched_event *) calloc (1, sizeof *tp);
++ 	tp->t_when = cur_time - ltp->tm_sec + dif_hour*3600L + dif_min*60L;
++ 			/* use of tm_sec: get to beginning of minute. */
++ 	if (!sched_ptr || tp->t_when < sched_ptr->t_when) {
++ 		tp->t_next = sched_ptr;
++ 		sched_ptr = tp;
++ 	} else {
++ 		tp1 = sched_ptr->t_next;
++ 		tp2 = sched_ptr;
++ 		while (tp1 && tp->t_when >= tp1->t_when) {
++ 			tp2 = tp1;
++ 			tp1 = tp1->t_next;
++ 		}
++ 		tp->t_next = tp1;
++ 		tp2->t_next = tp;
++ 	}
++ 	tp->t_lex = saveblk(v);
++ }
++ 
++ /*
++  * Execute scheduled events
++  */
++ sched_run()
++ {
++ 	long	cur_time;
++ 	register struct sched_event *tp, *tp1;
++ 	struct wordent cmd, *nextword, *lastword;
++ 	struct command *t = (struct command *) 0;
++ 	char **v, *cp;
++ 	extern int GettingInput;
++ 	int	omask;
++ 
++ 	omask = sighold (SIGINT);
++        
++         if (GettingInput)
++ 	    Cookedmode();
++ 
++ 	time(&cur_time);
++ 	tp = sched_ptr;
++ 	while (tp && tp->t_when < cur_time) {
++ 		err = NOSTR;
++ 		cmd.word = "";
++ 		lastword = &cmd;
++ 		v = tp->t_lex;
++ 		for (cp = *v; cp; cp = *++v) {
++ 			nextword = (struct wordent *) calloc (1, sizeof cmd);
++ 			nextword->word = savestr (cp);
++ 			lastword->next = nextword;
++ 			nextword->prev = lastword;
++ 			lastword = nextword;
++ 		}
++ 		lastword->next = &cmd;
++ 		cmd.prev = lastword;
++ 		tp1 = tp;
++ 		sched_ptr = tp = tp1->t_next;	/* looping termination cond: */
++ 		blkfree (tp1->t_lex);		/* straighten out in case of */
++ 		xfree ((char *) tp1);		/* command blow-up. */
++ 
++ 		/* expand aliases like process() does. */
++ 		alias (&cmd);
++ 		/* build a syntax tree for the command. */
++ 		t = syntax (cmd.next, &cmd, 0);
++ 		if (err)
++ 			error (err);
++ 		/* execute the parse tree. */
++ 		execute (t, -1);
++ 		/* done. free the lex list and parse tree. */
++ 		freelex (&cmd), freesyn (t);
++ 	}
++         if (GettingInput) {	/* PWP */
++ 	    Rawmode();
++ 	    ClearLines();	/* do a real refresh since something may */
++ 	    ClearDisp();	/* have printed to the screen */
++ 	    Refresh();
++ 	}
++ 
++ 	sigsetmask(omask);
++ }
++ /* kfk - end change */
++ 
+SHAR_EOF
+fi
+exit 0
+#	End of shell archive

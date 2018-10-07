@@ -1,0 +1,39 @@
+                            tool: GNU awk (gawk)
+
+---------------------------------------------------------------------------
+ Language:    awk (new)
+ Version:     2.15.6
+ Parts:       interpreter, documentation
+
+ Author:      David Trueman <david@cs.dal.ca> and Arnold Robbins
+              <arnold@cc.gatech.edu>
+
+ Location:    ftp://gatekeeper.dec.com/gawk-2.15.tar.Z or any other GNU
+              archive site
+ Description: a pattern-directed language for massaging text files
+ Conformance: superset of (old, V7) awk including some Plan 9 features
+ Ports:       unix, msdos:msc5.1
+ Status:      activly developed
+ Updated:     March 9th, 1995
+
+---------------------------------------------------------------------------
+
+                               Related Items
+
+language: awk
+
+category: scripting languages summary, or expanded.
+
+---------------------------------------------------------------------------
+---------------------------------------------------------------------------
+This work supported by Idiom Consulting. Idiom Consulting         [ aqui ]
+provides Internet access and perl programming in the SF Bay
+Area.
+
+Please send updates to free-compilers@idiom.com
+
+The HTML is maintained by David Muir Sharnoff and the entries themselves
+are maintained by Steve Robenalt.
+
+Copyright (c) 1992, 1993, 1994, David Muir Sharnoff, All Rights Reserved
+Copyright (c) 1994, 1995, 1996, Steven Allen Robenalt, All Rights Reserved

@@ -1,0 +1,1774 @@
+Path: seismo!uunet!rs
+From: rs@uunet.UU.NET (Rich Salz)
+Newsgroups: comp.sources.unix
+Subject: v09i061:  Fastest grep around, Part01/02
+Message-ID: <365@uunet.UU.NET>
+Date: 16 Jun 87 23:35:08 GMT
+Organization: UUNET Communications Services, Arlington, VA
+Lines: 1735
+Approved: rs@uunet.uu.net
+
+Submitted by: James A. Woods <ames!aurora!jaw>
+Mod.sources: Volume 9, Issue 61
+Archive-name: fastgrep/Part01
+
+to test it out (bsd 4.3 people are instructed to apply a diff to go full
+bore with the -i option).
+
+now, if you choose not to re-post shar.2, the make assumes regexp() source
+is in the same directory as [ef]?grep source.  of course, folks will have
+to piece together the three regexp() fixes together with the orig. from
+the archive if it's not re-posted, or mail to hoptoad!gnu for a newer one.
+
+the only tricky thing about the egrep.shar.1 is that the application of 'sh'
+will run some 'tr' commands at the end (see last few lines) to change two
+files (k.pat & k.test) in the sharchive, so any re-packaging you do *must*
+contain these commands.  they "translit" some parity-marked bytes of japanese
+kanji for tests -- if i included the files raw, the mailers (to you or to
+the net) choke, and besides, i can't assume people are running the korn shell
+which deals correctly with eight-bit chars to unshar things.
+
+it's the only way i know to send parity bytes without assuming the existence
+of the improbable, or at least 'encode/decode'.
+
+the best way for you is to keep egrep.shar.1 intact, or re-shar only after
+preserving/cutting/pasting "k.pat/k.test" from the original.
+
+my work phone is (415) 694-6436.
+
+sincerely,
+
+   James A. Woods (hplabs!ames!jaw, or jaw@ames.arpa)
+
+
+[  This is the latest posting of the Woods/Spencer super-fast grep.
+   It was announced in net.sources a few weeks ago.  You will probably
+   want to replace all your other greps with this one.  (Greps?)
+   When you unpak this, take careful not of the last few lines of the
+   script -- they make some "8-bit kanji" files.  --r$  ]
+
+# To unbundle, sh this file
+echo Makefile 1>&2
+cat > Makefile <<'End of Makefile'
+# optional items for ENV:
+# -I.			use regexp.h in current directory, not /usr/include.
+# -DEGREPOLD=path	location of std egrep (normally /usr/bin/egrep).
+# -DGREPOLD=path	location of std grep (normally /bin/grep).
+# -DFGREPOLD=path	location of std fgrep (normally /usr/bin/fgrep).
+# -Dstrrchr=rindex, -Dstrchr=index	for troglodytes.
+# -DSLOWSYS		invoke xread() for system time quirk on PDP, others? 
+# -DNOKANJI		default is for Japanese Unix.  undef only for raw
+#			 parity-marked search capability, not standard w/grep.
+# -DCHINESE		for systems using EUC Chinese2 codes
+
+ENV= -I.
+
+# warning:  do not overwrite existing [ef]?grep family with $BIN path choice
+BIN= /usr/local
+
+# optional items for OBJ:
+# misc.o		for V7 or BSD 4.2 systems w/no getopt(3) or string(3)
+#			  also contains xread() per above.
+# regexp.o		if Henry Spencer's regexp(3) is not installed
+#			V8 people -- your regexp.h won't do
+
+OBJ= regexp.o
+
+CFLAGS= -O $(ENV) 
+#CFLAGS= -O -i $(ENV)	uncomment this line for PDP-11
+
+regexp:	; make -f Makefile.regexp r; make egrep
+
+egrep:	egrep.o regerror.o
+	cc $(CFLAGS) egrep.o regerror.o -o egrep $(OBJ)
+	rm -f grep fgrep
+	ln egrep grep
+	ln egrep fgrep
+
+install: 
+	rm -f $(BIN)/*grep
+	strip egrep
+	mv egrep $(BIN)
+	ln $(BIN)/egrep $(BIN)/grep
+	ln $(BIN)/egrep $(BIN)/fgrep
+
+clean:
+	rm *.o ./egrep ./grep ./fgrep ./try
+End of Makefile
+echo README.FIRST 1>&2
+cat > README.FIRST <<'End of README.FIRST'
+here is the fast 'grep/egrep' package sent to comp.sources and u. c. berkeley.
+included are the prerequisite routines developed by henry spencer of
+univ. of toronto -- these are also part of the comp.sources archive.
+
+i've already updated spencer's care package to incorporate three fixes
+which have appeared in the same forum.
+
+the makefiles are configured for bsd 4.3 and sys5 unix.
+they assume that the spencer regexp() is not already in a system library --
+read the makefile comments if this is not the case.
+
+for stock 4.3 sites, apply the diff 'diff.egrep.y.bsd' to the existing
+source in /usr/src/usr.bin/egrep.y and re-make.  this adds full support
+for the -i option.  the procedure is then:
+
+	make
+	sh eg.shell	# amusement
+	make install
+	
+ames!jaw
+End of README.FIRST
+echo README.kanji.mods 1>&2
+cat > README.kanji.mods <<'End of README.kanji.mods'
+     Three areas must be addressed to provide full Kanji compatibility.
+Only #1 (for the non-regular expression case) has been implemented
+directly in our grep/egrep-compatible Boyer-Moore-based code.
+
+	(1) false middle match
+
+	   (a) meta-free Kanji
+	   (b) Kanji regexprs
+
+Kanji 16-bit "EUC" data codes (see Jung/Kalash, "Yunikkusu wa Nihongo o
+Hanasemasu", p. 209, Atlanta Usenix, 1986) have the upper bit on in both
+bytes, so as to allow intermixing of ASCII while preserving end-of-string
+detection.  'grep' must beware of matching two Kanji byte pairs in
+the interior of two unrelated Kanji characters.  e.g.
+
+	text: 		a (k1 k2) b (k3 k4) (k5 k6)
+	pattern:        	       (k4   k5)	
+
+is a bad match, given ascii bytes 'a' and 'b', and Kanji characters
+(k1 k2), (k3 k4), and (k5 k6).  The solution for Kanji grep using
+the traditional algorithm might be to anchor the pattern only at
+Kanji pair boundaries while scanning forward.
+
+Boyer-Moore methods cannot afford this.  So we allow false matches, then
+scan backwards for legality (the first ascii byte in the text occurring
+before the candidate match disambiguates).  Another appealing method,
+for "layered" processing via regexp(3), is to convert the meta-free
+Kanji to '(^|[^\000-\177])k1k2', assuming Henry Spencer's code is
+"8-bit clean".  Case (b) (e.g. regexprs like 'k1k2.*k3k4') is similar,
+though syntax translation may be more difficult.
+
+	(2) closures
+
+     Eight-bit egrep '(k1k2)*' [where the '*' may be '+' or '?'], would
+wrongly apply the closure to the previous byte instead of the byte pair.
+One solution (without touching the existing 'regexp(3)' or 'e?grep' source)
+is to simply parenthesize reg exprs 'k1k2*' -> '(k1k2)*'.
+[only works with egrep syntax, so should occur after the grep->egrep
+expr xlation].
+
+	(3) character classes
+
+	   (a) easy case:  [k1k2k3k4k5k6]
+
+               -- just map to (k1k2|k3k4|k5k6).
+
+	   (b) hard:  ranges [k1k2-k3k4]
+
+fail for byte-oriented char class code.
+Kanji interpretation (how do ideograms collate?) is also problematic.
+Translation to egrep '.*((k1k2)|(k1k2++)...|(k3k4)).*', where '++'
+denotes "16-bit successor" is conceivable, but farfetched.
+
+     Now, translations (1) and (2) may be done [messily] w/o touching
+Spencer's code, while (3) could be farmed out to standard Kanji egrep via the
+process exec mechanism already established (see pep4grep.doc[123]).
+But if (3) were done this way (invoking exec()), then the other cases might
+also be done without recourse to the above xlations [just match "regmust"
+first, then pass false drops to the Japan Unix std.]  However, r.e.'s handled
+in such a manner would make hybrid Boyer-Moore slow for small files, except for
+systems running MACH.  We could have ad hoc file size vs. exec() tradeoff
+detectors control things for Kanji (it's already done for Anglo exprs), but
+previous success has hinged upon having the regexp(3) layer compatible with the
+r.e. style of the coarser egrep utility.
+
+     Thus we take the easy way out and make fast grep only apply to simple
+non-r.e. Kanji.  The very best approach remains modification of proprietary
+Kanji egrep to incorporate Boyer-Moore directly, by doing Boyer-Moore on the
+buffers first before rescanning with the Kanji r.e. machine.  Someday.
+
+-- James A. Woods (ames!jaw)
+
+Postscript:  The several articles in the special issue of UNIX Review
+(March 1987) have delineated the bewildering variety of codesets
+(shifted JIS, HP 15/16, many EUC flavors, etc.).  A late addition to
+[ef]?grep Kanji support is capability for intermixed Katakana (SS2).
+Full testing on real Kanji files has not been done.  Comments are welcome.
+End of README.kanji.mods
+echo diff.egrep.y.bsd 1>&2
+cat > diff.egrep.y.bsd <<'End of diff.egrep.y.bsd'
+19a20
+> #include <ctype.h>
+27a29
+> char cmap[256];
+51a54
+> int 	iflag;
+425a429
+> 	register int i;
+426a431,433
+> 	for ( i = 0; i < 256; i++ )
+> 		cmap[i] = (char) i;
+> 
+454a462,467
+> 		case 'i':
+> 			iflag++;
+> 			for ( i = 'A'; i <= 'Z'; i++ )
+> 				cmap[i] = (char) tolower ( i );
+> 			continue;
+> 
+483a497,502
+> 	if ( iflag ) {
+> 		register char *s;
+> 		for ( s = input; *s != '\0'; s++ )
+> 			if ( isupper ( (int)(*s) ) )
+> 				*s = (char) tolower ( (int)(*s) );
+> 	}
+508a528
+> 	register char *cmapr = cmap;
+544c564
+< 		cstat = gotofn[cstat][*p&0377]; /* all input chars made positive */
+---
+> 		cstat = gotofn[cstat][cmapr[*(unsigned char *)p]]; 
+End of diff.egrep.y.bsd
+echo eg.shell 1>&2
+cat > eg.shell <<'End of eg.shell'
+DICT=/usr/dict/words	
+
+echo "   testing MARK OF ZORRO: time ./egrep astrian $DICT"
+time ./egrep astrian $DICT
+echo ""
+echo "   testing ... AND VICTIM: time /usr/bin/egrep astrian $DICT" 
+time /usr/bin/egrep astrian $DICT
+echo ""
+echo "   testing A CAPITAL IDEA: time egrep -i zurich $DICT"
+time ./egrep -i zurich $DICT
+echo ""
+echo "   testing HOAGY CARMICHAEL: time egrep 'hoe.*g' $DICT"
+time ./egrep 'hoe.*g' $DICT
+echo ""
+echo "   testing NE PLUS ULTRA: grep '+=' egrep.c"
+./grep '+=' ./egrep.c
+echo ""
+echo "   testing THE JAMES FILES: grep -l 'James'"
+./grep -l James *
+echo ""
+echo "   testing CLEVER HANS EFFECT: egrep -c count < $DICT"
+./egrep -c count < $DICT
+echo ""
+echo "   testing NUMBER OF THE BEAST: egrep -n '^[sS]atan$' $DICT"
+time ./egrep -n '^[sS]atan$' $DICT
+echo ""
+echo "   testing STATUS BACK BABY: grep -s 'my.*baby' $DICT"
+if ./grep -s 'my.*baby' $DICT
+then echo SOMETHING IS WRONG
+else echo status OK 
+fi
+echo ""
+echo "   testing PARALLEL FIFTHS: time egrep 'Ae|Ze|Oe|Qe|Xe' $DICT"
+time ./egrep 'Ae|Qe|Oe|Xe|Ze' $DICT
+echo ""
+echo "   testing TEE FOR TWO:  tee < eg.shell | ./egrep TWO"
+echo "   (or, short blocks go home)"
+tee < eg.shell | ./egrep TWO 
+echo ""
+echo "   testing HARD-TO-RHYME COLORS:"
+echo "		(echo orange; echo silver; echo purple) > colors"
+echo "		time ./fgrep -f colors $DICT > /dev/null"
+(echo orange; echo silver; echo purple) > colors
+time ./fgrep -f colors $DICT > /dev/null
+rm colors
+echo ""
+echo "   testing FAKE KANJI: ./egrep -f kanjipat.fake kanji.fake.test" 
+./egrep -f kanjipat.fake kanji.fake.test | tr -d '\216'
+echo ""
+echo "   testing NOTHING: ./egrep '' egrep.c" 
+./egrep '' $DICT
+echo ""
+echo "   testing SPEAK OF THE DEVIL (torture test courtesy Scott Anderson):" 
+echo "   or, WIN ALL 32 WITHOUT LAZY EVALUATION" 
+echo './egrep "' 'M[ou]'"'"'?am+[ae]r .*([AEae]l[- ])?[GKQ]h?[aeu]+([dtz][dhz]?)+af[iy]"' egad
+cat > egad << 'Egad'
+1)  Muammar Qaddafi
+2)  Mo'ammar Gadhafi
+3)  Muammar Kaddafi
+4)  Muammar Qadhafi
+5)  Moammar El Kadhafi
+6)  Muammar Gadafi
+7)  Mu'ammar al-Qadafi
+8)  Moamer El Kazzafi
+9)  Moamar al-Gaddafi
+10) Mu'ammar Al Qathafi
+11) Muammar Al Qathafi
+12) Mo'ammar el-Gadhafi
+13) Moamar El Kadhafi
+14) Muammar al-Qadhafi
+15) Mu'ammar al-Qadhdhafi
+16) Mu'ammar Qadafi
+17) Moamar Gaddafi
+18) Mu'ammar Qadhdhafi
+19) Muammar Khaddafi
+20) Muammar al-Khaddafi
+21) Mu'amar al-Kadafi
+22) Muammar Ghaddafy
+23) Muammar Ghadafi
+24) Muammar Ghaddafi
+25) Muamar Kaddafi
+26) Muammar Quathafi
+27) Muammar Gheddafi
+28) Muamar Al-Kaddafi
+29) Moammar Khadafy
+30) Moammar Qudhafi
+31) Mu'ammar al-Qaddafi
+32) Mulazim Awwal Mu'ammar Muhammad Abu Minyar al-Qadhafi
+Egad
+# there are subtle reasons why this odd command is not directly applied
+# to a "here document"
+time ./egrep "M[ou]'?am+[ae]r .*([AEae]l[- ])?[GKQ]h?[aeu]+([dtz][dhz]?)+af[iy]" egad
+rm egad
+End of eg.shell
+echo egrep.c 1>&2
+cat > egrep.c <<'End of egrep.c'
+
+/*
+     Hybrid Boyer/Moore/Gosper-assisted 'grep/egrep/fgrep' search, with delta0
+     table as in original paper (CACM, October, 1977).  No delta1 or delta2.
+     According to experiment (Horspool, Soft. Prac. Exp., 1982), delta2 is of
+     minimal practical value.  However, to improve for worst case input,
+     integrating the improved Galil strategies (Apostolico/Giancarlo, SIAM. J.
+     Comput., Feb. 1986) deserves consideration.
+
+     Method: 	extract longest metacharacter-free string from expression.
+		this is done using a side-effect from henry spencer's regcomp().
+		use boyer-moore to match such, then pass submatching lines
+		to either regexp() or standard 'egrep', depending on certain
+		criteria within execstrategy() below.  [this tradeoff is due
+		to the general slowness of the regexp() nondeterministic
+		machine on complex expressions, as well as the startup time
+		of standard 'egrep' on short files.]  alternatively, one may
+		change the vendor-supplied 'egrep' automaton to include
+		boyer-moore directly.  see accompanying writeup for discussion
+		of kanji expression treatment.
+
+		late addition:  apply trickbag for fast match of simple
+		alternations (sublinear, in common low-cardinality cases).
+		trap fgrep into this lair.
+
+		gnu additions:  -f, newline as |, \< and \> [in regexec()], more
+				comments.  inspire better dfa exec() strategy.
+				serious testing and help with special cases.
+
+     Algorithm amalgam summary:
+
+		dfa e?grep 		(aho/thompson)
+		ndfa regexp() 		(spencer/aho)
+		bmg			(boyer/moore/gosper)
+		"superimposed" bmg   	(jaw)
+		fgrep			(aho/corrasick)
+
+		sorry, but the knuth/morris/pratt machine, horspool's
+		"frequentist" code, and the rabin/karp matcher, however cute,
+		just don't cut it for this production.
+
+     James A. Woods				Copyright (c) 1986
+     NASA Ames Research Center
+*/
+#include <stdio.h>
+#include <ctype.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <regexp.h>		/* must be henry spencer's version */
+
+#define	MIN(A, B)	((A) > (B) ? (B) : (A))
+
+#ifdef	SLOWSYS
+#define read	xread
+#endif
+/*
+ * define existing [ef]?grep program locations below for use by execvp().
+ * [execlp() would be used were it not for the possibility of
+ * installation-dependent recursion.] 
+ */
+#ifndef EGREPSTD
+#define	EGREPSTD	"/usr/bin/egrep"
+#endif
+#ifndef GREPSTD
+#define	GREPSTD		"/bin/grep"
+#endif
+#ifndef FGREPSTD
+#define	FGREPSTD	"/usr/bin/fgrep"
+#endif
+
+#define BUFSIZE	8192		/* make higher for cray */
+#define PATSIZE 6000
+#define LARGE 	BUFSIZE + PATSIZE
+
+#define ALTSIZE	100		/* generous? */
+#define NALT	7		/* tied to scanf() size in alternate() */
+#define NMUSH	6		/* loosely relates to expected alt length */
+
+#define	FIRSTFEW	10	/* Always do FIRSTFEW matches with regexec() */
+#define	PUNTPERCENT	5	/* After FIRSTFEW, if PUNTPERCENT of the input
+				 * was processed by regexp(), exec std egrep. */
+#define NL	'\n'
+#define	EOS	'\0'
+#define	NONASCII	0200	/* Bit mask for Kanji non-ascii chars */
+#define META	"\n^$.[]()?+*|\\"	/* egrep meta-characters */
+#define SS2	'\216'		/* EUC Katakana (or Chinese2) prefix */
+#define SS3	'\217'		/* EUC Kanji2 (or Chinese3) prefix */
+
+extern char *optarg;
+extern int optind;
+char *progname;
+
+int cflag, iflag, eflag, fflag, lflag, nflag;	/* SVID flags */
+int sflag, hflag;		/* v7, v8, bsd */
+
+int firstflag;			/* Stop at first match */
+int grepflag;			/* Called as "grep" */
+int fgrepflag;			/* Called as "fgrep" */
+int altflag;			/* Simple alternation in pattern */
+int boyonly;			/* No regexp needed -- all simple */
+int flushflag;
+int grepold, egrepold, fgrepold;
+
+int nalt;			/* Number of alternatives */
+int nsuccess;			/* 1 for match, 2 for error */
+int altmin;			/* Minimum length of all the alternate
+				 * strings */
+int firstfile;			/* argv index of first file argument */
+long nmatch;			/* Number of matches in this file */
+long incount, counted;		/* Amount of input consumed */
+long rxcount;			/* Bytes of input processed by regexec() */
+int boyfound;			/* accumulated partial matches (tripped by
+				 * FIRSTFEW) */
+int prevmatch;			/* next three lines aid fast -n */
+long nline, prevnline;
+char *prevloc;
+
+regexp *rspencer;
+char *pattern;
+char *patboy;			/* Pattern for simple Boyer-Moore */
+char *patfile;			/* Filename containing pattern(s) */
+
+int delta0[256];		/* Boyer-Moore algorithm core */
+char cmap[256];			/* Usually 0-255, but if -i, maps upper to
+				 * lower case */
+char str[BUFSIZE + 2];
+int nleftover;
+char linetemp[BUFSIZE];
+char altpat[NALT][ALTSIZE];	/* alternation component storage */
+int altlen[NALT];
+short altset[NMUSH + 1][256];
+char preamble[200];		/* match prefix (filename, line no.) */
+
+int fd;
+char *
+strchr(), *strrchr(), *strcpy(), *strncpy(), *strpbrk(), *sprintf(), *malloc();
+char *
+grepxlat(), *fold(), *pfile(), *alternate(), *isolate();
+char **args;
+
+main(argc, argv)
+	int argc;
+	char *argv[];
+{
+	int c;
+	int errflag = 0;
+
+	args = argv;
+
+	if ((progname = strrchr(argv[0], '/')) != 0)
+		progname++;
+	else
+		progname = argv[0];
+	if (strcmp(progname, "grep") == 0)
+		grepflag++;
+	if (strcmp(progname, "fgrep") == 0)
+		fgrepflag++;
+
+	while ((c = getopt(argc, argv, "bchie:f:lnsvwxy1")) != EOF) {
+		switch (c) {
+
+		case 'f':
+			fflag++;
+			patfile = optarg;
+			continue;
+		case 'b':
+		case 'v':
+			egrepold++;	/* boyer-moore of little help here */
+			continue;
+		case 'c':
+			cflag++;
+			continue;
+		case 'e':
+			eflag++;
+			pattern = optarg;
+			continue;
+		case 'h':
+			hflag++;
+			continue;
+		case '1':	/* Stop at very first match */
+			firstflag++;	/* spead freaks only */
+			continue;
+		case 'i':
+			iflag++;
+			continue;
+		case 'l':
+			lflag++;
+			continue;
+		case 'n':
+			nflag++;
+			continue;
+		case 's':
+			sflag++;
+			continue;
+		case 'w':
+		case 'y':
+			if (!grepflag)
+				errflag++;
+			grepold++;
+			continue;
+		case 'x':	/* needs more work, like -b above */
+			if (!fgrepflag)
+				errflag++;
+			fgrepold++;
+			continue;
+		case '?':
+			errflag++;
+		}
+	}
+	if (errflag || ((argc <= optind) && !fflag && !eflag)) {
+		if (grepflag)
+oops("usage: grep [-bcihlnsvwy] [-e] pattern [file ...]");
+		else if (fgrepflag)
+oops("usage: fgrep [-bcilnv] {-f patfile | [-e] strings} [file ...]");
+		else		/* encourage SVID options, though we provide
+				 * others */
+oops("usage: egrep [-bcilnv] {-f patfile | [-e] pattern} [file ...]");
+	}
+	if (fflag)
+		pattern = pfile(patfile);
+	else if (!eflag)
+		pattern = argv[optind++];
+
+	if ((argc - optind) <= 1)	/* Filename invisible given < 2 files */
+		hflag++;
+	if (pattern[0] == EOS)
+		oops("empty expression");
+	/*
+	 * 'grep/egrep' merger -- "old" grep is called to handle: tagged
+	 * exprs \( \), word matches \< and \>, -w and -y options, char
+	 * classes with '-' at end (egrep bug?), and patterns beginning with
+	 * an asterisk (don't ask why). otherwise, characters meaningful to
+	 * 'egrep' but not to 'grep' are escaped; the entire expr is then
+	 * passed to 'egrep'. 
+	 */
+	if (grepflag && !grepold) {
+		if (strindex(pattern, "\\(") >= 0 ||
+		    strindex(pattern, "\\<") >= 0 ||
+		    strindex(pattern, "\\>") >= 0 ||
+		    strindex(pattern, "-]") >= 0 ||
+		    pattern[0] == '*')	/* grep bug */
+			grepold++;
+		else
+			pattern = grepxlat(pattern);
+	}
+	if (grepold || egrepold || fgrepold)
+		kernighan(argv);
+
+	if (iflag)
+		strcpy(pattern, fold(pattern));
+	/*
+	 * If the pattern is a plain string, just run boyer-moore. If it
+	 * consists of meta-free alternatives, run "superimposed" bmg.
+	 * Otherwise, find best string, and compile pattern for regexec(). 
+	 */
+	if (strpbrk(pattern, META) == NULL) {	/* do boyer-moore only */
+		boyonly++;
+		patboy = pattern;
+	} else {
+		if ((patboy = alternate(pattern)) != NULL)
+			boyonly++;
+		else {
+			if ((patboy = isolate(pattern)) == NULL)
+				kernighan(argv);	/* expr too involved */
+#ifndef NOKANJI
+			for (c = 0; pattern[c] != EOS; c++)
+				if (pattern[c] & NONASCII)	/* kanji + meta */
+					kernighan(argv);
+#endif
+			if ((rspencer = regcomp(pattern)) == NULL)
+				oops("regcomp failure");
+		}
+	}
+	gosper(patboy);		/* "pre-conditioning is wonderful"
+				 * -- v. strassen */
+
+	if ((firstfile = optind) >= argc) {
+		/* Grep standard input */
+		if (lflag)	/* We don't know its name! */
+			exit(1);
+		egsecute((char *) NULL);
+	} else {
+		while (optind < argc) {
+			egsecute(argv[optind]);
+			optind++;
+			if (firstflag && (nsuccess == 1))
+				break;
+		}
+	}
+	exit((nsuccess == 2) ? 2 : (nsuccess == 0));
+}
+
+char *
+pfile(pfname)			/* absorb expression from file */
+	char *pfname;
+{
+	FILE *pf;
+	struct stat patstat;
+	static char *pat;
+
+	if ((pf = fopen(pfname, "r")) == NULL)
+		oops("can't read pattern file");
+	if (fstat(fileno(pf), &patstat) != 0)
+		oops("can't stat pattern file");
+	if (patstat.st_size > PATSIZE) {
+		if (fgrepflag) {	/* defer to unix version */
+			fgrepold++;
+			return "dummy";
+		} else
+			oops("pattern file too big");
+	}
+	if ((pat = malloc((unsigned) patstat.st_size + 1)) == NULL)
+		oops("out of memory to read pattern file");
+	if (patstat.st_size !=
+	    fread(pat, sizeof(char), patstat.st_size + 1, pf))
+		oops("error reading pattern file");
+	(void) fclose(pf);
+
+	pat[patstat.st_size] = EOS;
+	if (pat[patstat.st_size - 1] == NL)	/* NOP for egrep; helps grep */
+		pat[patstat.st_size - 1] = EOS;
+
+	if (nlcount(pat, &pat[patstat.st_size]) > NALT) {
+		if (fgrepflag)
+			fgrepold++;	/* "what's it all about, alfie?" */
+		else
+			egrepold++;
+	}
+	return (pat);
+}
+
+egsecute(file)
+	char *file;
+{
+	if (file == NULL)
+		fd = 0;
+	else if ((fd = open(file, 0)) <= 0) {
+		fprintf(stderr, "%s: can't open %s\n", progname, file);
+		nsuccess = 2;
+		return;
+	}
+	chimaera(file, patboy);
+
+	if (!boyonly && !flushflag && file != NULL)
+		flushmatches();
+	if (file != NULL)
+		close(fd);
+}
+
+chimaera(file, pat)		/* "reach out and boyer-moore search someone" */
+	char *file, *pat;	/* -- soon-to-be-popular bumper sticker */
+{
+	register char *k, *strend, *s;
+	register int j, count;
+	register int *deltazero = delta0;
+	int patlen = altmin;
+	char *t;
+	char *gotamatch(), *kanji(), *linesave(), *submatch();
+
+	nleftover = boyfound = flushflag = 0;
+	nline = 1L;
+	prevmatch = 0;
+	nmatch = counted = rxcount = 0L;
+
+	while ((count = read(fd, str + nleftover, BUFSIZE - nleftover)) > 0) {
+
+		counted += count;
+		strend = linesave(str, count);
+
+		for (k = str + patlen - 1; k < strend;) {
+			/*
+			 * for a large class of patterns, upwards of 80% of
+			 * match time is spent on the next line.  we beat
+			 * existing microcode (vax 'matchc') this way. 
+			 */
+			while ((k += deltazero[*(unsigned char *) k]) < strend);
+			if (k < (str + LARGE))
+				break;
+			k -= LARGE;
+
+			if (altflag) {
+				/*
+				 * Parallel Boyer-Moore.  Check whether each
+				 * of the previous <altmin> chars COULD be
+				 * from one of the alternative strings. 
+				 */
+				s = k - 1;
+				j = altmin;
+				while (altset[--j][(unsigned char)
+					     cmap[*(unsigned char *) s--]]);
+				/*
+				 * quick test fails. in this life, compare
+				 * 'em all.  but, a "reverse trie" would
+				 * attenuate worst case (linear w/delta2?). 
+				 */
+				if (--j < 0) {
+					count = nalt - 1;
+					do {
+						s = k;
+						j = altlen[count];
+						t = altpat[count];
+
+						while
+							(cmap[*(unsigned char *) s--]
+							 == t[--j]);
+						if (j < 0)
+							break;
+					}
+					while (count--);
+				}
+			} else {
+				/* One string -- check it */
+				j = patlen - 1;
+				s = k - 1;
+				while (cmap[*(unsigned char *) s--] == pat[--j]);
+			}
+			/*
+			 * delta-less shortcut for literati. short shrift for
+			 * genetic engineers? 
+			 */
+			if (j >= 0) {
+				k++;	/* no match; restart next char */
+				continue;
+			}
+			k = submatch(file, pat, str, strend, k, count);
+			if (k == NULL)
+				return;
+		}
+		if (nflag) {
+			if (prevmatch)
+				nline = prevnline + nlcount(prevloc, k);
+			else
+				nline = nline + nlcount(str, k);
+			prevmatch = 0;
+		}
+		strncpy(str, linetemp, nleftover);
+	}
+	if (cflag) {
+		/* Bug from old grep: -c overrides -h.  We fix the bug. */
+		if (!hflag)
+			printf("%s:", file);
+		printf("%ld\n", nmatch);
+	}
+}
+
+char *
+linesave(str, count)		/* accumulate partial line at end of buffer */
+	char str[];
+	register int count;
+{
+	register int j;
+
+	count += nleftover;
+	if (count != BUFSIZE && fd != 0)
+		str[count++] = NL;	/* insurance for broken last line */
+	str[count] = EOS;
+	for (j = count - 1; str[j] != NL && j >= 0;)
+		j--;
+	/*
+	 * break up these lines: long line (> BUFSIZE), last line of file, or
+	 * short return from read(), as from tee(1) input 
+	 */
+	if (j < 0 && (count == (BUFSIZE - nleftover))) {
+		str[count++] = NL;
+		str[count] = EOS;
+		linetemp[0] = EOS;
+		nleftover = 0;
+		return (str + count);
+	} else {
+		nleftover = count - j - 1;
+		strncpy(linetemp, str + j + 1, nleftover);
+		return (str + j);
+	}
+}
+
+/*
+ * Process partial match. First check for mis-aligned Kanji, then match line
+ * against full compiled r.e. if statistics do not warrant handing off to
+ * standard egrep. 
+ */
+char *
+submatch(file, pat, str, strend, k, altindex)
+	char file[], pat[], str[];
+	register char *strend, *k;
+	int altindex;
+{
+	register char *s;
+	char *t, c;
+
+	t = k;
+	s = ((altflag) ? k - altlen[altindex] + 1 : k - altmin + 1);
+#ifndef NOKANJI
+	c = ((altflag) ? altpat[altindex][0] : pat[0]);
+	if (c & NONASCII)
+		if ((s = kanji(str, s, k)) == NULL)
+			return (++k);	/* reject false kanji */
+#endif
+	do;
+	while (*s != NL && --s >= str);
+	k = s + 1;		/* now at line start */
+
+	if (boyonly)
+		return (gotamatch(file, k));
+
+	incount = counted - (strend - k);
+	if (boyfound++ == FIRSTFEW)
+		execstrategy(file);
+
+	s = t;
+	do
+		rxcount++;
+	while (*s++ != NL);
+	*--s = EOS;
+	/*
+	 * "quick henry -- the flit" (after theodor geisel) 
+	 */
+	if (regexec(rspencer, ((iflag) ? fold(k) : k)) == 1) {
+		*s = NL;
+		if (gotamatch(file, k) == NULL)
+			return (NULL);
+	}
+	*s = NL;
+	return (s + 1);
+}
+
+/*
+ * EUC code disambiguation -- scan backwards to first 7-bit code, while
+ * counting intervening 8-bit codes.  If odd, reject unaligned Kanji pattern. 
+ * SS2/3 checks are for intermixed Japanase Katakana or Kanji2. 
+ */
+char *
+kanji(str, s, k)
+	register char *str, *s, *k;
+{
+	register int j = 0;
+
+	for (s--; s >= str; s--) {
+		if (*s == SS2 || *s == SS3 || (*s & NONASCII) == 0)
+			break;
+		j++;
+	}
+#ifndef CHINESE
+	if (*s == SS2)
+		j -= 1;
+#endif  CHINESE
+	return ((j & 01) ? NULL : k);
+}
+
+/*
+ * Compute "Boyer-Moore" delta table -- put skip distance in delta0[c] 
+ */
+gosper(pattern)
+	char *pattern;		/* ... HAKMEM lives ... */
+{
+	register int i, j;
+	unsigned char c;
+
+	/* Make one-string case look like simple alternatives case */
+	if (!altflag) {
+		nalt = 1;
+		altmin = altlen[0] = strlen(pattern);
+		strcpy(altpat[0], pattern);
+	}
+	/* For chars that aren't in any string, skip by string length. */
+	for (j = 0; j < 256; j++) {
+		delta0[j] = altmin;
+		cmap[j] = j;	/* Sneak in initialization of cmap */
+	}
+
+	/* For chars in a string, skip distance from char to end of string. */
+	/* (If char appears more than once, skip minimum distance.) */
+	for (i = 0; i < nalt; i++)
+		for (j = 0; j < altlen[i] - 1; j++) {
+			c = altpat[i][j];
+			delta0[c] = MIN(delta0[c], altlen[i] - j - 1);
+			if (iflag && islower((int) c))
+				delta0[toupper((int) c)] = delta0[c];
+		}
+
+	/* For last char of each string, fall out of search loop. */
+	for (i = 0; i < nalt; i++) {
+		c = altpat[i][altlen[i] - 1];
+		delta0[c] = LARGE;
+		if (iflag && islower((int) c))
+			delta0[toupper((int) c)] = LARGE;
+	}
+	if (iflag)
+		for (j = 'A'; j <= 'Z'; j++)
+			cmap[j] = tolower((int) j);
+}
+
+/*
+ * Print, count, or stop on full match. Result is either the location for
+ * continued search, or NULL to stop. 
+ */
+char *
+gotamatch(file, s)
+	register char *file, *s;
+{
+	char *savematch();
+	int squirrel = 0;	/* nonzero to squirrel away FIRSTFEW matches */
+
+	nmatch++;
+	nsuccess = 1;
+	if (!boyonly && boyfound <= FIRSTFEW && file != NULL)
+		squirrel = 1;
+
+	if (sflag)
+		return (NULL);	/* -s usurps all flags (unlike some versions) */
+	if (cflag) {		/* -c overrides -l, we guess */
+		do;
+		while (*s++ != NL);
+	} else if (lflag) {
+		puts(file);
+		return (NULL);
+	} else {
+		if (!hflag)
+			if (!squirrel)
+				printf("%s:", file);
+			else
+				sprintf(preamble, "%s:", file);
+		if (nflag) {
+			if (prevmatch)
+				prevnline = prevnline + nlcount(prevloc, s);
+			else
+				prevnline = nline + nlcount(str, s);
+			prevmatch = 1;
+
+			if (!squirrel)
+				printf("%ld:", prevnline);
+			else
+				sprintf(preamble + strlen(preamble),
+					"%ld:", prevnline);
+		}
+		if (!squirrel) {
+			do
+				putchar(*s);
+			while (*s++ != NL);
+		} else
+			s = savematch(s);
+
+		if (nflag)
+			prevloc = s - 1;
+	}
+	return ((firstflag && !cflag) ? NULL : s);
+}
+
+char *
+fold(line)
+	char *line;
+{
+	static char fline[BUFSIZE];
+	register char *s, *t = fline;
+
+	for (s = line; *s != EOS; s++)
+		*t++ = (isupper((int) *s) ? (char) tolower((int) *s) : *s);
+	*t = EOS;
+	return (fline);
+}
+
+strindex(s, t)			/* the easy way, as in K&P, p. 192 */
+	char *s, *t;
+{
+	int i, n;
+
+	n = strlen(t);
+	for (i = 0; s[i] != '\0'; i++)
+		if (strncmp(s + i, t, n) == 0)
+			return (i);
+	return (-1);
+}
+
+char *
+grepxlat(pattern)		/* grep pattern meta conversion */
+	char *pattern;
+{
+	register char *p, *s;
+	static char newpat[BUFSIZE];
+
+	for (s = newpat, p = pattern; *p != EOS;) {
+		if (*p == '\\') {	/* skip escapes ... */
+			*s++ = *p++;
+			if (*p)
+				*s++ = *p++;
+		} else if (*p == '[') {	/* ... and char classes */
+			while (*p != EOS && *p != ']')
+				*s++ = *p++;
+		} else if (strchr("+?|()", *p) != NULL) {
+			*s++ = '\\';	/* insert protection */
+			*s++ = *p++;
+		} else
+			*s++ = *p++;
+	}
+	*s = EOS;
+	return (newpat);
+}
+
+/*
+ * Test for simple alternation.  Result is NULL if it's not so simple, or is
+ * a pointer to the first string if it is. Warning:  sscanf size is a
+ * fixpoint, beyond which the speedup linearity starts to break down.  In the
+ * wake of the elegant aho/corrasick "trie"-based fgrep, generalizing
+ * altpat[] to arbitrary size is not useful. 
+ */
+char *
+alternate(regexpr)
+	char *regexpr;
+{
+	register i, j, min;
+	unsigned char c;
+	char oflow[100];
+
+	if (fgrepflag && strchr(regexpr, '|'))
+		return (NULL);
+
+	i = strlen(regexpr);
+	for (j = 0; j < i; j++)
+		if (regexpr[j] == NL)
+			regexpr[j] = '|';
+
+	if (!fgrepflag) {
+		if (strchr(regexpr, '|') == NULL || regexpr[0] == '|')
+			return (NULL);
+		if (strpbrk(regexpr, "^$.[]()?+*\\") != NULL
+		    || strindex(regexpr, "||") >= 0)
+			return (NULL);
+	}
+	oflow[0] = EOS;
+	nalt = sscanf(regexpr, "%[^|]|%[^|]|%[^|]|%[^|]|%[^|]|%[^|]|%[^|]|%[^|]",
+		      altpat[0], altpat[1], altpat[2], altpat[3], altpat[4], altpat[5], altpat[6], oflow);
+
+	if (nalt < 1 || oflow[0] != EOS)
+		return (NULL);
+
+	altmin = NMUSH;
+	for (j = 0; j < nalt; j++) {
+		min = altlen[j] = strlen(altpat[j]);
+		if (min > ALTSIZE)
+			return (NULL);
+		altmin = MIN(altmin, min);
+	}
+	if (nalt > 1) {		/* build superimposed "pre-match" sets per
+				 * char */
+		altflag++;
+		for (j = 0; j < nalt; j++)
+			for (i = 0; i < altmin; i++) {
+				c = altpat[j][altlen[j] - altmin + i];
+				altset[i + 1][c] = 1;	/* offset for sentinel */
+			}
+	}
+	return (altpat[0]);
+}
+
+/*
+ * Grapple with the dfa (std egrep) vs. ndfa (regexp) tradeoff. Criteria to
+ * determine whether to use dfa-based egrep:  We do FIRSTFEW matches with
+ * regexec().  Otherwise, if Boyer-Moore up to now matched more than
+ * PUNTPERCENT of the input, and there is sufficient bulk remaining to
+ * justify justify a process exec, do old *grep, presuming that its greater
+ * speed at regular expressions will pay us back over this volume.  At
+ * FIRSTFEW, dump the saved matches collected by savematch(). They are saved
+ * so that a "PUNT" can "rewind" to ignore them.  Stdin is problematic,
+ * since it's hard to rewind. 
+ */
+
+#define CTHRESH	50000
+
+execstrategy(file)
+	char *file;
+{
+	struct stat stbuf;
+	int pctmatch;
+	long cremain;
+
+	pctmatch = (100 * rxcount) / incount;
+	if (!grepflag && pctmatch > PUNTPERCENT && file != NULL) {
+		fstat(fd, &stbuf);
+		cremain = stbuf.st_size - incount;
+		if (cremain > CTHRESH)
+			kernighan(args);
+	}
+	if (file != NULL)
+		flushmatches();
+}
+
+nlcount(bstart, bstop)		/* flail interval to totalize newlines. */
+	char *bstart, *bstop;
+{
+	register char *s = bstart;
+	register char *t = bstop;
+	register int count = 0;
+
+	do {			/* loop unroll for older architectures */
+		if (*t == NL)	/* ... ask ames!jaw for sample code */
+			count++;
+	} while (t-- > s);
+
+	return (count);
+}
+
+char *
+isolate(regexpr)		/* isolate longest metacharacter-free string */
+	char *regexpr;
+{
+	char *dummyexpr;
+
+	/*
+	 * We add (.)* because Henry's regcomp only figures regmust if it
+	 * sees a leading * pattern.  Foo! 
+	 */
+	dummyexpr = malloc((unsigned) strlen(regexpr) + 5);
+	sprintf(dummyexpr, "(.)*%s", regexpr);
+	if ((rspencer = regcomp(dummyexpr)) == NULL)
+		kernighan(args);
+	return (rspencer->regmust);
+}
+
+char *matches[FIRSTFEW];
+static int mcount = 0;
+
+char *
+savematch(s)			/* horde matches during statistics gathering */
+	register char *s;
+{
+	char *p;
+	char *start = s;
+	int msize = 0;
+	int psize = strlen(preamble);
+
+	while (*s++ != NL)
+		msize++;
+	*--s = EOS;
+
+	p = malloc((unsigned) msize + 1 + psize);
+	strcpy(p, preamble);
+	strcpy(p + psize, start);
+	matches[mcount++] = p;
+
+	preamble[0] = 0;
+	*s = NL;
+	return (s);
+}
+
+flushmatches()
+{
+	int n;
+
+	flushflag = 1;
+	for (n = 0; n < mcount; n++)
+		printf("%s\n", matches[n]);
+	mcount = 0;
+}
+
+oops(message)
+	char *message;
+{
+	fprintf(stderr, "%s: %s\n", progname, message);
+	exit(2);
+}
+
+kernighan(args)			/* "let others do the hard part ..." */
+	char *args[];
+{
+	/*
+	 * We may have already run grep on some of the files; remove them
+	 * from the arg list we pass on.  Note that we can't delete them
+	 * totally because the number of file names affects the output
+	 * (automatic -h). 
+	 */
+	/* better would be fork/exec per punted file -- jaw */
+
+	while (firstfile && optind > firstfile)
+		args[firstfile++] = "/dev/null";
+
+	fflush(stdout);
+
+	if (grepflag)
+		execvp(GREPSTD, args), oops("can't exec old 'grep'");
+	else if (fgrepflag)
+		execvp(FGREPSTD, args), oops("can't exec old 'fgrep'");
+	else
+		execvp(EGREPSTD, args), oops("can't exec old 'egrep'");
+}
+End of egrep.c
+echo k.pat 1>&2
+cat > k.pat <<'End of k.pat'
+buffy|q|XY
+End of k.pat
+echo k.test 1>&2
+cat > k.test <<'End of k.test'
+WXY--this line should *not* print--
+abXY--this line should print, but *not* the previous line--
+XWXY--this line should print--
+XYcd--this line also--
+q--this line too--
+ZWWXYembedded Katakana, unaligned Kanji
+ZWXYembedded Katakana
+End of k.test
+echo pep4grep.doc1 1>&2
+cat > pep4grep.doc1 <<'End of pep4grep.doc1'
+>From postnews Tue Mar 18 18:04:08 1986
+Subject: More Pep for Boyer-Moore Grep (part 1 of 2)
+Newsgroups: net.unix
+
+#  The chief defect of Henry King
+   Was chewing little bits of string.
+
+	-- Hilaire Belloc, Cautionary Tales [1907]
+
+#  Attempt the end, and never stand to doubt
+   Nothing's so hard but search will find it out.
+
+	-- Robert Herrick, Hesperides [1648]
+
+     The world does not need another 'grep' variant.  And so, what is this
+we offer?  On the surface, the exact same 'egrep' actually, but underneath,
+a swift Boyer-Moore hybrid, in C, which can beat assembler versions utilizing
+microcoded string search instructions.  The offering, designed in the
+Kernighanian sense to utilize the existing 'egrep' when it must, also
+makes use of Mr. Henry Spencer's regexp(3) functions in an unusual way.
+For the edification of those without on-line access to system source code,
+the vendor-supplied 'egrep' is left in a pristine state.
+
+     With code now wending its way to mod.sources, we obtain the following
+results.  Times (in seconds) are all measured on a VAX 11/750 system running
+BSD 4.2 on Fujitsu Eagles, although our 'egrep' has been run on the Sun 2,
+V7 Unix/PDP 11, Vaxen configured with System V, and, for added effect, the
+NASA Ames Cray 2.
+
+			200K bytes       user   sys	notes
+
+  (new) egrep  astrian /usr/dict/words	 0.4    0.5    implementation by "jaw"
+	match	  "           "		 0.5    0.5    VAX-only (Waterloo)
+	bm	  "           "		 1.1    0.6    Peter Bain's version 2
+  (old) egrep     "           " 	 5.6    1.7    standard	
+
+[note:  the output here is the single word "Zoroastrian".]
+
+     Aha, you quip -- this is all very fine for the 99 and 44/100's percent
+metacharacter-free world, but what about timing for shorter strings, character
+folding, as well as for the more interesting universe of extended regular 
+expressions?  Samples forthwith.  (Egrep below refers to the new one, times for
+the /usr/bin code being about the same as above on most any pattern.)
+
+	egrep 	 zurich		0.4  0.5	0 words output
+	egrep -i zuRich  	0.4  0.5	1 
+	egrep -i zeus  		0.6  0.6	1
+	egrep -i zen  		0.7  0.6	11
+	bm 	 zen  		2.2  0.6	10
+	egrep 	 ZZ  		0.8  0.6	0
+	bm 	 ZZ  		3.0  0.7	0
+	egrep -c Z  		1.5  0.6	19
+	bm -c 	 Z  		5.9  0.7	19
+
+Admittedly, most people (or programs) don't search for single characters,
+where Boyer-Moore is a bit slow, but it's important for the layered regular
+expression approach described herein.  We might point out from the above that
+the popular "fold" option crippled by 'bm' costs little; it's only a slight
+adjustment of the precomputed "delta" table as well as a single character
+array reference in a secondary loop.  Why has Bain claimed complexity for this?
+Also, the times show that the inner loop chosen for our code (modeled after
+the original speedup done by Boyer-Moore for the PDP 10) consistently betters
+the "blindingly fast" version by a factor of two to three.  The tipoff was
+from previous paper studies (esp. Horspool, see header notes in code) noting
+that the algorithm should, when implemented efficiently, best typical microcode.
+Now it does. 
+
+	while ( (k += delta0 ( *k )) < strend )
+		;		/* over 80% of time spent here */
+
+is the key (modulo precomputation tricks), and takes but three or four
+instructions on most machines.
+
+     Basic method for regular expressions:
+
+	(1) isolate the longest metacharacter-free pattern string via the
+	    "regmust" field provided by H. Spencer's regcomp() routine.
+
+	    (Non-kosher, but worth not re-inventing the wheel.
+	    v8 folks just might have to reverse-engineer Spencer's
+	    reverse-engineering to provide equivalent functionality.
+	    You see, there are many more sites running his code than v8.
+	    Besides, we enjoy using regexpr technology on itself.
+
+	(2) for "short" input, submatching lines are passed to regexec().
+
+	(3) for "long" input, start up a standard 'egrep' process via
+	    popen() or equivalent.  Why not just use regexec()?  Unfortunately
+	    for our application, Spencer's otherwise admirable finite-state
+	    automaton exhibits poor performance for complex expressions.
+	    Setting a threshold on input length, though not perfect, helps.
+	    If pipes on Unix were free, we'd use this way exclusively.
+	    Until then, we buy happiness for those who might
+
+			egrep stuff /usr/spool/news/net/unix/*
+
+	    or on other directories full of short files.
+
+[note: the details of (3) have changed in the re-release -- see pep4grep.doc3]
+
+So,
+	[new] egrep -i 'hoe.*g' words		1.2  1.1
+					 	{shoestring,Shoenberg}
+	[new] egrep '(a|b).*zz.*[od]$'	words 	1.5  1.1
+					 	{blizzard,buzzword,palazzo}
+	[old] egrep 				6.3  1.4
+but,
+	{new,old} egrep -c 'first|second'	similar times (no isolate)
+
+Again, we stress that given the different nature of the simulations of the two
+nondeterministic reg. expr. state-machines (one functionless), cases can be
+"cooked" to show things in a bad light, so a hybrid is warranted.
+We can generally do better incorporating the Boyer-Moore algorithm directly
+into the AT&T code.  For the last example, the abstraction
+
+	(egrep first words &; egrep second words) | sort -u | wc
+
+ideally would work better on a parallel machine, but if you're expecting
+something as amazing in this draft as, say, Morwen B. Thistlethwaite's 52-move
+Rubik's Cube solution, you're in the wrong place.
+
+[note: but see pep4grep.doc3 -- now [ef]?grep handles some parallelism fast]
+
+     About options -- the SVID ones are supported (-c, -l, bonus -i for BSD),
+and -s and -h works as for BSD and v8.  Note: the 'egrep' here just hands off
+patterns to the old code for things like -n, -b, -v, and multiple patterns.
+As a bone to throw to the enemies of the cat-v school, there is a -1 flag
+(halt after printing first match), but we don't talk about it much.
+Multiple patterns can done ala 'bm' but laziness in the presence of lack of
+knowledge of where 'fgrep' wins has prevailed for version 1.
+
+     Personally I feel that adapting ("internationalizing") the 'egrep' effort
+for two-byte Kanji is FAR more important than tweeking options or tradeoffs,
+so for you large-alphabet Boyer-Moore algorithm specialists, send ideas
+this way.
+     
+     Further historical/philosophical comments follow in the sequel.
+
+     James A. Woods (ames!jaw)
+     NASA Ames Research Center
+
+End of pep4grep.doc1
+echo pep4grep.doc2 1>&2
+cat > pep4grep.doc2 <<'End of pep4grep.doc2'
+>From postnews Tue Mar 18 18:05:22 1986
+Subject: More Pep for Boyer-Moore Grep (part 2 of 2)
+Newsgroups: net.unix
+
+#  "Gratiano speaks an infinite deal of nothing, more than any man in all
+   of Venice.  His reasons are as two grains of wheat hid in two bushels of
+   chaff:  you shall seek all day ere you find them, they are not worth
+   the search."  -- Shakespeare, Merchant of Venice
+
+... or, part 2, "Reach out and Boyer-Moore Egrep Someone"
+
+     Maybe you never use 'grep'.  Then ignore this.  But if you do, why not
+use the best algorithm?  Serious addicts know that for unstructured yet
+stable text, B-trees are used for speed, or something like Lesk's nifty
+(and unavailable) 'grab' suite for inverted files are ways to go.  Barring file
+inversion daemons for netnews and other ephemera, we are limited to the
+present improvements.
+
+     Proper skeptics should question why a nearly I/O-bound program (but
+not for any CPU with less than the power of several VAX MIPS, alas) should
+be made more so.  The question was posed in B & M's classic 1978 CACM
+paper -- the answer then was to free up more CPU cycles for timesharing.
+Now, our motivations are more mundane (we won't have desktop 5 MIP machines
+for another year), but not only that, we've discovered that the Cray 2's
+standard 'egrep' is also very anemic, performing 8-12 times as worse as ours
+on simple patterns.  For shame, especially since hearing of the rumor that
+certain group theorists have a search application ready for testing.
+Boyer-Moore could fill in until a Cray vectorizing C compiler shows up.
+Sheer speed for machines whose filesystems are cached in memory is nice too.
+
+     A quick-and-dirty rundown of the debts to which the new hybrid pays
+now follows.
+
+	Thompson, K. T. (CACM, November 1968):
+		Regular Expression Search Algorithm.  As usual, obvious
+		once you understand it.  The current 'egrep'.  Still
+		useful as a base.  Abstracted by Aho/Ullman as Algorithm
+		9.1 in Design and Analysis of Computer Algorithms.
+
+	Boyer/Moore:
+		Not quite pre-Unix.  Oh well.  Modern designers should
+		know better now, if they want their stuff to get out there.
+		By the way, I haven't used delta2 (or 1) since the O(mn) case
+		case doesn't come up too often.  Sure Knuth stood on his head
+		to better the linearity, but his proof had a bug in it until
+		the 1980 SIAM J. Comput. retraction.  Would you want to code
+		something that even Knuth trips up on?
+
+ 		Now to assuage nagging feelings that geneticists might want
+		to search entire libraries of 9000-unit nucleotide protein
+		sequences for ((AGCA|TTGCA).*TGC)|AGCT)?T?A+ or some nonsense
+		which MIGHT be nonlinear, you would want delta2.  So convince
+		someone to do the Galil/Apostolico/Giancarlo 2n comparison
+		worst case stuff.  See egrep.c for reference.
+		
+	Gosper, W. (HAKMEM 1972):
+		Gosper didn't get around to the Thompson-like machine until
+		1972 with HAKMEM.  His PDP 10 code is nevertheless valiant.
+		He is also (barely) credited with conceiving the backwards
+		match idea independently.  Where is he now?
+		
+	Morris/Pratt:
+		Nice guys, but for this purpose, has-beens.
+		Neat to see a hacker's triumph bury some theory.
+
+	Horspool (Software Practice & Experience, 1980):
+		Now here's a Canadian after the heart of things
+		(perfect hashing, text compression, NP-complete
+		code generation probs., etc.)  Did some Amdahl
+		timings to show that delta2 is not so hot.
+		Knows about Search For Least Frequent Character First,
+		which is useful for short patterns. 
+
+	{,e,f}grep man page:
+		The laughable bugnote "but we do not know a single algorithm
+		that spans a wide enough range of space-time tradeoffs"
+		certainly presumes that there is no such thing as switching
+		logic.  How the 'grep' family got into a multiple-version
+		mess is probably a Guy Harris story; 'egrep' looks like the
+		winner, as its functionality is pretty much a superset of
+		the other two.  The K & P teaser (p. 105) offers hope for
+		unification, but we see no difference with extant V8 code.
+
+     "Not cited in the text" -- the sexy randomized Karp/Rabin string searcher
+(Sedgewick, Algorithms, or Karp's Turing Award Lecture), and the ribald classic
+Time Warps, String Edits, and Macromolecules -- The Theory and Practice
+of Sequence Comparison (Kruskal & Sankoff).  Inquire within.
+Thanks for your patience,
+
+     James A. Woods (ames!jaw)
+     NASA Ames Research Center
+
+P.S.
+     Current applications for Boyer-Moore code include modification of 
+'fastfind' for true speed, as well as substring search for 'grab', both
+benefiting from BM-style search thru incrementally-compressed files/indices.
+
+End of pep4grep.doc2
+echo pep4grep.doc3 1>&2
+cat > pep4grep.doc3 <<'End of pep4grep.doc3'
+Subject: Get Hep to Kanji-Ready Five-Algorithm [ef]?grep
+
+#  "I need very little,
+      and of that little,
+         I need very little."  -- St. Francis of Assisi
+
+     Hybrid blitz 'egrep', whose urquell is a veritable chimaera of at least
+five string search techniques, is now further tuned.
+
+     Posted to USENET (and the mod.sources archive) some months ago, our
+implementation of "plug-compatible" egrep.c has been extended to support:
+
+	transparent 'grep' expression translation, to bring the speed of
+	hyper-'egrep' to bear upon searches specified via the less capable
+	'grep' syntax.
+
+	interception of 'fgrep' for alternations of low (<= 7) cardinality,
+	using a novel method of Boyer-Moore table superimposition and
+	pre-computation magic.  the resulting speedup applies also to simple
+	metacharacter-free 'egrep'-style alternations.
+
+	(the above two improvements are made invisible by linking the
+	grep/egrep/fgrep triumvirate.)
+
+	a revised strategy of fallback to standard 'egrep' for hard
+	cases, which eliminates costly popen() plumbing in favor of a
+	statistically-based re-exec() dynamic.
+
+	more complete application of fast match to standard options,
+	including -n line numbering.
+
+	preparation for Kanji pattern input, based upon parity-marked EUC
+	codes.  new egrep.c is "eight-bit clean".  the fast algorithms
+	unfortunately currently apply only to meta-free patterns and
+	simple alternations; full Kanji regular expression treatment
+	remains problematic.  however, the new code will pass difficult
+	input through to [ef]?grep utilities in the UNIX Japan standard
+	substrate.
+
+     Kanji capability is perhaps the most important addition, as the
+number of UNIX systems in the Orient proliferate, providing a "new market"
+for Boyer-Moore-style search.  However, actual search efficacy remains
+unknown until the Gaijin author gains feedback from JUNET or points beyond.
+For all we know, Nippon text search utilities may already incorporate
+the methods.  Tests conducted so far have been with artificial Kanji files.
+
+     In case you are w(o|a)ndering, be reminded that no vendor source
+changes are required to use the code.  It is configured as a turbo-charged
+"front-end" to the existing section one commands, though it is (barely)
+conceivable to adapt things, at a loss in worst-case efficiency, for
+(heaven forfend!) non-Unix systems running C.  And, since we do not offer
+a minimalist grep, do not expect it to run well on minimalist UNIX clones.
+
+     Below appears a brief timing run on Webster's 2nd wordlist.  Notes
+on implementation changes since original release follow in the next message.
+If you want to skip the rest, fine.  The easy instructions -- download
+from comp.sources [or 'anonymous' ftp of egrep.shar.Z from ames-aurora.arpa
+for the (im)patient], and run:
+
+	make
+	sh eg.shell	# regression test amusement
+	make install
+
+after perusing README.FIRST.  Though the bundle in ~ftp/pub at NASA Ames
+Research Center contains prerequisite support from Univ. of Toronto's
+Henry Spencer, we are not re-posting regcomp()/regexec() to comp.sources.
+John Gilmore of the GNU project has a modified regexec(), but it is not
+mandatory for running the new egrep.
+
+     Contrary to popular belief, old egrep is not I/O bound for large
+large files on most machines.  The new version is.  One sample:
+
+	time egrep 'u.*nix' /usr/dict/web2	(2.5 MB)
+	  (yielding {Coturnix, Pseudophoenix, [Tt]urnix}), shows
+
+		        user	 sys      real	 (load ave. < 1)
+
+	VAX 11/750, 4.3 BSD, Fujitsu Eagles
+	   (new)	6.8      3.8       11
+	   (old)       70.0      5.5       87
+
+	Sun 3/160, 3.2 OS, Eagle on SMD
+	   (new)	1.7      2.2	    5
+	   (old)       14.7      1.5       16
+
+	Cray 2, Sys 5, no disk striping
+	   (new)        .93      .11        1
+	   (old)       8.07      .21        8
+
+notes:  New egrep was actually run with -i option, but not old egrep.
+Also, fumbling for three-character residue is not [ef]?grep's forte,
+so the example is conservative.
+
+Sun 3 has higher sys time for some unknown reason (a guess:  VAX 4.3 kernel
+handles read() calls with oddsize buffers differently?).  Cray 2 reportedly
+does disk I/O at 5-10 megabytes per second, but the architecture/compiler
+is bad at byte addressing -- no cache, no vectors here.  Unfair comparison:
+new egrep on Sun beats old egrep on Cray 2, even with fast Cray I/O!
+
+Speculation:  the code might be useful on the Macintosh II, even if the Unix
+filesystem (Sys 5?) were to waste 3/4 of the 1 MB/sec SCSI disk bandwidth.
+Mac 2 testers please forward info to ames!jaw.
+
+     Another metric is inner loop efficiency:
+
+				# instructions
+	VAX Berkeley cc			5
+	Sun 68020 3.2 cc		6
+	Stallman's GNU 68020 cc		4
+	MIPS R2000			6
+	Cray 2			       25
+
+Thanks goes to mips!dce (David Elliott) for his testing time, as well as
+to RMS for two-upping Sun's C compiler.
+
+     Of course, if you have a Connection Machine dedicated to running their
+admirable full-text keyworder on "in-core" text, you won't need [ef]?grep at
+all.  And, for unindexed text on fine-grained parallel machines, reg. expr.
+search algorithms can be made to run with a lower time bound (see the Hillis
+book).  But if your files are on disk, even a specialized search chip won't help
+once things become I/O or bus limited.  For this reason, vectorization on a
+Cray(ette) would be a bust, though Cray buffs may write the author for other
+scalar speedup ideas...
+
+[continued]
+End of pep4grep.doc3
+echo pep4grep.doc4 1>&2
+cat > pep4grep.doc4 <<'End of pep4grep.doc4'
+#  How long a time lies in one little word! -- Shakespeare, Richard II, I, iii
+
+#  Fine words butter no parsnips. -- Southern proverb
+
+		[ef]?grep Implementation Changes
+
+'grep' r.e. translation:
+
+     To buy speed for the novice 'grep' user who deigns not to learn the
+extended 'egrep' syntax, we translate 'grep' r.e.'s to the 'egrep' superset.
+It is straightforward enough to surround search patterns meaningful to
+'egrep' but not to 'grep'.  Odd cases include the -w option, not implemented
+in standard 'egrep', the defunct -y option, and "tagged expressions", which
+are done via an exec() of /bin/grep.  Tagged exprs, like
+
+	grep '\(....\).*\1' /usr/dict/words
+
+which outputs chaff like "beriberi", "couscous", "hodgepodge", and
+"lightweight", are weird.  The irregularity these exprs lend coupled with
+a low complexity/utility ratio kept them from being part of 'egrep'.
+But for this feature, old 'grep' code could be thrown away.
+
+'fgrep' improvement / (partial) unification:
+
+     In the new release, we trap low-complexity disjunctions such as
+
+		egrep 'boyer|moore' file
+or
+		fgrep 'boyer\n
+		moore' file
+
+(or with "-f patfile" in place of the pattern) with a method to superimpose
+the non-terminals within the Boyer/Moore table.  When scanning text backwards,
+other programming tricks short-circuit some tests against the pattern.
+Sparing further details, which might make for a more formal writeup, it
+suffices to say that although worst-case complexity here is O(Rn) with string
+length 'n', and R == r.e. size, average-case for text is still sublinear.  E.g.
+
+	egrep 'silver|orange|purple'  	# hard-to-rhyme color test in eg.shell
+
+looks at ~55000 chars in /usr/dict/words, whereas (three) separate invocations
+of egrep on the individual color words make the code look at ~40000 bytes per
+word.  Aho/Corrasick's 'fgrep', in contrast, must look at all 200KB in the
+dictionary.  The elegant "trie" construction within "fgrep" excels, however,
+for medium/large R.  An equally ambitious "reverse trie", supplementing our
+extant "alternation mush", would attenuate worst-case behavior while preserving
+low R speedup.  We save the addition for another day.
+
+     Since the syntax for [ef]grep is similar, we thought of making egrep
+hand off to fgrep for sufficiently large metacharacter-free R, as there is no
+strong reason to make the user conscious of the separate algorithms.  Certain
+technicalities prevent this.  For one, we are not willing to invent an 'egrep'
+option to inform the code to interpret a file of (say a hundred) word
+alternatives containing some innocent metacharacter, that it is literal
+'fgrep' input, rather than a closure-containing 'egrep' pattern which would
+otherwise make egrep explode.  More work could be done here.
+
+     Our motivation?  Is this not all overblown?  Perhaps, but now you can
+build a simple fast "NSA filter", or search for the seven dwarfs at leisure.
+Besides, the final nail needed to be driven into 'bm/match', which tried
+to do parallel match, but actually shuffled things out of order during its
+simplistic block-based scheme.  These programs, part of source archive also,
+are now historical curiosities.
+
+Kanji egrep:
+
+     Copious notes are in README.kanji.mods.  The March 1987 Unix Review
+was indispensable for pointing out the embedded "SS2" Katakana pitfalls.
+The modularity of our code as a semi-dependent filter was necessary for this
+exploration, as we have no access to AT&T/Unisoft Kanji code.  Again, JUNET
+or Sigma project people -- please respond with grep war stories or usage notes.
+
+Worst-case r.e. handling:
+
+     The first code release elaborately called upon a function mcilroy()
+to pipe partial match output to old egrep for tough expressions, whose
+backtracking might swamp regexp().  Some details of the DFA/NDFA tradeoff
+were discussed in pep4grep.doc[12].  Due largely to feedback from John Gilmore
+of the GNU project, the strategy was revised.  egrep.c function kernighan()
+("let others do the hard part") now usurps calls to costly popen() by invoking
+exec() on old egrep when necessary.  Rough partial match statistics gathered
+on the fly determine the handoff.  You may revise the time reported previously
+for
+	egrep 'hoe.*g' /usr/dict/words
+
+from 1.2 user, 1.1 sys seconds (VAX 11/750, 4.3BSD, Fuji disks) to 0.8u, 0.4s.
+For those public-spirited souls who really want to build a PD egrep out of
+what we offer, sans fallback from regexp() to an AT&T /usr/bin/egrep, the
+slippery test "egrep 'g+h+o' /usr/dict/words" will prove enlightening.
+
+Faster -n option:
+
+     By popular demand.  Though Boyer/Moore techniques subvert line numbering,
+we've made it faster with brute force (loop unrolling helps VAXEN, but not
+CRISPS).  Timing tests for this and other options appear in the eg.shell script.
+
+Not so fast:
+
+	-v, -b, -w, various r.e.'s with no rexexp() "residue"
+
+(you'll still have to use the layered "grep host /etc/hosts | grep -w host"
+for speed.)
+
+Other contra-indications for new [ef]?grep:
+
+	Monster patterns
+
+     The amazing expressions output by /usr/lib/calendar still beg for
+the lazy evaluation technique rolled into edition 8 egrep by Prof. Aho of
+Princeton.  Hinted at on p. 105 in Kernighan & Pike, lazy evaluation reduces
+standard egrep r.e. compile time.  Here the possible O(R**2) machine
+construction cost is eliminated to amortize complexity at run-time and 
+shifted to such only if a bad match actually happens.  Whew!  Fortunately,
+this is not so important for simple r.e. fare, where H. Spencer's regexp()
+works well, but it certainly helps calendar(1).
+
+     The catch with lazy eval. is that it slows down simple matching (15-20%
+for /usr/dict/words on VAX), so it hasn't been adopted by System V egrep.
+Note that our egrep, deferring to the underlying one in /usr/bin, doesn't
+care much about these hideous beasts -- it just doesn't do better on them.
+However, [ef]?grep does well by the Kadhafi matcher (eg.shell, again).
+
+	Long lines, small alphabets
+
+     Finally, a comment on one rapidly burgeoning application area
+where new egrep should not be blindly proscribed -- genome sequencing.
+Though line limits have been raised (to 8192 byte buffers), much of
+GENBANK has no newlines.  The code would need modification for scanning
+freestyle.  Also, locating ACGT sequences with the current "superimposed BMG"
+over a 4-letter alphabet might actually be worse, but the global homology
+crowd probably uses a >20 letter protein alphabet (for other reasons).
+At any rate, genetic string search generally relies on more sophisticated
+methods such as dynamic programming ala Sankoff/Kruskal.
+
+     On the other hand, large alphabets such as Kanji probably help
+performance.  As do parallel transfer disks, MACH file mapping, ...
+Your suggestions welcome.
+
+     James A. Woods (ames!jaw)
+     NASA Ames Research Center
+
+P.S.  Preserving author credit, [ef]?grep may be redistributed as you wish.
+End of pep4grep.doc4
+echo regerror.c 1>&2
+cat > regerror.c <<'End of regerror.c'
+#include <stdio.h>
+
+void
+regerror(s)
+char *s;
+{
+#ifdef ERRAVAIL
+	error("regexp: %s", s);
+#else
+/*
+	fprintf(stderr, "regexp(3): %s\n", s);
+	exit(1);
+*/
+	return;	  /* let std. egrep handle errors */
+#endif
+	/* NOTREACHED */
+}
+End of regerror.c
+cat k.test | tr W '\200' | tr X '\201' | tr Y '\202' | tr Z '\216' > kanji.fake.test
+cat k.pat | tr X '\201' | tr Y '\202' > kanjipat.fake
+rm k.test k.pat
+-- 
+Rich $alz			rsalz@pineapple.bbn.com
+Cronus Project, BBN Labs	"Anger is an energy"

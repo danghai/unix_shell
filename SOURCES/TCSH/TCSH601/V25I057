@@ -1,0 +1,3430 @@
+Newsgroups: comp.sources.unix
+From: christos@ee.cornell.edu (Christos Zoulas)
+Subject: v25i057: tcsh6.01 - a csh replacement with lots of extra goodies, Part04/18
+Message-ID: <1991Dec20.214003.6505@PA.dec.com>
+Date: Fri, 20 Dec 91 21:40:03 GMT
+Approved: vixie@pa.dec.com
+
+Submitted-By: christos@ee.cornell.edu (Christos Zoulas)
+Posting-Number: Volume 25, Issue 57
+Archive-Name: tcsh-6.01/part04
+
+#! /bin/sh
+# This is a shell archive.  Remove anything before this line, then unpack
+# it by saving it into a file and typing "sh file".  To overwrite existing
+# files, type "sh file -c".  You can also feed this as standard input via
+# unshar, or by typing "sh <file", e.g..  If this archive is complete, you
+# will see the following message at the end:
+#		"End of archive 4 (of 18)."
+# Contents:  Imakefile ed.decls.h ed.h glob.3 sh.misc.c tc.decls.h
+#   tc.sched.c tc.sig.c tc.str.c tw.init.c
+# Wrapped by vixie@cognition.pa.dec.com on Fri Dec 20 13:29:25 1991
+PATH=/bin:/usr/bin:/usr/ucb ; export PATH
+if test -f 'Imakefile' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'Imakefile'\"
+else
+echo shar: Extracting \"'Imakefile'\" \(8941 characters\)
+sed "s/^X//" >'Imakefile' <<'END_OF_FILE'
+X/**/#
+X/**/# $Id: Imakefile,v 1.5 1991/11/26 04:28:26 christos Exp $
+X/**/#
+X/**/# Imakefile for for tcsh 6.00
+X/**/# Marc Horowitz, MIT SIPB
+X/**/#
+X
+X#ifdef DestDir
+X#undef DestDir
+X#endif
+X
+X/* All config options go in a separate file. */
+X
+X#include "imake.config"
+X
+X/* This is a giant conditional block.  It should be set up right for
+platforms which are in here, but it may need to be changed for new
+ones.  Please send in your fixes and additions! */
+X
+X/**** tcsh configuration defines ****/
+X
+X/* specific platforms */
+X
+X#ifdef UltrixArchitecture
+X#define ConfigH ultrix
+X#endif
+X
+X#if defined(VaxArchitecture) && !defined(UltrixArchitecture)
+X#define ConfigH bsd
+X#endif
+X
+X#ifdef NeXTArchitecture
+X#define ConfigH next
+X#endif
+X
+X#if defined(SunArchitecture)
+X# if (OSMajorVersion == 3)
+X#  define ConfigH sunos3
+X# else /* OSMajorVersion == 4 */
+X#  if (OSMinorVersion == 0)
+X#   define ConfigH sunos40
+X#  else /* OSMinorVersion == 1 */
+X#   define ConfigH sunos41
+X#  endif
+X# endif
+X#endif
+X
+X#ifdef HPArchitecture
+X#define ConfigH hpux
+X#endif
+X
+X#ifdef CrayArchitecture
+X#define ConfigH cray
+X#endif
+X
+X#ifdef SGIArchitecture
+X#define ConfigH sgi
+X#endif
+X
+X#ifdef IBMArchitecture
+X# if (SystemV == YES)
+X#  define ConfigH aix
+X# else
+X#  define ConfigH bsd
+X#  define AOSArchitecture
+X# endif
+X#endif
+X
+X#if defined(MipsBsdArchitecture) || defined(MipsSysvArchitecture)
+X#define ConfigH mips
+X#endif
+X
+X#ifdef DguxArchitecture
+X#define ConfigH dgux
+X#endif
+X
+X#ifdef ConvexArchitecture
+X#define ConfigH convex
+X#endif
+X
+X#ifdef SQNTArchitecture
+X#define ConfigH sequent
+X#endif
+X
+X/* generic os's */
+X
+X#ifndef ConfigH
+X
+X#if (SystemV == YES)
+X#define ConfigH sysv3
+X#else
+X/* why this as a default?  Why not? */
+X#define ConfigH bsd
+X#endif
+X
+X#endif /* !ConfigH */
+X
+X/*
+X * Concat3 - concatenates three strings.
+X */
+X#ifndef Concat3
+X# if defined(__STDC__) && !defined(UnixCpp)
+X#  define XConcat3(a,b,c) a##b##c
+X#  define Concat3(a,b,c) XConcat3(a,b,c)
+X# else
+X#  define Concat3(a,b,c) a/**/b/**/c
+X# endif
+X#endif
+X
+CONFIGH = Concat3(-DCONFIGH=\"config/config.,ConfigH,\")
+X
+X#ifdef TcshPath
+TCSHPATH = Concat3(-D_PATH_TCSHELL=\",TcshPath,\")
+X#else
+TCSHPATH =
+X#endif
+X
+X/**** libraries ****/
+X
+X#if (SystemV == NO) || defined(HPArchitecture) || defined(SQNTArchitecture) || \
+X	defined(MacIIArchitecture) || defined(UseLibTermcap)
+LIBTERMCAP = -ltermcap
+X#else
+LIBTERMCAP =
+X#endif
+X
+X#if defined(SQNTArchitecture)
+LIBSQNT=-lseq
+X#endif
+X
+X/* This may not be good enough - I don't have access to enough systems
+to really test it. */
+X#if (SystemV == YES) || defined(UseLibCurses) && !defined(HPArchitecture)
+LIBCURSES = -lcurses
+X#else
+LIBCURSES =
+X#endif
+X
+X#if defined(UseLibNet)
+LIBNET = -lnet
+X#else
+LIBNET =
+X#endif
+X
+X#if defined(UseLibSocket)
+LIBSOCKET = -lsocket
+X#else
+LIBSOCKET =
+X#endif
+X
+X#if defined(SGIArchitecture) || defined(_IBMR2) || \
+X	(!defined(RtArchitecture) && defined(AIXArchitecture)) || \
+X	defined(UseLibBSD)
+LIBBSD = -lbsd
+X#else
+LIBBSD = 
+X#endif
+X
+X#if (defined(SGIArchitecture) && \
+X     (OSMajorVersion == 3) && (OSMinorVersion == 3)) || \
+X	defined(UseLibC_S)
+LIBC_S = -lc_s
+X#else
+LIBC_S =
+X#endif
+X
+X#if defined(UseLibSun)
+LIBSUN = -lsun
+X#else
+LIBSUN =
+X#endif
+X
+X#if defined(UseLibCposix)
+LIBCPOSIX = -lcposix
+X#else
+LIBCPOSIX =
+X#endif
+X
+X#if defined(UseLibInet)
+LIBINET = -linet
+X#else
+LIBINET =
+X#endif
+X
+X#if defined(UseLibDir)
+LIBDIR = -ldir
+X#else
+LIBDIR = 
+X#endif
+X
+X#if defined(UseLibX)
+LIBX = -lx
+X#else
+LIBX =
+X#endif
+X
+X#if defined(UseLibIntl)
+LIBINTL = -lintl
+X#else
+LIBINTL =
+X#endif
+X
+X#if defined(MacIIArchitecture) || defined(UseLibPosix)
+LIBPOSIX = -lposix
+X#else
+LIBPOSIX =
+X#endif
+X
+X#if defined(ATTArchitecture) || defined(UseLibDirent)
+LIBDIRENT = -ldirent
+X#else
+LIBDIRENT =
+X#endif
+X
+X# The order here is significant.  Although nothing uses all of these, 
+X# some platforms which use more than one do care about the order.
+X
+SYSLIBS = $(LIBPOSIX) $(LIBDIRENT) $(LIBTERMCAP) $(LIBCURSES) \
+X	$(LIBNET) $(LIBINTL) $(LIBSOCKET) $(LIBSUN) $(LIBBSD) $(LIBCPOSIX) \
+X	$(LIBINET) $(LIBDIR) $(LIBX) $(LIBC_S) $(LIBSQNT)
+X
+X/* Past here, nothing should need to be changed to compile on a different
+platform, unless you have a really weird architecture. */
+X
+X#ifdef MyCC
+CC = MyCC
+X#else
+X# ifdef HasGCC
+CC = gcc -fcombine-regs -finline-functions -fstrength-reduce
+X# else
+CC = cc
+X# endif
+X#endif
+X
+X#ifdef HESIOD
+X# ifdef NeXTArchitecture
+HESLIB = -L/usr/athena/lib -lhesiod -lresolv
+X# else
+HESLIB = -L/usr/athena/lib -lhesiod
+X# endif
+X/* it seems to me that the -I shouldn't be necessary, but there seems
+to be a bug in the Imake stuff, so here it is. */
+HESDEF = -DHESIOD -I/usr/athena/include
+X#else
+HESLIB =
+HESDEF =
+X#endif
+X
+X/* This is encore specific, but I don't know what encore's #define is,
+and it shouldn't hurt to have it here, so here it is */
+PARALLEL=12				# Make the multi-max run fast.
+X
+X#ifndef DestDir
+X#define DestDir /usr/local
+X#endif
+X
+DESTDIR = DestDir
+MANSUFFIX = 1
+X#ifdef DestBin
+BINDIR = DestBin
+X#else
+BINDIR = $(DESTDIR)/bin
+X#endif
+X#ifdef DestMan
+MANDIR = DestMan
+X#else
+MANDIR = $(DESTDIR)/man/man$(MANSUFFIX)
+X#endif
+X
+X#ifndef MyCflags
+X#define MyCflags
+X#endif
+X
+X#ifndef MyDefines
+X#define MyDefines
+X#endif
+X
+X#ifndef MyIncludes
+X#define MyIncludes
+X#endif
+X
+X#ifndef MyLibs
+X#define MyLibs
+X#endif
+X
+X#ifdef CDebugFlags
+CDEBUGFLAGS = CDebugFlags
+X#else
+CDEBUGFLAGS = -O
+X#endif
+X
+X#ifdef AOSArchitecture
+X#define UStdc -U__STDC__
+X#else
+X#define UStdc
+X#endif
+X
+X#ifdef HostType
+HTDEF = Concat3(-DHOSTTYPE=\",HostType,\")
+X#else
+HTDEF =
+X#endif
+X
+DEFINES = $(CONFIGH) $(TCSHPATH) $(HESDEF) $(HTDEF) MyDefines MyCflags UStdc
+INCLUDES = -I. MyIncludes
+LDLIBS = MyLibs
+X
+SUF = o
+VERSION = 6.00
+X
+SHSRCS=	sh.c sh.dir.c sh.dol.c sh.err.c sh.exec.c sh.char.c \
+X	sh.exp.c sh.file.c sh.func.c sh.glob.c sh.hist.c sh.init.c \
+X	sh.lex.c sh.misc.c sh.parse.c sh.print.c sh.proc.c sh.sem.c \
+X	sh.set.c sh.time.c sh.char.h sh.dir.h sh.proc.h sh.h \
+X	sh.decls.h glob.c glob.h mi.wait.h mi.termios.c
+SHOBJS=	sh.${SUF} sh.dir.${SUF} sh.dol.${SUF} sh.err.${SUF} sh.exec.${SUF} \
+X	sh.char.${SUF} sh.exp.${SUF} sh.func.${SUF} sh.glob.${SUF} \
+X	sh.hist.${SUF} sh.init.${SUF} sh.lex.${SUF} sh.misc.${SUF} \
+X	sh.parse.${SUF} sh.print.${SUF} sh.proc.${SUF} sh.sem.${SUF} \
+X	sh.set.${SUF} sh.time.${SUF} glob.${SUF} mi.termios.${SUF}
+X
+TWSRCS= tw.decls.h tw.h tw.help.c tw.init.c tw.parse.c tw.spell.c
+TWOBJS=	tw.help.${SUF} tw.init.${SUF} tw.parse.${SUF} tw.spell.${SUF}
+X
+XEDSRCS= ed.chared.c ed.decls.h ed.defns.c ed.h ed.init.c ed.inputl.c \
+X	ed.refresh.c ed.screen.c ed.xmap.c ed.term.c ed.term.h
+XEDOBJS=	ed.chared.${SUF} ed.refresh.${SUF} ed.screen.${SUF} ed.init.${SUF} \
+X	ed.inputl.${SUF} ed.defns.${SUF} ed.xmap.${SUF} ed.term.${SUF}
+X
+TCSRCS= tc.alloc.c tc.bind.c tc.const.c tc.decls.h tc.disc.c \
+X	tc.func.c tc.os.c tc.os.h tc.printf.c tc.prompt.c \
+X	tc.sched.c tc.sig.c tc.sig.h tc.str.c sh.types.h tc.vers.c tc.wait.h \
+X	tc.who.c tc.h
+TCOBJS=	tc.alloc.${SUF} tc.bind.${SUF} tc.const.${SUF} tc.disc.${SUF} \
+X	tc.func.${SUF} tc.os.${SUF} tc.printf.${SUF} \
+X	tc.prompt.${SUF} tc.sched.${SUF} tc.sig.${SUF} tc.str.${SUF} \
+X	tc.vers.${SUF} tc.who.${SUF} 
+X
+MISCF = Makefile Fixes MAKEDIFFS MAKESHAR NewThings README FAQ \
+X	WishList config_f.h eight-bit.me glob.3 patchlevel.h \
+X	pathnames.h tcsh.man Ported src.desc Imakefile imake.config \
+X	README.imake
+CONFSRCS=config/config.*
+X
+X
+SRCS = $(SHSRCS) $(TWSRCS) $(EDSRCS) $(TCSRCS)
+OBJS = $(SHOBJS) $(TWOBJS) $(EDOBJS) $(TCOBJS)
+X
+ALLSRCS= $(MISCF) $(SRCS)
+X
+all:: tcsh
+X
+ed.defns.h: ed.defns.c
+X	@rm -f $@
+X	@echo '/* Do not edit this file, make creates it. */' > $@
+X	@echo '#ifndef _h_ed_defns' >> $@
+X	@echo '#define _h_ed_defns' >> $@
+X	egrep '[FV]_' ed.defns.c | egrep '^#define' >> $@
+X	@echo '#endif /* _h_ed_defns */' >> $@
+X
+sh.err.h: sh.err.c
+X	@rm -f $@
+X	@echo '/* Do not edit this file, make creates it. */' > $@
+X	@echo '#ifndef _h_sh_err' >> $@
+X	@echo '#define _h_sh_err' >> $@
+X	egrep 'ERR_' sh.err.c | egrep '^#define' >> $@
+X	@echo '#endif /* _h_sh_err */' >> $@
+X
+tc.const.h: tc.const.c
+X	@rm -f $@
+X	@echo '/* Do not edit this file, make creates it. */' > $@
+X	$(CC) -E $(CFLAGS) tc.const.c | egrep 'Char STR' | \
+X	    sed -e 's/Char \([a-zA-Z0-9_]*\)\(.*\)/extern Char \1[];/' | \
+X	    sort >> $@
+X
+X$(OBJS): sh.err.h tc.const.h ed.defns.h
+X
+tar:
+X	rm -f tcsh-${VERSION}.tar.Z
+X	rm -rf tcsh-${VERSION} 
+X	mkdir tcsh-${VERSION} tcsh-${VERSION}/config
+X	cp ${ALLSRCS} tcsh-${VERSION}
+X	cp ${CONFSRCS} tcsh-${VERSION}/config
+X	tar cvf - tcsh-${VERSION} | compress > tcsh-${VERSION}.tar.Z
+X	rm -rf tcsh-${VERSION}
+X
+shar:
+X	rm -f tcsh-*.shar
+X	rm -rf tcsh-${VERSION} 
+X	mkdir tcsh-${VERSION} tcsh-${VERSION}/config
+X	cp ${ALLSRCS} tcsh-${VERSION}
+X	cp ${CONFSRCS} tcsh-${VERSION}/config
+X	MAKESHAR ${VERSION} tcsh-${VERSION}/[a-zA-Z]* \
+X			    tcsh-${VERSION}/config/config.*
+X	rm -rf tcsh-${VERSION}
+X
+world:
+X	make clean ; make depend ; make tcsh ; make install
+X
+clean::
+X	rm -f ed.defns.h sh.err.h tc.const.h
+X
+depend:: ed.defns.h sh.err.h tc.const.h $(SRCS)
+X
+NormalProgramTarget(tcsh, $(OBJS), ed.defns.h sh.err.h tc.const.h, \
+X			/*LOCALLIBS*/, $(HESLIB) $(SYSLIBS))
+X
+InstallProgram(tcsh, $(BINDIR));
+InstallManPage(tcsh, $(MANDIR));
+DependTarget()
+END_OF_FILE
+if test 8941 -ne `wc -c <'Imakefile'`; then
+    echo shar: \"'Imakefile'\" unpacked with wrong size!
+fi
+# end of 'Imakefile'
+fi
+if test -f 'ed.decls.h' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'ed.decls.h'\"
+else
+echo shar: Extracting \"'ed.decls.h'\" \(9214 characters\)
+sed "s/^X//" >'ed.decls.h' <<'END_OF_FILE'
+X/* $Header: /home/hyperion/mu/christos/src/sys/tcsh-6.01/RCS/ed.decls.h,v 3.11 1991/11/26 04:28:26 christos Exp $ */
+X/*
+X * ed.decls.h: Editor external definitions
+X */
+X/*-
+X * Copyright (c) 1980, 1991 The Regents of the University of California.
+X * All rights reserved.
+X *
+X * Redistribution and use in source and binary forms, with or without
+X * modification, are permitted provided that the following conditions
+X * are met:
+X * 1. Redistributions of source code must retain the above copyright
+X *    notice, this list of conditions and the following disclaimer.
+X * 2. Redistributions in binary form must reproduce the above copyright
+X *    notice, this list of conditions and the following disclaimer in the
+X *    documentation and/or other materials provided with the distribution.
+X * 3. All advertising materials mentioning features or use of this software
+X *    must display the following acknowledgement:
+X *	This product includes software developed by the University of
+X *	California, Berkeley and its contributors.
+X * 4. Neither the name of the University nor the names of its contributors
+X *    may be used to endorse or promote products derived from this software
+X *    without specific prior written permission.
+X *
+X * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+X * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+X * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+X * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+X * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+X * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+X * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+X * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+X * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+X * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+X * SUCH DAMAGE.
+X */
+X#ifndef _h_ed_decls
+X#define _h_ed_decls
+X
+X/*
+X * ed.chared.c
+X */
+extern	int	InsertStr		__P((Char *));
+extern	void	DeleteBack		__P((int));
+X
+X/*
+X * ed.init.c
+X */
+extern	void	check_window_size	__P((int));
+X#ifdef SIG_WINDOW
+extern	sigret_t window_change		__P((int));
+X#endif
+extern	int	ed_Setup		__P((int));
+extern	void	ed_Init			__P((void));
+extern	int	Cookedmode		__P((void));
+extern	int	Rawmode			__P((void));
+extern	void	ed_set_tty_eight_bit	__P((void));
+X
+extern	void	QuoteModeOn		__P((void));
+extern	void	QuoteModeOff		__P((void));
+extern	void	ResetInLine		__P((void));
+extern	int	Load_input_line		__P((void));
+X
+X/*
+X * ed.term.c:
+X */
+extern	void	dosetty			__P((Char **, struct command *));
+extern	int	tty_getty 		__P((int, ttydata_t *));
+extern	int	tty_setty 		__P((int, ttydata_t *));
+extern	void	tty_getchar 		__P((ttydata_t *, unsigned char *));
+extern	void	tty_setchar 		__P((ttydata_t *, unsigned char *));
+extern	speed_t	tty_getspeed 		__P((ttydata_t *));
+extern	int	tty_gettabs 		__P((ttydata_t *));
+extern	int	tty_geteightbit		__P((ttydata_t *));
+extern	int	tty_cooked_mode		__P((ttydata_t *));
+X#ifdef _IBMR2
+extern	void	tty_setdisc		__P((int, int));
+X#endif /* _IBMR2 */
+X
+X/*
+X * ed.screen.c
+X */
+extern	void	SetAttributes		__P((int));
+extern	void	so_write		__P((Char *, int));
+extern	void	ClearScreen		__P((void));
+extern	void	MoveToLine		__P((int));
+extern	void	MoveToChar		__P((int));
+extern	void	ClearEOL		__P((int));
+extern	void	Insert_write		__P((Char *, int));
+extern	void	DeleteChars		__P((int));
+extern	void	TellTC			__P((char *));
+extern	void	SetTC			__P((char *, char *));
+extern	void	EchoTC			__P((Char **));
+extern	void	BindArrowKeys		__P((void));
+extern	void	Beep			__P((void));
+extern	int	CanWeTab		__P((void));
+extern	void	ChangeSize		__P((int, int));
+extern	int	GetSize			__P((int *, int *));
+extern	void	ClearToBottom		__P((void));
+extern	void	GetTermCaps		__P((void));
+X
+X/*
+X * ed.defns.c
+X */
+extern	void	ed_InitNLSMaps		__P((void));
+X#ifdef DEBUG_EDIT
+extern	void	CheckMaps		__P((void));
+X#endif
+extern	void	ed_InitMaps		__P((void));
+extern	void	ed_InitEmacsMaps	__P((void));
+extern	void	ed_InitVIMaps		__P((void));
+X
+extern  CCRETVAL	e_unassigned		__P((int));
+extern	CCRETVAL	e_insert		__P((int));
+extern	CCRETVAL	e_newline		__P((int));
+extern	CCRETVAL	e_delprev		__P((int));
+extern	CCRETVAL	e_delnext		__P((int));
+extern	CCRETVAL	e_list_delnext		__P((int));	/* for ^D */
+extern	CCRETVAL	e_toend			__P((int));
+extern	CCRETVAL	e_tobeg			__P((int));
+extern	CCRETVAL	e_charback		__P((int));
+extern	CCRETVAL	e_charfwd		__P((int));
+extern	CCRETVAL	e_quote			__P((int));
+extern	CCRETVAL	e_startover		__P((int));
+extern	CCRETVAL	e_redisp		__P((int));
+extern	CCRETVAL	e_wordback		__P((int));
+extern	CCRETVAL	e_wordfwd		__P((int));
+extern	CCRETVAL	v_wordbegnext		__P((int));
+extern	CCRETVAL	e_uppercase		__P((int));
+extern	CCRETVAL	e_lowercase		__P((int));
+extern	CCRETVAL	e_capitolcase		__P((int));
+extern	CCRETVAL	e_cleardisp		__P((int));
+extern	CCRETVAL	e_complete		__P((int));
+extern	CCRETVAL	e_correct		__P((int));
+extern	CCRETVAL	e_correctl		__P((int));
+extern	CCRETVAL	e_up_hist		__P((int));
+extern	CCRETVAL	e_down_hist		__P((int));
+extern	CCRETVAL	e_up_search_hist	__P((int));
+extern	CCRETVAL	e_down_search_hist	__P((int));
+extern	CCRETVAL	e_helpme		__P((int));
+extern	CCRETVAL	e_list_choices		__P((int));
+extern	CCRETVAL	e_delwordprev		__P((int));
+extern	CCRETVAL	e_delwordnext		__P((int));
+extern	CCRETVAL	e_digit			__P((int));
+extern	CCRETVAL	e_argdigit		__P((int));
+extern	CCRETVAL	v_zero			__P((int));
+extern	CCRETVAL	e_killend		__P((int));
+extern	CCRETVAL	e_killbeg		__P((int));
+extern	CCRETVAL	e_metanext		__P((int));
+X#ifdef notdef
+extern	CCRETVAL	e_extendnext		__P((int));
+X#endif
+extern	CCRETVAL	e_send_eof		__P((int));
+extern	CCRETVAL	e_charswitch		__P((int));
+extern	CCRETVAL	e_gcharswitch		__P((int));
+extern	CCRETVAL	e_which			__P((int));
+extern	CCRETVAL	e_yank_kill		__P((int));
+extern	CCRETVAL	e_tty_dsusp		__P((int));
+extern	CCRETVAL	e_tty_flusho		__P((int));
+extern	CCRETVAL	e_tty_quit		__P((int));
+extern	CCRETVAL	e_tty_tsusp		__P((int));
+extern	CCRETVAL	e_tty_stopo		__P((int));
+extern	CCRETVAL	e_tty_starto		__P((int));
+extern	CCRETVAL	e_argfour		__P((int));
+extern	CCRETVAL	e_set_mark		__P((int));
+extern	CCRETVAL	e_exchange_mark		__P((int));
+extern	CCRETVAL	e_last_item		__P((int));
+extern	CCRETVAL	v_cmd_mode		__P((int));
+extern	CCRETVAL	v_insert		__P((int));
+extern	CCRETVAL	v_replmode		__P((int));
+extern	CCRETVAL	v_replone		__P((int));
+extern	CCRETVAL	v_substline		__P((int));
+extern	CCRETVAL	v_substchar		__P((int));
+extern	CCRETVAL	v_add			__P((int));
+extern	CCRETVAL	v_addend		__P((int));
+extern	CCRETVAL	v_insbeg		__P((int));
+extern	CCRETVAL	v_chgtoend		__P((int));
+extern	CCRETVAL	e_killregion		__P((int));
+extern	CCRETVAL	e_killall		__P((int));
+extern	CCRETVAL	e_copyregion		__P((int));
+extern	CCRETVAL	e_tty_int		__P((int));
+extern	CCRETVAL	e_run_fg_editor		__P((int));
+extern	CCRETVAL	e_list_eof		__P((int));
+extern	CCRETVAL	e_expand_history	__P((int));
+extern	CCRETVAL	e_magic_space		__P((int));
+extern	CCRETVAL	e_list_glob		__P((int));
+extern	CCRETVAL	e_expand_glob		__P((int));
+extern	CCRETVAL	e_insovr		__P((int));
+extern	CCRETVAL	v_cm_complete		__P((int));
+extern	CCRETVAL	e_copyprev		__P((int));
+extern	CCRETVAL	v_change_case		__P((int));
+extern	CCRETVAL	e_expand		__P((int));
+extern	CCRETVAL	e_expand_vars		__P((int));
+extern	CCRETVAL	e_toggle_hist		__P((int));
+extern  CCRETVAL        e_load_average		__P((int));
+extern  CCRETVAL        v_delprev		__P((int));
+extern  CCRETVAL        v_delmeta		__P((int));
+extern  CCRETVAL        v_wordfwd		__P((int));
+extern  CCRETVAL        v_wordback		__P((int));
+extern  CCRETVAL        v_endword		__P((int));
+extern  CCRETVAL        v_eword			__P((int));
+extern  CCRETVAL        v_undo			__P((int));
+extern  CCRETVAL        v_ush_meta		__P((int));
+extern  CCRETVAL        v_dsh_meta		__P((int));
+extern  CCRETVAL        v_rsrch_fwd		__P((int));
+extern  CCRETVAL        v_rsrch_back		__P((int));
+extern  CCRETVAL        v_char_fwd		__P((int));
+extern  CCRETVAL        v_char_back		__P((int));
+extern  CCRETVAL        v_chgmeta		__P((int));
+extern	CCRETVAL	e_inc_fwd		__P((int));
+extern	CCRETVAL	e_inc_back		__P((int));
+extern	CCRETVAL	v_rchar_fwd		__P((int));
+extern	CCRETVAL	v_rchar_back		__P((int));
+extern  CCRETVAL        v_charto_fwd		__P((int));
+extern  CCRETVAL        v_charto_back		__P((int));
+extern  CCRETVAL        e_normalize_path	__P((int));
+X
+X/*
+X * ed.inputl.c
+X */
+extern	int	Inputl			__P((void));
+extern	int	GetNextChar		__P((Char *));
+extern	void	PushMacro		__P((Char *));
+X
+X/*
+X * ed.refresh.c
+X */
+extern	void	ClearLines		__P((void));
+extern	void	ClearDisp		__P((void));
+extern	void	Refresh			__P((void));
+extern	void	RefCursor		__P((void));
+extern	void	RefPlusOne		__P((void));
+extern	void	PastBottom		__P((void));
+X
+X/*
+X * ed.xmap.c
+X */
+extern  XmapVal *XmapStr		__P((Char *));
+extern  XmapVal *XmapCmd		__P((int));
+extern	void	 AddXkey		__P((Char *, XmapVal *, int));
+extern	void	 ClearXkey		__P((KEYCMD *, Char *));
+extern	int	 GetXkey		__P((Char *, XmapVal *));
+extern	void	 ResetXmap		__P((int));
+extern	int	 DeleteXkey		__P((Char *));
+extern	void	 PrintXkey		__P((Char *));
+X
+X#endif /* _h_ed_decls */
+END_OF_FILE
+if test 9214 -ne `wc -c <'ed.decls.h'`; then
+    echo shar: \"'ed.decls.h'\" unpacked with wrong size!
+fi
+# end of 'ed.decls.h'
+fi
+if test -f 'ed.h' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'ed.h'\"
+else
+echo shar: Extracting \"'ed.h'\" \(8721 characters\)
+sed "s/^X//" >'ed.h' <<'END_OF_FILE'
+X/* $Header: /home/hyperion/mu/christos/src/sys/tcsh-6.01/RCS/ed.h,v 3.12 1991/12/19 22:34:14 christos Exp $ */
+X/*
+X * ed.h: Editor declarations and globals
+X */
+X/*-
+X * Copyright (c) 1980, 1991 The Regents of the University of California.
+X * All rights reserved.
+X *
+X * Redistribution and use in source and binary forms, with or without
+X * modification, are permitted provided that the following conditions
+X * are met:
+X * 1. Redistributions of source code must retain the above copyright
+X *    notice, this list of conditions and the following disclaimer.
+X * 2. Redistributions in binary form must reproduce the above copyright
+X *    notice, this list of conditions and the following disclaimer in the
+X *    documentation and/or other materials provided with the distribution.
+X * 3. All advertising materials mentioning features or use of this software
+X *    must display the following acknowledgement:
+X *	This product includes software developed by the University of
+X *	California, Berkeley and its contributors.
+X * 4. Neither the name of the University nor the names of its contributors
+X *    may be used to endorse or promote products derived from this software
+X *    without specific prior written permission.
+X *
+X * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+X * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+X * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+X * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+X * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+X * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+X * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+X * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+X * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+X * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+X * SUCH DAMAGE.
+X */
+X#ifndef _h_ed
+X#define _h_ed
+X
+X#ifndef EXTERN
+X# define EXTERN extern
+X#endif
+X
+X#define TABSIZE		8	/* usually 8 spaces/tab */
+X#define MAXMACROLEVELS	10	/* max number of nested kbd macros */
+X
+extern int errno;
+X
+X/****************************************************************************/
+X/* stuff for the different states returned by the character editor routines */
+X/****************************************************************************/
+X
+X#define CCRETVAL	char	/* size needed for the different char editor */
+X /* return values */
+X
+X#define KEYCMD   unsigned char	/* size needed to index into CcFuncTbl */
+X /* Must be unsigned 		       */
+X
+typedef CCRETVAL(*PFCmd) __P((int));	/* pointer to function returning CCRETVAL */
+X
+struct KeyFuncs {		/* for the "bind" shell command */
+X    char   *name;		/* function name for bind command */
+X    int     func;		/* function numeric value */
+X    char   *description;	/* description of function */
+X};
+X
+extern PFCmd CcFuncTbl[];	/* table of available commands */
+extern KEYCMD CcKeyMap[];	/* keymap table, each index into above tbl */
+extern KEYCMD CcAltMap[];	/* Alt keymap table */
+extern KEYCMD CcEmacsMap[];	/* keymap table for Emacs default bindings */
+extern KEYCMD CcViMap[];	/* keymap table for Vi input mode defaults */
+extern KEYCMD CcViCmdMap[];	/* for Vi command mode defaults */
+extern struct KeyFuncs FuncNames[];	/* string names vs. CcFuncTbl indices */
+X
+extern KEYCMD NumFuns;		/* number of KEYCMDs in above table */
+X
+X#define	CC_ERROR		100	/* there should NOT be 100 different... */
+X#define CC_FATAL		101	/* fatal error: inconsistant, must
+X					 * reset */
+X#define	CC_NORM			0
+X#define	CC_NEWLINE		1
+X#define	CC_EOF			2
+X#define	CC_COMPLETE		3
+X#define	CC_LIST_CHOICES		4
+X#define	CC_LIST_GLOB		5
+X#define CC_EXPAND_GLOB		6
+X#define	CC_HELPME		9
+X#define CC_CORRECT		10
+X#define CC_WHICH		11
+X#define CC_ARGHACK		12
+X#define CC_CORRECT_L		13
+X#define CC_REFRESH		14
+X#define CC_EXPAND_VARS		15
+X#define CC_NORMALIZE_PATH	16
+X
+typedef union Xmapval {		/* value passed to the Xkey routines */
+X    KEYCMD cmd;
+X    Char *str;
+X} XmapVal;
+X
+X#define XK_NOD	-1		/* Internal tree node */
+X#define XK_CMD	 0		/* X-key was an editor command */
+X#define XK_STR	 1		/* X-key was a string macro */
+X#define XK_EXE	 2		/* X-key was a unix command */
+X
+X/****************************/
+X/* Editor state and buffers */
+X/****************************/
+X
+XEXTERN KEYCMD *CurrentKeyMap;	/* current command key map */
+XEXTERN int inputmode;		/* insert, replace, replace1 mode */
+XEXTERN Char GettingInput;	/* true if getting an input line (mostly) */
+XEXTERN Char NeedsRedraw;	/* for editor and twenex error messages */
+XEXTERN Char InputBuf[INBUFSIZE];	/* the real input data */
+XEXTERN Char *LastChar, *Cursor;	/* point to the next open space */
+XEXTERN Char *InputLim;		/* limit of size of InputBuf */
+XEXTERN Char MetaNext;		/* flags for ^V and ^[ functions */
+XEXTERN Char AltKeyMap;		/* Using alternative command map (for vi mode) */
+XEXTERN Char VImode;		/* true if running in vi mode (PWP 6-27-88) */
+XEXTERN Char *Mark;		/* the emacs "mark" (dot is Cursor) */
+XEXTERN Char DoingArg;		/* true if we have an argument */
+XEXTERN int Argument;		/* "universal" argument value */
+XEXTERN KEYCMD LastCmd;		/* previous command executed */
+XEXTERN Char KillBuf[INBUFSIZE];	/* kill buffer */
+XEXTERN Char *LastKill;		/* points to end of kill buffer */
+X
+XEXTERN Char UndoBuf[INBUFSIZE];
+XEXTERN Char *UndoPtr;
+XEXTERN int  UndoSize;
+XEXTERN int  UndoAction;
+X
+XEXTERN Char HistBuf[INBUFSIZE];	/* history buffer */
+XEXTERN Char *LastHist;		/* points to end of history buffer */
+XEXTERN int Hist_num;		/* what point up the history we are at now. */
+XEXTERN Char WhichBuf[INBUFSIZE];	/* buffer for which command */
+XEXTERN Char *LastWhich;		/* points to end of which buffer */
+XEXTERN Char *CursWhich;		/* points to the cursor point in which buf */
+XEXTERN int HistWhich;		/* Hist_num is saved in this */
+XEXTERN Char *SearchPrompt;	/* points to string that holds search prompt */
+XEXTERN Char DoingSearch;	/* true if we are doing a history search */
+XEXTERN char Expand;		/* true if we are expanding a line */
+XEXTERN Char HistLit;		/* true if history lines are shown literal */
+XEXTERN Char CurrentHistLit;	/* Literal status of current show history line */
+X
+X/*
+X * These are truly extern
+X */
+extern Char PromptBuf[];
+extern int MacroLvl;
+X
+XEXTERN Char *KeyMacro[MAXMACROLEVELS];
+X
+XEXTERN Char **Display;		/* display buffer seed vector */
+XEXTERN int CursorV,		/* real cursor vertical (line) */
+X        CursorH,		/* real cursor horisontal (column) */
+X        TermV,			/* number of real screen lines
+X				 * (sizeof(DisplayBuf) / width */
+X        TermH;			/* screen width */
+XEXTERN Char **Vdisplay;		/* new buffer */
+X
+X/* Variables that describe terminal ability */
+XEXTERN int T_Lines, T_Cols;	/* Rows and Cols of the terminal */
+XEXTERN Char T_CanIns;		/* true if I can insert characters */
+XEXTERN Char T_CanDel;		/* dito for delete characters */
+XEXTERN Char T_Tabs;		/* true if tty interface is passing tabs */
+XEXTERN speed_t T_Speed;		/* Tty input Baud rate */
+XEXTERN Char T_CanCEOL;		/* true if we can clear to end of line */
+XEXTERN Char T_CanUP;		/* true if this term can do reverse linefeen */
+XEXTERN Char T_HasMeta;		/* true if we have a meta key */
+X
+X/* note the extra characters in the Strchr() call in this macro */
+X#define isword(c)	(Isalpha(c)||Isdigit(c)||Strchr(word_chars,c))
+X#define min(x,y)	(((x)<(y))?(x):(y))
+X#define max(x,y)	(((x)>(y))?(x):(y))
+X
+X/*
+X * Terminal dependend data structures
+X */
+typedef struct {
+X#if defined(POSIX) || defined(TERMIO)
+X# ifdef POSIX
+X    struct termios d_t;
+X# else
+X    struct termio d_t;
+X# endif /* POSIX */
+X#else /* SGTTY */
+X# ifdef TIOCGETP
+X    struct sgttyb d_t;
+X# endif /* TIOCGETP */
+X# ifdef TIOCGETC
+X    struct tchars d_tc;
+X# endif /* TIOCGETC */
+X# ifdef TIOCGPAGE
+X    struct ttypagestat d_pc;
+X# endif /* TIOCGPAGE */
+X# ifdef TIOCLGET
+X    int d_lb;
+X# endif /* TIOCLGET */
+X#endif /* POSIX || TERMIO */
+X#ifdef TIOCGLTC
+X    struct ltchars d_ltc;
+X#endif /* TIOCGLTC */
+X} ttydata_t;
+X
+X#define MODE_INSERT	0
+X#define MODE_REPLACE	1
+X#define MODE_REPLACE_1	2
+X
+X#define EX_IO	0	/* while we are executing	*/
+X#define ED_IO	1	/* while we are editing		*/
+X#define TS_IO	2	/* new mode from terminal	*/
+X#define QU_IO	2	/* used only for quoted chars	*/
+X#define NN_IO	3	/* The number of entries	*/
+X
+X#if defined(POSIX) || defined(TERMIO)
+X# define M_INPUT	0
+X# define M_OUTPUT	1
+X# define M_CONTROL	2
+X# define M_LINED	3
+X# define M_CHAR		4
+X# define M_NN		5
+X#else /* GSTTY */
+X# define M_CONTROL	0
+X# define M_LOCAL	1
+X# define M_CHAR		2
+X# define M_NN		3
+X#endif /* TERMIO */
+typedef struct { 
+X    char *t_name;
+X    int  t_setmask;
+X    int  t_clrmask;
+X} ttyperm_t[NN_IO][M_NN];
+X
+extern ttyperm_t ttylist;
+X#include "ed.decls.h"
+X
+X#endif /* _h_ed */
+END_OF_FILE
+if test 8721 -ne `wc -c <'ed.h'`; then
+    echo shar: \"'ed.h'\" unpacked with wrong size!
+fi
+# end of 'ed.h'
+fi
+if test -f 'glob.3' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'glob.3'\"
+else
+echo shar: Extracting \"'glob.3'\" \(8094 characters\)
+sed "s/^X//" >'glob.3' <<'END_OF_FILE'
+X.\" Copyright (c) 1989 The Regents of the University of California.
+X.\" All rights reserved.
+X.\"
+X.\" This code is derived from software contributed to Berkeley by
+X.\" Guido van Rossum.
+X.\"
+X.\" Redistribution and use in source and binary forms are permitted provided
+X.\" that: (1) source distributions retain this entire copyright notice and
+X.\" comment, and (2) distributions including binaries display the following
+X.\" acknowledgement:  ``This product includes software developed by the
+X.\" University of California, Berkeley and its contributors'' in the
+X.\" documentation or other materials provided with the distribution and in
+X.\" all advertising materials mentioning features or use of this software.
+X.\" Neither the name of the University nor the names of its contributors may
+X.\" be used to endorse or promote products derived from this software without
+X.\" specific prior written permission.
+X.\" THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR IMPLIED
+X.\" WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
+X.\" MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+X.\"
+X.\"	@(#)glob.3	5.3 (Berkeley) 3/19/91
+X.\"
+X.TH GLOB 3 "March 19, 1991"
+X.UC 7
+X.SH NAME
+glob, globfree \- generate pathnames matching a pattern
+X.SH SYNOPSIS
+X.nf
+X#include <glob.h>
+X
+glob(const char *pattern, int flags,
+X	const int (*errfunc)(char *, int), glob_t *pglob);
+X
+void globfree(glob_t *pglob);
+X.fi
+X.SH DESCRIPTION
+X.I Glob
+is a pathname generator that implements the rules for file name pattern
+matching used by the shell.
+X.PP
+The include file
+X.I glob.h
+defines the structure type
+X.IR glob_t ,
+which contains at least the following fields:
+X.sp
+X.RS
+X.nf
+X.ta .5i +\w'char **gl_pathv;\0\0\0'u
+typedef struct {
+X	int gl_pathc;		/* count of total paths so far */
+X	int gl_matchc;		/* count of paths matching pattern */
+X	int gl_offs;		/* reserved at beginning of gl_pathv */
+X	int gl_flags;		/* returned flags */
+X	char **gl_pathv;	/* list of paths matching pattern */
+X} glob_t;
+X.fi
+X.RE
+X.PP
+The argument
+X.I pattern
+is a pointer to a pathname pattern to be expanded.
+X.I Glob
+matches all accessible pathnames against the pattern and creates
+a list of the pathnames that match.
+In order to have access to a pathname,
+X.I glob
+requires search permission on every component of a path except the last
+and read permission on each directory of any filename component of
+X.I pattern
+that contains any of the special characters ``*'', ``?'' or ``[''.
+X.PP
+X.I Glob
+stores the number of matched pathnames into the
+X.I gl_pathc
+field, and a pointer to a list of pointers to pathnames into the
+X.I gl_pathv
+field.
+The first pointer after the last pathname is NULL.
+If the pattern does not match any pathnames, the returned number of
+matched paths is set to zero.
+X.PP
+It is the caller's responsibility to create the structure pointed to by
+X.IR pglob .
+The
+X.I glob
+function allocates other space as needed, including the memory pointed
+to by
+X.IR gl_pathv .
+X.PP
+The argument
+X.I flags
+is used to modify the behavior of
+X.IR glob .
+The value of
+X.I flags
+is the bitwise inclusive OR of any of the following
+values defined in
+X.IR glob.h :
+X.TP
+GLOB_APPEND
+Append pathnames generated to the ones from a previous call (or calls)
+to
+X.IR glob .
+The value of
+X.I gl_pathc
+will be the total matches found by this call and the previous call(s).
+The pathnames are appended to, not merged with the pathnames returned by
+the previous call(s).
+Between calls, the caller must not change the setting of the
+GLOB_DOOFFS flag, nor change the value of
+X.I gl_offs
+when
+GLOB_DOOFFS is set, nor (obviously) call
+X.I globfree
+for
+X.I pglob.
+X.TP
+GLOB_DOOFFS
+Make use of the
+X.I gl_offs
+field.
+If this flag is set,
+X.I gl_offs
+is used to specify how many NULL pointers to prepend to the beginning
+of the
+X.I gl_pathv
+field.
+In other words,
+X.I gl_pathv
+will point to
+X.I gl_offs
+NULL pointers,
+followed by
+X.I gl_pathc
+pathname pointers, followed by a NULL pointer.
+X.TP
+GLOB_ERR
+Causes
+X.I glob
+to return when it encounters a directory that it cannot open or read.
+Ordinarily,
+X.I glob
+continues to find matches.
+X.TP
+GLOB_MARK
+XEach pathname that is a directory that matches
+X.I pattern
+has a slash
+appended.
+X.TP
+GLOB_NOSORT
+By default, the pathnames are sorted in ascending ASCII order;
+this flag prevents that sorting (speeding up
+X.IR glob ).
+X.TP
+GLOB_NOCHECK
+If
+X.I pattern
+does not match any pathname, then
+X.I glob
+returns a list
+consisting of only
+X.IR pattern ,
+with the number of total pathnames is set to 1, and the number of matched
+pathnames set to 0.
+If
+X.I GLOB_QUOTE
+is set, its effect is present in the pattern returned.
+X.TP
+GLOB_QUOTE
+Use the backslash (``\e'') character for quoting: every occurrence of
+a backslash followed by a character in the pattern is replaced by that
+character, avoiding any special interpretation of the character.
+X.TP
+GLOB_NOMAGIC
+Is the same as GLOB_NOCHECK but it only appends the
+X.IR pattern
+if it does not contain any of the special characters ``*'', ``?'' or ``[''.
+GLOB_NOMAGIC is used to simplify implementing the globbing behavior in
+X.IR csh(1).
+X.PP
+If, during the search, a directory is encountered that cannot be opened
+or read and
+X.I errfunc
+is non-NULL,
+X.I glob
+calls (*\fIerrfunc\fP)(\fIpath\fP, \fIerrno\fP).
+This may be unintuitive: a pattern like ``*/Makefile'' will try to
+X.IR stat (2)
+X``foo/Makefile'' even if ``foo'' is not a directory, resulting in a
+call to
+X.IR errfunc .
+The error routine can suppress this action by testing for ENOENT and
+XENOTDIR; however, the GLOB_ERR flag will still cause an immediate
+return when this happens.
+X.PP
+If
+X.I errfunc
+returns non-zero,
+X.I glob
+stops the scan and returns
+X.I GLOB_ABEND
+after setting
+X.I gl_pathc
+and
+X.I gl_pathv
+to reflect any paths already matched.
+This also happens if an error is encountered and
+X.I GLOB_ERR
+is set in
+X.IR flags ,
+regardless of the return value of
+X.IR errfunc ,
+if called.
+If
+X.I GLOB_ERR
+is not set and either
+X.I errfunc
+is NULL or
+X.I errfunc
+returns zero, the error is ignored.
+X.PP
+The
+X.I globfree
+function frees any space associated with
+X.I pglob
+from a previous call(s) to
+X.IR glob .
+X.SH RETURNS
+On successful completion,
+X.I glob
+returns zero.
+In addition the fields of
+X.I pglob
+contain the values described below:
+X.TP
+X.I gl_pathc
+contains the total number of matched pathnames so far.
+This includes other matches from previous invocations of 
+X.I glob 
+if 
+X.I GLOB_APPEND 
+was specified.
+X.TP
+X.I gl_matchc
+contains the number of matched pathnames in the current invocation of
+X.I glob.
+X.TP
+X.I gl_flags
+contains a copy of the 
+X.I flags 
+parameter with the bit GLOB_MAGCHAR set if
+X.I pattern
+contained any of the special characters ``*'', ``?'' or ``['', cleared
+if not.
+X.TP
+X.I gl_pathv
+contains a pointer to a NULL-terminated list of matched pathnames.
+However, if
+X.I gl_pathc
+is zero, the contents of
+X.I gl_pathv
+are undefined.
+X.PP
+If
+X.I glob
+terminates due to an error, it sets errno and returns one of the
+following non-zero constants, which are defined in the include
+file <glob.h>:
+X.TP
+GLOB_NOSPACE
+An attempt to allocate memory failed.
+X.TP
+GLOB_ABEND
+The scan was stopped because an error was encountered and either
+GLOB_ERR was set or (*\fIerrfunc\fR)() returned non-zero.
+X.PP
+The arguments
+X.I pglob->gl_pathc
+and
+X.I pglob->gl_pathv
+are still set as specified above.
+X.SH STANDARDS
+The
+X.I glob
+function is expected to be POSIX 1003.2 compatible with the exception
+that the flag 
+X.I GLOB_QUOTE 
+and the fields 
+X.I gl_matchc 
+and 
+X.I gl_flags 
+should not be used by applications striving for strict POSIX conformance.
+X.SH EXAMPLE
+A rough equivalent of ``ls -l *.c *.h'' can be obtained with the
+following code:
+X.sp
+X.nf
+X.RS
+glob_t g;
+X
+g.gl_offs = 2;
+glob("*.c", GLOB_DOOFFS, NULL, &g);
+glob("*.h", GLOB_DOOFFS | GLOB_APPEND, NULL, &g);
+g.gl_pathv[0] = "ls";
+g.gl_pathv[1] = "-l";
+execvp("ls", g.gl_pathv);
+X.RE
+X.fi
+X.SH SEE ALSO
+sh(1), fnmatch(3), wordexp(3), regexp(3)
+X.SH BUGS
+Patterns longer than MAXPATHLEN may cause unchecked errors.
+X.PP
+X.I Glob
+may fail and set errno for any of the errors specified for the
+library routines
+X.I stat (2),
+X.I closedir (3),
+X.I opendir (3),
+X.I readdir (3),
+X.I malloc (3),
+and
+X.I free (3).
+X
+END_OF_FILE
+if test 8094 -ne `wc -c <'glob.3'`; then
+    echo shar: \"'glob.3'\" unpacked with wrong size!
+fi
+# end of 'glob.3'
+fi
+if test -f 'sh.misc.c' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'sh.misc.c'\"
+else
+echo shar: Extracting \"'sh.misc.c'\" \(8084 characters\)
+sed "s/^X//" >'sh.misc.c' <<'END_OF_FILE'
+X/* $Header: /home/hyperion/mu/christos/src/sys/tcsh-6.01/RCS/sh.misc.c,v 3.7 1991/10/12 04:23:51 christos Exp $ */
+X/*
+X * sh.misc.c: Miscelaneous functions
+X */
+X/*-
+X * Copyright (c) 1980, 1991 The Regents of the University of California.
+X * All rights reserved.
+X *
+X * Redistribution and use in source and binary forms, with or without
+X * modification, are permitted provided that the following conditions
+X * are met:
+X * 1. Redistributions of source code must retain the above copyright
+X *    notice, this list of conditions and the following disclaimer.
+X * 2. Redistributions in binary form must reproduce the above copyright
+X *    notice, this list of conditions and the following disclaimer in the
+X *    documentation and/or other materials provided with the distribution.
+X * 3. All advertising materials mentioning features or use of this software
+X *    must display the following acknowledgement:
+X *	This product includes software developed by the University of
+X *	California, Berkeley and its contributors.
+X * 4. Neither the name of the University nor the names of its contributors
+X *    may be used to endorse or promote products derived from this software
+X *    without specific prior written permission.
+X *
+X * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+X * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+X * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+X * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+X * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+X * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+X * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+X * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+X * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+X * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+X * SUCH DAMAGE.
+X */
+X#include "sh.h"
+X
+RCSID("$Id: sh.misc.c,v 3.7 1991/10/12 04:23:51 christos Exp $")
+X
+static	int	renum	__P((int, int));
+X
+X/*
+X * C Shell
+X */
+X
+int
+any(s, c)
+X    register char *s;
+X    register int c;
+X{
+X    if (!s)
+X	return (0);		/* Check for nil pointer */
+X    while (*s)
+X	if (*s++ == c)
+X	    return (1);
+X    return (0);
+X}
+X
+void
+setzero(cp, i)
+X    char   *cp;
+X    int     i;
+X{
+X    if (i != 0)
+X	do
+X	    *cp++ = 0;
+X	while (--i);
+X}
+X
+char   *
+strsave(s)
+X    register const char *s;
+X{
+X    char   *n;
+X    register char *p;
+X
+X    if (s == NULL)
+X	s = (const char *) "";
+X    for (p = (char *) s; *p++;);
+X    n = p = (char *) xmalloc((size_t) ((p - s) * sizeof(char)));
+X    while (*p++ = *s++);
+X    return (n);
+X}
+X
+Char  **
+blkend(up)
+X    register Char **up;
+X{
+X
+X    while (*up)
+X	up++;
+X    return (up);
+X}
+X
+X
+void
+blkpr(av)
+X    register Char **av;
+X{
+X
+X    for (; *av; av++) {
+X	xprintf("%s", short2str(*av));
+X	if (av[1])
+X	    xprintf(" ");
+X    }
+X}
+X
+int
+blklen(av)
+X    register Char **av;
+X{
+X    register int i = 0;
+X
+X    while (*av++)
+X	i++;
+X    return (i);
+X}
+X
+Char  **
+blkcpy(oav, bv)
+X    Char  **oav;
+X    register Char **bv;
+X{
+X    register Char **av = oav;
+X
+X    while (*av++ = *bv++)
+X	continue;
+X    return (oav);
+X}
+X
+Char  **
+blkcat(up, vp)
+X    Char  **up, **vp;
+X{
+X
+X    (void) blkcpy(blkend(up), vp);
+X    return (up);
+X}
+X
+void
+blkfree(av0)
+X    Char  **av0;
+X{
+X    register Char **av = av0;
+X
+X    if (!av0)
+X	return;
+X    for (; *av; av++)
+X	xfree((ptr_t) * av);
+X    xfree((ptr_t) av0);
+X}
+X
+Char  **
+saveblk(v)
+X    register Char **v;
+X{
+X    register Char **newv =
+X    (Char **) xcalloc((size_t) (blklen(v) + 1), sizeof(Char **));
+X    Char  **onewv = newv;
+X
+X    while (*v)
+X	*newv++ = Strsave(*v++);
+X    return (onewv);
+X}
+X
+X#ifndef POSIX
+char   *
+strstr(s, t)
+X    register const char *s, *t;
+X{
+X    do {
+X	register const char *ss = s;
+X	register const char *tt = t;
+X
+X	do
+X	    if (*tt == '\0')
+X		return ((char *) s);
+X	while (*ss++ == *tt++);
+X    } while (*s++ != '\0');
+X    return (NULL);
+X}
+X
+X#endif /* POSIX */
+X
+X#ifndef SHORT_STRINGS
+char   *
+strspl(cp, dp)
+X    char   *cp, *dp;
+X{
+X    char   *ep;
+X    register char *p, *q;
+X
+X    if (!cp)
+X	cp = "";
+X    if (!dp)
+X	dp = "";
+X    for (p = cp; *p++;);
+X    for (q = dp; *q++;);
+X    ep = (char *) xmalloc((size_t) (((p - cp) + (q - dp) - 1) * sizeof(char)));
+X    for (p = ep, q = cp; *p++ = *q++;);
+X    for (p--, q = dp; *p++ = *q++;);
+X    return (ep);
+X}
+X
+X#endif
+X
+Char  **
+blkspl(up, vp)
+X    register Char **up, **vp;
+X{
+X    register Char **wp =
+X    (Char **) xcalloc((size_t) (blklen(up) + blklen(vp) + 1),
+X		      sizeof(Char **));
+X
+X    (void) blkcpy(wp, up);
+X    return (blkcat(wp, vp));
+X}
+X
+Char
+lastchr(cp)
+X    register Char *cp;
+X{
+X
+X    if (!cp)
+X	return (0);
+X    if (!*cp)
+X	return (0);
+X    while (cp[1])
+X	cp++;
+X    return (*cp);
+X}
+X
+X/*
+X * This routine is called after an error to close up
+X * any units which may have been left open accidentally.
+X */
+void
+closem()
+X{
+X    register int f;
+X
+X#ifdef YPBUGS
+X    /* suggested by Justin Bur; thanks to Karl Kleinpaste */
+X    fix_yp_bugs();
+X#endif
+X    for (f = 0; f < NOFILE; f++)
+X	if (f != SHIN && f != SHOUT && f != SHDIAG && f != OLDSTD &&
+X	    f != FSHTTY)
+X	    (void) close(f);
+X}
+X
+X#ifndef FIOCLEX
+X/*
+X * Close files before executing a file.
+X * We could be MUCH more intelligent, since (on a version 7 system)
+X * we need only close files here during a source, the other
+X * shell fd's being in units 16-19 which are closed automatically!
+X */
+void
+closech()
+X{
+X    register int f;
+X
+X    if (didcch)
+X	return;
+X    didcch = 1;
+X    SHIN = 0;
+X    SHOUT = 1;
+X    SHDIAG = 2;
+X    OLDSTD = 0;
+X    isoutatty = isatty(SHOUT);
+X    isdiagatty = isatty(SHDIAG);
+X    for (f = 3; f < NOFILE; f++)
+X	(void) close(f);
+X}
+X
+X#endif
+X
+void
+donefds()
+X{
+X
+X    (void) close(0);
+X    (void) close(1);
+X    (void) close(2);
+X    didfds = 0;
+X}
+X
+X/*
+X * Move descriptor i to j.
+X * If j is -1 then we just want to get i to a safe place,
+X * i.e. to a unit > 2.  This also happens in dcopy.
+X */
+int
+dmove(i, j)
+X    register int i, j;
+X{
+X
+X    if (i == j || i < 0)
+X	return (i);
+X#ifdef HAVEDUP2
+X    if (j >= 0) {
+X	(void) dup2(i, j);
+X	if (j != i)
+X	    (void) close(i);
+X	return (j);
+X    }
+X#endif
+X    j = dcopy(i, j);
+X    if (j != i)
+X	(void) close(i);
+X    return (j);
+X}
+X
+int
+dcopy(i, j)
+X    register int i, j;
+X{
+X
+X    if (i == j || i < 0 || (j < 0 && i > 2))
+X	return (i);
+X#ifdef HAVEDUP2
+X    if (j >= 0) {
+X	(void) dup2(i, j);
+X	return (j);
+X    }
+X#endif
+X    (void) close(j);
+X    return (renum(i, j));
+X}
+X
+static int
+renum(i, j)
+X    register int i, j;
+X{
+X    register int k = dup(i);
+X
+X    if (k < 0)
+X	return (-1);
+X    if (j == -1 && k > 2)
+X	return (k);
+X    if (k != j) {
+X	j = renum(k, j);
+X	(void) close(k);
+X	return (j);
+X    }
+X    return (k);
+X}
+X
+void
+copy(to, from, size)
+X    register char *to, *from;
+X    register int size;
+X{
+X
+X    if (size && from && to)
+X	do
+X	    *to++ = *from++;
+X	while (--size != 0);
+X}
+X
+X/*
+X * Left shift a command argument list, discarding
+X * the first c arguments.  Used in "shift" commands
+X * as well as by commands like "repeat".
+X */
+void
+lshift(v, c)
+X    register Char **v;
+X    register int c;
+X{
+X    register Char **u;
+X
+X    for (u = v; *u && --c >= 0; u++)
+X	xfree((ptr_t) *u);
+X    (void) blkcpy(v, u);
+X}
+X
+int
+number(cp)
+X    Char   *cp;
+X{
+X    if (!cp)
+X	return (0);
+X    if (*cp == '-') {
+X	cp++;
+X	if (!Isdigit(*cp))
+X	    return (0);
+X	cp++;
+X    }
+X    while (*cp && Isdigit(*cp))
+X	cp++;
+X    return (*cp == 0);
+X}
+X
+Char  **
+copyblk(v)
+X    register Char **v;
+X{
+X    register Char **nv =
+X    (Char **) xcalloc((size_t) (blklen(v) + 1), sizeof(Char **));
+X
+X    return (blkcpy(nv, v));
+X}
+X
+X#ifndef SHORT_STRINGS
+char   *
+strend(cp)
+X    register char *cp;
+X{
+X    if (!cp)
+X	return (cp);
+X    while (*cp)
+X	cp++;
+X    return (cp);
+X}
+X
+X#endif				/* SHORT_STRINGS */
+X
+Char   *
+strip(cp)
+X    Char   *cp;
+X{
+X    register Char *dp = cp;
+X
+X    if (!cp)
+X	return (cp);
+X    while (*dp++ &= TRIM)
+X	continue;
+X    return (cp);
+X}
+X
+void
+udvar(name)
+X    Char   *name;
+X{
+X
+X    setname(short2str(name));
+X    stderror(ERR_NAME | ERR_UNDVAR);
+X}
+X
+int
+prefix(sub, str)
+X    register Char *sub, *str;
+X{
+X
+X    for (;;) {
+X	if (*sub == 0)
+X	    return (1);
+X	if (*str == 0)
+X	    return (0);
+X	if (*sub++ != *str++)
+X	    return (0);
+X    }
+X}
+END_OF_FILE
+if test 8084 -ne `wc -c <'sh.misc.c'`; then
+    echo shar: \"'sh.misc.c'\" unpacked with wrong size!
+fi
+# end of 'sh.misc.c'
+fi
+if test -f 'tc.decls.h' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'tc.decls.h'\"
+else
+echo shar: Extracting \"'tc.decls.h'\" \(8128 characters\)
+sed "s/^X//" >'tc.decls.h' <<'END_OF_FILE'
+X/* $Header: /home/hyperion/mu/christos/src/sys/tcsh-6.01/RCS/tc.decls.h,v 3.10 1991/12/14 20:45:46 christos Exp $ */
+X/*
+X * tc.decls.h: Function declarations from all the tcsh modules
+X */
+X/*-
+X * Copyright (c) 1980, 1991 The Regents of the University of California.
+X * All rights reserved.
+X *
+X * Redistribution and use in source and binary forms, with or without
+X * modification, are permitted provided that the following conditions
+X * are met:
+X * 1. Redistributions of source code must retain the above copyright
+X *    notice, this list of conditions and the following disclaimer.
+X * 2. Redistributions in binary form must reproduce the above copyright
+X *    notice, this list of conditions and the following disclaimer in the
+X *    documentation and/or other materials provided with the distribution.
+X * 3. All advertising materials mentioning features or use of this software
+X *    must display the following acknowledgement:
+X *	This product includes software developed by the University of
+X *	California, Berkeley and its contributors.
+X * 4. Neither the name of the University nor the names of its contributors
+X *    may be used to endorse or promote products derived from this software
+X *    without specific prior written permission.
+X *
+X * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+X * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+X * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+X * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+X * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+X * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+X * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+X * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+X * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+X * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+X * SUCH DAMAGE.
+X */
+X#ifndef _h_tc_decls
+X#define _h_tc_decls
+X
+X/*
+X * tc.alloc.c
+X */
+X#ifndef SYSMALLOC
+extern	void		  free		__P((ptr_t));
+extern	memalign_t	  malloc	__P((size_t));
+extern	memalign_t	  realloc	__P((ptr_t, size_t));
+extern	memalign_t	  calloc	__P((size_t, size_t));
+X
+X#else /* SYSMALLOC */
+extern	void		  Free		__P((ptr_t));
+extern	memalign_t	  Malloc	__P((size_t));
+extern	memalign_t	  Realloc	__P((ptr_t, size_t));
+extern	memalign_t	  Calloc	__P((size_t, size_t));
+X#endif /* SYSMALLOC */
+extern	void		  showall	__P((Char **, struct command *));
+X
+X/*
+X * tc.bind.c
+X */
+extern	void		  dobindkey	__P((Char **, struct command *));
+extern	int		  parseescape	__P((Char **));
+extern	unsigned char    *unparsestring	__P((Char *, unsigned char *, Char *));
+extern	void		  dobind	__P((Char **, struct command *));
+X
+X
+X/*
+X * tc.disc.c
+X */
+extern	int		  setdisc	__P((int));
+extern	int		  resetdisc	__P((int));
+X
+X/*
+X * tc.func.c
+X */
+extern	Char		 *expand_lex	__P((Char *, int, struct wordent *, 
+X					     int, int));
+extern	Char		 *sprlex	__P((Char *, struct wordent *));
+extern	void		  Itoa		__P((int, Char *));
+extern	void		  dolist	__P((Char **, struct command *));
+extern	void		  dotelltc	__P((Char **, struct command *));
+extern	void		  doechotc	__P((Char **, struct command *));
+extern	void		  dosettc	__P((Char **, struct command *));
+extern	void		  dowhich	__P((Char **, struct command *));
+extern	struct process	 *find_stop_ed	__P((void));
+extern	void		  fg_proc_entry	__P((struct process *));
+extern	sigret_t	  alrmcatch	__P((int));
+extern	void		  precmd	__P((void));
+extern	void		  cwd_cmd	__P((void));
+extern	void		  beep_cmd	__P((void));
+extern	void		  period_cmd	__P((void));
+extern	void		  aliasrun	__P((int, Char *, Char *));
+extern	void		  setalarm	__P((int));
+extern	void		  rmstar	__P((struct wordent *));
+extern	void		  continue_jobs	__P((struct wordent *));
+extern	Char		 *gettilde	__P((Char *));
+extern	Char		 *getusername	__P((Char **));
+extern	void		  doaliases	__P((Char **, struct command *));
+extern	void		  shlvl		__P((int));
+X
+X
+X/*
+X * tc.os.c
+X */
+X#ifdef MACH
+extern	void		  dosetpath	__P((Char **, struct command *));
+X#endif
+X#ifdef TCF
+extern	void		  dogetxvers	__P((Char **, struct command *));
+extern	void		  dosetxvers	__P((Char **, struct command *));
+extern	void		  dogetspath	__P((Char **, struct command *));
+extern	void		  dosetspath	__P((Char **, struct command *));
+extern	char		 *sitename	__P((pid_t));
+extern	void		  domigrate	__P((Char **, struct command *));
+X#endif
+X#ifdef WARP
+extern	void 		  dowarp	__P((Char **, struct command *));
+X#endif
+X#ifdef masscomp
+extern	void		  douniverse	__P((Char **, struct command *));
+X#endif
+X#ifdef _SEQUENT_
+extern	void	 	  pr_stat_sub	__P((struct process_stats *, 
+X					     struct process_stats *, 
+X					     struct process_stats *));
+X#endif
+X#ifdef NEEDtcgetpgrp
+extern	int	 	  xtcgetpgrp	__P((int));
+extern	int		  xtcsetpgrp	__P((int, int));
+X# undef tcgetpgrp
+X# define tcgetpgrp(a) 	  xtcgetpgrp(a)
+X# undef tcsetpgrp
+X# define tcsetpgrp(a, b)  xtcsetpgrp(a, b)
+X#endif
+X#ifdef YPBUGS
+extern	void	 	  fix_yp_bugs	__P((void));
+X#endif
+extern	void	 	  osinit	__P((void));
+X#ifdef NEEDgetwd
+extern	char		 *xgetwd	__P((char *));
+X#undef getwd
+X#define getwd(a) xgetwd(a)
+X#endif
+X#ifdef NEEDgethostname
+extern	int	 	  xgethostname	__P((char *, int));
+X#undef gethostname
+X#define gethostname(a, b) xgethostname(a, b)
+X#endif
+X#ifdef NEEDstrerror
+extern	char	 	 *xstrerror	__P((int));
+X#undef strerror
+X#define strerror(a) 	  xstrerror(a)
+X#endif
+X#ifdef apollo
+extern	void		  doinlib	__P((Char **, struct command *));
+extern	void		  dover		__P((Char **, struct command *));
+extern	void		  dorootnode	__P((Char **, struct command *));
+extern	int		  getv		__P((Char *));
+X#endif
+X
+X
+X/*
+X * tc.printf.h
+X */
+extern	void		  xprintf	__P((char *, ...));
+extern	void		  xsprintf	__P((char *, char *, ...));
+extern	void		  xvprintf	__P((char *, va_list));
+extern	void		  xvsprintf	__P((char *, char *, va_list));
+X
+X/*
+X * tc.prompt.c
+X */
+extern	void		  printprompt	__P((int, Char *));
+X
+X/*
+X * tc.sched.c
+X */
+extern	time_t		  sched_next	__P((void));
+extern	void		  dosched	__P((Char **, struct command *));
+extern	void		  sched_run	__P((void));
+X
+X/*
+X * tc.sig.c
+X */
+X#ifndef BSDSIGS
+X# if SVID < 3 || defined(UNIXPC)
+extern	sigret_t	(*sigset	__P((int, sigret_t (*)(int)))) ();
+extern	void		  sigrelse	__P((int));
+extern	void		  sighold	__P((int));
+extern	void		  sigignore	__P((int));
+extern	void 		  sigpause	__P((int));
+X# endif
+X# ifdef SXA
+extern	void 		  sigpause	__P((int));
+X# endif
+extern	pid_t 		  ourwait	__P((int *));
+X#endif
+X#ifdef NEEDsignal
+extern	sigret_t	(*xsignal	__P((int, sigret_t (*)(int)))) ();
+X#define signal(a, b)	  xsignal(a, b)
+X#endif
+X#ifdef _SEQUENT_
+extern	sigmask_t	  sigsetmask	__P((sigmask_t));
+extern	sigmask_t	  sigblock	__P((sigmask_t));
+extern	void		  bsd_sigpause	__P((sigmask_t));
+X#endif
+X#ifdef SIGSYNCH
+extern	sigret_t	  synch_handler	__P((int));
+X#endif
+X
+X
+X
+X
+X/*
+X * tc.str.c:
+X */
+X#ifdef SHORT_STRINGS
+extern	Char		 *s_strchr	__P((Char *, int));
+extern	Char		 *s_strrchr	__P((Char *, int));
+extern	Char		 *s_strcat	__P((Char *, Char *));
+X#ifdef NOTUSED
+extern	Char		 *s_strncat	__P((Char *, Char *, size_t));
+X#endif
+extern	Char		 *s_strcpy	__P((Char *, Char *));
+extern	Char		 *s_strncpy	__P((Char *, Char *, size_t));
+extern	Char		 *s_strspl	__P((Char *, Char *));
+extern	size_t		  s_strlen	__P((Char *));
+extern	int		  s_strcmp	__P((Char *, Char *));
+extern	int		  s_strncmp	__P((Char *, Char *, size_t));
+extern	Char		 *s_strsave	__P((Char *));
+extern	Char		 *s_strend	__P((Char *));
+extern	Char		 *s_strstr	__P((Char *, Char *));
+extern	Char		 *str2short	__P((char *));
+extern	Char		**blk2short	__P((char **));
+extern	char		 *short2str	__P((Char *));
+extern	char		**short2blk	__P((Char **));
+X#endif
+extern	char		 *short2qstr	__P((Char *));
+X
+X
+X/*
+X * tc.vers.h:
+X */
+extern	void		  fix_version	__P((void));
+extern	Char		 *gethosttype	__P((void));
+X
+X/*
+X * tc.who.c
+X */
+extern	void		  initwatch	__P((void));
+extern	void		  resetwatch	__P((void));
+extern	void		  watch_login	__P((void));
+extern	void		  dolog		__P((Char **, struct command *));
+X
+X#endif				/* _h_tc_decls */
+END_OF_FILE
+if test 8128 -ne `wc -c <'tc.decls.h'`; then
+    echo shar: \"'tc.decls.h'\" unpacked with wrong size!
+fi
+# end of 'tc.decls.h'
+fi
+if test -f 'tc.sched.c' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'tc.sched.c'\"
+else
+echo shar: Extracting \"'tc.sched.c'\" \(7384 characters\)
+sed "s/^X//" >'tc.sched.c' <<'END_OF_FILE'
+X/* $Header: /home/hyperion/mu/christos/src/sys/tcsh-6.01/RCS/tc.sched.c,v 3.6 1991/11/26 04:41:23 christos Exp $ */
+X/*
+X * tc.sched.c: Scheduled command execution
+X *
+X * Karl Kleinpaste: Computer Consoles Inc. 1984
+X */
+X/*-
+X * Copyright (c) 1980, 1991 The Regents of the University of California.
+X * All rights reserved.
+X *
+X * Redistribution and use in source and binary forms, with or without
+X * modification, are permitted provided that the following conditions
+X * are met:
+X * 1. Redistributions of source code must retain the above copyright
+X *    notice, this list of conditions and the following disclaimer.
+X * 2. Redistributions in binary form must reproduce the above copyright
+X *    notice, this list of conditions and the following disclaimer in the
+X *    documentation and/or other materials provided with the distribution.
+X * 3. All advertising materials mentioning features or use of this software
+X *    must display the following acknowledgement:
+X *	This product includes software developed by the University of
+X *	California, Berkeley and its contributors.
+X * 4. Neither the name of the University nor the names of its contributors
+X *    may be used to endorse or promote products derived from this software
+X *    without specific prior written permission.
+X *
+X * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+X * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+X * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+X * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+X * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+X * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+X * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+X * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+X * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+X * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+X * SUCH DAMAGE.
+X */
+X#include "sh.h"
+X
+RCSID("$Id: tc.sched.c,v 3.6 1991/11/26 04:41:23 christos Exp $")
+X
+X#include "ed.h"
+X#include "tc.h"
+X
+extern int just_signaled;
+X
+struct sched_event {
+X    struct sched_event *t_next;
+X    time_t t_when;
+X    Char  **t_lex;
+X};
+static struct sched_event *sched_ptr = NULL;
+X
+X
+time_t
+sched_next()
+X{
+X    if (sched_ptr)
+X	return (sched_ptr->t_when);
+X    return ((time_t) - 1);
+X}
+X
+X/*ARGSUSED*/
+void
+dosched(v, c)
+X    register Char **v;
+X    struct command *c;
+X{
+X    register struct sched_event *tp, *tp1, *tp2;
+X    time_t  cur_time;
+X    int     count, hours, minutes, dif_hour, dif_min;
+X    Char   *cp;
+X    bool    relative;		/* time specified as +hh:mm */
+X    struct tm *ltp;
+X    char   *timeline;
+X    char   *ctime();
+X
+X/* This is a major kludge because of a gcc linker  */
+X/* Problem.  It may or may not be needed for you   */
+X#ifdef _MINIX
+X    char kludge[10];
+X    extern char *sprintf();
+X    sprintf(kludge,"kludge");
+X#endif /* _MINIX */
+X
+X    v++;
+X    cp = *v++;
+X    if (cp == NULL) {
+X	/* print list of scheduled events */
+X	for (count = 1, tp = sched_ptr; tp; count++, tp = tp->t_next) {
+X	    timeline = ctime(&tp->t_when);
+X	    timeline[16] = '\0';
+X	    xprintf("%6d\t%s\t", count, timeline);
+X	    blkpr(tp->t_lex);
+X	    xprintf("\n");
+X	}
+X	return;
+X    }
+X
+X    if (*cp == '-') {
+X	/* remove item from list */
+X	if (!sched_ptr)
+X	    stderror(ERR_NOSCHED);
+X	if (*v)
+X	    stderror(ERR_SCHEDUSAGE);
+X	count = atoi(short2str(++cp));
+X	if (count <= 0)
+X	    stderror(ERR_SCHEDUSAGE);
+X	tp = sched_ptr;
+X	tp1 = 0;
+X	while (--count) {
+X	    if (tp->t_next == 0)
+X		break;
+X	    else {
+X		tp1 = tp;
+X		tp = tp->t_next;
+X	    }
+X	}
+X	if (count)
+X	    stderror(ERR_SCHEDEV);
+X	if (tp1 == 0)
+X	    sched_ptr = tp->t_next;
+X	else
+X	    tp1->t_next = tp->t_next;
+X	blkfree(tp->t_lex);
+X	xfree((ptr_t) tp);
+X	return;
+X    }
+X
+X    /* else, add an item to the list */
+X    if (!*v)
+X	stderror(ERR_SCHEDCOM);
+X    relative = 0;
+X    if (!Isdigit(*cp)) {	/* not abs. time */
+X	if (*cp != '+')
+X	    stderror(ERR_SCHEDUSAGE);
+X	cp++, relative++;
+X    }
+X    minutes = 0;
+X    hours = atoi(short2str(cp));
+X    while (*cp && *cp != ':' && *cp != 'a' && *cp != 'p')
+X	cp++;
+X    if (*cp && *cp == ':')
+X	minutes = atoi(short2str(++cp));
+X    if ((hours < 0) || (minutes < 0) ||
+X	(hours > 23) || (minutes > 59))
+X	stderror(ERR_SCHEDTIME);
+X    while (*cp && *cp != 'p' && *cp != 'a')
+X	cp++;
+X    if (*cp && relative)
+X	stderror(ERR_SCHEDREL);
+X    if (*cp == 'p')
+X	hours += 12;
+X    (void) time(&cur_time);
+X    ltp = localtime(&cur_time);
+X    if (relative) {
+X	dif_hour = hours;
+X	dif_min = minutes;
+X    }
+X    else {
+X	if ((dif_hour = hours - ltp->tm_hour) < 0)
+X	    dif_hour += 24;
+X	if ((dif_min = minutes - ltp->tm_min) < 0) {
+X	    dif_min += 60;
+X	    if ((--dif_hour) < 0)
+X		dif_hour = 23;
+X	}
+X    }
+X    tp = (struct sched_event *) xcalloc(1, sizeof *tp);
+X    tp->t_when = cur_time - ltp->tm_sec + dif_hour * 3600L + dif_min * 60L;
+X    /* use of tm_sec: get to beginning of minute. */
+X    if (!sched_ptr || tp->t_when < sched_ptr->t_when) {
+X	tp->t_next = sched_ptr;
+X	sched_ptr = tp;
+X    }
+X    else {
+X	tp1 = sched_ptr->t_next;
+X	tp2 = sched_ptr;
+X	while (tp1 && tp->t_when >= tp1->t_when) {
+X	    tp2 = tp1;
+X	    tp1 = tp1->t_next;
+X	}
+X	tp->t_next = tp1;
+X	tp2->t_next = tp;
+X    }
+X    tp->t_lex = saveblk(v);
+X}
+X
+X/*
+X * Execute scheduled events
+X */
+void
+sched_run()
+X{
+X    time_t   cur_time;
+X    register struct sched_event *tp, *tp1;
+X    struct wordent cmd, *nextword, *lastword;
+X    struct command *t;
+X    Char  **v, *cp;
+X    extern Char GettingInput;
+X
+X#ifdef BSDSIGS
+X    sigmask_t omask;
+X
+X    omask = sigblock(sigmask(SIGINT)) & ~sigmask(SIGINT);
+X#else
+X    (void) sighold(SIGINT);
+X#endif
+X
+X    (void) time(&cur_time);
+X    tp = sched_ptr;
+X
+X    /* bugfix by: Justin Bur at Universite de Montreal */
+X    /*
+X     * this test wouldn't be necessary if this routine were not called before
+X     * each prompt (in sh.c).  But it is, to catch missed alarms.  Someone
+X     * ought to fix it all up.  -jbb
+X     */
+X    if (!(tp && tp->t_when < cur_time)) {
+X#ifdef BSDSIGS
+X	(void) sigsetmask(omask);
+X#else
+X	(void) sigrelse(SIGINT);
+X#endif
+X	return;
+X    }
+X
+X    if (GettingInput)
+X	(void) Cookedmode();
+X
+X    while (tp && tp->t_when < cur_time) {
+X	if (seterr) {
+X	    xfree((ptr_t) seterr);
+X	    seterr = NULL;
+X	}
+X	cmd.word = STRNULL;
+X	lastword = &cmd;
+X	v = tp->t_lex;
+X	for (cp = *v; cp; cp = *++v) {
+X	    nextword = (struct wordent *) xcalloc(1, sizeof cmd);
+X	    nextword->word = Strsave(cp);
+X	    lastword->next = nextword;
+X	    nextword->prev = lastword;
+X	    lastword = nextword;
+X	}
+X	lastword->next = &cmd;
+X	cmd.prev = lastword;
+X	tp1 = tp;
+X	sched_ptr = tp = tp1->t_next;	/* looping termination cond: */
+X	blkfree(tp1->t_lex);	/* straighten out in case of */
+X	xfree((ptr_t) tp1);	/* command blow-up. */
+X
+X	/* expand aliases like process() does. */
+X	alias(&cmd);
+X	/* build a syntax tree for the command. */
+X	t = syntax(cmd.next, &cmd, 0);
+X	if (seterr)
+X	    stderror(ERR_OLD);
+X	/* execute the parse tree. */
+X	execute(t, -1, NULL, NULL);
+X	/* done. free the lex list and parse tree. */
+X	freelex(&cmd), freesyn(t);
+X    }
+X    if (GettingInput && !just_signaled) {	/* PWP */
+X	(void) Rawmode();
+X	ClearLines();		/* do a real refresh since something may */
+X	ClearDisp();		/* have printed to the screen */
+X	Refresh();
+X    }
+X    just_signaled = 0;
+X
+X#ifdef BSDSIGS
+X    (void) sigsetmask(omask);
+X#else
+X    (void) sigrelse(SIGINT);
+X#endif
+X}
+END_OF_FILE
+if test 7384 -ne `wc -c <'tc.sched.c'`; then
+    echo shar: \"'tc.sched.c'\" unpacked with wrong size!
+fi
+# end of 'tc.sched.c'
+fi
+if test -f 'tc.sig.c' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'tc.sig.c'\"
+else
+echo shar: Extracting \"'tc.sig.c'\" \(7950 characters\)
+sed "s/^X//" >'tc.sig.c' <<'END_OF_FILE'
+X/* $Header: /home/hyperion/mu/christos/src/sys/tcsh-6.01/RCS/tc.sig.c,v 3.6 1991/11/11 01:56:34 christos Exp $ */
+X/*
+X * sh.sig.c: Signal routine emulations
+X */
+X/*-
+X * Copyright (c) 1980, 1991 The Regents of the University of California.
+X * All rights reserved.
+X *
+X * Redistribution and use in source and binary forms, with or without
+X * modification, are permitted provided that the following conditions
+X * are met:
+X * 1. Redistributions of source code must retain the above copyright
+X *    notice, this list of conditions and the following disclaimer.
+X * 2. Redistributions in binary form must reproduce the above copyright
+X *    notice, this list of conditions and the following disclaimer in the
+X *    documentation and/or other materials provided with the distribution.
+X * 3. All advertising materials mentioning features or use of this software
+X *    must display the following acknowledgement:
+X *	This product includes software developed by the University of
+X *	California, Berkeley and its contributors.
+X * 4. Neither the name of the University nor the names of its contributors
+X *    may be used to endorse or promote products derived from this software
+X *    without specific prior written permission.
+X *
+X * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+X * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+X * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+X * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+X * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+X * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+X * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+X * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+X * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+X * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+X * SUCH DAMAGE.
+X */
+X#include "sh.h"
+X
+RCSID("$Id: tc.sig.c,v 3.6 1991/11/11 01:56:34 christos Exp $")
+X
+X#include "tc.wait.h"
+X
+X#ifndef BSDSIGS
+X
+X/* this stack is used to queue signals
+X * we can handle up to MAX_CHLD outstanding children now;
+X */
+X#define MAX_CHLD 50
+static struct mysigstack {
+X    int     s_w;		/* wait report			 */
+X    int     s_errno;		/* errno returned;		 */
+X    pid_t   s_pid;		/* pid returned			 */
+X}       stk[MAX_CHLD];
+static int stk_ptr = -1;
+X
+X
+X#ifdef UNRELSIGS
+X/* queue child signals
+X */
+static sigret_t
+sig_ch_queue()
+X{
+X#ifdef JOBDEBUG
+X    xprintf("queue SIGCHLD\n");
+X    flush();
+X#endif /* JOBDEBUG */
+X    stk_ptr++;
+X    stk[stk_ptr].s_pid = (pid_t) wait(&stk[stk_ptr].s_w);
+X    stk[stk_ptr].s_errno = errno;
+X    (void) signal(SIGCHLD, sig_ch_queue);
+X#ifndef SIGVOID
+X    return(0);
+X#endif /* SIGVOID */
+X}
+X
+X/* process all awaiting child signals
+X */
+static sigret_t
+sig_ch_rel()
+X{
+X    while (stk_ptr > -1)
+X	pchild(SIGCHLD);
+X#ifdef JOBDEBUG
+X    xprintf("signal(SIGCHLD, pchild);\n");
+X#endif /* JOBDEBUG */
+X    (void) signal(SIGCHLD, pchild);
+X#ifndef SIGVOID
+X    return(0);
+X#endif /* SIGVOID */
+X}
+X
+X/* libc.a contains these functions in SVID >= 3. */
+sigret_t
+X(*sigset(a, b)) ()
+X    int     a;
+X    sigret_t  (*b) __P((int));
+X{
+X    return (signal(a, b));
+X}
+X
+X/* release signal
+X *	release all queued signals and
+X *	set the default signal handler
+X */
+void
+sigrelse(what)
+X    int     what;
+X{
+X    if (what == SIGCHLD)
+X	sig_ch_rel();
+X
+X#ifdef notdef	/* XXX: Should not need that when compiled with SVID=1 */
+X# ifdef UNIXPC	
+X    if (what == SIGINT)
+X    	(void)signal(SIGINT, pintr);
+X# endif
+X#endif
+X}
+X
+X/* hold signal
+X * only works with child and interrupt
+X */
+void
+sighold(what)
+X    int     what;
+X{
+X    if (what == SIGCHLD)
+X	(void) signal(SIGCHLD, sig_ch_queue);
+X
+X#ifdef notdef	/* XXX: Should not need that when compiled with SVID=1 */
+X# ifdef UNIXPC	
+X    if (what == SIGINT)
+X    	(void)signal(SIGINT, SIG_IGN);
+X# endif
+X#endif
+X}
+X
+X/* ignore signal
+X */
+void
+sigignore(a)
+X    int     a;
+X{
+X    (void) signal(a, SIG_IGN);
+X}
+X
+X/* atomically release one signal
+X */
+void
+sigpause(what)
+X    int     what;
+X{
+X#ifdef notdef
+X    if (what == SIGCHLD) {
+X	if (stk_ptr > -1) {
+X	    pchild(SIGCHLD);
+X	}
+X	else {
+X	    (void) sleep(1);
+X	}
+X    }
+X#endif
+X    /* From: Jim Mattson <mattson%cs@ucsd.edu> */
+X    if (what == SIGCHLD)
+X	pchild(SIGCHLD);
+X
+X}
+X
+X#endif /* UNRELSIGS */
+X
+X#ifdef SXA
+X/*
+X * SX/A is SVID3 but does not have sys5-sigpause().
+X * I've heard that sigpause() is not defined in SVID3.
+X */
+X/* This is not need if you make tcsh by BSD option's cc. */
+void
+sigpause(what)
+X{
+X    if (what == SIGCHLD) {
+X	bsd_sigpause(bsd_sigblock((sigmask_t) 0) & ~sigmask(SIGBSDCHLD));
+X    }
+X    else if (what == 0) {
+X	pause();
+X    }
+X    else {
+X	xprintf("sigpause(%d)\n", what);
+X	pause();
+X    }
+X}
+X
+X#endif /* SXA */
+X
+X/* return either awaiting processes or do a wait now
+X */
+pid_t
+ourwait(w)
+X    int    *w;
+X{
+X    pid_t pid;
+X
+X#ifdef JOBDEBUG
+X    xprintf("our wait %d\n", stk_ptr);
+X    flush();
+X#endif /* JOBDEBUG */
+X
+X    if (stk_ptr == -1) {
+X	/* stack empty return signal from stack */
+X	pid = (pid_t) wait(w);
+X#ifdef JOBDEBUG
+X	xprintf("signal(SIGCHLD, pchild);\n");
+X#endif /* JOBDEBUG */
+X	(void) signal(SIGCHLD, pchild);
+X	return (pid);
+X    }
+X    else {
+X	/* return signal from stack */
+X	errno = stk[stk_ptr].s_errno;
+X	*w = stk[stk_ptr].s_w;
+X	stk_ptr--;
+X	return (stk[stk_ptr + 1].s_pid);
+X    }
+X} /* end ourwait */
+X
+X#endif /* BSDSIGS */
+X
+X#ifdef NEEDsignal
+X/* turn into bsd signals */
+sigret_t(*
+X	 xsignal(s, a)) ()
+X    int     s;
+X    sigret_t (*a) __P((int));
+X{
+X    sigvec_t osv, sv;
+X
+X    (void) mysigvec(s, NULL, &osv);
+X    sv = osv;
+X    sv.sv_handler = a;
+X#ifdef SIG_STK
+X    sv.sv_onstack = SIG_STK;
+X#endif
+X#ifdef SV_BSDSIG
+X    sv.sv_flags = SV_BSDSIG;
+X#endif
+X
+X    if (mysigvec(s, &sv, NULL) < 0)
+X	return (BADSIG);
+X    return (osv.sv_handler);
+X}
+X
+X#endif /* NEEDsignal */
+X
+X#ifdef _SEQUENT_
+X/*
+X * Support for signals.
+X */
+X
+extern int errno;
+X
+X/* Set and test a bit.  Bits numbered 1 to 32 */
+X
+X#define SETBIT(x, y)	x |= sigmask(y)
+X#define ISSET(x, y)	((x & sigmask(y)) != 0)
+X
+X#ifdef DEBUG
+X# define SHOW_SIGNALS	1	/* to assist in debugging signals */
+X#endif
+X
+X#ifdef SHOW_SIGNALS
+char   *show_sig_mask();
+X#endif
+X
+int     debug_signals = 0;
+X
+X/*
+X * igsetmask(mask)
+X *
+X * Set a new signal mask.  Return old mask.
+X */
+sigmask_t
+sigsetmask(mask)
+X    sigmask_t     mask;
+X{
+X    sigset_t set, oset;
+X    int     m;
+X    register int i;
+X
+X    sigemptyset(&set);
+X    sigemptyset(&oset);
+X
+X    for (i = 1; i <= MAXSIG; i++)
+X	if (ISSET(mask, i))
+X	    sigaddset(&set, i);
+X
+X    if (sigprocmask(SIG_SETMASK, &set, &oset))
+X	xprintf("sigsetmask(0x%x) - sigprocmask failed, errno %d",
+X		mask, errno);
+X
+X    m = 0;
+X    for (i = 1; i < MAXSIG; i++)
+X	if (sigismember(&oset, i))
+X	    SETBIT(m, i);
+X
+X    return (m);
+X}
+X
+X/*
+X * sigblock(mask)
+X *
+X * Add "mask" set of signals to the present signal mask.
+X * Return old mask.
+X */
+sigmask_t
+sigblock(mask)
+X    sigmask_t     mask;
+X{
+X    sigset_t set, oset;
+X    int     m;
+X    register int i;
+X
+X    set = 0;
+X    oset = 0;
+X
+X    /* Get present set of signals. */
+X    if (sigprocmask(SIG_SETMASK, NULL, &set))
+X	xprintf("sigblock(0x%x) - sigprocmask failed, errno %d",
+X		mask, errno);
+X
+X    /* Add in signals from mask. */
+X    for (i = 1; i <= MAXSIG; i++)
+X	if (ISSET(mask, i))
+X	    sigaddset(&set, i);
+X
+X    sigprocmask(SIG_SETMASK, &set, &oset);
+X
+X    /* Return old mask to user. */
+X    m = 0;
+X    for (i = 1; i < MAXSIG; i++)
+X	if (sigismember(&oset, i))
+X	    SETBIT(m, i);
+X
+X    return (m);
+X}
+X
+X
+X/*
+X * bsd_sigpause(mask)
+X *
+X * Set new signal mask and wait for signal;
+X * Old mask is restored on signal.
+X */
+void
+bsd_sigpause(mask)
+X    sigmask_t     mask;
+X{
+X    sigset_t set;
+X    register int i;
+X
+X    sigemptyset(&set);
+X
+X    for (i = 1; i <= MAXSIG; i++)
+X	if (ISSET(mask, i))
+X	    sigaddset(&set, i);
+X    sigsuspend(&set);
+X}
+X#endif /* _SEQUENT_ */
+X
+X
+X#ifdef SIGSYNCH
+static long Synch_Cnt = 0;
+X
+sigret_t
+synch_handler(sno)
+int sno;
+X{
+X    if (sno != SIGSYNCH)
+X	abort();
+X    Synch_Cnt++;
+X}
+X#endif /* SIGSYNCH */
+END_OF_FILE
+if test 7950 -ne `wc -c <'tc.sig.c'`; then
+    echo shar: \"'tc.sig.c'\" unpacked with wrong size!
+fi
+# end of 'tc.sig.c'
+fi
+if test -f 'tc.str.c' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'tc.str.c'\"
+else
+echo shar: Extracting \"'tc.str.c'\" \(8468 characters\)
+sed "s/^X//" >'tc.str.c' <<'END_OF_FILE'
+X/* $Header: /home/hyperion/mu/christos/src/sys/tcsh-6.01/RCS/tc.str.c,v 3.3 1991/10/12 04:23:51 christos Exp $ */
+X/*
+X * tc.str.c: Short string package
+X * 	     This has been a lesson of how to write buggy code!
+X */
+X/*-
+X * Copyright (c) 1980, 1991 The Regents of the University of California.
+X * All rights reserved.
+X *
+X * Redistribution and use in source and binary forms, with or without
+X * modification, are permitted provided that the following conditions
+X * are met:
+X * 1. Redistributions of source code must retain the above copyright
+X *    notice, this list of conditions and the following disclaimer.
+X * 2. Redistributions in binary form must reproduce the above copyright
+X *    notice, this list of conditions and the following disclaimer in the
+X *    documentation and/or other materials provided with the distribution.
+X * 3. All advertising materials mentioning features or use of this software
+X *    must display the following acknowledgement:
+X *	This product includes software developed by the University of
+X *	California, Berkeley and its contributors.
+X * 4. Neither the name of the University nor the names of its contributors
+X *    may be used to endorse or promote products derived from this software
+X *    without specific prior written permission.
+X *
+X * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+X * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+X * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+X * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+X * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+X * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+X * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+X * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+X * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+X * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+X * SUCH DAMAGE.
+X */
+X#include "sh.h"
+X
+RCSID("$Id: tc.str.c,v 3.3 1991/10/12 04:23:51 christos Exp $")
+X
+X#define MALLOC_INCR	128
+X
+X#ifdef SHORT_STRINGS
+Char  **
+blk2short(src)
+X    register char **src;
+X{
+X    size_t     n;
+X    register Char **sdst, **dst;
+X
+X    /*
+X     * Count
+X     */
+X    for (n = 0; src[n] != NULL; n++);
+X    sdst = dst = (Char **) xmalloc((size_t) ((n + 1) * sizeof(Char *)));
+X
+X    for (; *src != NULL; src++)
+X	*dst++ = SAVE(*src);
+X    *dst = NULL;
+X    return (sdst);
+X}
+X
+char  **
+short2blk(src)
+X    register Char **src;
+X{
+X    size_t     n;
+X    register char **sdst, **dst;
+X
+X    /*
+X     * Count
+X     */
+X    for (n = 0; src[n] != NULL; n++);
+X    sdst = dst = (char **) xmalloc((size_t) ((n + 1) * sizeof(char *)));
+X
+X    for (; *src != NULL; src++)
+X	*dst++ = strsave(short2str(*src));
+X    *dst = NULL;
+X    return (sdst);
+X}
+X
+Char   *
+str2short(src)
+X    register char *src;
+X{
+X    static Char *sdst;
+X    static size_t dstsize = 0;
+X    register Char *dst, *edst;
+X
+X    if (src == NULL)
+X	return (NULL);
+X
+X    if (sdst == (NULL)) {
+X	dstsize = MALLOC_INCR;
+X	sdst = (Char *) xmalloc((size_t) dstsize * sizeof(Char));
+X    }
+X
+X    dst = sdst;
+X    edst = &dst[dstsize];
+X    while (*src) {
+X	*dst++ = (Char) ((unsigned char) *src++);
+X	if (dst == edst) {
+X	    dstsize += MALLOC_INCR;
+X	    sdst = (Char *) xrealloc((ptr_t) sdst,
+X				     (size_t) dstsize * sizeof(Char));
+X	    edst = &sdst[dstsize];
+X	    dst = &edst[-MALLOC_INCR];
+X	}
+X    }
+X    *dst = 0;
+X    return (sdst);
+X}
+X
+char   *
+short2str(src)
+X    register Char *src;
+X{
+X    static char *sdst = NULL;
+X    static size_t dstsize = 0;
+X    register char *dst, *edst;
+X
+X    if (src == NULL)
+X	return (NULL);
+X
+X    if (sdst == NULL) {
+X	dstsize = MALLOC_INCR;
+X	sdst = (char *) xmalloc((size_t) dstsize * sizeof(char));
+X    }
+X    dst = sdst;
+X    edst = &dst[dstsize];
+X    while (*src) {
+X	*dst++ = (char) *src++;
+X	if (dst == edst) {
+X	    dstsize += MALLOC_INCR;
+X	    sdst = (char *) xrealloc((ptr_t) sdst,
+X				     (size_t) dstsize * sizeof(char));
+X	    edst = &sdst[dstsize];
+X	    dst = &edst[-MALLOC_INCR];
+X	}
+X    }
+X    *dst = 0;
+X    return (sdst);
+X}
+X
+Char   *
+s_strcpy(dst, src)
+X    register Char *dst, *src;
+X{
+X    register Char *sdst;
+X
+X    sdst = dst;
+X    while (*dst++ = *src++);
+X    return (sdst);
+X}
+X
+Char   *
+s_strncpy(dst, src, n)
+X    register Char *dst, *src;
+X    register size_t n;
+X{
+X    register Char *sdst;
+X
+X    if (n == 0)
+X	return(dst);
+X
+X    sdst = dst;
+X    do 
+X	if ((*dst++ = *src++) == '\0') {
+X	    while (--n != 0)
+X		*dst++ = '\0';
+X	    return(sdst);
+X	}
+X    while (--n != 0);
+X    return (sdst);
+X}
+X
+Char   *
+s_strcat(dst, src)
+X    register Char *dst, *src;
+X{
+X    register short *sdst;
+X
+X    sdst = dst;
+X    while (*dst++);
+X    --dst;
+X    while (*dst++ = *src++);
+X    return (sdst);
+X}
+X
+X#ifdef NOTUSED
+Char   *
+s_strncat(dst, src, n)
+X    register Char *dst, *src;
+X    register size_t n;
+X{
+X    register Char *sdst;
+X
+X    if (n == 0) 
+X	return (dst);
+X
+X    sdst = dst;
+X
+X    while (*dst++);
+X    --dst;
+X
+X    do 
+X	if ((*dst++ = *src++) == '\0')
+X	    return(sdst);
+X    while (--n != 0);
+X
+X    *dst = '\0';
+X    return (sdst);
+X}
+X
+X#endif
+X
+Char   *
+s_strchr(str, ch)
+X    register Char *str;
+X    int ch;
+X{
+X    do
+X	if (*str == ch)
+X	    return (str);
+X    while (*str++);
+X    return (NULL);
+X}
+X
+Char   *
+s_strrchr(str, ch)
+X    register Char *str;
+X    int ch;
+X{
+X    register Char *rstr;
+X
+X    rstr = NULL;
+X    do
+X	if (*str == ch)
+X	    rstr = str;
+X    while (*str++);
+X    return (rstr);
+X}
+X
+size_t
+s_strlen(str)
+X    register Char *str;
+X{
+X    register size_t n;
+X
+X    for (n = 0; *str++; n++);
+X    return (n);
+X}
+X
+int
+s_strcmp(str1, str2)
+X    register Char *str1, *str2;
+X{
+X    for (; *str1 && *str1 == *str2; str1++, str2++);
+X    /*
+X     * The following case analysis is necessary so that characters which look
+X     * negative collate low against normal characters but high against the
+X     * end-of-string NUL.
+X     */
+X    if (*str1 == '\0' && *str2 == '\0')
+X	return (0);
+X    else if (*str1 == '\0')
+X	return (-1);
+X    else if (*str2 == '\0')
+X	return (1);
+X    else
+X	return (*str1 - *str2);
+X}
+X
+int
+s_strncmp(str1, str2, n)
+X    register Char *str1, *str2;
+X    register size_t n;
+X{
+X    if (n == 0)
+X	return (0);
+X    do {
+X	if (*str1 != *str2) {
+X	    /*
+X	     * The following case analysis is necessary so that characters 
+X	     * which look negative collate low against normal characters
+X	     * but high against the end-of-string NUL.
+X	     */
+X	    if (*str1 == '\0')
+X		return (-1);
+X	    else if (*str2 == '\0')
+X		return (1);
+X	    else
+X		return (*str1 - *str2);
+X	}
+X        if (*str1 == '\0')
+X	    return(0);
+X	str1++, str2++;
+X    } while (--n != 0);
+X    return(0);
+X}
+X
+Char   *
+s_strsave(s)
+X    register Char *s;
+X{
+X    Char   *n;
+X    register Char *p;
+X
+X    if (s == 0)
+X	s = STRNULL;
+X    for (p = s; *p++;);
+X    n = p = (Char *) xmalloc((size_t) ((p - s) * sizeof(Char)));
+X    while (*p++ = *s++);
+X    return (n);
+X}
+X
+Char   *
+s_strspl(cp, dp)
+X    Char   *cp, *dp;
+X{
+X    Char   *ep;
+X    register Char *p, *q;
+X
+X    if (!cp)
+X	cp = STRNULL;
+X    if (!dp)
+X	dp = STRNULL;
+X    for (p = cp; *p++;);
+X    for (q = dp; *q++;);
+X    ep = (Char *) xmalloc((size_t)
+X			  (((p - cp) + (q - dp) - 1) * sizeof(Char)));
+X    for (p = ep, q = cp; *p++ = *q++;);
+X    for (p--, q = dp; *p++ = *q++;);
+X    return (ep);
+X}
+X
+Char   *
+s_strend(cp)
+X    register Char *cp;
+X{
+X    if (!cp)
+X	return (cp);
+X    while (*cp)
+X	cp++;
+X    return (cp);
+X}
+X
+Char   *
+s_strstr(s, t)
+X    register Char *s, *t;
+X{
+X    do {
+X	register Char *ss = s;
+X	register Char *tt = t;
+X
+X	do
+X	    if (*tt == '\0')
+X		return (s);
+X	while (*ss++ == *tt++);
+X    } while (*s++ != '\0');
+X    return (NULL);
+X}
+X
+X#endif				/* SHORT_STRINGS */
+X
+char   *
+short2qstr(src)
+X    register Char *src;
+X{
+X    static char *sdst = NULL;
+X    static size_t dstsize = 0;
+X    register char *dst, *edst;
+X
+X    if (src == NULL)
+X	return (NULL);
+X
+X    if (sdst == NULL) {
+X	dstsize = MALLOC_INCR;
+X	sdst = (char *) xmalloc((size_t) dstsize * sizeof(char));
+X    }
+X    dst = sdst;
+X    edst = &dst[dstsize];
+X    while (*src) {
+X	if (*src & QUOTE) {
+X	    *dst++ = '\\';
+X	    if (dst == edst) {
+X		dstsize += MALLOC_INCR;
+X		sdst = (char *) xrealloc((ptr_t) sdst,
+X					 (size_t) dstsize * sizeof(char));
+X		edst = &sdst[dstsize];
+X		dst = &edst[-MALLOC_INCR];
+X	    }
+X	}
+X	*dst++ = (char) *src++;
+X	if (dst == edst) {
+X	    dstsize += MALLOC_INCR;
+X	    sdst = (char *) xrealloc((ptr_t) sdst,
+X				     (size_t) dstsize * sizeof(char));
+X	    edst = &sdst[dstsize];
+X	    dst = &edst[-MALLOC_INCR];
+X	}
+X    }
+X    *dst = 0;
+X    return (sdst);
+X}
+END_OF_FILE
+if test 8468 -ne `wc -c <'tc.str.c'`; then
+    echo shar: \"'tc.str.c'\" unpacked with wrong size!
+fi
+# end of 'tc.str.c'
+fi
+if test -f 'tw.init.c' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'tw.init.c'\"
+else
+echo shar: Extracting \"'tw.init.c'\" \(7269 characters\)
+sed "s/^X//" >'tw.init.c' <<'END_OF_FILE'
+X/* $Header: /home/hyperion/mu/christos/src/sys/tcsh-6.01/RCS/tw.init.c,v 3.2 1991/10/12 04:23:51 christos Exp $ */
+X/*
+X * tw.init.c: TwENEX initializations
+X */
+X/*-
+X * Copyright (c) 1980, 1991 The Regents of the University of California.
+X * All rights reserved.
+X *
+X * Redistribution and use in source and binary forms, with or without
+X * modification, are permitted provided that the following conditions
+X * are met:
+X * 1. Redistributions of source code must retain the above copyright
+X *    notice, this list of conditions and the following disclaimer.
+X * 2. Redistributions in binary form must reproduce the above copyright
+X *    notice, this list of conditions and the following disclaimer in the
+X *    documentation and/or other materials provided with the distribution.
+X * 3. All advertising materials mentioning features or use of this software
+X *    must display the following acknowledgement:
+X *	This product includes software developed by the University of
+X *	California, Berkeley and its contributors.
+X * 4. Neither the name of the University nor the names of its contributors
+X *    may be used to endorse or promote products derived from this software
+X *    without specific prior written permission.
+X *
+X * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+X * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+X * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+X * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+X * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+X * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+X * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+X * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+X * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+X * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+X * SUCH DAMAGE.
+X */
+X#include "sh.h"
+X
+RCSID("$Id: tw.init.c,v 3.2 1991/10/12 04:23:51 christos Exp $")
+X
+X#include "tw.h"
+X
+X/*
+X * Build the command name list (and print the results).  This is a HACK until
+X * I can get the rehash command to include its results in the command list.
+X */
+X
+static int maxcommands = 0;
+X
+X
+void
+tw_clear_comm_list()
+X{
+X    register int i;
+X
+X    have_sorted = 0;
+X    if (numcommands != 0) {
+X/*        for (i = 0; command_list[i]; i++) { */
+X	for (i = 0; i < numcommands; i++) {
+X	    xfree((ptr_t) command_list[i]);
+X	    command_list[i] = NULL;
+X	}
+X	numcommands = 0;
+X    }
+X}
+X
+void
+tw_sort_comms()
+X{				/* could be re-written */
+X    register int i, forward;
+X
+X    /* sort the list. */
+X    qsort((ptr_t) command_list, (size_t) numcommands, sizeof(command_list[0]), 
+X	  (int (*) __P((const void *, const void *))) fcompare);
+X
+X    /* get rid of multiple entries */
+X    for (i = 0, forward = 0; i < numcommands - 1; i++) {
+X	if (Strcmp(command_list[i], command_list[i + 1]) == 0) {	/* garbage */
+X	    xfree((ptr_t) command_list[i]);
+X	    forward++;		/* increase the forward ref. count */
+X	}
+X	else if (forward) {
+X	    command_list[i - forward] = command_list[i];
+X	}
+X    }
+X    /* Fix fencepost error -- Theodore Ts'o <tytso@athena.mit.edu> */
+X    if (forward)
+X	command_list[i - forward] = command_list[i];
+X    numcommands -= forward;
+X    command_list[numcommands] = (Char *) NULL;
+X
+X    have_sorted = 1;
+X}
+X
+void
+tw_add_comm_name(name)		/* this is going to be called a LOT at startup */
+X    Char   *name;
+X{
+X    register int length;
+X    register long i;
+X    register Char **ncl, **p1, **p2;
+X
+X    if (maxcommands == 0) {
+X	command_list = (Char **) xmalloc((size_t) (NUMCMDS_START *
+X						   sizeof(command_list[0])));
+X	maxcommands = NUMCMDS_START;
+X	for (i = 0, p2 = command_list; i < maxcommands; i++)
+X	    *p2 = NULL;
+X    }
+X    else if (numcommands >= maxcommands) {
+X	ncl = (Char **) xmalloc((size_t) ((maxcommands + NUMCMDS_INCR) *
+X					  sizeof(command_list[0])));
+X	for (i = 0, p1 = command_list, p2 = ncl; i < numcommands; i++)
+X	    *p2++ = *p1++;
+X	for (; i < maxcommands + NUMCMDS_INCR; i++)
+X	    *p2++ = NULL;
+X	xfree((ptr_t) command_list);
+X	command_list = ncl;
+X#ifdef COMMENT
+X	command_list = (Char **) xrealloc(command_list, (maxcommands +
+X				     NUMCMDS_INCR) * sizeof(command_list[0]));
+X#endif
+X	maxcommands += NUMCMDS_INCR;
+X    }
+X
+X    if (name[0] == '.')
+X	return;			/* no dot commands... */
+X    if (name[0] == '#')
+X	return;			/* no Emacs buffer checkpoints */
+X
+X    length = Strlen(name) + 1;
+X
+X    if (name[length - 2] == '~')
+X	return;			/* and no Emacs backups either */
+X
+X    command_list[numcommands] = (Char *) xmalloc((size_t) (length *
+X							   sizeof(Char)));
+X
+X    copyn(command_list[numcommands], name, MAXNAMLEN);
+X    numcommands++;
+X}
+X
+void
+tw_add_builtins()
+X{
+X    register struct biltins *bptr;
+X
+X    for (bptr = bfunc; bptr < &bfunc[nbfunc]; bptr++) {
+X	if (bptr->bname)
+X	    tw_add_comm_name(str2short(bptr->bname));
+X    }
+X}
+X
+void
+tw_add_aliases()
+X{
+X    register struct varent *p;
+X    register struct varent *c;
+X
+X    p = &aliases;
+X    for (;;) {
+X	while (p->v_left)
+X	    p = p->v_left;
+x:
+X	if (p->v_parent == 0)	/* is it the header? */
+X	    return;
+X	if (p->v_name)
+X	    tw_add_comm_name(p->v_name);
+X	if (p->v_right) {
+X	    p = p->v_right;
+X	    continue;
+X	}
+X	do {
+X	    c = p;
+X	    p = p->v_parent;
+X	} while (p->v_right == c);
+X	goto x;
+X    }
+X
+X}
+X
+struct varent *
+tw_start_shell_list()
+X{
+X    register struct varent *p;
+X    register struct varent *c;
+X
+X    p = &shvhed;		/* start at beginning of variable list */
+X
+X    for (;;) {
+X	while (p->v_left)
+X	    p = p->v_left;
+x:
+X	if (p->v_parent == 0)	/* is it the header? */
+X	    return (NULL);
+X	if (p->v_name)
+X	    return (p);		/* found first one */
+X	if (p->v_right) {
+X	    p = p->v_right;
+X	    continue;
+X	}
+X	do {
+X	    c = p;
+X	    p = p->v_parent;
+X	} while (p->v_right == c);
+X	goto x;
+X    }
+X}
+X
+Char   *
+tw_next_shell_var(vptr)
+X    struct varent **vptr;
+X{
+X    register struct varent *p;
+X    register struct varent *c;
+X    register Char *cp;
+X
+X    if ((p = *vptr) == NULL)
+X	return (NULL);		/* just in case */
+X
+X    cp = p->v_name;		/* we know that this name is here now */
+X
+X    /* now find the next one */
+X    for (;;) {
+X	if (p->v_right) {	/* if we can go right */
+X	    p = p->v_right;
+X	    while (p->v_left)
+X		p = p->v_left;
+X	}
+X	else {			/* else go up */
+X	    do {
+X		c = p;
+X		p = p->v_parent;
+X	    } while (p->v_right == c);
+X	}
+X	if (p->v_parent == 0) {	/* is it the header? */
+X	    *vptr = NULL;
+X	    return (cp);
+X	}
+X	if (p->v_name) {
+X	    *vptr = p;		/* save state for the next call */
+X	    return (cp);
+X	}
+X    }
+X
+X}
+X
+Char  **
+tw_start_env_list()
+X{
+X    return (STR_environ);
+X}
+X
+Char   *
+Getenv(str)
+X    Char   *str;
+X{
+X    Char  **var;
+X    int     len, res;
+X
+X    len = Strlen(str);
+X    for (var = STR_environ; var != NULL && *var != NULL; var++)
+X	if ((*var)[len] == '=') {
+X	    (*var)[len] = '\0';
+X	    res = StrQcmp(*var, str);
+X	    (*var)[len] = '=';
+X	    if (res == 0)
+X		return (&((*var)[len + 1]));
+X	}
+X    return (NULL);
+X}
+X
+Char   *
+tw_next_env_var(evp)
+X    Char ***evp;
+X{
+X    static Char buffer[MAXVARLEN + 1];
+X    Char   *ps, *pd;
+X
+X    if (*evp == NULL || **evp == NULL)
+X	return (NULL);
+X    for (ps = **evp, pd = buffer;
+X	 *ps && *ps != '=' && pd <= &buffer[MAXVARLEN]; *pd++ = *ps++);
+X    *pd = '\0';
+X    (*evp)++;
+X    return (buffer);
+X}
+END_OF_FILE
+if test 7269 -ne `wc -c <'tw.init.c'`; then
+    echo shar: \"'tw.init.c'\" unpacked with wrong size!
+fi
+# end of 'tw.init.c'
+fi
+echo shar: End of archive 4 \(of 18\).
+cp /dev/null ark4isdone
+MISSING=""
+for I in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 ; do
+    if test ! -f ark${I}isdone ; then
+	MISSING="${MISSING} ${I}"
+    fi
+done
+if test "${MISSING}" = "" ; then
+    echo You have unpacked all 18 archives.
+    rm -f ark[1-9]isdone ark[1-9][0-9]isdone
+else
+    echo You still need to unpack the following archives:
+    echo "        " ${MISSING}
+fi
+##  End of shell archive.
+exit 0

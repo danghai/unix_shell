@@ -1,0 +1,360 @@
+                                  scripts
+
+------------------------------------------------------------------
+calc
+
+#!/bin/ksh
+
+# A very simple calculator - one expression per command
+
+print $(($*))
+------------------------------------------------------------------
+calc2
+
+#!/bin/ksh
+
+# A more complex calculator - multiple expressions till ctrl-c
+
+trap 'print Thank you for calculating!' EXIT
+
+while read expr'?expression> '; do
+        print $(($expr))
+done
+------------------------------------------------------------------
+conj
+
+#!/bin/ksh
+
+# A program to convert tiff to jpeg - with checking
+
+print there are $# files to convert
+print $*
+print Is this correct
+done=false
+while [[ $done = false ]]; do
+        done=true
+        {
+                print 'Enter y for yes'
+                print 'Enter n for no'
+        } >&2
+        read REPLY?'answer? '
+        case $REPLY in
+                y ) GO=y ;;
+                n ) GO=n ;;
+                * ) print 'invalid.'
+                        done=false ;;
+        esac
+done
+if [[ "$GO" = "y" ]] then
+for filename in "$@" ; do
+newfile=${filename%.tif}.jpg
+eval convert $filename $newfile
+done
+fi
+------------------------------------------------------------------
+conjx
+
+#!/bin/ksh
+
+# A simple program to convert tiff to jpeg
+
+for filename in "$@" ; do
+newfile=${filename%.tif}.jpg
+eval convert $filename $newfile
+done
+------------------------------------------------------------------
+copro
+
+#!/bin/ksh
+ed - memo |&
+print -p /word/
+read -p search
+print "$search"
+------------------------------------------------------------------
+copro2
+
+#!/bin/ksh
+search=eval echo /word/ | ed - memo
+print $search
+------------------------------------------------------------------
+files
+
+#!/bin/ksh
+
+# A program to give information about a file
+
+if [[ ! -a $1 ]]; then
+    print "file $1 does not exist."
+    return 1
+fi
+if [[ -d $1 ]]; then
+    print -n "$1 is a directory that you may"
+    if [[ ! -x $1 ]]; then
+        print -n " not "
+    fi
+    print "search."
+elif [[ -f $1 ]]; then
+    print "$1 is a regular file."
+else
+    print "$1 is a special type of file."
+fi
+if [[ -O $1 ]]; then
+    print 'you own the file.'
+else
+    print 'you do not own the file.'
+fi
+if [[ -r $1 ]]; then
+    print 'you have read permission on the file.'
+fi
+if [[ -w $1 ]]; then
+    print 'you have write permission on the file.'
+fi
+if [[ -x $1 && ! -d $1 ]]; then
+    print 'you have execute permission on the file.'
+fi
+------------------------------------------------------------------
+flist
+
+#!/bin/ksh
+
+# A program to list multiple files seperated with file name as
+#  a sub-header and the date as the header
+
+narg=$#
+if test $# -eq 0
+then echo "No files requested for listing"
+exit
+fi
+if test $# -eq 2
+then
+head=$1
+shift
+fi
+echo `date`
+for i
+in $*
+do
+echo "------------------------------------------------------------------"
+if test $narg -eq 1
+then head=$i
+fi
+echo $head
+echo
+cat $i
+done
+------------------------------------------------------------------
+lower
+
+#!/bin/ksh
+
+# A program to convert file names to lower case
+
+for filename in "$@" ; do
+typeset -l newfile=$filename
+eval mv $filename $newfile
+done
+------------------------------------------------------------------
+term1
+
+#!/bin/ksh
+
+# An example of using select and setting terminal options
+
+PS3='terminal? '
+select term in vt100 vt102 vt220 xterm; do
+    if [[ -n $term ]]; then
+        TERM=$term
+        print TERM is $TERM
+        break
+    else
+        print 'invalid.'
+    fi
+done
+------------------------------------------------------------------
+term2
+
+#!/bin/ksh
+
+# An example of using select and case to set terminal type
+
+print 'Select your terminal type:'
+PS3='terminal? '
+select term in \
+    'DEC vt100' \
+    'DEC vt102' \
+    'DEC vt220' \
+    'xterm'
+do
+    case $REPLY in
+        1 ) TERM=vt100 ;;
+        2 ) TERM=vt102 ;;
+        3 ) TERM=vt220 ;;
+        4 ) TERM=xterm ;;
+        * ) print 'invalid.' ;;
+    esac
+    if [[ -n $term ]]; then
+        print TERM is $TERM
+        break
+    fi
+done
+------------------------------------------------------------------
+testit
+
+#!/bin/ksh
+
+# Script to test functions inside a shell program
+
+testopt $*
+------------------------------------------------------------------
+upper
+
+#!/bin/ksh
+
+# A program to convert file names to upper case
+
+for filename in "$@" ; do
+typeset -u newfile=$filename
+eval mv $filename $newfile
+done
+------------------------------------------------------------------
+usernames
+
+#!/bin/ksh
+
+# A program to generate email addresses of users sorted by surname
+
+niscat passwd.org_dir | gawk 'BEGIN {FS=":"} /area/ && !/ftp/ && !/cccb/ && !/africa/ {print $5,$1}' | gawk '{print $(NF-1),$0 | "sort"}' | gawk 'ORS=" "{for (
+------------------------------------------------------------------
+grep2
+
+#!/bin/ksh
+
+# Script to search for two words in a file
+
+filename=$1
+word1=$2
+word2=$3
+if grep $word1 $filename && grep $word2 $filename
+then
+print "$word1 and $word2 are both in $filename."
+fi
+------------------------------------------------------------------
+guess
+
+#!/bin/ksh
+
+# A simple number guessing program
+
+trap 'print Thank you for playing!' EXIT
+
+magicnum=$(($RANDOM%10+1))
+print 'Guess a number between 1 and 10:'
+while read guess'?number> '; do
+    sleep 1
+    if (( $guess == $magicnum )); then
+        print 'Right!'
+        exit
+    fi
+    print 'Wrong!'
+done
+------------------------------------------------------------------
+guesshl
+
+#!/bin/ksh
+
+# Another number guessing program
+
+magicnum=$(($RANDOM%100+1))
+print 'Guess a number between 1 and 100:'
+while read guess'?number> '; do
+    if (( $guess == $magicnum )); then
+        print 'Right!'
+        exit
+    fi
+        if (( $guess < $magicnum )); then
+                print 'Too low!'
+        else
+                print 'Too high!'
+        fi
+done
+------------------------------------------------------------------
+message
+
+#!/bin/ksh
+
+# An
+
+eval /disk2/bin/msgs
+print 'Select your option:'
+PS3='(1-3 or q)? '
+select opt in \
+    'quit' \
+    'list header of all messages' \
+    'read all available messages'
+do
+    case $REPLY in
+        1|q ) break ;;
+        2 ) eval /disk2/bin/msgs -h 1 ;;
+        3 ) eval /disk2/bin/msgs 1 ;;
+        * ) print "type q to quit" ;;
+    esac
+done
+------------------------------------------------------------------
+minute
+
+#!/bin/ksh
+
+# A simple program to count a minute
+
+i=0
+date
+while test $i -lt 60;do
+print $i
+sleep 1
+let i=i+1
+done
+date
+------------------------------------------------------------------
+minute2
+
+#!/bin/ksh
+
+# A slightly more elegant version of minute
+
+i=0
+date
+print
+while test $i -lt 60;do
+print "[1A"$i
+sleep 1
+let i=i+1
+done
+date
+------------------------------------------------------------------
+copro
+
+#!/bin/ksh
+ed - memo |&
+print -p /word/
+read -p search
+print "$search"
+------------------------------------------------------------------
+copro2
+
+#!/bin/ksh
+search=eval echo /word/ | ed - memo
+print $search
+------------------------------------------------------------------
+infloop
+
+#!/bin/ksh
+
+# A simple program that loops indefinitely
+
+trap 'print "You hit control-C"' INT
+trap 'print "You hit control-\"' QUIT
+trap 'print "You tried to kill me!"' TERM
+
+while true; do
+        sleep 60
+done

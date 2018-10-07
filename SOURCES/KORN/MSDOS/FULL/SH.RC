@@ -1,0 +1,45 @@
+#!sh
+#
+# Set up functions etc.
+#
+
+if	[ "$windir" = "" ]
+then	swap on
+else	swap disk expand
+fi
+
+msdos LIB TMP PATH COMSPEC
+
+alias 'l=ls -C'
+alias 'cls=tput clear'
+alias 'who=userlist'
+alias 'autoload=typeset -fu'
+alias 'integer=typeset -i'
+alias 'r=fc -e -'
+
+login () {
+
+    if   [ -f login.exe ]
+    then ./login $*
+    elif [ -f f:login.exe ] 
+    then f:login $*
+    else z:/public/login $*
+    fi
+
+    if [ $? = 0 ]
+    then TMP=z:/tmp
+    fi
+
+    DATE=`date '+%.2y%.2m%.2d'`
+    EXINIT="set aw ai sm dm sw=4 wm=5 dir=$TMP"
+}
+
+logout () {
+    DATE=`date '+%.2y%.2m%.2d'`
+
+    cd
+    z:/public/logout
+
+    TMP=c:/tmp
+    EXINIT="set aw ai sm dm sw=4 wm=5 dir=$TMP"
+}

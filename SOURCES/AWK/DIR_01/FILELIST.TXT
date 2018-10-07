@@ -1,0 +1,19 @@
+Current directory is /pub/natewild/awk
+
+Up to higher level directory
+ [Image] ChangeCase.awk          901 bytes Sat Dec 03 00:00:00 1994
+ [Image] CheckData.awk             1 Kb    Sun Dec 04 00:00:00 1994
+ [Image] CheckPassword.awk         1 Kb    Sun Dec 04 00:00:00 1994
+ [Image] Date2Date.awk             1 Kb    Sun Dec 04 00:00:00 1994
+ [Image] Date2YYMMDD.awk           1 Kb    Sat Dec 03 00:00:00 1994
+ [Image] DateToDayOfWeek.awk       2 Kb    Mon Mar 04 13:20:00 1996
+ [Image] FromToday.awk             2 Kb    Mon Dec 12 00:00:00 1994
+ [Image] Hour2Dec.awk            359 bytes Sun Dec 04 00:00:00 1994
+ [Image] MakeFit.awk               1 Kb    Sun Dec 04 00:00:00 1994
+ [Image] MakeRegex.awk           944 bytes Sun Dec 04 00:00:00 1994
+ [Image] PCL_Printer.awk           4 Kb    Wed Feb 01 00:00:00 1995
+ [Image] SQL_Functions.awk         4 Kb    Wed Feb 01 00:00:00 1995
+ [Image] UncompressUPC.awk         1 Kb    Wed Jan 18 00:00:00 1995
+ [Image] awkcc.tgz                49 Kb    Fri Apr 14 00:00:00 1995
+ [Image] printer.awk               4 Kb    Tue Jan 31 00:00:00 1995
+ [Image] sql_fun.awk               4 Kb    Tue Jan 31 00:00:00 1995

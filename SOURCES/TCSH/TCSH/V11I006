@@ -1,0 +1,2214 @@
+Path: uunet!rs
+From: rs@uunet.UU.NET (Rich Salz)
+Newsgroups: comp.sources.unix
+Subject: v11i006:  New version of T-shell, Part06/06
+Message-ID: <864@uunet.UU.NET>
+Date: 11 Aug 87 23:53:40 GMT
+Organization: UUNET Communications Services, Arlington, VA
+Lines: 2204
+Approved: rs@uunet.UU.NET
+
+Submitted-by: Paul Placeway <pyramid!osu-eddie!paul>
+Posting-number: Volume 11, Issue 6
+Archive-name: tcsh/Part06
+
+# This is a shell archive.  Remove anything before this line
+# then unpack it by saving it in a file and typing "sh file"
+# (Files unpacked will be owned by you and have default permissions).
+# This archive contains the following files:
+#	./DIFFS.1
+#
+if `test ! -s ./DIFFS.1`
+then
+echo "writing ./DIFFS.1"
+sed 's/^x//' > ./DIFFS.1 << '\Rogue\Monster\'
+xNo differences encountered
+xNo differences encountered
+xNo differences encountered
+xNo differences encountered
+x*** ../csh4.2/sh.c	Tue Jun 23 12:13:44 1987
+x--- sh.c	Sat Jul 18 11:39:42 1987
+x***************
+x*** 1,4
+x  static	char *sccsid = "@(#)sh.c 4.12 6/11/83";
+x  
+x  #include "sh.h"
+x  #include <sys/ioctl.h>
+x
+x--- 1,5 -----
+x  static	char *sccsid = "@(#)sh.c 4.12 6/11/83";
+x+ static char *Version = "tcsh 5.4 (Ohio State) 7/18/87 Patch level 0";
+x  
+x  #include "sh.h"
+x  /* #include <sys/ioctl.h> */
+x***************
+x*** 1,7
+x  static	char *sccsid = "@(#)sh.c 4.12 6/11/83";
+x  
+x  #include "sh.h"
+x! #include <sys/ioctl.h>
+x  /*
+x   * C Shell
+x   *
+x
+x--- 2,19 -----
+x  static char *Version = "tcsh 5.4 (Ohio State) 7/18/87 Patch level 0";
+x  
+x  #include "sh.h"
+x! /* #include <sys/ioctl.h> */
+x! 
+x! #ifdef SVID
+x! struct termio termiob;
+x! 
+x! # ifdef OREO
+x! struct ltchars ltcbuf;
+x! #include <compat.h>
+x! # endif OREO
+x! 
+x! #endif SVID
+x! 
+x  /*
+x   * C Shell
+x   *
+x***************
+x*** 10,15
+x   *
+x   * Jim Kulp, IIASA, Laxenburg, Austria
+x   * April 1980
+x   */
+x  
+x  char	*pathlist[] =	{ ".", "/usr/ucb", "/bin", "/usr/bin", 0 };
+x
+x--- 22,47 -----
+x   *
+x   * Jim Kulp, IIASA, Laxenburg, Austria
+x   * April 1980
+x+  *
+x+  * Filename recognition added:
+x+  * Ken Greer, Ind. Consultant, Palo Alto CA
+x+  * October 1983.
+x+  *
+x+  * Karl Kleinpaste, Computer Consoles, Inc.
+x+  * Added precmd, periodic/tperiod, prompt changes,
+x+  * directory stack hack, and login watch.
+x+  * Sometime March 1983 - Feb 1984.
+x+  *
+x+  * Added scheduled commands, including the "sched" command,
+x+  * plus the call to sched_run near the precmd et al
+x+  * routines.
+x+  * Upgraded scheduled events for running events while
+x+  * sitting idle at command input.
+x+  *
+x+  * Paul Placeway, Ohio State
+x+  * added stuff for running with twenex/inputl  9 Oct 1984.
+x+  *
+x+  * ported to Apple Unix (TM) (OREO)  26 -- 29 Jun 1987
+x   */
+x  
+x  char	*pathlist[] =	{ ".", "/u/osu/bin", "/usr/ucb", "/bin",
+x***************
+x*** 12,18
+x   * April 1980
+x   */
+x  
+x! char	*pathlist[] =	{ ".", "/usr/ucb", "/bin", "/usr/bin", 0 };
+x  char	*dumphist[] =	{ "history", "-h", 0, 0 };
+x  char	*loadhist[] =	{ "source", "-h", "~/.history", 0 };
+x  char	HIST = '!';
+x
+x--- 44,51 -----
+x   * ported to Apple Unix (TM) (OREO)  26 -- 29 Jun 1987
+x   */
+x  
+x! char	*pathlist[] =	{ ".", "/u/osu/bin", "/usr/ucb", "/bin",
+x! 			  "/usr/bin", 0 };
+x  char	*dumphist[] =	{ "history", "-h", 0, 0 };
+x  char	*loadhist[] =	{ "source", "-h", "~/.history", 0 };
+x  /* char	HIST = '!'; */
+x***************
+x*** 15,22
+x  char	*pathlist[] =	{ ".", "/usr/ucb", "/bin", "/usr/bin", 0 };
+x  char	*dumphist[] =	{ "history", "-h", 0, 0 };
+x  char	*loadhist[] =	{ "source", "-h", "~/.history", 0 };
+x! char	HIST = '!';
+x! char	HISTSUB = '^';
+x  bool	nofile;
+x  bool	reenter;
+x  bool	nverbose;
+x
+x--- 48,55 -----
+x  			  "/usr/bin", 0 };
+x  char	*dumphist[] =	{ "history", "-h", 0, 0 };
+x  char	*loadhist[] =	{ "source", "-h", "~/.history", 0 };
+x! /* char	HIST = '!'; */
+x! /* char	HISTSUB = '^'; */
+x  bool	nofile;
+x  bool	reenter;
+x  bool	nverbose;
+x***************
+x*** 25,30
+x  bool	fast;
+x  bool	prompt = 1;
+x  bool	enterhist = 0;
+x  
+x  main(c, av)
+x  	int c;
+x
+x--- 58,71 -----
+x  bool	fast;
+x  bool	prompt = 1;
+x  bool	enterhist = 0;
+x+ bool	tellwhat = 0;
+x+ int	phup();
+x+ time_t	t_period;
+x+ time_t	watch_period = 0;
+x+ struct who *wholist;
+x+ bool	precmd_active = 0;
+x+ bool	periodic_active = 0;
+x+ char    buff[128];		/* for gethostname(2), and printprompt() */
+x  
+x  #define DEFAULT_AUTOLOGOUT	"60"	/* 1 Hour Alarm default */
+x  
+x***************
+x*** 26,31
+x  bool	prompt = 1;
+x  bool	enterhist = 0;
+x  
+x  main(c, av)
+x  	int c;
+x  	char **av;
+x
+x--- 67,100 -----
+x  bool	periodic_active = 0;
+x  char    buff[128];		/* for gethostname(2), and printprompt() */
+x  
+x+ #define DEFAULT_AUTOLOGOUT	"60"	/* 1 Hour Alarm default */
+x+ 
+x+ auto_logout ()
+x+ {
+x+     printf ("auto-logout\n");
+x+     close (SHIN);
+x+     set ("logout", "automatic");
+x+     child++;
+x+     goodbye ();
+x+ }
+x+ 
+x+ alrmcatch ()
+x+ {
+x+ 	extern	struct	sched_event *sched_ptr;
+x+ 	time_t	cl;
+x+ 
+x+ 	if (!sched_ptr)
+x+ 		auto_logout();	/* no other possibility - logout */
+x+ 	time(&cl);
+x+ 	if (sched_ptr->t_when <= cl + 1)
+x+ 		sched_run();
+x+ 	else
+x+ 		auto_logout();
+x+ 	setalarm();
+x+ }
+x+ 
+x+ char    *ttyname();
+x+ 
+x  main(c, av)
+x  	int c;
+x  	char **av;
+x***************
+x*** 34,39
+x  	register int f;
+x  
+x  	settimes();			/* Immed. estab. timing base */
+x  	v = av;
+x  	if (eq(v[0], "a.out"))		/* A.out's are quittable */
+x  		quitit = 1;
+x
+x--- 103,116 -----
+x  	register int f;
+x  
+x  	settimes();			/* Immed. estab. timing base */
+x+ #ifdef OREO
+x+ 	set42sig();
+x+ 	setcompat (COMPAT_BSDPROT | COMPAT_BSDNBIO | COMPAT_BSDSIGNALS |
+x+ 		  COMPAT_SYSCALLS);
+x+ #endif
+x+ 	HIST = '!';
+x+ 	HISTSUB = '^';
+x+ 
+x  	v = av;
+x  	if (eq(v[0], "a.out"))		/* A.out's are quittable */
+x  		quitit = 1;
+x***************
+x*** 43,48
+x  		time(&chktim);
+x  
+x  	/*
+x  	 * Move the descriptors to safe places.
+x  	 * The variable didfds is 0 while we have only FSH* to work with.
+x  	 * When didfds is true, we have 0,1,2 and prefer to use these.
+x
+x--- 120,132 -----
+x  		time(&chktim);
+x  
+x  	/*
+x+ 	 * Initialize for periodic command intervals.
+x+ 	 * Also, initialize the dummy tty list for login-watch.
+x+ 	 */
+x+ 	time(&t_period);
+x+ 	initwatch();
+x+ 
+x+ 	/*
+x  	 * Move the descriptors to safe places.
+x  	 * The variable didfds is 0 while we have only FSH* to work with.
+x  	 * When didfds is true, we have 0,1,2 and prefer to use these.
+x***************
+x*** 56,61
+x  	 * CHILD is munged when forking/waiting
+x  	 */
+x  
+x  	set("status", "0");
+x  	dinit(cp = getenv("HOME"));	/* dinit thinks that HOME == cwd in a
+x  					 * login shell */
+x
+x--- 140,169 -----
+x  	 * CHILD is munged when forking/waiting
+x  	 */
+x  	
+x+ 	/* 7-10-87 Paul Placeway
+x+ 	 * autologout should be set ONLY on login shells and on shells
+x+ 	 * running as root.  Out of these, autologout should NOT be set
+x+ 	 * for any psudo-terminals (this catches most window systems)
+x+ 	 * and not for any terminal running X windows.
+x+ 	 *
+x+ 	 * At Ohio State, we have had problems with a user having his
+x+ 	 * X session drop out from under him (on a Sun) because the shell
+x+ 	 * in his master xterm timed out and exited.
+x+ 	 *
+x+ 	 * Really, this should be done with a program external to the
+x+ 	 * shell, that watches for no activity (and NO running programs,
+x+ 	 * such as dump) on a terminal for a long peroid of time, and
+x+ 	 * then SIGHUPS the shell on that terminal.
+x+ 	 */
+x+ 	if (loginsh || getuid() == 0) { /* only for login shells or root */
+x+ 	    cp = ttyname(SHIN);
+x+ 	    if ((strncmp (cp, "ttyp", 4) != 0) &&
+x+ 		(strncmp (cp, "ttyp", 4) != 0))
+x+ 		if (getenv("DISPLAY") == NOSTR) /* NOT on X window shells */
+x+ 		    set("autologout", DEFAULT_AUTOLOGOUT);
+x+ 	}
+x+ 
+x+ 	sigset (SIGALRM, alrmcatch);
+x  	set("status", "0");
+x  	set("tcsh", "1");		/* so I can tell the difference */
+x  	dinit(cp = getenv("HOME"));	/* dinit thinks that HOME == cwd in a
+x***************
+x*** 57,62
+x  	 */
+x  
+x  	set("status", "0");
+x  	dinit(cp = getenv("HOME"));	/* dinit thinks that HOME == cwd in a
+x  					 * login shell */
+x  	if (cp == NOSTR)
+x
+x--- 165,171 -----
+x  
+x  	sigset (SIGALRM, alrmcatch);
+x  	set("status", "0");
+x+ 	set("tcsh", "1");		/* so I can tell the difference */
+x  	dinit(cp = getenv("HOME"));	/* dinit thinks that HOME == cwd in a
+x  					 * login shell */
+x  	if (cp == NOSTR)
+x***************
+x*** 71,76
+x  		set("user", savestr(cp));
+x  	if ((cp = getenv("TERM")) != NOSTR)
+x  		set("term", savestr(cp));
+x  	/*
+x  	 * Re-initialize path if set in environment
+x  	 */
+x
+x--- 180,187 -----
+x  		set("user", savestr(cp));
+x  	if ((cp = getenv("TERM")) != NOSTR)
+x  		set("term", savestr(cp));
+x+ 
+x+ 	set ("version", Version); /* publish the shell version */
+x  	/*
+x  	 * set usefull environment things for the user
+x  	 */
+x***************
+x*** 72,77
+x  	if ((cp = getenv("TERM")) != NOSTR)
+x  		set("term", savestr(cp));
+x  	/*
+x  	 * Re-initialize path if set in environment
+x  	 */
+x  	if ((cp = getenv("PATH")) == NOSTR)
+x
+x--- 183,223 -----
+x  
+x  	set ("version", Version); /* publish the shell version */
+x  	/*
+x+ 	 * set usefull environment things for the user
+x+ 	 */
+x+ 	itoa (getuid(), buff);
+x+ 	set ("uid", buff);
+x+ 	if ((cp = getenv("HOST")) == NOSTR) { /* if not allready set */
+x+ 	    gethostname (buff, sizeof(buff));
+x+ 	    buff[sizeof(buff) -1] = '\0'; /* just in case */
+x+ 	    setenv ("HOST", buff);
+x+ 	}
+x+ 	if ((cp = getenv("HOSTTYPE")) == NOSTR) { /* if not allready set */
+x+ #ifdef vax
+x+ 	    setenv ("HOSTTYPE", "vax");
+x+ #endif
+x+ #ifdef sun
+x+ # ifdef mc68010
+x+ 	    setenv ("HOSTTYPE", "sun2");
+x+ # else
+x+ #  ifdef mc68020
+x+ 	    setenv ("HOSTTYPE", "sun3");
+x+ #  else
+x+ 	    setenv ("HOSTTYPE", "sun");
+x+ #  endif
+x+ # endif
+x+ #endif
+x+ #ifdef pyr			/* pyramid */
+x+ 	    setenv ("HOSTTYPE", "pyramid");
+x+ #endif
+x+ #ifdef OREO
+x+ 	    setenv ("HOSTTYPE", "mac2");
+x+ #endif OREO
+x+ #ifdef ns32000                  /* ugh!  This should change */
+x+             setenv ("HOSTTYPE", "multimax");
+x+ #endif
+x+ 	}
+x+ 	/*
+x  	 * Re-initialize path if set in environment
+x  	 */
+x  	if ((cp = getenv("PATH")) == NOSTR)
+x***************
+x*** 244,251
+x  	/*
+x  	 * Set up the prompt.
+x  	 */
+x! 	if (prompt)
+x! 		set("prompt", uid == 0 ? "# " : "% ");
+x  
+x  	/*
+x  	 * If we are an interactive shell, then start fiddling
+x
+x--- 390,399 -----
+x  	/*
+x  	 * Set up the prompt.
+x  	 */
+x! 	if (prompt) {
+x! 		set("prompt", uid == 0 ? "# " : "> ");
+x! 		set("prompt2", "\277 "); /* that's a meta-questionmark */
+x! 	}
+x  
+x  	/*
+x  	 * If we are an interactive shell, then start fiddling
+x***************
+x*** 280,285
+x  			else
+x  				f = -1;
+x  retry:
+x  			if (ioctl(f, TIOCGPGRP, &tpgrp) == 0 && tpgrp != -1) {
+x  				int ldisc;
+x  				if (tpgrp != shpgrp) {
+x
+x--- 428,434 -----
+x  			else
+x  				f = -1;
+x  retry:
+x+ #ifdef BSDJOBS			/* if we have tty job control */
+x  			if (ioctl(f, TIOCGPGRP, &tpgrp) == 0 && tpgrp != -1) {
+x  				int ldisc;
+x  				if (tpgrp != shpgrp) {
+x***************
+x*** 288,293
+x  					sigsys(SIGTTIN, old);
+x  					goto retry;
+x  				}
+x  				if (ioctl(f, TIOCGETD, &oldisc) != 0) 
+x  					goto notty;
+x  				if (oldisc != NTTYDISC) {
+x
+x--- 437,469 -----
+x  					sigsys(SIGTTIN, old);
+x  					goto retry;
+x  				}
+x+ # ifdef OREO
+x+ 				if (ioctl(f, TCGETA, &termiob) != 0)
+x+ 				    goto notty;
+x+ 				if ((getcompat(COMPAT_BSDTTY) & COMPAT_BSDTTY)
+x+ 				    != COMPAT_BSDTTY) {
+x+ #  ifdef DEBUG
+x+ 				    printf("Switching to new tty driver...\n");
+x+ #  endif DEBUG
+x+ 				    setcompat(COMPAT_BSDTTY);
+x+ 				    if (ioctl (f, TIOCGLTC, &ltcbuf) < 0) {
+x+ 					printf ("Couldn't get local chars.\n");
+x+ 				    } else {
+x+ #  ifdef DEBUG
+x+ 					printf ("Setting ^Z, etc....\n");
+x+ #  endif DEBUG
+x+ 					ltcbuf.t_suspc = '\032'; /* ^Z */
+x+ 					ltcbuf.t_dsuspc = '\031'; /* ^Y */
+x+ 					ltcbuf.t_rprntc = '\022'; /* ^R */
+x+ 					ltcbuf.t_flushc = '\017'; /* ^O */
+x+ 					ltcbuf.t_werasc = '\027'; /* ^W */
+x+ 					ltcbuf.t_lnextc = '\026'; /* ^V */
+x+ 					ioctl (f, TIOCSLTC, &ltcbuf);
+x+ 				    }
+x+ 				    termiob.c_cc[VSWTCH] = '\0';
+x+ 				    ioctl(f, TCSETAF, &termiob);
+x+ 				}
+x+ # else OREO
+x  				if (ioctl(f, TIOCGETD, &oldisc) != 0) 
+x  					goto notty;
+x  				if (oldisc != NTTYDISC) {
+x***************
+x*** 291,297
+x  				if (ioctl(f, TIOCGETD, &oldisc) != 0) 
+x  					goto notty;
+x  				if (oldisc != NTTYDISC) {
+x! #ifdef DEBUG
+x  					printf("Switching to new tty driver...\n");
+x  #endif DEBUG
+x  					ldisc = NTTYDISC;
+x
+x--- 467,473 -----
+x  				if (ioctl(f, TIOCGETD, &oldisc) != 0) 
+x  					goto notty;
+x  				if (oldisc != NTTYDISC) {
+x! #  ifdef DEBUG
+x  					printf("Switching to new tty driver...\n");
+x  #  endif DEBUG
+x  					ldisc = NTTYDISC;
+x***************
+x*** 293,299
+x  				if (oldisc != NTTYDISC) {
+x  #ifdef DEBUG
+x  					printf("Switching to new tty driver...\n");
+x! #endif DEBUG
+x  					ldisc = NTTYDISC;
+x  					ioctl(f, TIOCSETD, &ldisc);
+x  				} else
+x
+x--- 469,475 -----
+x  				if (oldisc != NTTYDISC) {
+x  #  ifdef DEBUG
+x  					printf("Switching to new tty driver...\n");
+x! #  endif DEBUG
+x  					ldisc = NTTYDISC;
+x  					ioctl(f, TIOCSETD, &ldisc);
+x  				} else
+x***************
+x*** 298,303
+x  					ioctl(f, TIOCSETD, &ldisc);
+x  				} else
+x  					oldisc = -1;
+x  				opgrp = shpgrp;
+x  				shpgrp = getpid();
+x  				tpgrp = shpgrp;
+x
+x--- 474,480 -----
+x  					ioctl(f, TIOCSETD, &ldisc);
+x  				} else
+x  					oldisc = -1;
+x+ # endif OREO
+x  				opgrp = shpgrp;
+x  				shpgrp = getpid();
+x  				tpgrp = shpgrp;
+x***************
+x*** 310,315
+x    printf("Warning: no access to tty; thus no job control in this shell...\n");
+x  				tpgrp = -1;
+x  			}
+x  		}
+x  	}
+x  	if (setintr == 0 && parintr == SIG_DFL)
+x
+x--- 487,496 -----
+x    printf("Warning: no access to tty; thus no job control in this shell...\n");
+x  				tpgrp = -1;
+x  			}
+x+ #else BSDJOBS			/* don't have job control, so frotz it */
+x+ 			tpgrp = -1;
+x+ 			printf ("Warning: jobs not implemented yet.\n");
+x+ #endif BSDJOBS
+x  		}
+x  	}
+x  	if (setintr == 0 && parintr == SIG_DFL)
+x***************
+x*** 324,329
+x  	haderr = 0;		/* In case second time through */
+x  	if (!fast && reenter == 0) {
+x  		reenter++;
+x  		/* Will have value("home") here because set fast if don't */
+x  		srccat(value("home"), "/.cshrc");
+x  		if (!fast && !arginp && !onelflg)
+x
+x--- 505,514 -----
+x  	haderr = 0;		/* In case second time through */
+x  	if (!fast && reenter == 0) {
+x  		reenter++;
+x+                 if (!fast && !arginp && !onelflg) { /* PWP setup stuff */
+x+ 		    ed_Init();	/* init the new line editor */
+x+ 		    /* PWP: setup the editor BEFORE doing .cshrc, else bugs! */
+x+ 		}    
+x  		/* Will have value("home") here because set fast if don't */
+x  		srccat(value("home"), "/.cshrc");	/* upward compat. */
+x  		if (!fast && !arginp && !onelflg)
+x***************
+x*** 325,331
+x  	if (!fast && reenter == 0) {
+x  		reenter++;
+x  		/* Will have value("home") here because set fast if don't */
+x! 		srccat(value("home"), "/.cshrc");
+x  		if (!fast && !arginp && !onelflg)
+x  			dohash();
+x  		dosource(loadhist);
+x
+x--- 510,516 -----
+x  		    /* PWP: setup the editor BEFORE doing .cshrc, else bugs! */
+x  		}    
+x  		/* Will have value("home") here because set fast if don't */
+x! 		srccat(value("home"), "/.cshrc");	/* upward compat. */
+x  		if (!fast && !arginp && !onelflg)
+x  			dohash();
+x  		dosource(loadhist);
+x***************
+x*** 353,358
+x  	/*
+x  	 * Mop-up.
+x  	 */
+x  	if (loginsh) {
+x  		printf("logout\n");
+x  		close(SHIN);
+x
+x--- 538,544 -----
+x  	/*
+x  	 * Mop-up.
+x  	 */
+x+ 	if (intty) {
+x  	    if (loginsh) {
+x  		printf("logout\n");
+x  		close(SHIN);
+x***************
+x*** 358,363
+x  		close(SHIN);
+x  		child++;
+x  		goodbye();
+x  	}
+x  	rechist();
+x  	exitstat();
+x
+x--- 544,551 -----
+x  		close(SHIN);
+x  		child++;
+x  		goodbye();
+x+ 	    } else {
+x+ 		printf ("exit\n");
+x  	    }
+x  	}
+x  	rechist();
+x***************
+x*** 359,364
+x  		child++;
+x  		goodbye();
+x  	}
+x  	rechist();
+x  	exitstat();
+x  }
+x
+x--- 547,553 -----
+x  	    } else {
+x  		printf ("exit\n");
+x  	    }
+x+ 	}
+x  	rechist();
+x  	exitstat();
+x  }
+x***************
+x*** 365,371
+x  
+x  untty()
+x  {
+x! 
+x  	if (tpgrp > 0) {
+x  		setpgrp(0, opgrp);
+x  		ioctl(FSHTTY, TIOCSPGRP, &opgrp);
+x
+x--- 554,560 -----
+x  
+x  untty()
+x  {
+x! #ifdef BSDJOBS
+x  	if (tpgrp > 0) {
+x  		setpgrp(0, opgrp);
+x  		ioctl(FSHTTY, TIOCSPGRP, &opgrp);
+x***************
+x*** 369,374
+x  	if (tpgrp > 0) {
+x  		setpgrp(0, opgrp);
+x  		ioctl(FSHTTY, TIOCSPGRP, &opgrp);
+x  		if (oldisc != -1 && oldisc != NTTYDISC) {
+x  #ifdef DEBUG
+x  			printf("\nReverting to old tty driver...\n");
+x
+x--- 558,564 -----
+x  	if (tpgrp > 0) {
+x  		setpgrp(0, opgrp);
+x  		ioctl(FSHTTY, TIOCSPGRP, &opgrp);
+x+ # ifndef OREO
+x  		if (oldisc != -1 && oldisc != NTTYDISC) {
+x  #  ifdef DEBUG
+x  			printf("\nReverting to old tty driver...\n");
+x***************
+x*** 370,376
+x  		setpgrp(0, opgrp);
+x  		ioctl(FSHTTY, TIOCSPGRP, &opgrp);
+x  		if (oldisc != -1 && oldisc != NTTYDISC) {
+x! #ifdef DEBUG
+x  			printf("\nReverting to old tty driver...\n");
+x  #endif DEBUG
+x  			ioctl(FSHTTY, TIOCSETD, &oldisc);
+x
+x--- 560,566 -----
+x  		ioctl(FSHTTY, TIOCSPGRP, &opgrp);
+x  # ifndef OREO
+x  		if (oldisc != -1 && oldisc != NTTYDISC) {
+x! #  ifdef DEBUG
+x  			printf("\nReverting to old tty driver...\n");
+x  #  endif DEBUG
+x  			ioctl(FSHTTY, TIOCSETD, &oldisc);
+x***************
+x*** 372,378
+x  		if (oldisc != -1 && oldisc != NTTYDISC) {
+x  #ifdef DEBUG
+x  			printf("\nReverting to old tty driver...\n");
+x! #endif DEBUG
+x  			ioctl(FSHTTY, TIOCSETD, &oldisc);
+x  		}
+x  	}
+x
+x--- 562,568 -----
+x  		if (oldisc != -1 && oldisc != NTTYDISC) {
+x  #  ifdef DEBUG
+x  			printf("\nReverting to old tty driver...\n");
+x! #  endif DEBUG
+x  			ioctl(FSHTTY, TIOCSETD, &oldisc);
+x  		}
+x  # endif OREO
+x***************
+x*** 375,380
+x  #endif DEBUG
+x  			ioctl(FSHTTY, TIOCSETD, &oldisc);
+x  		}
+x  	}
+x  }
+x  
+x
+x--- 565,571 -----
+x  #  endif DEBUG
+x  			ioctl(FSHTTY, TIOCSETD, &oldisc);
+x  		}
+x+ # endif OREO
+x  	}
+x  #endif BSDJOBS
+x  }
+x***************
+x*** 376,381
+x  			ioctl(FSHTTY, TIOCSETD, &oldisc);
+x  		}
+x  	}
+x  }
+x  
+x  importpath(cp)
+x
+x--- 567,573 -----
+x  		}
+x  # endif OREO
+x  	}
+x+ #endif BSDJOBS
+x  }
+x  
+x  importpath(cp)
+x***************
+x*** 467,474
+x  	if (onlyown) {
+x  		struct stat stb;
+x  
+x! 		if (fstat(unit, &stb) < 0 ||
+x! 		    (stb.st_uid != uid && stb.st_gid != getgid())) {
+x  			close(unit);
+x  			return;
+x  		}
+x
+x--- 659,667 -----
+x  	if (onlyown) {
+x  		struct stat stb;
+x  
+x! 		if (fstat(unit, &stb) < 0
+x! 		/*    || (stb.st_uid != uid && stb.st_gid != getgid()) */
+x! 		) {
+x  			close(unit);
+x  			return;
+x  		}
+x***************
+x*** 576,581
+x  
+x  goodbye()
+x  {
+x  	if (loginsh) {
+x  		signal(SIGQUIT, SIG_IGN);
+x  		sigset(SIGINT, SIG_IGN);
+x
+x--- 769,775 -----
+x  
+x  goodbye()
+x  {
+x+ 	rechist();
+x  	if (loginsh) {
+x  		signal(SIGQUIT, SIG_IGN);
+x  		sigset(SIGINT, SIG_IGN);
+x***************
+x*** 581,586
+x  		sigset(SIGINT, SIG_IGN);
+x  		signal(SIGTERM, SIG_IGN);
+x  		setintr = 0;		/* No interrupts after "logout" */
+x  		if (adrof("home"))
+x  			srccat(value("home"), "/.logout");
+x  	}
+x
+x--- 775,782 -----
+x  		sigset(SIGINT, SIG_IGN);
+x  		signal(SIGTERM, SIG_IGN);
+x  		setintr = 0;		/* No interrupts after "logout" */
+x+ 		if (!(adrof("logout")))
+x+ 			set ("logout", "normal");
+x  		if (adrof("home"))
+x  			srccat(value("home"), "/.logout");
+x  	}
+x***************
+x*** 584,590
+x  		if (adrof("home"))
+x  			srccat(value("home"), "/.logout");
+x  	}
+x- 	rechist();
+x  	exitstat();
+x  }
+x  
+x
+x--- 780,785 -----
+x  		if (adrof("home"))
+x  			srccat(value("home"), "/.logout");
+x  	}
+x  	exitstat();
+x  }
+x  
+x***************
+x*** 654,661
+x  		if (v = gargv)
+x  			gargv = 0, blkfree(v);
+x  		reset();
+x! 	} else if (intty && wantnl)
+x! 		printf("\n");		/* Some like this, others don't */
+x  	error(NOSTR);
+x  }
+x  
+x
+x--- 849,859 -----
+x  		if (v = gargv)
+x  			gargv = 0, blkfree(v);
+x  		reset();
+x! 	} else if (intty && wantnl) {
+x! 		/* printf("\n");	/* Some like this, others don't */
+x! 		putraw ('\r');
+x! 		putraw ('\n');
+x! 	}
+x  	error(NOSTR);
+x  }
+x  
+x***************
+x*** 731,736
+x  		if (intty && evalvec == 0) {
+x  			mailchk();
+x  			/*
+x  			 * If we are at the end of the input buffer
+x  			 * then we are going to read fresh stuff.
+x  			 * Otherwise, we are rereading input and don't
+x
+x--- 929,944 -----
+x  		if (intty && evalvec == 0) {
+x  			mailchk();
+x  			/*
+x+ 			 * Watch for logins/logouts.
+x+ 			 * Next is scheduled commands stored previously using "sched."
+x+ 			 * Then execute periodic commands.
+x+ 			 * Following that, the prompt precmd is run.
+x+ 			 */
+x+ 			watch_login();
+x+ 			sched_run();
+x+ 			period_cmd();
+x+ 			precmd();
+x+ 			/*
+x  			 * If we are at the end of the input buffer
+x  			 * then we are going to read fresh stuff.
+x  			 * Otherwise, we are rereading input and don't
+x***************
+x*** 737,757
+x  			 * need or want to prompt.
+x  			 */
+x  			if (fseekp == feobp)
+x! 				if (!whyles)
+x! 					for (cp = value("prompt"); *cp; cp++)
+x! 						if (*cp == HIST)
+x! 							printf("%d", eventno + 1);
+x! 						else {
+x! 							if (*cp == '\\' && cp[1] == HIST)
+x! 								cp++;
+x! 							putchar(*cp | QUOTE);
+x! 						}
+x! 				else
+x! 					/*
+x! 					 * Prompt for forward reading loop
+x! 					 * body content.
+x! 					 */
+x! 					printf("? ");
+x  			flush();
+x  		}
+x  		err = 0;
+x
+x--- 945,951 -----
+x  			 * need or want to prompt.
+x  			 */
+x  			if (fseekp == feobp)
+x! 				printprompt ();
+x  			flush();
+x  			setalarm();
+x  		}
+x***************
+x*** 753,758
+x  					 */
+x  					printf("? ");
+x  			flush();
+x  		}
+x  		err = 0;
+x  
+x
+x--- 947,953 -----
+x  			if (fseekp == feobp)
+x  				printprompt ();
+x  			flush();
+x+ 			setalarm();
+x  		}
+x  		err = 0;
+x  
+x***************
+x*** 760,766
+x  		 * Echo not only on VERBOSE, but also with history expansion.
+x  		 * If there is a lexical error then we forego history echo.
+x  		 */
+x! 		if (lex(&paraml) && !err && intty ||
+x  		    adrof("verbose")) {
+x  			haderr = 1;
+x  			prlex(&paraml);
+x
+x--- 955,961 -----
+x  		 * Echo not only on VERBOSE, but also with history expansion.
+x  		 * If there is a lexical error then we forego history echo.
+x  		 */
+x! 		if (lex(&paraml) && !err && intty && !tellwhat ||
+x  		    adrof("verbose")) {
+x  			haderr = 1;
+x  			prlex(&paraml);
+x***************
+x*** 766,771
+x  			prlex(&paraml);
+x  			haderr = 0;
+x  		}
+x  
+x  		/*
+x  		 * The parser may lose space if interrupted.
+x
+x--- 961,967 -----
+x  			prlex(&paraml);
+x  			haderr = 0;
+x  		}
+x+ 		alarm (0);				/* Autologout OFF */
+x  
+x  		/*
+x  		 * The parser may lose space if interrupted.
+x***************
+x*** 779,785
+x  		 * is from the terminal at the top level and not
+x  		 * in a loop.
+x  		 */
+x! 		if (enterhist || catch && intty && !whyles)
+x  			savehist(&paraml);
+x  
+x  		/*
+x
+x--- 975,981 -----
+x  		 * is from the terminal at the top level and not
+x  		 * in a loop.
+x  		 */
+x! 		if (enterhist || catch && intty && !whyles && !tellwhat)
+x  			savehist(&paraml);
+x  
+x  		/*
+x***************
+x*** 799,804
+x  		alias(&paraml);
+x  
+x  		/*
+x  		 * Parse the words of the input into a parse tree.
+x  		 */
+x  		t = syntax(paraml.next, &paraml, 0);
+x
+x--- 995,1008 -----
+x  		alias(&paraml);
+x  
+x  		/*
+x+ 		 * If had a tell_what from twenex() then do
+x+ 		 */
+x+ 		if (tellwhat) {
+x+ 			tellmewhat(&paraml);
+x+ 			reset();
+x+ 		}
+x+ 
+x+ 		/*
+x  		 * Parse the words of the input into a parse tree.
+x  		 */
+x  		t = syntax(paraml.next, &paraml, 0);
+x***************
+x*** 885,891
+x  	chktim = t;
+x  }
+x  
+x! #include <pwd.h>
+x  /*
+x   * Extract a home directory from the password file
+x   * The argument points to a buffer where the name of the
+x
+x--- 1089,1095 -----
+x  	chktim = t;
+x  }
+x  
+x! /* #include <pwd.h> */
+x  /*
+x   * Extract a home directory from the password file
+x   * The argument points to a buffer where the name of the
+x***************
+x*** 919,924
+x  	closem();
+x  }
+x  
+x  exit(i)
+x  	int i;
+x  {
+x
+x--- 1123,1405 -----
+x  	closem();
+x  }
+x  
+x+ /*
+x+  * Karl Kleinpaste, 21oct1983.
+x+  * Added precmd(), which checks for the alias
+x+  * precmd in aliases.  If it's there, the alias
+x+  * is executed as a command.  This is done
+x+  * after mailchk() and just before print-
+x+  * ing the prompt.  Useful for things like printing
+x+  * one's current directory just before each command.
+x+  */
+x+ precmd()
+x+ {
+x+ 
+x+ 	sighold (SIGINT);
+x+ 	if (precmd_active) {	/* an error must have been caught */
+x+ 		aliasrun (2, "unalias", "precmd");
+x+ 		printf ("Faulty alias 'precmd' removed.\n");
+x+ 		goto leave;
+x+ 	}
+x+ 	precmd_active++;
+x+ 	if (!whyles && adrof1 ("precmd", &aliases))
+x+ 		aliasrun (1, "precmd", (char *) 0);
+x+ leave:
+x+ 	precmd_active = 0;
+x+ 	sigrelse (SIGINT);
+x+ }
+x+ 
+x+ /*
+x+  * Karl Kleinpaste, 18 Jan 1984.
+x+  * Added period_cmd(), which executes the alias "periodic" every
+x+  * $tperiod minutes.  Useful for occasional checking of msgs and such.
+x+  */
+x+ period_cmd()
+x+ {
+x+ 	register char *vp;
+x+ 	time_t t, interval;
+x+ 
+x+ 	sighold (SIGINT);
+x+ 	if (periodic_active) {	/* an error must have been caught */
+x+ 		aliasrun (2, "unalias", "periodic");
+x+ 		printf ("Faulty alias 'periodic' removed.\n");
+x+ 		goto leave;
+x+ 	}
+x+ 	periodic_active++;
+x+ 	if (!whyles && adrof1 ("periodic", &aliases)) {
+x+ 		vp = value ("tperiod");
+x+ 		if (vp == (char *) 0)
+x+ 			return;
+x+ 		interval = getn (vp);
+x+ 		time (&t);
+x+ 		if (t - t_period >= interval * 60) {
+x+ 			t_period = t;
+x+ 			aliasrun (1, "periodic", (char *) 0);
+x+ 		}
+x+ 	}
+x+ leave:
+x+ 	periodic_active = 0;
+x+ 	sigrelse (SIGINT);
+x+ }
+x+ 
+x+ /*
+x+  * Karl Kleinpaste, 21oct1983.
+x+  * Set up a one-word alias command, for use for special things.
+x+  * This code is based on the mainline of process().
+x+  */
+x+ aliasrun (cnt, s1, s2)
+x+ 	int cnt;
+x+ 	char *s1, *s2;
+x+ {
+x+ 	struct	wordent	w, *new1, *new2;	/* for holding alias name */
+x+ 	struct	command	*t = (struct command *) 0;
+x+ 
+x+ 	err = NOSTR;			/* don't repeatedly print err msg. */
+x+ 	w.word = "";
+x+ 	new1 = (struct wordent *) calloc (1, sizeof w);
+x+ 	new1->word = savestr (s1);
+x+ 	if (cnt == 1) {
+x+ 		/* build a lex list with one word. */
+x+ 		w.next = w.prev = new1;
+x+ 		new1->next = new1->prev = &w;
+x+ 	} else {
+x+ 		/* build a lex list with two words. */
+x+ 		new2 = (struct wordent *) calloc (1, sizeof w);
+x+ 		new2->word = savestr (s2);
+x+ 		w.next = new2->prev = new1;
+x+ 		new1->next = w.prev = new2;
+x+ 		new1->prev = new2->next = &w;
+x+ 	}
+x+ 
+x+ 	/* expand aliases like process() does. */
+x+ 	alias (&w);
+x+ 	/* build a syntax tree for the command. */
+x+ 	t = syntax (w.next, &w, 0);
+x+ 	if (err)
+x+ 		error (err);
+x+ 	/* execute the parse tree. */
+x+ 	execute (t, -1);
+x+ 	/* done. free the lex list and parse tree. */
+x+ 	freelex (&w), freesyn (t);
+x+ }
+x+ 
+x+ /*
+x+  * Karl Kleinpaste, 26 Jan 1984.
+x+  * Initialize the dummy tty list for login watch.
+x+  * This dummy list eliminates boundary conditions
+x+  * when doing pointer-chase searches.
+x+  */
+x+ initwatch()
+x+ {
+x+ 	wholist = (struct who *) calloc (1, sizeof *wholist);
+x+ 	wholist->w_next = (struct who *) calloc (1, sizeof *wholist);
+x+ 	wholist->w_next->w_prev = wholist;
+x+ 	strcpy (wholist->w_tty, "\01\01\01\01\01");
+x+ 	strcpy (wholist->w_next->w_tty, "~~~~~");
+x+ #ifdef WHODEBUG
+x+ 	debugwholist ((struct who *) 0, (struct who *) 0);
+x+ #endif WHODEBUG
+x+ }
+x+ 
+x+ /*
+x+  * Karl Kleinpaste, 26 Jan 1984.
+x+  * Watch /etc/utmp for login/logout changes.
+x+  */
+x+ watch_login()
+x+ {
+x+ 	int utmpfd, comparison, alldone, cnt;
+x+ 	struct utmp utmp;
+x+ 	struct who *wp, *wpnew;
+x+ 	struct varent *v;
+x+ 	char **vp, *cp;
+x+ 	time_t t, interval;
+x+ 
+x+ 	/* stop SIGINT, lest our login list get trashed. */
+x+ 	sighold (SIGINT);
+x+ 
+x+ 	v = adrof ("watch");
+x+ 	if (v == (struct varent *) 0) {
+x+ 		sigrelse (SIGINT);
+x+ 		return;			/* no names to watch */
+x+ 	}
+x+ 	vp = v->vec;
+x+ 	cnt = blklen (vp);
+x+ 	if (cnt % 2) {			/* odd # args: 1st == # minutes. */
+x+ 		interval = (number (*vp)) ? getn (*vp++) : MAILINTVL;
+x+ 		cnt--;
+x+ 	}
+x+ 	time (&t);
+x+ 	if (t - watch_period < interval * 60) {
+x+ 		sigrelse (SIGINT);
+x+ 		return;			/* not long enough yet... */
+x+ 	}
+x+ 	watch_period = t;
+x+ 
+x+ 	if ((utmpfd = open ("/etc/utmp", 0)) < 0) {
+x+ 		printf ("/etc/utmp cannot be opened.  Please \"unset watch\".\n");
+x+ 		sigrelse (SIGINT);
+x+ 		return;
+x+ 	}
+x+ 
+x+ 	/*
+x+ 	 * Read in the utmp file, sort the entries, and update existing
+x+ 	 * entries or add new entries to the status list.
+x+ 	 */
+x+ 	while (read (utmpfd, &utmp, sizeof utmp) == sizeof utmp) {
+x+ 		if (utmp.ut_name[0] == '\0' && utmp.ut_line[0] == '\0')
+x+ 			continue;	/* completely void entry */
+x+ 		wp = wholist;
+x+ 		while ((comparison = strncmp (wp->w_tty, utmp.ut_line, 8)) < 0)
+x+ 			wp = wp->w_next;	/* find that tty! */
+x+ 
+x+ 		if (comparison == 0) {		/* found the tty... */
+x+ 			if (utmp.ut_name[0] == '\0')
+x+ 				wp->w_status = OFFLINE;
+x+ 			else			/* someone is logged in */
+x+ 				if (strncmp (utmp.ut_name, wp->w_name, 8) == 0)
+x+ 					wp->w_status = 0;	/* same guy */
+x+ 				else {
+x+ 					strncpy (wp->w_new, utmp.ut_name, 8);
+x+ 					if (wp->w_name[0] == '\0')
+x+ 						wp->w_status = ONLINE;
+x+ 					else
+x+ 						wp->w_status = CHANGED;
+x+ 				}
+x+ 		} else {			/* new tty in utmp */
+x+ 			wpnew = (struct who *) calloc (1, sizeof *wpnew);
+x+ 			strncpy (wpnew->w_tty, utmp.ut_line, 8);
+x+ 			if (utmp.ut_name[0] == '\0')
+x+ 				wpnew->w_status = OFFLINE;
+x+ 			else {
+x+ 				strncpy (wpnew->w_new, utmp.ut_name, 8);
+x+ 				wpnew->w_status = ONLINE;
+x+ 			}
+x+ #ifdef WHODEBUG
+x+ 			debugwholist(wpnew, wp);
+x+ #endif WHODEBUG
+x+ 
+x+ 			wpnew->w_next = wp;	/* link in a new 'who' */
+x+ 			wpnew->w_prev = wp->w_prev;
+x+ 			wpnew->w_prev->w_next = wpnew;
+x+ 			wp->w_prev = wpnew;	/* linked in now */
+x+ 		}
+x+ 	}
+x+ 	close (utmpfd);
+x+ 
+x+ 	/*
+x+ 	 * The state of all logins is now known, so we can search
+x+ 	 * the user's list of watchables to print the interesting ones.
+x+ 	 */
+x+ 	for (alldone = 0; !alldone && *vp != (char *) 0 && **vp != '\0' &&
+x+ 			*(vp+1) != (char *) 0 && **(vp+1) != '\0';
+x+ 			vp += 2) {		/* args used in pairs... */
+x+ 
+x+ 		if (eq (*vp, "any") && eq (*(vp+1), "any"))
+x+ 			alldone++;
+x+ 
+x+ 		for (wp = wholist; wp != (struct who *) 0; wp = wp->w_next) {
+x+ 			if (wp->w_status & ANNOUNCE		||
+x+ 			    (!eq (*vp, "any") && !eq (*vp, wp->w_name) &&
+x+ 			    !eq (*vp, wp->w_new))		||
+x+ 			    (!eq (*(vp+1), wp->w_tty) && !eq (*(vp+1), "any")))
+x+ 				continue;	/* entry doesn't qualify */
+x+ 				/* already printed or not right one to print */
+x+ 
+x+ 			if ((wp->w_status & OFFLINE) &&
+x+ 			    (wp->w_name[0] != '\0')) {
+x+ 				printf ("%s has logged off %s.\n",
+x+ 					wp->w_name, wp->w_tty);
+x+ 				wp->w_name[0] = '\0';
+x+ 				wp->w_status |= ANNOUNCE;
+x+ 				continue;
+x+ 			}
+x+ 			if (wp->w_status & ONLINE) {
+x+ 				printf ("%s has logged on %s.\n",
+x+ 					wp->w_new, wp->w_tty);
+x+ 				strcpy (wp->w_name, wp->w_new);
+x+ 				wp->w_status |= ANNOUNCE;
+x+ 				continue;
+x+ 			}
+x+ 			if (wp->w_status & CHANGED) {
+x+ 				printf ("%s has replaced %s on %s.\n",
+x+ 					wp->w_new, wp->w_name, wp->w_tty);
+x+ 				strcpy (wp->w_name, wp->w_new);
+x+ 				wp->w_status |= ANNOUNCE;
+x+ 				continue;
+x+ 			}
+x+ 		}
+x+ 	}
+x+ 	sigrelse (SIGINT);
+x+ }
+x+ 
+x+ #ifdef WHODEBUG
+x+ debugwholist (new, wp)
+x+ register struct who *new, *wp;
+x+ {
+x+ 	register struct who *a;
+x+ 
+x+ 	a = wholist;
+x+ 	while (a != (struct who *) 0) {
+x+ 		printf ("%s/%s -> ", a->w_name, a->w_tty);
+x+ 		a = a->w_next;
+x+ 	}
+x+ 	printf ("NULL\n");
+x+ 	a = wholist;
+x+ 	printf ("backward: ");
+x+ 	while (a->w_next != (struct who *) 0)
+x+ 		a = a->w_next;
+x+ 	while (a != (struct who *) 0) {
+x+ 		printf ("%s/%s -> ", a->w_name, a->w_tty);
+x+ 		a = a->w_prev;
+x+ 	}
+x+ 	printf ("NULL\n");
+x+ 	if (new)
+x+ 		printf ("new: %s/%s\n", new->w_name, new->w_tty);
+x+ 	if (wp)
+x+ 		printf ("wp: %s/%s\n", wp->w_name, wp->w_tty);
+x+ }
+x+ #endif WHODEBUG
+x+ 
+x  exit(i)
+x  	int i;
+x  {
+x***************
+x*** 929,932
+x  #else
+x  	_exit(i);
+x  #endif
+x  }
+x
+x--- 1410,1531 -----
+x  #else
+x  	_exit(i);
+x  #endif
+x+ }
+x+ 
+x+ 
+x+ /*
+x+  * kfk 21oct1983 -- add @ (time) and / ($cwd) in prompt.
+x+  * PWP 4/27/87 -- rearange for tcsh.
+x+  */
+x+ 
+x+ printprompt ()
+x+ {
+x+     register char *cp, *p, *z;
+x+     register char underlining = 0;
+x+     extern char *value ();
+x+ 
+x+     PromptBuf[0] = '\0';
+x+     p = PromptBuf;
+x+     if (whyles)
+x+ 	cp = value("prompt2");
+x+     else
+x+ 	cp = value("prompt");
+x+ 
+x+     for (; *cp; cp++) {
+x+ 	if (*cp == '%') {
+x+ 	    cp++;
+x+ 	    if (*cp == HIST || *cp == 'h') {
+x+ 		itoa(eventno + 1, buff);
+x+ 		for (z = buff; *z; z++)
+x+ 		    *p++ = underlining | *z;
+x+ 	    } else if (*cp == '@' || *cp == 't') {
+x+ 		struct tm *t;
+x+ 		long clock;
+x+ 		char ampm = 'a';
+x+ 
+x+ 		time (&clock);
+x+ 		t = localtime(&clock);
+x+ 		if (t->tm_hour >= 12) {
+x+ 		    if (t->tm_hour > 12)
+x+ 			t->tm_hour -= 12;
+x+ 		    ampm = 'p';
+x+ 		} else if (t->tm_hour == 0)
+x+ 		    t->tm_hour = 12;
+x+ 		
+x+ 		itoa(t->tm_hour, buff);
+x+ 		*p++ = underlining | buff[0];
+x+ 		if (buff[1]) *p++ = underlining | buff[1];
+x+ 		*p++ = underlining | ':';
+x+ 		itoa(t->tm_min, buff);
+x+ 		if (buff[1]) {
+x+ 		    *p++ = underlining | buff[0];
+x+ 		    *p++ = underlining | buff[1];
+x+ 		} else {
+x+ 		    *p++ = underlining | '0';
+x+ 		    *p++ = underlining | buff[0];
+x+ 		}
+x+ 		*p++ = underlining | ampm;
+x+ 		*p++ = underlining | 'm';
+x+ 	    } else if (*cp == 'M') {
+x+ 		for (z = getenv("HOST"); *z; z++)
+x+ 		    *p++ = underlining | *z;
+x+ 	    } else if (*cp == 'm') {
+x+ 		for (z = getenv("HOST"); *z && *z != '.'; z++)
+x+ 		    *p++ = underlining | *z;
+x+ 	    } else if (*cp == '/' || *cp == 'd') {
+x+ 		for (z = value("cwd"); *z; z++)
+x+ 		    *p++ = underlining | *z;
+x+ 	    } else if (*cp == '.' || *cp == 'c') {
+x+ 		strcpy (buff, value("cwd"));
+x+ 		if (!buff[1]) {	/* if CWD == / */
+x+ 		    *p++ = underlining | buff[0];
+x+ 		} else {
+x+ 		    if (strcmp(buff, value("home")) == 0) {
+x+ 			*p++ = underlining | '~';
+x+ 		    } else {
+x+ 			for (z = buff; *z; z++) ; /* find the end */
+x+ 			while ((z > buff) && (*z != '/')) z--; /* back up */
+x+ 			if (*z == '/') z++;
+x+ 			while (*z)
+x+ 			    *p++ = underlining | *z++;
+x+ 		    }
+x+ 		}
+x+ 
+x+ 	    } else if (*cp == 'S' || *cp == 'U') { /* start standout */
+x+ 		underlining = 0200;
+x+ 	    } else if (*cp == 's' || *cp == 'u') { /* end standout */
+x+ 		underlining = 0;
+x+ 	    } else if (*cp == '%') {
+x+ 		*p++ = underlining | '%';
+x+ 	    } else {
+x+ 		*p++ = underlining | '%';
+x+ 		*p++ = underlining | *cp;
+x+ 	    }
+x+ 	} else {
+x+ 	    *p++ = underlining | *cp;		/* normal character */
+x+ 	}
+x+     }
+x+     *p = '\0';
+x+ }
+x+ 
+x+ setalarm()
+x+ {
+x+ 	struct varent *vp;
+x+ 	char *cp;
+x+ 	int alrm_time = 0;
+x+ 	long cl, sched_dif;
+x+ 	extern	struct	sched_event *sched_ptr;
+x+ 
+x+ 	if (vp = adrof("autologout"))
+x+ 	{
+x+ 		if (cp = vp->vec[0])
+x+ 			alrm_time = (atoi (cp) * 60);
+x+ 	}
+x+ 	if (sched_ptr) {
+x+ 		time(&cl);
+x+ 		sched_dif = sched_ptr->t_when - cl;
+x+ 		if ((alrm_time == 0) || (sched_dif < alrm_time))
+x+ 			alrm_time = ((int) sched_dif) + 1;
+x+ 	}
+x+ 	alarm (alrm_time);	/* Autologout ON */
+x  }
+x*** ../csh4.2/sh.dir.c	Tue Jun 23 12:13:45 1987
+x--- sh.dir.c	Sun Jun 28 23:19:59 1987
+x***************
+x*** 203,208
+x  	} else if (dp = dfind(*v)) {
+x  		if (chdir(dp->di_name) < 0)
+x  			Perror(dp->di_name);
+x  	} else {
+x  		register char *cp;
+x  
+x
+x--- 203,213 -----
+x  	} else if (dp = dfind(*v)) {
+x  		if (chdir(dp->di_name) < 0)
+x  			Perror(dp->di_name);
+x+ 		/*
+x+ 		 * kfk - 10 Feb 1984 - added new "extraction style" pushd +n
+x+ 		 */
+x+ 		if (adrof ("dextract"))
+x+ 			dextract (dp);
+x  	} else {
+x  		register char *cp;
+x  
+x***************
+x*** 356,359
+x  	set("cwd", savestr(dcwd->di_name));
+x  	if (printd)
+x  		dodirs(fakev);
+x  }
+x
+x--- 361,416 -----
+x  	set("cwd", savestr(dcwd->di_name));
+x  	if (printd)
+x  		dodirs(fakev);
+x+ }
+x+ 
+x+ /*
+x+  * getstakd - added by kfk 17 Jan 1984
+x+  * Support routine for the stack hack.  Finds nth directory in
+x+  * the directory stack, or finds last directory in stack.
+x+  */
+x+ getstakd (s, cnt, callerr)
+x+ 	char *s;
+x+ 	int cnt, callerr;
+x+ {
+x+ 	struct directory *dp;
+x+ 
+x+ 	dp = dcwd;
+x+ 	if (cnt < 0) {		/* < 0 ==> last dir requested. */
+x+ 		dp = dp->di_next;
+x+ 		if (dp == &dhead)
+x+ 			dp = dp->di_next;
+x+ 	} else {
+x+ 		while (cnt-- > 0) {
+x+ 			dp = dp->di_prev;
+x+ 			if (dp == &dhead)
+x+ 				dp = dp->di_prev;
+x+ 			if (dp == dcwd) {
+x+ 				if (callerr)
+x+ 					error ("Not that many dir stack entries");
+x+ 				else
+x+ 					return;
+x+ 			}
+x+ 		}
+x+ 	}
+x+ 	strcpy (s, dp->di_name);
+x+ }
+x+ 
+x+ /*
+x+  * Karl Kleinpaste - 10 Feb 1984
+x+  * Added dextract(), which is used in pushd +n.
+x+  * Instead of just rotating the entire stack around, dextract()
+x+  * lets the user have the nth dir extracted from its current
+x+  * position, and pushes it onto the top.
+x+  */
+x+ dextract(dp)
+x+ struct directory *dp;
+x+ {
+x+ 	if (dp == dcwd)
+x+ 		return;
+x+ 	dp->di_next->di_prev = dp->di_prev;
+x+ 	dp->di_prev->di_next = dp->di_next;
+x+ 	dp->di_next = dcwd->di_next;
+x+ 	dp->di_prev = dcwd;
+x+ 	dp->di_next->di_prev = dp;
+x+ 	dcwd->di_next = dp;
+x  }
+xNo differences encountered
+xNo differences encountered
+x*** ../csh4.2/sh.err.c	Tue Jun 23 12:13:46 1987
+x--- sh.err.c	Mon Jun 29 17:33:04 1987
+x***************
+x*** 1,7
+x  static	char *sccsid = "@(#)sh.err.c 4.1 10/9/80";
+x  
+x  #include "sh.h"
+x! #include <sys/ioctl.h>
+x  
+x  /*
+x   * C Shell
+x
+x--- 1,7 -----
+x  static	char *sccsid = "@(#)sh.err.c 4.1 10/9/80";
+x  
+x  #include "sh.h"
+x! /* #include <sys/ioctl.h> */
+x  
+x  /*
+x   * C Shell
+x***************
+x*** 69,74
+x  		exit(1);
+x  
+x  	setq("status", onev, &shvhed);
+x  	if (tpgrp > 0)
+x  		ioctl(FSHTTY, TIOCSPGRP, &tpgrp);
+x  	reset();		/* Unwind */
+x
+x--- 69,75 -----
+x  		exit(1);
+x  
+x  	setq("status", onev, &shvhed);
+x+ #ifdef BSDJOBS
+x  	if (tpgrp > 0)
+x  		ioctl(FSHTTY, TIOCSPGRP, &tpgrp);
+x  #endif
+x***************
+x*** 71,76
+x  	setq("status", onev, &shvhed);
+x  	if (tpgrp > 0)
+x  		ioctl(FSHTTY, TIOCSPGRP, &tpgrp);
+x  	reset();		/* Unwind */
+x  }
+x  
+x
+x--- 72,78 -----
+x  #ifdef BSDJOBS
+x  	if (tpgrp > 0)
+x  		ioctl(FSHTTY, TIOCSPGRP, &tpgrp);
+x+ #endif
+x  	reset();		/* Unwind */
+x  }
+x  
+x*** ../csh4.2/sh.exec.c	Tue Jun 23 12:13:46 1987
+x--- sh.exec.c	Sun Jun 28 23:20:06 1987
+x***************
+x*** 1,7
+x  static	char *sccsid = "@(#)sh.exec.c 4.8 7/1/83";
+x  
+x  #include "sh.h"
+x! #include <sys/dir.h>
+x  
+x  /*
+x   * C shell
+x
+x--- 1,7 -----
+x  static	char *sccsid = "@(#)sh.exec.c 4.8 7/1/83";
+x  
+x  #include "sh.h"
+x! /* #include <sys/dir.h> */
+x  
+x  /*
+x   * C shell
+x***************
+x*** 226,231
+x  }
+x  
+x  execash(t, kp)
+x  	register struct command *kp;
+x  {
+x  
+x
+x--- 226,232 -----
+x  }
+x  
+x  execash(t, kp)
+x+ 	char *t;
+x  	register struct command *kp;
+x  {
+x  
+x***************
+x*** 262,267
+x  	struct varent *v = adrof("path");
+x  	char **pv;
+x  
+x  	havhash = 1;
+x  	for (cnt = 0; cnt < HSHSIZ; cnt++)
+x  		xhash[cnt] = 0;
+x
+x--- 263,269 -----
+x  	struct varent *v = adrof("path");
+x  	char **pv;
+x  
+x+ 	tw_clear_comm_list();
+x  	havhash = 1;
+x  	for (cnt = 0; cnt < HSHSIZ; cnt++)
+x  		xhash[cnt] = 0;
+x***************
+x*** 273,278
+x  		dirp = opendir(*pv);
+x  		if (dirp == NULL)
+x  			continue;
+x  		if (fstat(dirp->dd_fd, &stb) < 0 || !isdir(stb)) {
+x  			closedir(dirp);
+x  			continue;
+x
+x--- 275,281 -----
+x  		dirp = opendir(*pv);
+x  		if (dirp == NULL)
+x  			continue;
+x+ #ifdef COMMENT	/* this isn't needed.  opendir won't open non-dirs */
+x  		if (fstat(dirp->dd_fd, &stb) < 0 || !isdir(stb)) {
+x  			closedir(dirp);
+x  			continue;
+x***************
+x*** 277,282
+x  			closedir(dirp);
+x  			continue;
+x  		}
+x  		while ((dp = readdir(dirp)) != NULL) {
+x  			if (dp->d_ino == 0)
+x  				continue;
+x
+x--- 280,286 -----
+x  			closedir(dirp);
+x  			continue;
+x  		}
+x+ #endif
+x  		while ((dp = readdir(dirp)) != NULL) {
+x  			if (dp->d_ino == 0)
+x  				continue;
+x***************
+x*** 281,286
+x  			if (dp->d_ino == 0)
+x  				continue;
+x  			xhash[hash(dp->d_name)] |= (1 << i);
+x  		}
+x  		closedir(dirp);
+x  	}
+x
+x--- 285,291 -----
+x  			if (dp->d_ino == 0)
+x  				continue;
+x  			xhash[hash(dp->d_name)] |= (1 << i);
+x+ 			/* tw_add_comm_name (dp->d_name); */
+x  		}
+x  		closedir(dirp);
+x  	}
+x***************
+x*** 313,316
+x  		hash = -hash;
+x  	retval = hash % HSHSIZ;
+x  	return (retval);
+x  }
+x
+x--- 318,414 -----
+x  		hash = -hash;
+x  	retval = hash % HSHSIZ;
+x  	return (retval);
+x+ }
+x+ 
+x+ int
+x+ iscommand(name)
+x+ 	char *name;
+x+ {
+x+ 	char *sav;
+x+ 	register char *dp, **pv;
+x+ 	register struct varent *v;
+x+ 	bool slash = any('/', name);
+x+ 	int hashval, i;
+x+ 
+x+ 	v = adrof("path");
+x+ 	if (v == 0 || v->vec[0] == 0 || slash)
+x+ 		pv = justabs;
+x+ 	else
+x+ 		pv = v->vec;
+x+ 	sav = strspl("/", name);		/* / command name for postpending */
+x+ 	if (havhash)
+x+ 		hashval = xhash[hash(name)];
+x+ 	i = 0;
+x+ 	do {
+x+ 		if (!slash && pv[0][0] == '/' && havhash && (hashval & (1 << (i % 8))) == 0)
+x+ 			goto cont;
+x+ 		if (pv[0][0] == 0 || eq(pv[0], ".")) {	/* don't make ./xxx */
+x+ 			if (access(name, 1) == 0) {
+x+ 				xfree(sav);
+x+ 				return i+1;
+x+ 			}
+x+ 		} else {
+x+ 			dp = strspl(*pv, sav);
+x+ 			if (access(dp, 1) == 0) {
+x+ 				xfree(sav);
+x+ 				xfree(dp);
+x+ 				return i+1;
+x+ 			}
+x+ 			xfree(dp);
+x+ 		}
+x+ cont:
+x+ 		pv++;
+x+ 		i++;
+x+ 	} while (*pv);
+x+ 	xfree(sav);
+x+ 	return 0;
+x+ }
+x+ 
+x+ tellmewhat(lex)
+x+ 	struct wordent *lex;
+x+ {
+x+     register char *cp;
+x+     register int i;
+x+     register struct biltins *bptr;
+x+     register struct wordent *sp = lex->next;
+x+ 
+x+ 
+x+     for (bptr = bfunc; cp = bptr->bname; bptr++) {
+x+ 	if (strcmp(sp->word, cp) == 0) {
+x+ 	    prlex(lex);
+x+ 	    printf("%s: is built in.\n", sp->word);
+x+ 	    flush();
+x+ 	    return;
+x+ 	}
+x+     }
+x+ 
+x+     while (*(sp->word) & 0200) (sp->word)++;
+x+     if (i = iscommand(strip(sp->word))) {
+x+ 	char *s1;
+x+ 	register char **pv;
+x+ 	register struct varent *v;
+x+ 	bool slash = any('/', sp->word);
+x+ 
+x+ 	v = adrof("path");
+x+ 	if (v == 0 || v->vec[0] == 0 || slash)
+x+ 	    pv = justabs;
+x+ 	else
+x+ 	    pv = v->vec;
+x+ 
+x+ 	while (--i) pv++;
+x+ 	if (pv[0][0] == 0 || eq(pv[0], ".")) {
+x+ 	    prlex(lex);
+x+ 	    return;
+x+ 	}
+x+ 	s1 = strspl(*pv, "/");
+x+ 	sp->word = strspl(s1, sp->word);
+x+ 	xfree(s1);
+x+ 	prlex(lex);
+x+ 	xfree(sp->word);
+x+ 	sp->word = (char *)0;
+x+     } else {
+x+ 	prlex(lex);
+x+ 	printf("%s: Command not found.\n", sp->word);
+x+ 	flush();
+x+     }
+x  }
+xNo differences encountered
+x*** ../csh4.2/sh.func.c	Tue Jun 23 12:13:48 1987
+x--- sh.func.c	Thu Jul 16 14:01:54 1987
+x***************
+x*** 1,7
+x  static	char *sccsid = "@(#)sh.func.c 4.10 83/06/11";
+x  
+x  #include "sh.h"
+x! #include <sys/ioctl.h>
+x  
+x  /*
+x   * C shell
+x
+x--- 1,7 -----
+x  static	char *sccsid = "@(#)sh.func.c 4.10 83/06/11";
+x  
+x  #include "sh.h"
+x! /* #include <sys/ioctl.h> */
+x  
+x  /*
+x   * C shell
+x***************
+x*** 157,163
+x  	islogin();
+x  	rechist();
+x  	signal(SIGTERM, parterm);
+x! 	execl("/bin/login", "login", v[1], 0);
+x  	untty();
+x  	exit(1);
+x  }
+x
+x--- 157,163 -----
+x  	islogin();
+x  	rechist();
+x  	signal(SIGTERM, parterm);
+x! 	execl("/bin/login", "login", v[1], (char *) 0);
+x  	untty();
+x  	exit(1);
+x  }
+x***************
+x*** 162,167
+x  	exit(1);
+x  }
+x  
+x  #ifdef NEWGRP
+x  donewgrp(v)
+x  	char **v;
+x
+x--- 162,186 -----
+x  	exit(1);
+x  }
+x  
+x+ dolog()
+x+ {
+x+ 	extern struct who *wholist;
+x+ 	extern time_t watch_period;
+x+ 	struct who *wp;
+x+ 	struct varent *v;
+x+ 
+x+ 	if ((v = adrof ("watch")) == (struct varent *) 0)
+x+ 		error ("No $watch variable set");
+x+ 	blkpr (v->vec);
+x+ 	printf ("\n");
+x+ 	watch_period = 0;
+x+ 	wp = wholist;
+x+ 	while (wp != (struct who *) 0) {
+x+ 		wp->w_name[0] = '\0';
+x+ 		wp = wp->w_next;
+x+ 	}
+x+ }
+x+ 
+x  #ifdef NEWGRP
+x  donewgrp(v)
+x  	char **v;
+x***************
+x*** 170,177
+x  	if (chkstop == 0 && setintr)
+x  		panystop(0);
+x  	signal(SIGTERM, parterm);
+x! 	execl("/bin/newgrp", "newgrp", v[1], 0);
+x! 	execl("/usr/bin/newgrp", "newgrp", v[1], 0);
+x  	untty();
+x  	exit(1);
+x  }
+x
+x--- 189,196 -----
+x  	if (chkstop == 0 && setintr)
+x  		panystop(0);
+x  	signal(SIGTERM, parterm);
+x! 	execl("/bin/newgrp", "newgrp", v[1], (char *) 0);
+x! 	execl("/usr/bin/newgrp", "newgrp", v[1], (char *) 0);
+x  	untty();
+x  	exit(1);
+x  }
+x***************
+x*** 501,507
+x  		bseek(0l);
+x  	do {
+x  		if (intty && fseekp == feobp)
+x! 			printf("? "), flush();
+x  		aword[0] = 0, getword(aword);
+x  		switch (srchx(aword)) {
+x  
+x
+x--- 520,526 -----
+x  		bseek(0l);
+x  	do {
+x  		if (intty && fseekp == feobp)
+x! 			printprompt(); /* printf("? "), flush(); */
+x  		aword[0] = 0, getword(aword);
+x  		switch (srchx(aword)) {
+x  
+x***************
+x*** 822,828
+x  	umask(i);
+x  }
+x  
+x! 
+x  struct limits {
+x  	int	limconst;
+x  	char	*limname;
+x
+x--- 841,847 -----
+x  	umask(i);
+x  }
+x  
+x! #ifndef OREO
+x  struct limits {
+x  	int	limconst;
+x  	char	*limname;
+x***************
+x*** 999,1004
+x  	if (setrlimit(lp->limconst, &rlim) < 0)
+x  		Perror(bname);
+x  }
+x  
+x  dosuspend()
+x  {
+x
+x--- 1018,1024 -----
+x  	if (setrlimit(lp->limconst, &rlim) < 0)
+x  		Perror(bname);
+x  }
+x+ #endif OREO
+x  
+x  #ifdef SVID
+x  extern struct termio termiob;
+x***************
+x*** 1000,1005
+x  		Perror(bname);
+x  }
+x  
+x  dosuspend()
+x  {
+x  	int (*old)(), ldisc;
+x
+x--- 1020,1029 -----
+x  }
+x  #endif OREO
+x  
+x+ #ifdef SVID
+x+ extern struct termio termiob;
+x+ #endif SVID
+x+ 
+x  dosuspend()
+x  {
+x  	int (*old)(), ldisc;
+x***************
+x*** 1012,1017
+x  	kill(0, SIGTSTP);
+x  	/* the shell stops here */
+x  	sigsys(SIGTSTP, old);
+x  	if (tpgrp != -1) {
+x  retry:
+x  		ioctl(FSHTTY, TIOCGPGRP, &ctpgrp);
+x
+x--- 1036,1042 -----
+x  	kill(0, SIGTSTP);
+x  	/* the shell stops here */
+x  	sigsys(SIGTSTP, old);
+x+ #ifdef BSDJOBS
+x  	if (tpgrp != -1) {
+x  retry:
+x  		ioctl(FSHTTY, TIOCGPGRP, &ctpgrp);
+x***************
+x*** 1024,1029
+x  		ioctl(FSHTTY, TIOCSPGRP, &shpgrp);
+x  		setpgrp(0, shpgrp);
+x  	}
+x  	ioctl(FSHTTY, TIOCGETD, &oldisc);
+x  	if (oldisc != NTTYDISC) {
+x  		printf("Switching to new tty driver...\n");
+x
+x--- 1049,1066 -----
+x  		ioctl(FSHTTY, TIOCSPGRP, &shpgrp);
+x  		setpgrp(0, shpgrp);
+x  	}
+x+ #endif BSDJOBS
+x+ 
+x+ #ifdef SVID
+x+ 	ioctl(FSHTTY, TCGETA, &termiob);
+x+ 	if (termiob.c_cc[VSWTCH] != CSWTCH) {
+x+ #ifdef DEBUG
+x+ 		printf ("Setting ^Z...\n");
+x+ #endif DEBUG
+x+ 		termiob.c_cc[VSWTCH] = CSWTCH;
+x+ 		ioctl(FSHTTY, TCSETA, &termiob);
+x+ 	}
+x+ #else SVID
+x  	ioctl(FSHTTY, TIOCGETD, &oldisc);
+x  	if (oldisc != NTTYDISC) {
+x  		printf("Switching to new tty driver...\n");
+x***************
+x*** 1030,1035
+x  		ldisc = NTTYDISC;
+x  		ioctl(FSHTTY, TIOCSETD, &ldisc);
+x  	}
+x  }
+x  
+x  doeval(v)
+x
+x--- 1067,1073 -----
+x  		ldisc = NTTYDISC;
+x  		ioctl(FSHTTY, TIOCSETD, &ldisc);
+x  	}
+x+ #endif SVID
+x  }
+x  
+x  doeval(v)
+x***************
+x*** 1071,1073
+x  	if (reenter >= 2)
+x  		error(NOSTR);
+x  }
+x
+x--- 1109,1289 -----
+x  	if (reenter >= 2)
+x  		error(NOSTR);
+x  }
+x+ 
+x+ /*
+x+  * kfk - added scheduled event functions
+x+  */
+x+ struct sched_event *sched_ptr;
+x+ 
+x+ dosched(v)
+x+ 	register char **v;
+x+ {
+x+ 	register struct sched_event *tp, *tp1, *tp2;
+x+ 	long cur_time;
+x+ 	int count, hours, minutes, dif_hour, dif_min;
+x+ 	char *cp;
+x+ 	bool relative;		/* time specified as +hh:mm */
+x+ 	struct tm *ltp;
+x+ 	char *timeline;
+x+ 	char *ctime();
+x+ 
+x+ 	v++;
+x+ 	cp = *v++;
+x+ 	if (cp == (char *) 0) {
+x+ 		/* print list of scheduled events */
+x+ 		for (count = 1, tp = sched_ptr; tp; count++, tp = tp->t_next) {
+x+ 			timeline = ctime(&tp->t_when);
+x+ 			timeline[16] = '\0';
+x+ 			printf ("%6d\t%s\t", count, timeline);
+x+ 			blkpr (tp->t_lex);
+x+ 			printf ("\n");
+x+ 		}
+x+ 		return;
+x+ 	}
+x+ 
+x+ 	if (*cp == '-') {
+x+ 		/* remove item from list */
+x+ 		if (!sched_ptr)
+x+ 			error ("No scheduled events");
+x+ 		if (*v)
+x+ 			error ("Too many args for 'sched -<item#>'");
+x+ 		count = atoi (++cp);
+x+ 		if (count <= 0)
+x+ 			error ("Usage to delete: sched -<item#>");
+x+ 		tp = sched_ptr;
+x+ 		tp1 = 0;
+x+ 		while (--count) {
+x+ 			if (tp->t_next == 0)
+x+ 				break;
+x+ 			else {
+x+ 				tp1 = tp;
+x+ 				tp = tp->t_next;
+x+ 			}
+x+ 		}
+x+ 		if (count)
+x+ 			error ("Not that many scheduled events");
+x+ 		if (tp1 == 0)
+x+ 			sched_ptr = tp->t_next;
+x+ 		else
+x+ 			tp1->t_next = tp->t_next;
+x+ 		blkfree (tp->t_lex);
+x+ 		xfree ((char *) tp);
+x+ 		return;
+x+ 	}
+x+ 
+x+ 	/* else, add an item to the list */
+x+ 	if (!*v)
+x+ 		error ("No command to run");
+x+ 	relative = 0;
+x+ 	if (!digit(*cp)) {		/* not abs. time */
+x+ 		if (*cp != '+')
+x+ 			error ("Usage: sched [+]hh:mm <command>");
+x+ 		cp++, relative++;
+x+ 	}
+x+ 	minutes = 0;
+x+ 	hours = atoi(cp);
+x+ 	while (*cp && *cp != ':' && *cp != 'a' && *cp != 'p')
+x+ 		cp++;
+x+ 	if (*cp && *cp == ':')
+x+ 		minutes = atoi(++cp);
+x+ 	if ((hours < 0) || (minutes < 0) ||
+x+ 	    (hours > 23) || (minutes > 59))
+x+ 		error ("Invalid time for event");
+x+ 	while (*cp && *cp != 'p' && *cp != 'a')
+x+ 		cp++;
+x+ 	if (*cp && relative)
+x+ 		error ("Relative time inconsistent with am/pm");
+x+ 	if (*cp == 'p')
+x+ 		hours += 12;
+x+ 	time(&cur_time);
+x+ 	ltp = localtime(&cur_time);
+x+ 	if (relative) {
+x+ 		dif_hour = hours;
+x+ 		dif_min = minutes;
+x+ 	} else {
+x+ 		if ((dif_hour = hours - ltp->tm_hour) < 0)
+x+ 			dif_hour += 24;
+x+ 		if ((dif_min = minutes - ltp->tm_min) < 0) {
+x+ 			dif_min += 60;
+x+ 			if ((--dif_hour) < 0)
+x+ 				dif_hour = 23;
+x+ 		}
+x+ 	}
+x+ 	tp = (struct sched_event *) calloc (1, sizeof *tp);
+x+ 	tp->t_when = cur_time - ltp->tm_sec + dif_hour*3600L + dif_min*60L;
+x+ 			/* use of tm_sec: get to beginning of minute. */
+x+ 	if (!sched_ptr || tp->t_when < sched_ptr->t_when) {
+x+ 		tp->t_next = sched_ptr;
+x+ 		sched_ptr = tp;
+x+ 	} else {
+x+ 		tp1 = sched_ptr->t_next;
+x+ 		tp2 = sched_ptr;
+x+ 		while (tp1 && tp->t_when >= tp1->t_when) {
+x+ 			tp2 = tp1;
+x+ 			tp1 = tp1->t_next;
+x+ 		}
+x+ 		tp->t_next = tp1;
+x+ 		tp2->t_next = tp;
+x+ 	}
+x+ 	tp->t_lex = saveblk(v);
+x+ }
+x+ 
+x+ /*
+x+  * Execute scheduled events
+x+  */
+x+ sched_run()
+x+ {
+x+ 	long	cur_time;
+x+ 	register struct sched_event *tp, *tp1;
+x+ 	struct wordent cmd, *nextword, *lastword;
+x+ 	struct command *t = (struct command *) 0;
+x+ 	char **v, *cp;
+x+ 	extern int GettingInput;
+x+ 
+x+ 	sighold (SIGINT);
+x+        
+x+         if (GettingInput)
+x+ 	    Cookedmode();
+x+ 
+x+ 	time(&cur_time);
+x+ 	tp = sched_ptr;
+x+ 	while (tp && tp->t_when < cur_time) {
+x+ 		err = NOSTR;
+x+ 		cmd.word = "";
+x+ 		lastword = &cmd;
+x+ 		v = tp->t_lex;
+x+ 		for (cp = *v; cp; cp = *++v) {
+x+ 			nextword = (struct wordent *) calloc (1, sizeof cmd);
+x+ 			nextword->word = savestr (cp);
+x+ 			lastword->next = nextword;
+x+ 			nextword->prev = lastword;
+x+ 			lastword = nextword;
+x+ 		}
+x+ 		lastword->next = &cmd;
+x+ 		cmd.prev = lastword;
+x+ 		tp1 = tp;
+x+ 		sched_ptr = tp = tp1->t_next;	/* looping termination cond: */
+x+ 		blkfree (tp1->t_lex);		/* straighten out in case of */
+x+ 		xfree ((char *) tp1);		/* command blow-up. */
+x+ 
+x+ 		/* expand aliases like process() does. */
+x+ 		alias (&cmd);
+x+ 		/* build a syntax tree for the command. */
+x+ 		t = syntax (cmd.next, &cmd, 0);
+x+ 		if (err)
+x+ 			error (err);
+x+ 		/* execute the parse tree. */
+x+ 		execute (t, -1);
+x+ 		/* done. free the lex list and parse tree. */
+x+ 		freelex (&cmd), freesyn (t);
+x+ 	}
+x+         if (GettingInput) {	/* PWP */
+x+ 	    Rawmode();
+x+ 	    ClearLines();	/* do a real refresh since something may */
+x+ 	    ClearDisp();	/* have printed to the screen */
+x+ 	    Refresh();
+x+ 	}
+x+ 
+x+ 	sigrelse (SIGINT);
+x+ }
+x+ /* kfk - end change */
+\Rogue\Monster\
+else
+  echo "will not over write ./DIFFS.1"
+fi
+if [ `wc -c ./DIFFS.1 | awk '{printf $1}'` -ne 48696 ]
+then
+echo `wc -c ./DIFFS.1 | awk '{print "Got " $1 ", Expected " 48696}'`
+fi
+echo "Finished archive 6 of 6"
+# if you want to concatenate archives, remove anything after this line
+exit
+
+-- 
+
+Rich $alz
+Cronus Project, BBN Labs			rsalz@bbn.com
+Moderator, comp.sources.unix			sources@uunet.uu.net

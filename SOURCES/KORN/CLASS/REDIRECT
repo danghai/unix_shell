@@ -1,0 +1,55 @@
+                                Redirection
+
+REDIRECTIONS
+
+File Desc       Name            Abbrev          Default
+
+    0           Std Input       stdin           keyboard
+    1           Std Output      stdout          terminal
+    2           Std Error       stderr          terminal
+
+The usual input source or output source can be changed as follows:
+
+Simple Redirection
+
+cmd > file      Send output of cmd to file (overwrite)
+cmd >| file     Send output of cmd to file
+                (overwrite, even with noclobber option set)
+cmd >> file     Send output of cmd to file (append)
+cmd < file      Take input for cmd from file
+cmd << text     Read standard input up to a line identical to text
+                (text can be stored in a shell variable)
+                Input is usually typed on the screen or in the shell
+                program.  Commands that typically use this syntax include
+                cat, echo, ex and sed.  (If <<- is used, leading tabs
+                are ignored when comparing input with the end-of-input
+                text marker).
+
+Redirection Using File Descriptors
+
+cmd >&n         Send cmd output to file descriptor n
+cmd m>&n        Same, except that output that would normally go to
+                file descriptor m is sent to file desciptor n instead
+cmd >&-         Close standard output
+cmd <&n         Take input for cmd from file descriptor n
+cmd m<&n        Same, except that input that would normally come from
+                file descriptor m comes from file descriptor n instead
+cmd <&-         Close standard input
+
+Multiple Redirection
+
+cmd 2> file     Send standard error to file, standard output remains
+                the same, eg to the screen
+cmd > file 2>&1 Send both standard error and standard output to file
+(cmd > f1) 2>f2 Send standard output to file f1; standard error to file f2
+cmd | tee files Send output of cmd to standard output and to files
+
+Coprocesses
+
+cmd1 | cmd2 |&  Coprocess; execute the pipeline in the background.  The
+                shell sets up a two-way pipe, allowing redirection of
+                both standard input and standard output
+read -p var     Read coprocess input into variable var
+print -p string Write string to the coprocess
+cmd <&p         Take input for cmd from the coprocess
+cmd >&p         Send output of cmd to the coprocess

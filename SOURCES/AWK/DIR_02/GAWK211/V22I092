@@ -1,0 +1,1548 @@
+From: rsalz@uunet.uu.net (Rich Salz)
+Newsgroups: comp.sources.unix
+Subject: v22i092:  GNU AWK, version 2.11, Part06/16
+Message-ID: <2625@litchi.bbn.com>
+Date: 6 Jun 90 16:36:32 GMT
+Approved: rsalz@uunet.UU.NET
+
+Submitted-by: "Arnold D. Robbins" <arnold@unix.cc.emory.edu>
+Posting-number: Volume 22, Issue 92
+Archive-name: gawk2.11/part06
+
+#! /bin/sh
+# This is a shell archive.  Remove anything before this line, then feed it
+# into a shell via "sh file" or similar.  To overwrite existing files,
+# type "sh file -c".
+# The tool that generated this appeared in the comp.sources.unix newsgroup;
+# send mail to comp-sources-unix@uunet.uu.net if you want that tool.
+# Contents:  ./gawk.texinfo.03 ./missing.d/strchr.c ./version.sh
+# Wrapped by rsalz@litchi.bbn.com on Wed Jun  6 12:24:50 1990
+PATH=/bin:/usr/bin:/usr/ucb ; export PATH
+echo If this archive is complete, you will see the following message:
+echo '          "shar: End of archive 6 (of 16)."'
+if test -f './gawk.texinfo.03' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'./gawk.texinfo.03'\"
+else
+  echo shar: Extracting \"'./gawk.texinfo.03'\" \(49625 characters\)
+  sed "s/^X//" >'./gawk.texinfo.03' <<'END_OF_FILE'
+X             printf format, "----", "------" @}
+X     @{ printf format, $1, $2 @}' BBS-list
+X@end example
+X
+XSee if you can use the @code{printf} statement to line up the headings and
+Xtable data for our @file{inventory-shipped} example covered earlier in the
+Xsection on the @code{print} statement (@pxref{Print}).
+X
+X@node Redirection, Special Files, Printf, Printing
+X@section Redirecting Output of @code{print} and @code{printf}
+X
+X@cindex output redirection
+X@cindex redirection of output
+XSo far we have been dealing only with output that prints to the standard
+Xoutput, usually your terminal.  Both @code{print} and @code{printf} can be
+Xtold to send their output to other places.  This is called
+X@dfn{redirection}.@refill
+X
+XA redirection appears after the @code{print} or @code{printf} statement.
+XRedirections in @code{awk} are written just like redirections in shell
+Xcommands, except that they are written inside the @code{awk} program.
+X
+X@menu
+X* File/Pipe Redirection::       Redirecting Output to Files and Pipes.
+X* Close Output::                How to close output files and pipes.
+X@end menu
+X
+X@node File/Pipe Redirection, Close Output, Redirection, Redirection
+X@subsection Redirecting Output to Files and Pipes
+X
+XHere are the three forms of output redirection.  They are all shown for
+Xthe @code{print} statement, but they work identically for @code{printf}
+Xalso.
+X
+X@table @code
+X@item print @var{items} > @var{output-file}
+XThis type of redirection prints the items onto the output file
+X@var{output-file}.  The file name @var{output-file} can be any
+Xexpression.  Its value is changed to a string and then used as a
+Xfile name (@pxref{Expressions}).@refill
+X
+XWhen this type of redirection is used, the @var{output-file} is erased
+Xbefore the first output is written to it.  Subsequent writes do not
+Xerase @var{output-file}, but append to it.  If @var{output-file} does
+Xnot exist, then it is created.@refill
+X
+XFor example, here is how one @code{awk} program can write a list of
+XBBS names to a file @file{name-list} and a list of phone numbers to a
+Xfile @file{phone-list}.  Each output file contains one name or number
+Xper line.
+X
+X@example
+Xawk '@{ print $2 > "phone-list"
+X       print $1 > "name-list" @}' BBS-list
+X@end example
+X
+X@item print @var{items} >> @var{output-file}
+XThis type of redirection prints the items onto the output file
+X@var{output-file}.  The difference between this and the
+Xsingle-@samp{>} redirection is that the old contents (if any) of
+X@var{output-file} are not erased.  Instead, the @code{awk} output is
+Xappended to the file.
+X
+X@cindex pipes for output
+X@cindex output, piping
+X@item print @var{items} | @var{command}
+XIt is also possible to send output through a @dfn{pipe} instead of into a
+Xfile.   This type of redirection opens a pipe to @var{command} and writes
+Xthe values of @var{items} through this pipe, to another process created
+Xto execute @var{command}.@refill
+X
+XThe redirection argument @var{command} is actually an @code{awk}
+Xexpression.  Its value is converted to a string, whose contents give the
+Xshell command to be run.
+X
+XFor example, this produces two files, one unsorted list of BBS names
+Xand one list sorted in reverse alphabetical order:
+X
+X@example
+Xawk '@{ print $1 > "names.unsorted"
+X       print $1 | "sort -r > names.sorted" @}' BBS-list
+X@end example
+X
+XHere the unsorted list is written with an ordinary redirection while
+Xthe sorted list is written by piping through the @code{sort} utility.
+X
+XHere is an example that uses redirection to mail a message to a mailing
+Xlist @samp{bug-system}.  This might be useful when trouble is encountered
+Xin an @code{awk} script run periodically for system maintenance.
+X
+X@example
+Xprint "Awk script failed:", $0 | "mail bug-system"
+Xprint "at record number", FNR, "of", FILENAME  | "mail bug-system"
+Xclose("mail bug-system")
+X@end example
+X
+XWe call the @code{close} function here because it's a good idea to close
+Xthe pipe as soon as all the intended output has been sent to it.
+X@xref{Close Output}, for more information on this.
+X@end table
+X
+XRedirecting output using @samp{>}, @samp{>>}, or @samp{|} asks the system
+Xto open a file or pipe only if the particular @var{file} or @var{command}
+Xyou've specified has not already been written to by your program.@refill
+X
+X@node Close Output, , File/Pipe Redirection, Redirection
+X@subsection Closing Output Files and Pipes
+X@cindex closing output files and pipes
+X@findex close
+X
+XWhen a file or pipe is opened, the file name or command associated with
+Xit is remembered by @code{awk} and subsequent writes to the same file or
+Xcommand are appended to the previous writes.  The file or pipe stays
+Xopen until @code{awk} exits.  This is usually convenient.
+X
+XSometimes there is a reason to close an output file or pipe earlier
+Xthan that.  To do this, use the @code{close} function, as follows:
+X
+X@example
+Xclose(@var{filename})
+X@end example
+X
+X@noindent
+Xor
+X
+X@example
+Xclose(@var{command})
+X@end example
+X
+XThe argument @var{filename} or @var{command} can be any expression.
+XIts value must exactly equal the string used to open the file or pipe
+Xto begin with---for example, if you open a pipe with this:
+X
+X@example
+Xprint $1 | "sort -r > names.sorted"
+X@end example
+X
+X@noindent
+Xthen you must close it with this:
+X
+X@example
+Xclose("sort -r > names.sorted")
+X@end example
+X
+XHere are some reasons why you might need to close an output file:
+X
+X@itemize @bullet
+X@item
+XTo write a file and read it back later on in the same @code{awk}
+Xprogram.  Close the file when you are finished writing it; then
+Xyou can start reading it with @code{getline} (@pxref{Getline}).
+X
+X@item
+XTo write numerous files, successively, in the same @code{awk}
+Xprogram.  If you don't close the files, eventually you will exceed the
+Xsystem limit on the number of open files in one process.  So close
+Xeach one when you are finished writing it.
+X
+X@item
+XTo make a command finish.  When you redirect output through a pipe,
+Xthe command reading the pipe normally continues to try to read input
+Xas long as the pipe is open.  Often this means the command cannot
+Xreally do its work until the pipe is closed.  For example, if you
+Xredirect output to the @code{mail} program, the message is not
+Xactually sent until the pipe is closed.
+X
+X@item
+XTo run the same program a second time, with the same arguments.
+XThis is not the same thing as giving more input to the first run!
+X
+XFor example, suppose you pipe output to the @code{mail} program.  If you
+Xoutput several lines redirected to this pipe without closing it, they make
+Xa single message of several lines.  By contrast, if you close the pipe
+Xafter each line of output, then each line makes a separate message.
+X@end itemize
+X
+X@node Special Files, , Redirection, Printing
+X@section Standard I/O Streams
+X@cindex standard input
+X@cindex standard output
+X@cindex standard error output
+X@cindex file descriptors
+X
+XRunning programs conventionally have three input and output streams
+Xalready available to them for reading and writing.  These are known as
+Xthe @dfn{standard input}, @dfn{standard output}, and @dfn{standard error
+Xoutput}.  These streams are, by default, terminal input and output, but
+Xthey are often redirected with the shell, via the @samp{<}, @samp{<<},
+X@samp{>}, @samp{>>}, @samp{>&} and @samp{|} operators.  Standard error
+Xis used only for writing error messages; the reason we have two separate
+Xstreams, standard output and standard error, is so that they can be
+Xredirected separately.
+X
+X@c @cindex differences between @code{gawk} and @code{awk}
+XIn other implementations of @code{awk}, the only way to write an error
+Xmessage to standard error in an @code{awk} program is as follows:
+X
+X@example
+Xprint "Serious error detected!\n" | "cat 1>&2"
+X@end example
+X
+X@noindent
+XThis works by opening a pipeline to a shell command which can access the
+Xstandard error stream which it inherits from the @code{awk} process.
+XThis is far from elegant, and is also inefficient, since it requires a
+Xseparate process.  So people writing @code{awk} programs have often
+Xneglected to do this.  Instead, they have sent the error messages to the
+Xterminal, like this:
+X
+X@example
+XNF != 4 @{
+X   printf("line %d skipped: doesn't have 4 fields\n", FNR) > "/dev/tty"
+X@}
+X@end example
+X
+X@noindent
+XThis has the same effect most of the time, but not always: although the
+Xstandard error stream is usually the terminal, it can be redirected, and
+Xwhen that happens, writing to the terminal is not correct.  In fact, if
+X@code{awk} is run from a background job, it may not have a terminal at all.
+XThen opening @file{/dev/tty} will fail.
+X
+X@code{gawk} provides special file names for accessing the three standard
+Xstreams.  When you redirect input or output in @code{gawk}, if the file name
+Xmatches one of these special names, then @code{gawk} directly uses the
+Xstream it stands for.
+X
+X@cindex @file{/dev/stdin}
+X@cindex @file{/dev/stdout}
+X@cindex @file{/dev/stderr}
+X@cindex @file{/dev/fd/}
+X@table @file
+X@item /dev/stdin
+XThe standard input (file descriptor 0).
+X
+X@item /dev/stdout
+XThe standard output (file descriptor 1).
+X
+X@item /dev/stderr
+XThe standard error output (file descriptor 2).
+X
+X@item /dev/fd/@var{n}
+XThe file associated with file descriptor @var{n}.  Such a file must have
+Xbeen opened by the program initiating the @code{awk} execution (typically
+Xthe shell).  Unless you take special pains, only descriptors 0, 1 and 2
+Xare available.
+X@end table
+X
+XThe file names @file{/dev/stdin}, @file{/dev/stdout}, and @file{/dev/stderr}
+Xare aliases for @file{/dev/fd/0}, @file{/dev/fd/1}, and @file{/dev/fd/2},
+Xrespectively, but they are more self-explanatory.
+X
+XThe proper way to write an error message in a @code{gawk} program
+Xis to use @file{/dev/stderr}, like this:
+X
+X@example
+XNF != 4 @{
+X  printf("line %d skipped: doesn't have 4 fields\n", FNR) > "/dev/stderr"
+X@}
+X@end example
+X
+XRecognition of these special file names is disabled if @code{gawk} is in
+Xcompatibility mode (@pxref{Command Line}).
+X
+X@node One-liners, Patterns, Printing, Top
+X@chapter Useful ``One-liners''
+X
+X@cindex one-liners
+XUseful @code{awk} programs are often short, just a line or two.  Here is a
+Xcollection of useful, short programs to get you started.  Some of these
+Xprograms contain constructs that haven't been covered yet.  The description
+Xof the program will give you a good idea of what is going on, but please
+Xread the rest of the manual to become an @code{awk} expert!
+X
+X@table @code
+X@item awk '@{ num_fields = num_fields + NF @}
+X@itemx @ @ @ @ @ END @{ print num_fields @}'
+XThis program prints the total number of fields in all input lines.
+X
+X@item awk 'length($0) > 80'
+XThis program prints every line longer than 80 characters.  The sole
+Xrule has a relational expression as its pattern, and has no action (so the
+Xdefault action, printing the record, is used).
+X
+X@item awk 'NF > 0'
+XThis program prints every line that has at least one field.  This is an
+Xeasy way to delete blank lines from a file (or rather, to create a new
+Xfile similar to the old file but from which the blank lines have been
+Xdeleted).
+X
+X@item awk '@{ if (NF > 0) print @}'
+XThis program also prints every line that has at least one field.  Here we
+Xallow the rule to match every line, then decide in the action whether
+Xto print.
+X
+X@item awk@ 'BEGIN@ @{@ for (i = 1; i <= 7; i++)
+X@itemx @ @ @ @ @ @ @ @ @ @ @ @ @ @ @ print int(101 * rand()) @}'
+XThis program prints 7 random numbers from 0 to 100, inclusive.
+X
+X@item ls -l @var{files} | awk '@{ x += $4 @} ; END @{ print "total bytes: " x @}'
+XThis program prints the total number of bytes used by @var{files}.
+X
+X@item expand@ @var{file}@ |@ awk@ '@{ if (x < length()) x = length() @}
+X@itemx @ @ @ @ @ @ @ @ @ @ @ @ @ @ @ @ @ @ END @{ print "maximum line length is " x @}'
+XThis program prints the maximum line length of @var{file}.  The input
+Xis piped through the @code{expand} program to change tabs into spaces,
+Xso the widths compared are actually the right-margin columns.
+X@end table
+X
+X@node Patterns, Actions, One-liners, Top
+X@chapter Patterns
+X@cindex pattern, definition of
+X
+XPatterns in @code{awk} control the execution of rules: a rule is
+Xexecuted when its pattern matches the current input record.  This
+Xchapter tells all about how to write patterns.
+X
+X@menu
+X* Kinds of Patterns::    A list of all kinds of patterns.
+X                         The following subsections describe them in detail.
+X
+X* Empty::                The empty pattern, which matches every record.
+X
+X* Regexp::               Regular expressions such as @samp{/foo/}.
+X
+X* Comparison Patterns::  Comparison expressions such as @code{$1 > 10}.
+X
+X* Boolean Patterns::     Combining comparison expressions.
+X
+X* Expression Patterns::  Any expression can be used as a pattern.
+X
+X* Ranges::               Using pairs of patterns to specify record ranges.
+X
+X* BEGIN/END::            Specifying initialization and cleanup rules.
+X@end menu
+X
+X@node Kinds of Patterns, Empty, Patterns, Patterns
+X@section Kinds of Patterns
+X@cindex patterns, types of
+X
+XHere is a summary of the types of patterns supported in @code{awk}.
+X
+X@table @code
+X@item /@var{regular expression}/
+XA regular expression as a pattern.  It matches when the text of the
+Xinput record fits the regular expression.  (@xref{Regexp, , Regular
+XExpressions as Patterns}.)
+X
+X@item @var{expression}
+XA single expression.  It matches when its value, converted to a number,
+Xis nonzero (if a number) or nonnull (if a string).  (@xref{Expression
+XPatterns}.)
+X
+X@item @var{pat1}, @var{pat2}
+XA pair of patterns separated by a comma, specifying a range of records.
+X(@xref{Ranges, , Specifying Record Ranges With Patterns}.)
+X
+X@item BEGIN
+X@itemx END
+XSpecial patterns to supply start-up or clean-up information to
+X@code{awk}.  (@xref{BEGIN/END}.)
+X
+X@item @var{null}
+XThe empty pattern matches every input record.  (@xref{Empty, , The Empty
+XPattern}.)
+X@end table
+X
+X@node Empty, Regexp, Kinds of Patterns, Patterns
+X@section The Empty Pattern
+X
+X@cindex empty pattern
+X@cindex pattern, empty
+XAn empty pattern is considered to match @emph{every} input record.  For
+Xexample, the program:@refill
+X
+X@example
+Xawk '@{ print $1 @}' BBS-list
+X@end example
+X
+X@noindent
+Xprints just the first field of every record.
+X
+X@node Regexp, Comparison Patterns, Empty, Patterns
+X@section Regular Expressions as Patterns
+X@cindex pattern, regular expressions
+X@cindex regexp
+X@cindex regular expressions as patterns
+X
+XA @dfn{regular expression}, or @dfn{regexp}, is a way of describing a
+Xclass of strings.  A regular expression enclosed in slashes (@samp{/})
+Xis an @code{awk} pattern that matches every input record whose text
+Xbelongs to that class.
+X
+XThe simplest regular expression is a sequence of letters, numbers, or
+Xboth.  Such a regexp matches any string that contains that sequence.
+XThus, the regexp @samp{foo} matches any string containing @samp{foo}.
+XTherefore, the pattern @code{/foo/} matches any input record containing
+X@samp{foo}.  Other kinds of regexps let you specify more complicated
+Xclasses of strings.
+X
+X@menu
+X* Usage: Regexp Usage.          How regexps are used in patterns.
+X* Operators: Regexp Operators.  How to write a regexp.
+X* Case-sensitivity::            How to do case-insensitive matching.
+X@end menu
+X
+X@node Regexp Usage, Regexp Operators, Regexp, Regexp
+X@subsection How to Use Regular Expressions
+X
+XA regular expression can be used as a pattern by enclosing it in
+Xslashes.  Then the regular expression is matched against the entire text
+Xof each record.  (Normally, it only needs to match some part of the text
+Xin order to succeed.)  For example, this prints the second field of each
+Xrecord that contains @samp{foo} anywhere:
+X
+X@example
+Xawk '/foo/ @{ print $2 @}' BBS-list
+X@end example
+X
+X@cindex regular expression matching operators
+X@cindex string-matching operators
+X@cindex operators, string-matching
+X@cindex operators, regular expression matching
+X@cindex regexp search operators
+XRegular expressions can also be used in comparison expressions.  Then
+Xyou can specify the string to match against; it need not be the entire
+Xcurrent input record.  These comparison expressions can be used as
+Xpatterns or in @code{if} and @code{while} statements.
+X
+X@table @code
+X@item @var{exp} ~ /@var{regexp}/
+XThis is true if the expression @var{exp} (taken as a character string)
+Xis matched by @var{regexp}.  The following example matches, or selects,
+Xall input records with the upper-case letter @samp{J} somewhere in the
+Xfirst field:@refill
+X
+X@example
+Xawk '$1 ~ /J/' inventory-shipped
+X@end example
+X
+XSo does this:
+X
+X@example
+Xawk '@{ if ($1 ~ /J/) print @}' inventory-shipped
+X@end example
+X
+X@item @var{exp} !~ /@var{regexp}/
+XThis is true if the expression @var{exp} (taken as a character string)
+Xis @emph{not} matched by @var{regexp}.  The following example matches,
+Xor selects, all input records whose first field @emph{does not} contain
+Xthe upper-case letter @samp{J}:@refill
+X
+X@example
+Xawk '$1 !~ /J/' inventory-shipped
+X@end example
+X@end table
+X
+X@cindex computed regular expressions
+X@cindex regular expressions, computed
+X@cindex dynamic regular expressions
+XThe right hand side of a @samp{~} or @samp{!~} operator need not be a
+Xconstant regexp (i.e., a string of characters between slashes).  It may
+Xbe any expression.  The expression is evaluated, and converted if
+Xnecessary to a string; the contents of the string are used as the
+Xregexp.  A regexp that is computed in this way is called a @dfn{dynamic
+Xregexp}.  For example:
+X
+X@example
+Xidentifier_regexp = "[A-Za-z_][A-Za-z_0-9]+"
+X$0 ~ identifier_regexp
+X@end example
+X
+X@noindent
+Xsets @code{identifier_regexp} to a regexp that describes @code{awk}
+Xvariable names, and tests if the input record matches this regexp.
+X
+X@node Regexp Operators, Case-sensitivity, Regexp Usage, Regexp
+X@subsection Regular Expression Operators
+X@cindex metacharacters
+X@cindex regular expression metacharacters
+X
+XYou can combine regular expressions with the following characters,
+Xcalled @dfn{regular expression operators}, or @dfn{metacharacters}, to
+Xincrease the power and versatility of regular expressions.
+X
+XHere is a table of metacharacters.  All characters not listed in the
+Xtable stand for themselves.
+X
+X@table @code
+X@item ^
+XThis matches the beginning of the string or the beginning of a line
+Xwithin the string.  For example:
+X
+X@example
+X^@@chapter
+X@end example
+X
+X@noindent
+Xmatches the @samp{@@chapter} at the beginning of a string, and can be used
+Xto identify chapter beginnings in Texinfo source files.
+X
+X@item $
+XThis is similar to @samp{^}, but it matches only at the end of a string
+Xor the end of a line within the string.  For example:
+X
+X@example
+Xp$
+X@end example
+X
+X@noindent
+Xmatches a record that ends with a @samp{p}.
+X
+X@item .
+XThis matches any single character except a newline.  For example:
+X
+X@example
+X.P
+X@end example
+X
+X@noindent
+Xmatches any single character followed by a @samp{P} in a string.  Using
+Xconcatenation we can make regular expressions like @samp{U.A}, which
+Xmatches any three-character sequence that begins with @samp{U} and ends
+Xwith @samp{A}.
+X
+X@item [@dots{}]
+XThis is called a @dfn{character set}.  It matches any one of the
+Xcharacters that are enclosed in the square brackets.  For example:
+X
+X@example
+X[MVX]
+X@end example
+X
+X@noindent
+Xmatches any of the characters @samp{M}, @samp{V}, or @samp{X} in a
+Xstring.@refill
+X
+XRanges of characters are indicated by using a hyphen between the beginning
+Xand ending characters, and enclosing the whole thing in brackets.  For
+Xexample:@refill
+X
+X@example
+X[0-9]
+X@end example
+X
+X@noindent
+Xmatches any digit.
+X
+XTo include the character @samp{\}, @samp{]}, @samp{-} or @samp{^} in a
+Xcharacter set, put a @samp{\} in front of it.  For example:
+X
+X@example
+X[d\]]
+X@end example
+X
+X@noindent
+Xmatches either @samp{]}, or @samp{d}.@refill
+X
+XThis treatment of @samp{\} is compatible with other @code{awk}
+Ximplementations but incompatible with the proposed POSIX specification
+Xfor @code{awk}.  The current draft specifies the use of the same syntax
+Xused in @code{egrep}.
+X
+XWe may change @code{gawk} to fit the standard, once we are sure it will
+Xno longer change.  For the meanwhile, the @samp{-a} option specifies the
+Xtraditional @code{awk} syntax described above (which is also the
+Xdefault), while the @samp{-e} option specifies @code{egrep} syntax.
+X@xref{Options}.
+X
+XIn @code{egrep} syntax, backslash is not syntactically special within
+Xsquare brackets.  This means that special tricks have to be used to
+Xrepresent the characters @samp{]}, @samp{-} and @samp{^} as members of a
+Xcharacter set.
+X
+XTo match @samp{-}, write it as @samp{---}, which is a range containing
+Xonly @samp{-}.  You may also give @samp{-} as the first or last
+Xcharacter in the set.  To match @samp{^}, put it anywhere except as the
+Xfirst character of a set.  To match a @samp{]}, make it the first
+Xcharacter in the set.  For example:
+X
+X@example
+X[]d^]
+X@end example
+X
+X@noindent
+Xmatches either @samp{]}, @samp{d} or @samp{^}.@refill
+X
+X@item [^ @dots{}]
+XThis is a @dfn{complemented character set}.  The first character after
+Xthe @samp{[} @emph{must} be a @samp{^}.  It matches any characters
+X@emph{except} those in the square brackets.  For example:
+X
+X@example
+X[^0-9]
+X@end example
+X
+X@noindent
+Xmatches any character that is not a digit.
+X
+X@item |
+XThis is the @dfn{alternation operator} and it is used to specify
+Xalternatives.  For example:
+X
+X@example
+X^P|[0-9]
+X@end example
+X
+X@noindent
+Xmatches any string that matches either @samp{^P} or @samp{[0-9]}.  This
+Xmeans it matches any string that contains a digit or starts with @samp{P}.
+X
+XThe alternation applies to the largest possible regexps on either side.
+X@item (@dots{})
+XParentheses are used for grouping in regular expressions as in
+Xarithmetic.  They can be used to concatenate regular expressions
+Xcontaining the alternation operator, @samp{|}.
+X
+X@item *
+XThis symbol means that the preceding regular expression is to be
+Xrepeated as many times as possible to find a match.  For example:
+X
+X@example
+Xph*
+X@end example
+X
+X@noindent
+Xapplies the @samp{*} symbol to the preceding @samp{h} and looks for matches
+Xto one @samp{p} followed by any number of @samp{h}s.  This will also match
+Xjust @samp{p} if no @samp{h}s are present.
+X
+XThe @samp{*} repeats the @emph{smallest} possible preceding expression.
+X(Use parentheses if you wish to repeat a larger expression.)  It finds
+Xas many repetitions as possible.  For example:
+X
+X@example
+Xawk '/\(c[ad][ad]*r x\)/ @{ print @}' sample
+X@end example
+X
+X@noindent
+Xprints every record in the input containing a string of the form
+X@samp{(car x)}, @samp{(cdr x)}, @samp{(cadr x)}, and so on.@refill
+X
+X@item +
+XThis symbol is similar to @samp{*}, but the preceding expression must be
+Xmatched at least once.  This means that:
+X
+X@example
+Xwh+y
+X@end example
+X
+X@noindent
+Xwould match @samp{why} and @samp{whhy} but not @samp{wy}, whereas
+X@samp{wh*y} would match all three of these strings.  This is a simpler
+Xway of writing the last @samp{*} example:
+X
+X@example
+Xawk '/\(c[ad]+r x\)/ @{ print @}' sample
+X@end example
+X
+X@item ?
+XThis symbol is similar to @samp{*}, but the preceding expression can be
+Xmatched once or not at all.  For example:
+X
+X@example
+Xfe?d
+X@end example
+X
+X@noindent
+Xwill match @samp{fed} or @samp{fd}, but nothing else.@refill
+X
+X@item \
+XThis is used to suppress the special meaning of a character when
+Xmatching.  For example:
+X
+X@example
+X\$
+X@end example
+X
+X@noindent
+Xmatches the character @samp{$}.
+X
+XThe escape sequences used for string constants (@pxref{Constants}) are
+Xvalid in regular expressions as well; they are also introduced by a
+X@samp{\}.
+X@end table
+X
+XIn regular expressions, the @samp{*}, @samp{+}, and @samp{?} operators have
+Xthe highest precedence, followed by concatenation, and finally by @samp{|}.
+XAs in arithmetic, parentheses can change how operators are grouped.@refill
+X
+X@node Case-sensitivity,, Regexp Operators, Regexp
+X@subsection Case-sensitivity in Matching
+X
+XCase is normally significant in regular expressions, both when matching
+Xordinary characters (i.e., not metacharacters), and inside character
+Xsets.  Thus a @samp{w} in a regular expression matches only a lower case
+X@samp{w} and not an upper case @samp{W}.
+X
+XThe simplest way to do a case-independent match is to use a character
+Xset: @samp{[Ww]}.  However, this can be cumbersome if you need to use it
+Xoften; and it can make the regular expressions harder for humans to
+Xread.  There are two other alternatives that you might prefer.
+X
+XOne way to do a case-insensitive match at a particular point in the
+Xprogram is to convert the data to a single case, using the
+X@code{tolower} or @code{toupper} built-in string functions (which we
+Xhaven't discussed yet; @pxref{String Functions}).  For example:
+X
+X@example
+Xtolower($1) ~ /foo/  @{ @dots{} @}
+X@end example
+X
+X@noindent
+Xconverts the first field to lower case before matching against it.
+X
+XAnother method is to set the variable @code{IGNORECASE} to a nonzero
+Xvalue (@pxref{Built-in Variables}).  When @code{IGNORECASE} is not zero,
+X@emph{all} regexp operations ignore case.  Changing the value of
+X@code{IGNORECASE} dynamically controls the case sensitivity of your
+Xprogram as it runs.  Case is significant by default because
+X@code{IGNORECASE} (like most variables) is initialized to zero.
+X
+X@example
+Xx = "aB"
+Xif (x ~ /ab/) @dots{}   # this test will fail
+X
+XIGNORECASE = 1
+Xif (x ~ /ab/) @dots{}   # now it will succeed
+X@end example
+X
+XYou cannot generally use @code{IGNORECASE} to make certain rules
+Xcase-insensitive and other rules case-sensitive, because there is no way
+Xto set @code{IGNORECASE} just for the pattern of a particular rule.  To
+Xdo this, you must use character sets or @code{tolower}.  However, one
+Xthing you can do only with @code{IGNORECASE} is turn case-sensitivity on
+Xor off dynamically for all the rules at once.
+X
+X@code{IGNORECASE} can be set on the command line, or in a @code{BEGIN}
+Xrule.  Setting @code{IGNORECASE} from the command line is a way to make
+Xa program case-insensitive without having to edit it.
+X
+XThe value of @code{IGNORECASE} has no effect if @code{gawk} is in
+Xcompatibility mode (@pxref{Command Line}).  Case is always significant
+Xin compatibility mode.
+X
+X@node Comparison Patterns, Boolean Patterns, Regexp, Patterns
+X@section Comparison Expressions as Patterns
+X@cindex comparison expressions as patterns
+X@cindex pattern, comparison expressions
+X@cindex relational operators
+X@cindex operators, relational
+X
+X@dfn{Comparison patterns} test relationships such as equality between
+Xtwo strings or numbers.  They are a special case of expression patterns
+X(@pxref{Expression Patterns}).  They are written with @dfn{relational
+Xoperators}, which are a superset of those in C.  Here is a table of
+Xthem:
+X
+X@table @code
+X@item @var{x} < @var{y}
+XTrue if @var{x} is less than @var{y}.
+X
+X@item @var{x} <= @var{y}
+XTrue if @var{x} is less than or equal to @var{y}.
+X
+X@item @var{x} > @var{y}
+XTrue if @var{x} is greater than @var{y}.
+X
+X@item @var{x} >= @var{y}
+XTrue if @var{x} is greater than or equal to @var{y}.
+X
+X@item @var{x} == @var{y}
+XTrue if @var{x} is equal to @var{y}.
+X
+X@item @var{x} != @var{y}
+XTrue if @var{x} is not equal to @var{y}.
+X
+X@item @var{x} ~ @var{y}
+XTrue if @var{x} matches the regular expression described by @var{y}.
+X
+X@item @var{x} !~ @var{y}
+XTrue if @var{x} does not match the regular expression described by @var{y}.
+X@end table
+X
+XThe operands of a relational operator are compared as numbers if they
+Xare both numbers.  Otherwise they are converted to, and compared as,
+Xstrings (@pxref{Conversion}).  Strings are compared by comparing the
+Xfirst character of each, then the second character of each, and so on,
+Xuntil there is a difference.  If the two strings are equal until the
+Xshorter one runs out, the shorter one is considered to be less than the
+Xlonger one.  Thus, @code{"10"} is less than @code{"9"}.
+X
+XThe left operand of the @samp{~} and @samp{!~} operators is a string.
+XThe right operand is either a constant regular expression enclosed in
+Xslashes (@code{/@var{regexp}/}), or any expression, whose string value
+Xis used as a dynamic regular expression (@pxref{Regexp Usage}).
+X
+XThe following example prints the second field of each input record
+Xwhose first field is precisely @samp{foo}.
+X
+X@example
+Xawk '$1 == "foo" @{ print $2 @}' BBS-list
+X@end example
+X
+X@noindent
+XContrast this with the following regular expression match, which would
+Xaccept any record with a first field that contains @samp{foo}:
+X
+X@example
+Xawk '$1 ~ "foo" @{ print $2 @}' BBS-list
+X@end example
+X
+X@noindent
+Xor, equivalently, this one:
+X
+X@example
+Xawk '$1 ~ /foo/ @{ print $2 @}' BBS-list
+X@end example
+X
+X@node Boolean Patterns, Expression Patterns, Comparison Patterns, Patterns
+X@section Boolean Operators and Patterns
+X@cindex patterns, boolean
+X@cindex boolean patterns
+X
+XA @dfn{boolean pattern} is an expression which combines other patterns
+Xusing the @dfn{boolean operators} ``or'' (@samp{||}), ``and''
+X(@samp{&&}), and ``not'' (@samp{!}).  Whether the boolean pattern
+Xmatches an input record depends on whether its subpatterns match.
+X
+XFor example, the following command prints all records in the input file
+X@file{BBS-list} that contain both @samp{2400} and @samp{foo}.@refill
+X
+X@example
+Xawk '/2400/ && /foo/' BBS-list
+X@end example
+X
+XThe following command prints all records in the input file
+X@file{BBS-list} that contain @emph{either} @samp{2400} or @samp{foo}, or
+Xboth.@refill
+X
+X@example
+Xawk '/2400/ || /foo/' BBS-list
+X@end example
+X
+XThe following command prints all records in the input file
+X@file{BBS-list} that do @emph{not} contain the string @samp{foo}.
+X
+X@example
+Xawk '! /foo/' BBS-list
+X@end example
+X
+XNote that boolean patterns are a special case of expression patterns
+X(@pxref{Expression Patterns}); they are expressions that use the boolean
+Xoperators.  For complete information on the boolean operators, see
+X@ref{Boolean Ops}.
+X
+XThe subpatterns of a boolean pattern can be constant regular
+Xexpressions, comparisons, or any other @code{gawk} expressions.  Range
+Xpatterns are not expressions, so they cannot appear inside boolean
+Xpatterns.  Likewise, the special patterns @code{BEGIN} and @code{END},
+Xwhich never match any input record, are not expressions and cannot
+Xappear inside boolean patterns.
+X
+X@node Expression Patterns, Ranges, Boolean Patterns, Patterns
+X@section Expressions as Patterns
+X
+XAny @code{awk} expression is valid also as a pattern in @code{gawk}.
+XThen the pattern ``matches'' if the expression's value is nonzero (if a
+Xnumber) or nonnull (if a string).
+X
+XThe expression is reevaluated each time the rule is tested against a new
+Xinput record.  If the expression uses fields such as @code{$1}, the
+Xvalue depends directly on the new input record's text; otherwise, it
+Xdepends only on what has happened so far in the execution of the
+X@code{awk} program, but that may still be useful.
+X
+XComparison patterns are actually a special case of this.  For
+Xexample, the expression @code{$5 == "foo"} has the value 1 when the
+Xvalue of @code{$5} equals @code{"foo"}, and 0 otherwise; therefore, this
+Xexpression as a pattern matches when the two values are equal.
+X
+XBoolean patterns are also special cases of expression patterns.
+X
+XA constant regexp as a pattern is also a special case of an expression
+Xpattern.  @code{/foo/} as an expression has the value 1 if @samp{foo}
+Xappears in the current input record; thus, as a pattern, @code{/foo/}
+Xmatches any record containing @samp{foo}.
+X
+XOther implementations of @code{awk} are less general than @code{gawk}:
+Xthey allow comparison expressions, and boolean combinations thereof
+X(optionally with parentheses), but not necessarily other kinds of
+Xexpressions.
+X
+X@node Ranges, BEGIN/END, Expression Patterns, Patterns
+X@section Specifying Record Ranges With Patterns
+X
+X@cindex range pattern
+X@cindex patterns, range
+XA @dfn{range pattern} is made of two patterns separated by a comma, of
+Xthe form @code{@var{begpat}, @var{endpat}}.  It matches ranges of
+Xconsecutive input records.  The first pattern @var{begpat} controls
+Xwhere the range begins, and the second one @var{endpat} controls where
+Xit ends.  For example,@refill
+X
+X@example
+Xawk '$1 == "on", $1 == "off"'
+X@end example
+X
+X@noindent
+Xprints every record between @samp{on}/@samp{off} pairs, inclusive.
+X
+XIn more detail, a range pattern starts out by matching @var{begpat}
+Xagainst every input record; when a record matches @var{begpat}, the
+Xrange pattern becomes @dfn{turned on}.  The range pattern matches this
+Xrecord.  As long as it stays turned on, it automatically matches every
+Xinput record read.  But meanwhile, it also matches @var{endpat} against
+Xevery input record, and when that succeeds, the range pattern is turned
+Xoff again for the following record.  Now it goes back to checking
+X@var{begpat} against each record.
+X
+XThe record that turns on the range pattern and the one that turns it
+Xoff both match the range pattern.  If you don't want to operate on
+Xthese records, you can write @code{if} statements in the rule's action
+Xto distinguish them.
+X
+XIt is possible for a pattern to be turned both on and off by the same
+Xrecord, if both conditions are satisfied by that record.  Then the action is
+Xexecuted for just that record.
+X
+X@node BEGIN/END,, Ranges, Patterns
+X@section @code{BEGIN} and @code{END} Special Patterns
+X
+X@cindex @code{BEGIN} special pattern
+X@cindex patterns, @code{BEGIN}
+X@cindex @code{END} special pattern
+X@cindex patterns, @code{END}
+X@code{BEGIN} and @code{END} are special patterns.  They are not used to
+Xmatch input records.  Rather, they are used for supplying start-up or
+Xclean-up information to your @code{awk} script.  A @code{BEGIN} rule is
+Xexecuted, once, before the first input record has been read.  An @code{END}
+Xrule is executed, once, after all the input has been read.  For
+Xexample:@refill
+X
+X@group
+X@example
+Xawk 'BEGIN @{ print "Analysis of `foo'" @}
+X     /foo/ @{ ++foobar @}
+X     END   @{ print "`foo' appears " foobar " times." @}' BBS-list
+X@end example
+X@end group
+X
+XThis program finds out how many times the string @samp{foo} appears in
+Xthe input file @file{BBS-list}.  The @code{BEGIN} rule prints a title
+Xfor the report.  There is no need to use the @code{BEGIN} rule to
+Xinitialize the counter @code{foobar} to zero, as @code{awk} does this
+Xfor us automatically (@pxref{Variables}).
+X
+XThe second rule increments the variable @code{foobar} every time a
+Xrecord containing the pattern @samp{foo} is read.  The @code{END} rule
+Xprints the value of @code{foobar} at the end of the run.@refill
+X
+XThe special patterns @code{BEGIN} and @code{END} cannot be used in ranges
+Xor with boolean operators.
+X
+XAn @code{awk} program may have multiple @code{BEGIN} and/or @code{END}
+Xrules.  They are executed in the order they appear, all the @code{BEGIN}
+Xrules at start-up and all the @code{END} rules at termination.
+X
+XMultiple @code{BEGIN} and @code{END} sections are useful for writing
+Xlibrary functions, since each library can have its own @code{BEGIN} or
+X@code{END} rule to do its own initialization and/or cleanup.  Note that
+Xthe order in which library functions are named on the command line
+Xcontrols the order in which their @code{BEGIN} and @code{END} rules are
+Xexecuted.  Therefore you have to be careful to write such rules in
+Xlibrary files so that it doesn't matter what order they are executed in.
+X@xref{Command Line}, for more information on using library functions.
+X
+XIf an @code{awk} program only has a @code{BEGIN} rule, and no other
+Xrules, then the program exits after the @code{BEGIN} rule has been run.
+X(Older versions of @code{awk} used to keep reading and ignoring input
+Xuntil end of file was seen.)  However, if an @code{END} rule exists as
+Xwell, then the input will be read, even if there are no other rules in
+Xthe program.  This is necessary in case the @code{END} rule checks the
+X@code{NR} variable.
+X
+X@code{BEGIN} and @code{END} rules must have actions; there is no default
+Xaction for these rules since there is no current record when they run.
+X
+X@node Actions, Expressions, Patterns, Top
+X@chapter Actions: Overview
+X@cindex action, definition of
+X@cindex curly braces
+X@cindex action, curly braces
+X@cindex action, separating statements
+X
+XAn @code{awk} @dfn{program} or @dfn{script} consists of a series of
+X@dfn{rules} and function definitions, interspersed.  (Functions are
+Xdescribed later; see @ref{User-defined}.)
+X
+XA rule contains a pattern and an @dfn{action}, either of which may be
+Xomitted.  The purpose of the action is to tell @code{awk} what to do
+Xonce a match for the pattern is found.  Thus, the entire program
+Xlooks somewhat like this:
+X
+X@example
+X@r{[}@var{pattern}@r{]} @r{[}@{ @var{action} @}@r{]}
+X@r{[}@var{pattern}@r{]} @r{[}@{ @var{action} @}@r{]}
+X@dots{}
+Xfunction @var{name} (@var{args}) @{ @dots{} @}
+X@dots{}
+X@end example
+X
+XAn action consists of one or more @code{awk} @dfn{statements}, enclosed
+Xin curly braces (@samp{@{} and @samp{@}}).  Each statement specifies one
+Xthing to be done.  The statements are separated by newlines or
+Xsemicolons.
+X
+XThe curly braces around an action must be used even if the action
+Xcontains only one statement, or even if it contains no statements at
+Xall.  However, if you omit the action entirely, omit the curly braces as
+Xwell.  (An omitted action is equivalent to @samp{@{ print $0 @}}.)
+X
+XHere are the kinds of statement supported in @code{awk}:
+X
+X@itemize @bullet
+X@item
+XExpressions, which can call functions or assign values to variables
+X(@pxref{Expressions}).  Executing this kind of statement simply computes
+Xthe value of the expression and then ignores it.  This is useful when
+Xthe expression has side effects (@pxref{Assignment Ops}).
+X
+X@item
+XControl statements, which specify the control flow of @code{awk}
+Xprograms.  The @code{awk} language gives you C-like constructs
+X(@code{if}, @code{for}, @code{while}, and so on) as well as a few
+Xspecial ones (@pxref{Statements}).@refill
+X
+X@item
+XCompound statements, which consist of one or more statements enclosed in
+Xcurly braces.  A compound statement is used in order to put several
+Xstatements together in the body of an @code{if}, @code{while}, @code{do}
+Xor @code{for} statement.
+X
+X@item
+XInput control, using the @code{getline} function (@pxref{Getline}),
+Xand the @code{next} statement (@pxref{Next Statement}).
+X
+X@item
+XOutput statements, @code{print} and @code{printf}.  @xref{Printing}.
+X
+X@item
+XDeletion statements, for deleting array elements.  @xref{Delete}.
+X@end itemize
+X
+X@iftex
+XThe next two chapters cover in detail expressions and control
+Xstatements, respectively.  We go on to treat arrays, and built-in
+Xfunctions, both of which are used in expressions.  Then we proceed
+Xto discuss how to define your own functions.
+X@end iftex
+X
+X@node Expressions, Statements, Actions, Top
+X@chapter Actions: Expressions
+X@cindex expression
+X
+XExpressions are the basic building block of @code{awk} actions.  An
+Xexpression evaluates to a value, which you can print, test, store in a
+Xvariable or pass to a function.
+X
+XBut, beyond that, an expression can assign a new value to a variable
+Xor a field, with an assignment operator.
+X
+XAn expression can serve as a statement on its own.  Most other kinds of
+Xstatement contain one or more expressions which specify data to be
+Xoperated on.  As in other languages, expressions in @code{awk} include
+Xvariables, array references, constants, and function calls, as well as
+Xcombinations of these with various operators.
+X
+X@menu
+X* Constants::       String, numeric, and regexp constants.
+X* Variables::       Variables give names to values for later use.
+X* Arithmetic Ops::  Arithmetic operations (@samp{+}, @samp{-}, etc.)
+X* Concatenation::   Concatenating strings.
+X* Comparison Ops::  Comparison of numbers and strings with @samp{<}, etc.
+X* Boolean Ops::     Combining comparison expressions using boolean operators
+X                    @samp{||} (``or''), @samp{&&} (``and'') and @samp{!} (``not'').
+X
+X* Assignment Ops::  Changing the value of a variable or a field.
+X* Increment Ops::   Incrementing the numeric value of a variable.
+X
+X* Conversion::      The conversion of strings to numbers and vice versa.
+X* Conditional Exp:: Conditional expressions select between two subexpressions
+X                    under control of a third subexpression.
+X* Function Calls::  A function call is an expression.
+X* Precedence::      How various operators nest.
+X@end menu
+X
+X@node Constants, Variables, Expressions, Expressions
+X@section Constant Expressions
+X@cindex constants, types of
+X@cindex string constants
+X
+XThe simplest type of expression is the @dfn{constant}, which always has
+Xthe same value.  There are three types of constant: numeric constants,
+Xstring constants, and regular expression constants.
+X
+X@cindex numeric constant
+X@cindex numeric value
+XA @dfn{numeric constant} stands for a number.  This number can be an
+Xinteger, a decimal fraction, or a number in scientific (exponential)
+Xnotation.  Note that all numeric values are represented within
+X@code{awk} in double-precision floating point.  Here are some examples
+Xof numeric constants, which all have the same value:
+X
+X@example
+X105
+X1.05e+2
+X1050e-1
+X@end example
+X
+XA string constant consists of a sequence of characters enclosed in
+Xdouble-quote marks.  For example:
+X
+X@example
+X"parrot"
+X@end example
+X
+X@noindent
+X@c @cindex differences between @code{gawk} and @code{awk}
+Xrepresents the string whose contents are @samp{parrot}.  Strings in
+X@code{gawk} can be of any length and they can contain all the possible
+X8-bit ASCII characters including ASCII NUL.  Other @code{awk}
+Ximplementations may have difficulty with some character codes.@refill
+X
+X@cindex escape sequence notation
+XSome characters cannot be included literally in a string constant.  You
+Xrepresent them instead with @dfn{escape sequences}, which are character
+Xsequences beginning with a backslash (@samp{\}).
+X
+XOne use of an escape sequence is to include a double-quote character in
+Xa string constant.  Since a plain double-quote would end the string, you
+Xmust use @samp{\"} to represent a single double-quote character as a
+Xpart of the string.  Backslash itself is another character that can't be
+Xincluded normally; you write @samp{\\} to put one backslash in the
+Xstring.  Thus, the string whose contents are the two characters
+X@samp{"\} must be written @code{"\"\\"}.
+X
+XAnother use of backslash is to represent unprintable characters
+Xsuch as newline.  While there is nothing to stop you from writing most
+Xof these characters directly in a string constant, they may look ugly.
+X
+XHere is a table of all the escape sequences used in @code{awk}:
+X
+X@table @code
+X@item \\
+XRepresents a literal backslash, @samp{\}.
+X
+X@item \a
+XRepresents the ``alert'' character, control-g, ASCII code 7.
+X
+X@item \b
+XRepresents a backspace, control-h, ASCII code 8.
+X
+X@item \f
+XRepresents a formfeed, control-l, ASCII code 12.
+X
+X@item \n
+XRepresents a newline, control-j, ASCII code 10.
+X
+X@item \r
+XRepresents a carriage return, control-m, ASCII code 13.
+X
+X@item \t
+XRepresents a horizontal tab, control-i, ASCII code 9.
+X
+X@item \v
+XRepresents a vertical tab, control-k, ASCII code 11.
+X
+X@item \@var{nnn}
+XRepresents the octal value @var{nnn}, where @var{nnn} are one to three
+Xdigits between 0 and 7.  For example, the code for the ASCII ESC
+X(escape) character is @samp{\033}.@refill
+X
+X@item \x@var{hh@dots{}}
+XRepresents the hexadecimal value @var{hh}, where @var{hh} are hexadecimal
+Xdigits (@samp{0} through @samp{9} and either @samp{A} through @samp{F} or
+X@samp{a} through @samp{f}).  Like the same construct in ANSI C, the escape
+Xsequence continues until the first non-hexadecimal digit is seen.  However,
+Xusing more than two hexadecimal digits produces undefined results.@refill
+X@end table
+X
+XA constant regexp is a regular expression description enclosed in
+Xslashes, such as @code{/^beginning and end$/}.  Most regexps used in
+X@code{awk} programs are constant, but the @samp{~} and @samp{!~}
+Xoperators can also match computed or ``dynamic'' regexps (@pxref{Regexp
+XUsage}).
+X
+XConstant regexps are useful only with the @samp{~} and @samp{!~} operators;
+Xyou cannot assign them to variables or print them.  They are not truly
+Xexpressions in the usual sense.
+X
+X@node Variables, Arithmetic Ops, Constants, Expressions
+X@section Variables
+X@cindex variables, user-defined
+X@cindex user-defined variables
+X
+XVariables let you give names to values and refer to them later.  You have
+Xalready seen variables in many of the examples.  The name of a variable
+Xmust be a sequence of letters, digits and underscores, but it may not begin
+Xwith a digit.  Case is significant in variable names; @code{a} and @code{A}
+Xare distinct variables.
+X
+XA variable name is a valid expression by itself; it represents the
+Xvariable's current value.  Variables are given new values with
+X@dfn{assignment operators} and @dfn{increment operators}.
+X@xref{Assignment Ops}.
+X
+XA few variables have special built-in meanings, such as @code{FS}, the
+Xfield separator, and @code{NF}, the number of fields in the current
+Xinput record.  @xref{Built-in Variables}, for a list of them.  These
+Xbuilt-in variables can be used and assigned just like all other
+Xvariables, but their values are also used or changed automatically by
+X@code{awk}.  Each built-in variable's name is made entirely of upper case
+Xletters.
+X
+XVariables in @code{awk} can be assigned either numeric values or string
+Xvalues.  By default, variables are initialized to the null string, which
+Xis effectively zero if converted to a number.  So there is no need to
+X``initialize'' each variable explicitly in @code{awk}, the way you would
+Xneed to do in C or most other traditional programming languages.
+X
+X@menu
+X* Assignment Options::  Setting variables on the command line and a summary
+X                        of command line syntax.  This is an advanced method
+X                        of input.
+X@end menu
+X
+X@node Assignment Options,, Variables, Variables
+X@subsection Assigning Variables on the Command Line
+X
+XYou can set any @code{awk} variable by including a @dfn{variable assignment}
+Xamong the arguments on the command line when you invoke @code{awk}
+X(@pxref{Command Line}).  Such an assignment has this form:
+X
+X@example
+X@var{variable}=@var{text}
+X@end example
+X
+X@noindent
+XWith it, you can set a variable either at the beginning of the
+X@code{awk} run or in between input files.
+X
+XIf you precede the assignment with the @samp{-v} option, like this:
+X
+X@example
+X-v @var{variable}=@var{text}
+X@end example
+X
+X@noindent
+Xthen the variable is set at the very beginning, before even the
+X@code{BEGIN} rules are run.  The @samp{-v} option and its assignment
+Xmust precede all the file name arguments.
+X
+XOtherwise, the variable assignment is performed at a time determined by
+Xits position among the input file arguments: after the processing of the
+Xpreceding input file argument.  For example:
+X
+X@example
+Xawk '@{ print $n @}' n=4 inventory-shipped n=2 BBS-list
+X@end example
+X
+X@noindent
+Xprints the value of field number @code{n} for all input records.  Before
+Xthe first file is read, the command line sets the variable @code{n}
+Xequal to 4.  This causes the fourth field to be printed in lines from
+Xthe file @file{inventory-shipped}.  After the first file has finished,
+Xbut before the second file is started, @code{n} is set to 2, so that the
+Xsecond field is printed in lines from @file{BBS-list}.
+X
+XCommand line arguments are made available for explicit examination by
+Xthe @code{awk} program in an array named @code{ARGV} (@pxref{Built-in
+XVariables}).
+X
+X@node Arithmetic Ops, Concatenation, Variables, Expressions
+X@section Arithmetic Operators
+X@cindex arithmetic operators
+X@cindex operators, arithmetic
+X@cindex addition
+X@cindex subtraction
+X@cindex multiplication
+X@cindex division
+X@cindex remainder
+X@cindex quotient
+X@cindex exponentiation
+X
+XThe @code{awk} language uses the common arithmetic operators when
+Xevaluating expressions.  All of these arithmetic operators follow normal
+Xprecedence rules, and work as you would expect them to.  This example
+Xdivides field three by field four, adds field two, stores the result
+Xinto field one, and prints the resulting altered input record:
+X
+X@example
+Xawk '@{ $1 = $2 + $3 / $4; print @}' inventory-shipped
+X@end example
+X
+XThe arithmetic operators in @code{awk} are:
+X
+X@table @code
+X@item @var{x} + @var{y}
+XAddition.
+X
+X@item @var{x} - @var{y}
+XSubtraction.
+X
+X@item - @var{x}
+XNegation.
+X
+X@item @var{x} * @var{y}
+XMultiplication.
+X
+X@item @var{x} / @var{y}
+XDivision.  Since all numbers in @code{awk} are double-precision
+Xfloating point, the result is not rounded to an integer: @code{3 / 4}
+Xhas the value 0.75.
+X
+X@item @var{x} % @var{y}
+X@c @cindex differences between @code{gawk} and @code{awk}
+XRemainder.  The quotient is rounded toward zero to an integer,
+Xmultiplied by @var{y} and this result is subtracted from @var{x}.
+XThis operation is sometimes known as ``trunc-mod''.  The following
+Xrelation always holds:
+X
+X@example
+Xb * int(a / b) + (a % b) == a
+X@end example
+X
+XOne undesirable effect of this definition of remainder is that
+X@code{@var{x} % @var{y}} is negative if @var{x} is negative.  Thus,
+X
+X@example
+X-17 % 8 = -1
+X@end example
+X
+XIn other @code{awk} implementations, the signedness of the remainder
+Xmay be machine dependent.
+X
+X@item @var{x} ^ @var{y}
+X@itemx @var{x} ** @var{y}
+XExponentiation: @var{x} raised to the @var{y} power.  @code{2 ^ 3} has
+Xthe value 8.  The character sequence @samp{**} is equivalent to
+X@samp{^}.
+X@end table
+X
+X@node Concatenation, Comparison Ops, Arithmetic Ops, Expressions
+X@section String Concatenation
+X
+X@cindex string operators
+X@cindex operators, string
+X@cindex concatenation
+XThere is only one string operation: concatenation.  It does not have a
+Xspecific operator to represent it.  Instead, concatenation is performed by
+Xwriting expressions next to one another, with no operator.  For example:
+X
+X@example
+Xawk '@{ print "Field number one: " $1 @}' BBS-list
+X@end example
+X
+X@noindent
+Xproduces, for the first record in @file{BBS-list}:
+X
+X@example
+XField number one: aardvark
+X@end example
+X
+XWithout the space in the string constant after the @samp{:}, the line
+Xwould run together.  For example:
+X
+X@example
+Xawk '@{ print "Field number one:" $1 @}' BBS-list
+X@end example
+X
+X@noindent
+Xproduces, for the first record in @file{BBS-list}:
+X
+X@example
+XField number one:aardvark
+X@end example
+X
+XSince string concatenation does not have an explicit operator, it is
+END_OF_FILE
+  if test 49625 -ne `wc -c <'./gawk.texinfo.03'`; then
+    echo shar: \"'./gawk.texinfo.03'\" unpacked with wrong size!
+  fi
+  # end of './gawk.texinfo.03'
+fi
+if test -f './missing.d/strchr.c' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'./missing.d/strchr.c'\"
+else
+  echo shar: Extracting \"'./missing.d/strchr.c'\" \(543 characters\)
+  sed "s/^X//" >'./missing.d/strchr.c' <<'END_OF_FILE'
+X/*
+X * strchr --- search a string for a character
+X *
+X * We supply this routine for those systems that aren't standard yet.
+X */
+X
+Xchar *
+Xstrchr (str, c)
+Xregister char *str, c;
+X{
+X	for (; *str; str++)
+X		if (*str == c)
+X			return str;
+X
+X	return NULL;
+X}
+X
+X/*
+X * strrchr --- find the last occurrence of a character in a string
+X *
+X * We supply this routine for those systems that aren't standard yet.
+X */
+X
+Xchar *
+Xstrrchr (str, c)
+Xregister char *str, c;
+X{
+X	register char *save = NULL;
+X
+X	for (; *str; str++)
+X		if (*str == c)
+X			save = str;
+X
+X	return save;
+X}
+END_OF_FILE
+  if test 543 -ne `wc -c <'./missing.d/strchr.c'`; then
+    echo shar: \"'./missing.d/strchr.c'\" unpacked with wrong size!
+  fi
+  # end of './missing.d/strchr.c'
+fi
+if test -f './version.sh' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'./version.sh'\"
+else
+  echo shar: Extracting \"'./version.sh'\" \(1509 characters\)
+  sed "s/^X//" >'./version.sh' <<'END_OF_FILE'
+X#! /bin/sh
+X
+X# version.sh --- create version.c
+X
+Xif [ "x$1" = "x" ]
+Xthen
+X	echo you must specify a release number on the command line
+X	exit 1
+Xfi
+X
+XRELEASE="$1"
+X
+Xcat << EOF
+Xchar *version_string = "@(#)Gnu Awk (gawk) ${RELEASE}";
+X
+X/* 1.02		fixed /= += *= etc to return the new Left Hand Side instead
+X		of the Right Hand Side */
+X
+X/* 1.03		Fixed split() to treat strings of space and tab as FS if
+X		the split char is ' '.
+X
+X		Added -v option to print version number
+X 		
+X		Fixed bug that caused rounding when printing large numbers  */
+X
+X/* 2.00beta	Incorporated the functionality of the "new" awk as described
+X		the book (reference not handy).  Extensively tested, but no 
+X		doubt still buggy.  Badly needs tuning and cleanup, in
+X		particular in memory management which is currently almost
+X		non-existent. */
+X
+X/* 2.01		JF:  Modified to compile under GCC, and fixed a few
+X		bugs while I was at it.  I hope I didn't add any more.
+X		I modified parse.y to reduce the number of reduce/reduce
+X		conflicts.  There are still a few left. */
+X
+X/* 2.02		Fixed JF's bugs; improved memory management, still needs
+X		lots of work. */
+X
+X/* 2.10		Major grammar rework and lots of bug fixes from David.
+X		Major changes for performance enhancements from David.
+X		A number of minor bug fixes and new features from Arnold.
+X		Changes for MSDOS from Conrad Kwok and Scott Garfinkle.
+X		The gawk.texinfo and info files included! */
+X
+X/* 2.11		Bug fix release to 2.10.  Lots of changes for portability,
+X		speed, and configurability.  */
+XEOF
+Xexit 0
+END_OF_FILE
+  if test 1509 -ne `wc -c <'./version.sh'`; then
+    echo shar: \"'./version.sh'\" unpacked with wrong size!
+  fi
+  # end of './version.sh'
+fi
+echo shar: End of archive 6 \(of 16\).
+cp /dev/null ark6isdone
+MISSING=""
+for I in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 ; do
+    if test ! -f ark${I}isdone ; then
+	MISSING="${MISSING} ${I}"
+    fi
+done
+if test "${MISSING}" = "" ; then
+    echo You have unpacked all 16 archives.
+    rm -f ark[1-9]isdone ark[1-9][0-9]isdone
+else
+    echo You still must unpack the following archives:
+    echo "        " ${MISSING}
+fi
+exit 0
+exit 0 # Just in case...
+-- 
+Please send comp.sources.unix-related mail to rsalz@uunet.uu.net.
+Use a domain-based address or give alternate paths, or you may lose out.

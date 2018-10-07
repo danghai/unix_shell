@@ -1,0 +1,760 @@
+From: rsalz@bbn.com (Rich Salz)
+Newsgroups: comp.sources.unix
+Subject: v22i102:  GNU AWK, version 2.11, Part16/16
+Message-ID: <2641@papaya.bbn.com>
+Date: 7 Jun 90 20:31:36 GMT
+Approved: rsalz@uunet.UU.NET
+
+Submitted-by: "Arnold D. Robbins" <arnold@unix.cc.emory.edu>
+Posting-number: Volume 22, Issue 102
+Archive-name: gawk2.11/part16
+
+#! /bin/sh
+# This is a shell archive.  Remove anything before this line, then feed it
+# into a shell via "sh file" or similar.  To overwrite existing files,
+# type "sh file -c".
+# The tool that generated this appeared in the comp.sources.unix newsgroup;
+# send mail to comp-sources-unix@uunet.uu.net if you want that tool.
+# Contents:  ./README ./alloca.c ./array.c ./missing.d/strcase.c
+# Wrapped by rsalz@litchi.bbn.com on Wed Jun  6 12:25:02 1990
+PATH=/bin:/usr/bin:/usr/ucb ; export PATH
+echo If this archive is complete, you will see the following message:
+echo '          "shar: End of archive 16 (of 16)."'
+if test -f './README' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'./README'\"
+else
+  echo shar: Extracting \"'./README'\" \(4506 characters\)
+  sed "s/^X//" >'./README' <<'END_OF_FILE'
+XREADME:
+X
+XThis is GNU Awk 2.11. It should be upwardly compatible with the
+XSystem V Release 4 awk.
+X
+XThis release is essentially a bug fix release.  The files have been
+Xrenamed and code moved around to organize things by function.  Gawk should
+Xalso be somewhat faster now.  More care has been given towards portability
+Xacross different Unix systems.  See the installation instructions, below.
+X
+XKnown problems are given in the PROBLEMS file.  Work to be done is
+Xdescribed briefly in the FUTURES file.
+X
+XThe gawk.texinfo included in this release has been revised; it should
+Xbe in sync with what the code does.  The man page should also be accurate,
+Xbut no promises there.
+X
+XCHANGES FROM 2.10
+X
+XUser visible changes:
+X	Compatibility mode is now obtained via new -c option.
+X	The new ANSI C \a and \x escapes are now a standard part of gawk
+X		as Unix nawk has picked them up.
+X	The new tolower() and toupper() functions are also standard.
+X	A new undocumented option, -nostalgia, has been added.
+X	Command line options have changed somewhat from 2.10.
+X		-v	is now	-V
+X		-V	is now	-C
+X		new -v for doing variable assignments before the BEGIN block.
+X		new -c for compatibility mode.
+X		new -a for awk style regexps (default)
+X		new -e for egrep style regexps, per the POSIX draft spec.
+X	Some more formats have been added to printf, ala nawk and ANSI C.
+X
+XOther changes (the hard stuff):
+X	All known bugs fixed.
+X	Still more memory leaks plugged.
+X	Lots of changes to improve performance and portability.
+X
+XPC users, you've been saved!
+X	As of patchlevel 1, we are now supplying MS-DOS "support."  Said
+X	support was generously provided by Kent Williams, who is now
+X	the contact person for it.  See below for his address.
+X
+XINSTALLATION:
+X
+XThe Makefile will need some tailoring.  Currently it is set up for
+Xa Sun running SunOS 4.x and gcc.  The changes to make in the Makefile are
+Xcommented and should be obvious.  Starting with 2.11, our intent has been
+Xto make the code conform to standards (ANSI, POSIX, SVID, in that order)
+Xwhenever possible, and to not penalize standard conforming systems.
+XWe have included substitute versions of routines not universally available.
+XSimply add the appropriate define for the missing feature(s) on your system.
+X
+XIf you have 4.2 or 4.3 BSD, you should add -DTMPNAM_MISSING since the
+Xversion of tmpnam on these systems won't accept a NULL pointer.
+XThis does not apply to 4.3-tahoe or the S5R[23] systems I have access to.
+XYou need this if gawk core dumps on something simple like 'BEGIN {print "hi"}'.
+X
+XIf you have neither bison nor yacc, use the awk.tab.c file here.  It was
+Xgenerated with bison, and should have no AT&T code in it.  (Note that
+Xmodifying awk.y without bison or yacc will be difficult, at best.  You might
+Xwant to get a copy of bison from the FSF too.)
+X
+XIf you have an MS-DOS system, use the stuff in pc.d.
+X
+XPRINTING THE MANUAL
+X
+XThe 'support' directory contains texinfo.tex 2.1, which will be necessary
+Xfor printing the manual, and the texindex.c program from the emacs distribution
+Xwhich is also necessary.  See the makefile for the steps needed to get a
+XDVI file from the manual.
+X
+XCAVEATS
+X
+XThe existence of a patchlevel.h file does *N*O*T* imply a commitment on
+Xour part to issue bug fixes or patches.  It is there in case we should
+Xdecide to do so.
+X
+XBUG REPORTS AND FIXES:
+X
+XPlease coordinate changes through David Trueman and/or Arnold Robbins.
+X
+XDavid Trueman
+XDepartment of Mathematics, Statistics and Computing Science,
+XDalhousie University, Halifax, Nova Scotia, Canada
+X
+XUUCP		{uunet utai watmath}!dalcs!david
+XINTERNET	david@cs.dal.ca
+X
+XArnold Robbins
+X1315 Kittredge Court, N.E.
+XAtlanta, GA, 30329-3539, USA
+X
+XINTERNET:	arnold@skeeve.atl.ga.us
+XUUCP:		{ gatech, emory, emoryu1 }!skeeve!arnold
+X
+XIf you can't contact either of us, try Jay Fenlason, hack@prep.ai.mit.edu
+XAKA mit-eddie!prep!hack.  During odd hours he can sometimes be reached at
+X(617) 253-8975, which is an MIT phone in the middle of the corridor, so don't
+Xbe suprised if someone wierd answers, or if the person on the other end has
+Xnever heard of him.  (Direct them to the microvax about 10 feet to their left.)
+X
+XMS-DOS SUPPORT
+X
+XSupport for MSC 5.1 was supplied for 2.11 by Kent Williams, who can be
+Xreached at williams@umaxc.weeg.uiowa.edu.  It relies heavily on the
+Xearlier work done for 2.10 by Conrad Kwok and Scott Garfinkle.  Bug
+Xreports on the MS-DOS version should go to Kent.  Of course, if it's
+Xa generic bug, we want to hear about it too, but if it isn't reproducible
+Xunder Unix, we won't be as interested.
+END_OF_FILE
+  if test 4506 -ne `wc -c <'./README'`; then
+    echo shar: \"'./README'\" unpacked with wrong size!
+  fi
+  # end of './README'
+fi
+if test -f './alloca.c' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'./alloca.c'\"
+else
+  echo shar: Extracting \"'./alloca.c'\" \(5456 characters\)
+  sed "s/^X//" >'./alloca.c' <<'END_OF_FILE'
+X/*
+X	alloca -- (mostly) portable public-domain implementation -- D A Gwyn
+X
+X	last edit:	86/05/30	rms
+X	   include config.h, since on VMS it renames some symbols.
+X	   Use xmalloc instead of malloc.
+X
+X	This implementation of the PWB library alloca() function,
+X	which is used to allocate space off the run-time stack so
+X	that it is automatically reclaimed upon procedure exit, 
+X	was inspired by discussions with J. Q. Johnson of Cornell.
+X
+X	It should work under any C implementation that uses an
+X	actual procedure stack (as opposed to a linked list of
+X	frames).  There are some preprocessor constants that can
+X	be defined when compiling for your specific system, for
+X	improved efficiency; however, the defaults should be okay.
+X
+X	The general concept of this implementation is to keep
+X	track of all alloca()-allocated blocks, and reclaim any
+X	that are found to be deeper in the stack than the current
+X	invocation.  This heuristic does not reclaim storage as
+X	soon as it becomes invalid, but it will do so eventually.
+X
+X	As a special case, alloca(0) reclaims storage without
+X	allocating any.  It is a good idea to use alloca(0) in
+X	your main control loop, etc. to force garbage collection.
+X*/
+X#ifndef lint
+Xstatic char	SCCSid[] = "@(#)alloca.c	1.1";	/* for the "what" utility */
+X#endif
+X
+X#ifdef emacs
+X#include "config.h"
+X#ifdef static
+X/* actually, only want this if static is defined as ""
+X   -- this is for usg, in which emacs must undefine static
+X   in order to make unexec workable
+X   */
+X#ifndef STACK_DIRECTION
+Xyou
+Xlose
+X-- must know STACK_DIRECTION at compile-time
+X#endif /* STACK_DIRECTION undefined */
+X#endif /* static */
+X#endif /* emacs */
+X
+X#ifdef X3J11
+Xtypedef void	*pointer;		/* generic pointer type */
+X#else
+Xtypedef char	*pointer;		/* generic pointer type */
+X#endif
+X
+X#define	NULL	0			/* null pointer constant */
+X
+Xextern void	free();
+Xextern pointer	xmalloc();
+X
+X/*
+X	Define STACK_DIRECTION if you know the direction of stack
+X	growth for your system; otherwise it will be automatically
+X	deduced at run-time.
+X
+X	STACK_DIRECTION > 0 => grows toward higher addresses
+X	STACK_DIRECTION < 0 => grows toward lower addresses
+X	STACK_DIRECTION = 0 => direction of growth unknown
+X*/
+X
+X#ifndef STACK_DIRECTION
+X#define	STACK_DIRECTION	0		/* direction unknown */
+X#endif
+X
+X#if STACK_DIRECTION != 0
+X
+X#define	STACK_DIR	STACK_DIRECTION	/* known at compile-time */
+X
+X#else	/* STACK_DIRECTION == 0; need run-time code */
+X
+Xstatic int	stack_dir;		/* 1 or -1 once known */
+X#define	STACK_DIR	stack_dir
+X
+Xstatic void
+Xfind_stack_direction (/* void */)
+X{
+X  static char	*addr = NULL;	/* address of first
+X				   `dummy', once known */
+X  auto char	dummy;		/* to get stack address */
+X
+X  if (addr == NULL)
+X    {				/* initial entry */
+X      addr = &dummy;
+X
+X      find_stack_direction ();	/* recurse once */
+X    }
+X  else				/* second entry */
+X    if (&dummy > addr)
+X      stack_dir = 1;		/* stack grew upward */
+X    else
+X      stack_dir = -1;		/* stack grew downward */
+X}
+X
+X#endif	/* STACK_DIRECTION == 0 */
+X
+X/*
+X	An "alloca header" is used to:
+X	(a) chain together all alloca()ed blocks;
+X	(b) keep track of stack depth.
+X
+X	It is very important that sizeof(header) agree with malloc()
+X	alignment chunk size.  The following default should work okay.
+X*/
+X
+X#ifndef	ALIGN_SIZE
+X#define	ALIGN_SIZE	sizeof(double)
+X#endif
+X
+Xtypedef union hdr
+X{
+X  char	align[ALIGN_SIZE];	/* to force sizeof(header) */
+X  struct
+X    {
+X      union hdr *next;		/* for chaining headers */
+X      char *deep;		/* for stack depth measure */
+X    } h;
+X} header;
+X
+X/*
+X	alloca( size ) returns a pointer to at least `size' bytes of
+X	storage which will be automatically reclaimed upon exit from
+X	the procedure that called alloca().  Originally, this space
+X	was supposed to be taken from the current stack frame of the
+X	caller, but that method cannot be made to work for some
+X	implementations of C, for example under Gould's UTX/32.
+X*/
+X
+Xstatic header *last_alloca_header = NULL; /* -> last alloca header */
+X
+Xpointer
+Xalloca (size)			/* returns pointer to storage */
+X     unsigned	size;		/* # bytes to allocate */
+X{
+X  auto char	probe;		/* probes stack depth: */
+X  register char	*depth = &probe;
+X
+X#if STACK_DIRECTION == 0
+X  if (STACK_DIR == 0)		/* unknown growth direction */
+X    find_stack_direction ();
+X#endif
+X
+X				/* Reclaim garbage, defined as all alloca()ed storage that
+X				   was allocated from deeper in the stack than currently. */
+X
+X  {
+X    register header	*hp;	/* traverses linked list */
+X
+X    for (hp = last_alloca_header; hp != NULL;)
+X      if (STACK_DIR > 0 && hp->h.deep > depth
+X	  || STACK_DIR < 0 && hp->h.deep < depth)
+X	{
+X	  register header	*np = hp->h.next;
+X
+X	  free ((pointer) hp);	/* collect garbage */
+X
+X	  hp = np;		/* -> next header */
+X	}
+X      else
+X	break;			/* rest are not deeper */
+X
+X    last_alloca_header = hp;	/* -> last valid storage */
+X  }
+X
+X  if (size == 0)
+X    return NULL;		/* no allocation required */
+X
+X  /* Allocate combined header + user data storage. */
+X
+X  {
+X    register pointer	new = xmalloc (sizeof (header) + size);
+X    /* address of header */
+X
+X    ((header *)new)->h.next = last_alloca_header;
+X    ((header *)new)->h.deep = depth;
+X
+X    last_alloca_header = (header *)new;
+X
+X    /* User storage begins just after header. */
+X
+X    return (pointer)((char *)new + sizeof(header));
+X  }
+X}
+X
+Xpointer xmalloc(n)
+Xunsigned int n;
+X{
+X  extern pointer malloc();
+X  pointer cp;
+X  static char mesg[] = "xmalloc: no memory!\n";
+X
+X  cp = malloc(n);
+X  if (! cp) {
+X    write (2, mesg, sizeof(mesg) - 1);
+X    exit(1);
+X  }
+X  return cp;
+X}
+END_OF_FILE
+  if test 5456 -ne `wc -c <'./alloca.c'`; then
+    echo shar: \"'./alloca.c'\" unpacked with wrong size!
+  fi
+  # end of './alloca.c'
+fi
+if test -f './array.c' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'./array.c'\"
+else
+  echo shar: Extracting \"'./array.c'\" \(6106 characters\)
+  sed "s/^X//" >'./array.c' <<'END_OF_FILE'
+X/*
+X * array.c - routines for associative arrays.
+X */
+X
+X/* 
+X * Copyright (C) 1986, 1988, 1989 the Free Software Foundation, Inc.
+X * 
+X * This file is part of GAWK, the GNU implementation of the
+X * AWK Progamming Language.
+X * 
+X * GAWK is free software; you can redistribute it and/or modify
+X * it under the terms of the GNU General Public License as published by
+X * the Free Software Foundation; either version 1, or (at your option)
+X * any later version.
+X * 
+X * GAWK is distributed in the hope that it will be useful,
+X * but WITHOUT ANY WARRANTY; without even the implied warranty of
+X * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+X * GNU General Public License for more details.
+X * 
+X * You should have received a copy of the GNU General Public License
+X * along with GAWK; see the file COPYING.  If not, write to
+X * the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
+X */
+X
+X#include "awk.h"
+X
+X#ifdef DONTDEF
+Xint primes[] = {31, 61, 127, 257, 509, 1021, 2053, 4099, 8191, 16381};
+X#endif
+X
+X#define ASSOC_HASHSIZE 127
+X#define STIR_BITS(n) ((n) << 5 | (((n) >> 27) & 0x1f))
+X#define HASHSTEP(old, c) ((old << 1) + c)
+X#define MAKE_POS(v) (v & ~0x80000000)	/* make number positive */
+X
+XNODE *
+Xconcat_exp(tree)
+XNODE *tree;
+X{
+X	NODE *r;
+X	char *str;
+X	char *s;
+X	unsigned len;
+X	int offset;
+X	int subseplen;
+X	char *subsep;
+X
+X	if (tree->type != Node_expression_list)
+X		return force_string(tree_eval(tree));
+X	r = force_string(tree_eval(tree->lnode));
+X	if (tree->rnode == NULL)
+X		return r;
+X	subseplen = SUBSEP_node->lnode->stlen;
+X	subsep = SUBSEP_node->lnode->stptr;
+X	len = r->stlen + subseplen + 1;
+X	emalloc(str, char *, len, "concat_exp");
+X	memcpy(str, r->stptr, r->stlen+1);
+X	s = str + r->stlen;
+X	free_temp(r);
+X	tree = tree->rnode;
+X	while (tree) {
+X		if (subseplen == 1)
+X			*s++ = *subsep;
+X		else {
+X			memcpy(s, subsep, subseplen+1);
+X			s += subseplen;
+X		}
+X		r = force_string(tree_eval(tree->lnode));
+X		len += r->stlen + subseplen;
+X		offset = s - str;
+X		erealloc(str, char *, len, "concat_exp");
+X		s = str + offset;
+X		memcpy(s, r->stptr, r->stlen+1);
+X		s += r->stlen;
+X		free_temp(r);
+X		tree = tree->rnode;
+X	}
+X	r = tmp_string(str, s - str);
+X	free(str);
+X	return r;
+X}
+X
+X/* Flush all the values in symbol[] before doing a split() */
+Xvoid
+Xassoc_clear(symbol)
+XNODE *symbol;
+X{
+X	int i;
+X	NODE *bucket, *next;
+X
+X	if (symbol->var_array == 0)
+X		return;
+X	for (i = 0; i < ASSOC_HASHSIZE; i++) {
+X		for (bucket = symbol->var_array[i]; bucket; bucket = next) {
+X			next = bucket->ahnext;
+X			deref = bucket->ahname;
+X			do_deref();
+X			deref = bucket->ahvalue;
+X			do_deref();
+X			freenode(bucket);
+X		}
+X		symbol->var_array[i] = 0;
+X	}
+X}
+X
+X/*
+X * calculate the hash function of the string subs, also returning in *typtr
+X * the type (string or number) 
+X */
+Xstatic int
+Xhash_calc(subs)
+XNODE *subs;
+X{
+X	register int hash1 = 0, i;
+X
+X	subs = force_string(subs);
+X	for (i = 0; i < subs->stlen; i++)
+X		hash1 = HASHSTEP(hash1, subs->stptr[i]);
+X
+X	hash1 = MAKE_POS(STIR_BITS((int) hash1)) % ASSOC_HASHSIZE;
+X	return (hash1);
+X}
+X
+X/*
+X * locate symbol[subs], given hash of subs and type 
+X */
+Xstatic NODE *				/* NULL if not found */
+Xassoc_find(symbol, subs, hash1)
+XNODE *symbol, *subs;
+Xint hash1;
+X{
+X	register NODE *bucket;
+X
+X	for (bucket = symbol->var_array[hash1]; bucket; bucket = bucket->ahnext) {
+X		if (cmp_nodes(bucket->ahname, subs))
+X			continue;
+X		return bucket;
+X	}
+X	return NULL;
+X}
+X
+X/*
+X * test whether the array element symbol[subs] exists or not 
+X */
+Xint
+Xin_array(symbol, subs)
+XNODE *symbol, *subs;
+X{
+X	register int hash1;
+X
+X	if (symbol->type == Node_param_list)
+X		symbol = stack_ptr[symbol->param_cnt];
+X	if (symbol->var_array == 0)
+X		return 0;
+X	subs = concat_exp(subs);
+X	hash1 = hash_calc(subs);
+X	if (assoc_find(symbol, subs, hash1) == NULL) {
+X		free_temp(subs);
+X		return 0;
+X	} else {
+X		free_temp(subs);
+X		return 1;
+X	}
+X}
+X
+X/*
+X * SYMBOL is the address of the node (or other pointer) being dereferenced.
+X * SUBS is a number or string used as the subscript. 
+X *
+X * Find SYMBOL[SUBS] in the assoc array.  Install it with value "" if it
+X * isn't there. Returns a pointer ala get_lhs to where its value is stored 
+X */
+XNODE **
+Xassoc_lookup(symbol, subs)
+XNODE *symbol, *subs;
+X{
+X	register int hash1, i;
+X	register NODE *bucket;
+X
+X	hash1 = hash_calc(subs);
+X
+X	if (symbol->var_array == 0) {	/* this table really should grow
+X					 * dynamically */
+X		emalloc(symbol->var_array, NODE **, (sizeof(NODE *) *
+X			ASSOC_HASHSIZE), "assoc_lookup");
+X		for (i = 0; i < ASSOC_HASHSIZE; i++)
+X			symbol->var_array[i] = 0;
+X		symbol->type = Node_var_array;
+X	} else {
+X		bucket = assoc_find(symbol, subs, hash1);
+X		if (bucket != NULL) {
+X			free_temp(subs);
+X			return &(bucket->ahvalue);
+X		}
+X	}
+X	bucket = newnode(Node_ahash);
+X	bucket->ahname = dupnode(subs);
+X	bucket->ahvalue = Nnull_string;
+X	bucket->ahnext = symbol->var_array[hash1];
+X	symbol->var_array[hash1] = bucket;
+X	return &(bucket->ahvalue);
+X}
+X
+Xvoid
+Xdo_delete(symbol, tree)
+XNODE *symbol, *tree;
+X{
+X	register int hash1;
+X	register NODE *bucket, *last;
+X	NODE *subs;
+X
+X	if (symbol->var_array == 0)
+X		return;
+X	subs = concat_exp(tree);
+X	hash1 = hash_calc(subs);
+X
+X	last = NULL;
+X	for (bucket = symbol->var_array[hash1]; bucket; last = bucket, bucket = bucket->ahnext)
+X		if (cmp_nodes(bucket->ahname, subs) == 0)
+X			break;
+X	free_temp(subs);
+X	if (bucket == NULL)
+X		return;
+X	if (last)
+X		last->ahnext = bucket->ahnext;
+X	else
+X		symbol->var_array[hash1] = bucket->ahnext;
+X	deref = bucket->ahname;
+X	do_deref();
+X	deref = bucket->ahvalue;
+X	do_deref();
+X	freenode(bucket);
+X}
+X
+Xstruct search *
+Xassoc_scan(symbol)
+XNODE *symbol;
+X{
+X	struct search *lookat;
+X
+X	if (!symbol->var_array)
+X		return 0;
+X	emalloc(lookat, struct search *, sizeof(struct search), "assoc_scan");
+X	lookat->numleft = ASSOC_HASHSIZE;
+X	lookat->arr_ptr = symbol->var_array;
+X	lookat->bucket = symbol->var_array[0];
+X	return assoc_next(lookat);
+X}
+X
+Xstruct search *
+Xassoc_next(lookat)
+Xstruct search *lookat;
+X{
+X	for (; lookat->numleft; lookat->numleft--) {
+X		while (lookat->bucket != 0) {
+X			lookat->retval = lookat->bucket->ahname;
+X			lookat->bucket = lookat->bucket->ahnext;
+X			return lookat;
+X		}
+X		lookat->bucket = *++(lookat->arr_ptr);
+X	}
+X	free((char *) lookat);
+X	return 0;
+X}
+END_OF_FILE
+  if test 6106 -ne `wc -c <'./array.c'`; then
+    echo shar: \"'./array.c'\" unpacked with wrong size!
+  fi
+  # end of './array.c'
+fi
+if test -f './missing.d/strcase.c' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'./missing.d/strcase.c'\"
+else
+  echo shar: Extracting \"'./missing.d/strcase.c'\" \(3821 characters\)
+  sed "s/^X//" >'./missing.d/strcase.c' <<'END_OF_FILE'
+X/*
+X * Copyright (c) 1987 Regents of the University of California.
+X * All rights reserved.
+X *
+X * Redistribution and use in source and binary forms are permitted
+X * provided that the above copyright notice and this paragraph are
+X * duplicated in all such forms and that any documentation,
+X * advertising materials, and other materials related to such
+X * distribution and use acknowledge that the software was developed
+X * by the University of California, Berkeley.  The name of the
+X * University may not be used to endorse or promote products derived
+X * from this software without specific prior written permission.
+X * THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR
+X * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
+X * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+X */
+X
+X#if defined(LIBC_SCCS) && !defined(lint)
+Xstatic char sccsid[] = "@(#)strcasecmp.c	5.6 (Berkeley) 6/27/88";
+X#endif /* LIBC_SCCS and not lint */
+X
+X#ifndef USG
+X#include <sys/types.h>
+X#else
+X#define u_char unsigned char
+X#endif
+X
+X/*
+X * This array is designed for mapping upper and lower case letter
+X * together for a case independent comparison.  The mappings are
+X * based upon ascii character sequences.
+X */
+Xstatic u_char charmap[] = {
+X	'\000', '\001', '\002', '\003', '\004', '\005', '\006', '\007',
+X	'\010', '\011', '\012', '\013', '\014', '\015', '\016', '\017',
+X	'\020', '\021', '\022', '\023', '\024', '\025', '\026', '\027',
+X	'\030', '\031', '\032', '\033', '\034', '\035', '\036', '\037',
+X	'\040', '\041', '\042', '\043', '\044', '\045', '\046', '\047',
+X	'\050', '\051', '\052', '\053', '\054', '\055', '\056', '\057',
+X	'\060', '\061', '\062', '\063', '\064', '\065', '\066', '\067',
+X	'\070', '\071', '\072', '\073', '\074', '\075', '\076', '\077',
+X	'\100', '\141', '\142', '\143', '\144', '\145', '\146', '\147',
+X	'\150', '\151', '\152', '\153', '\154', '\155', '\156', '\157',
+X	'\160', '\161', '\162', '\163', '\164', '\165', '\166', '\167',
+X	'\170', '\171', '\172', '\133', '\134', '\135', '\136', '\137',
+X	'\140', '\141', '\142', '\143', '\144', '\145', '\146', '\147',
+X	'\150', '\151', '\152', '\153', '\154', '\155', '\156', '\157',
+X	'\160', '\161', '\162', '\163', '\164', '\165', '\166', '\167',
+X	'\170', '\171', '\172', '\173', '\174', '\175', '\176', '\177',
+X	'\200', '\201', '\202', '\203', '\204', '\205', '\206', '\207',
+X	'\210', '\211', '\212', '\213', '\214', '\215', '\216', '\217',
+X	'\220', '\221', '\222', '\223', '\224', '\225', '\226', '\227',
+X	'\230', '\231', '\232', '\233', '\234', '\235', '\236', '\237',
+X	'\240', '\241', '\242', '\243', '\244', '\245', '\246', '\247',
+X	'\250', '\251', '\252', '\253', '\254', '\255', '\256', '\257',
+X	'\260', '\261', '\262', '\263', '\264', '\265', '\266', '\267',
+X	'\270', '\271', '\272', '\273', '\274', '\275', '\276', '\277',
+X	'\300', '\341', '\342', '\343', '\344', '\345', '\346', '\347',
+X	'\350', '\351', '\352', '\353', '\354', '\355', '\356', '\357',
+X	'\360', '\361', '\362', '\363', '\364', '\365', '\366', '\367',
+X	'\370', '\371', '\372', '\333', '\334', '\335', '\336', '\337',
+X	'\340', '\341', '\342', '\343', '\344', '\345', '\346', '\347',
+X	'\350', '\351', '\352', '\353', '\354', '\355', '\356', '\357',
+X	'\360', '\361', '\362', '\363', '\364', '\365', '\366', '\367',
+X	'\370', '\371', '\372', '\373', '\374', '\375', '\376', '\377',
+X};
+X
+Xstrcasecmp(s1, s2)
+X	char *s1, *s2;
+X{
+X	register u_char	*cm = charmap,
+X			*us1 = (u_char *)s1,
+X			*us2 = (u_char *)s2;
+X
+X	while (cm[*us1] == cm[*us2++])
+X		if (*us1++ == '\0')
+X			return(0);
+X	return(cm[*us1] - cm[*--us2]);
+X}
+X
+Xstrncasecmp(s1, s2, n)
+X	char *s1, *s2;
+X	register int n;
+X{
+X	register u_char	*cm = charmap,
+X			*us1 = (u_char *)s1,
+X			*us2 = (u_char *)s2;
+X
+X	while (--n >= 0 && cm[*us1] == cm[*us2++])
+X		if (*us1++ == '\0')
+X			return(0);
+X	return(n < 0 ? 0 : cm[*us1] - cm[*--us2]);
+X}
+END_OF_FILE
+  if test 3821 -ne `wc -c <'./missing.d/strcase.c'`; then
+    echo shar: \"'./missing.d/strcase.c'\" unpacked with wrong size!
+  fi
+  # end of './missing.d/strcase.c'
+fi
+echo shar: End of archive 16 \(of 16\).
+cp /dev/null ark16isdone
+MISSING=""
+for I in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 ; do
+    if test ! -f ark${I}isdone ; then
+	MISSING="${MISSING} ${I}"
+    fi
+done
+if test "${MISSING}" = "" ; then
+    echo You have unpacked all 16 archives.
+    rm -f ark[1-9]isdone ark[1-9][0-9]isdone
+else
+    echo You still must unpack the following archives:
+    echo "        " ${MISSING}
+fi
+exit 0
+exit 0 # Just in case...
+-- 
+Please send comp.sources.unix-related mail to rsalz@uunet.uu.net.
+Use a domain-based address or give alternate paths, or you may lose out.

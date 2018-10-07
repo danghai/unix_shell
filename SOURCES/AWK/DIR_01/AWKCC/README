@@ -1,0 +1,36 @@
+                ##############################################
+		To compile the UNIPEN 1.0 parser, run awkcc.sh
+		##############################################
+
+The following files are from the awkcc package,
+provided by Chris Ramming (jcr@research.att.com),
+Copyright (c) 1991 AT&T.
+All Rights Reserved
+
+awk.h                              awkcc.sh
+copyright                          dollars.h
+ear.h                              hash.h
+header.h                           libAWK.a
+specassign.h                       y.tab.h
+
+The file unipen.c is machine generated c code from the unipen.awk
+parser, using the awkcc package.
+Copyright (c) 1994 - I. Guyon, AT&T Bell Labs.
+
+#									  #
+#  DISCLAIMER:                                                            #
+#                                                                         #
+#    USER SHALL BE FREE TO USE AND COPY THIS SOFTWARE FREE OF CHARGE OR   #
+#    FURTHER OBLIGATION.                                                  #
+#                                                                         #
+#    THIS SOFTWARE IS NOT OF PRODUCT QUALITY AND MAY HAVE ERRORS OR       #
+#    DEFECTS.                                                             #
+#                                                                         #
+#    PROVIDER GIVES NO EXPRESS OR IMPLIED WARRANTY OF ANY KIND AND ANY    #
+#    IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR PURPOSE ARE    #
+#    DISCLAIMED.                                                          #
+#                                                                         #
+#    PROVIDER SHALL NOT BE LIABLE FOR ANY DIRECT, INDIRECT, SPECIAL,      #
+#    INCIDENTAL OR CONSEQUENTIAL DAMAGES ARISING OUT OF ANY USE OF THIS   #
+#    SOFTWARE.                                                            #
+

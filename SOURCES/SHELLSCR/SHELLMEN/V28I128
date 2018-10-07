@@ -1,0 +1,1634 @@
+From: how%milhow1@uunet.uu.net (Mike Howard)
+Newsgroups: comp.sources.unix
+Subject: v28i128: simple_menu-3.1 - a simple shell-level menu system, V3.1, Part04/09
+Date: 5 Oct 1994 01:21:12 -0700
+Organization: Vixie Enterprises
+Sender: vixie@vix.com
+Approved: vixie@gw.home.vix.com
+Message-ID: <36tnlo$tm@gw.home.vix.com>
+References: <1.781345221.914@gw.home.vix.com>
+
+Submitted-By: how%milhow1@uunet.uu.net (Mike Howard)
+Posting-Number: Volume 28, Issue 128
+Archive-Name: simple_menu-3.1/part04
+
+#! /bin/sh
+# This is a shell archive.  Remove anything before this line, then unpack
+# it by saving it into a file and typing "sh file".  To overwrite existing
+# files, type "sh file -c".  You can also feed this as standard input via
+# unshar, or by typing "sh <file", e.g..  If this archive is complete, you
+# will see the following message at the end:
+#		"End of archive 4 (of 9)."
+# Contents:  ./doc/simple_menu.1 ./tty_src/tty_display.c
+# Wrapped by mike@clove2 on Wed Sep 28 06:55:57 1994
+PATH=/bin:/usr/bin:/usr/ucb ; export PATH
+if test -f './doc/simple_menu.1' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'./doc/simple_menu.1'\"
+else
+echo shar: Extracting \"'./doc/simple_menu.1'\" \(19536 characters\)
+sed "s/^X//" >'./doc/simple_menu.1' <<'END_OF_FILE'
+X.	\"	-*- nroff -*-
+X.	\"	$Id:$
+X.DA $Date:$
+X.TH SIMPLE_MENU 1 "local"
+X.SH NAME
+Xsimple_menu \- executes a simple minded menu
+X.SH SYNOPSIS
+X.B simple_menu
+X[ -h | options ] [menu-definition-file-name | -]
+X.SH DESCRIPTION
+X.PP
+X.B simple_menu
+Xprovides a simple user interface consisting of one or more menus
+Xof numbered choices.
+XThe interface is intentionally simple in order to minimize the
+Xdifficulties inherent in messing with vdu's.
+X.	\"	$Id:$
+X.PP
+XSimplified Theory of operation:
+XIn the context of this program, a menu consists of a collection of
+Xenumerated choices.
+XChoices are of one of three types:
+X.HP
+XA sub menu
+X.HP
+XA shell script.
+X.HP
+XMenu-global variable assignment.
+X.PP
+XThe user either selects a choice or quits.  If the user selects a
+Xchoice which is a menu, the program recursively displays that menu and
+Xetc.  If the user selects a shell process, then the program builds a
+Xshell script in a temporary file and feeds it to
+X.I /bin/sh.
+XIf the user selects a variable assignment item, the variables named in
+Xthe item are given new values.  If the user quits, the program
+Xterminates.
+X.PP
+XThings are a bit more complex than that, but this is the basic model.
+X.PP
+XA minimum of cosmetics is supported:
+X.HP
+X\- the title for the menu may be displayed in stand out mode
+X.HP
+X\- blank lines may be placed in the menu.
+X.HP
+X\- menu choices can be either numbers or upper case letters.
+X.HP
+X\- the screen may be cleared on each menu choice cycle.
+X.PP
+XThe menu definition is read from a menu definition file.  The file may
+Xbe:
+X.HP
+X\- standard input \- if the file is explicitly named \-.
+X.HP
+X\- an absolute file \- if the file name begins with a slash (/).
+X.HP
+X\- a file in the current directory \- if the file name begins with ./
+X.HP
+X\- the named file or
+X.I menu.def
+Xif it can be found on in any directory in the
+X.I menu path.
+XThe
+X.I menu path
+Xis a colon separated list of directory paths which may be specified
+Xdirectly on the command line using
+X.B -M 
+Xoption, by the environment variable
+X.B MENU_PATH,
+Xor by default.
+XThe default menu path is:
+X.IP
+X$HOME:/usr/local/lib/simple_menu:/usr/local/lib/dumb_menu
+X.PP
+XSystem interaction is performed by executing shell scripts as
+Xsubprocesses.  Customization of these scripts is supported by
+Xmenu-environment variables and shell script parameters.  These are
+Xstring valued variables which set in the manners defined below and are
+Xdefined at the beginning of the script which is written to the
+Xtemporary file.
+X.PP
+XCommand Line Options:
+X.PP
+X.B -M path
+Xsets the search path for the menu definition file.
+X.PP
+X.B -D
+Xincrements debug mode.
+XA single
+X.B -D
+Xcauses
+X.B simple_menu
+Xto parse the menu definition file and then displays its
+Xinterpretation.
+X.B -DD
+Xcauses some additional output to occur during the parsing phase.
+XThese options are supposed to make up for poor error handling by the
+Xparser and to aid in debugging menu definitions.
+X.B -v
+Ximplements a quasi-verbose mode.  This is done by prepending the
+XBourne shell command
+X.I set -xv
+Xto the front of each shell script prior to feeding it to a shell.
+XNote that this assumes that set -xv does what you want.  The
+Xpurpose of this option is to facilitate debugging shell scripts in
+Xsyntactically correct menu definition files.
+X.sp
+X.PP
+XMenu Definition Language:
+X.PP
+XLexical tokens consist of key words, names, text-strings, white
+Xspace, and the characters semi-colon (;), equals (=), plus (+), and
+Xplus-new-line (+n).
+X.PP
+X.B names
+Xare text delimited by double parenthesis (") and consisting only of
+Xupper and lower case letters, digits, or the underscore character.
+X.B names
+Xare used to name sub menus and shell script parameters.  Menus must
+Xbe named in order to be referenced in
+X.B do-menu
+Xmenu items; shell script parameters must be named in order to instantiated
+Xin the associated shell scripts.
+X.PP
+X.B text-strings
+Xare streams of arbitrary text and may be written in three different
+Xways.  Be warned that all text strings have
+X.I all
+Xleading and trailing white space stripped when they are used.  They
+Xmay be written in three different ways.  Convention (and design) tends
+Xto use the First method for shell scripts and the Second for prompt
+Xstrings, titles, and file names.
+X.HP
+XFirst: delimited at the beginning by the
+Xsequence %( and at the end by the sequence %).  Any non-null
+Xcharacters may be included except the terminating sequence.  If the
+Xterminating sequence must be included, as is the case for dynamically
+Xconstructed menus, it must be written %%).  This is the preferred form
+Xfor writing shell script actions.
+X.HP
+XSecond: delimited by single quote marks (').  The single quote mark
+Xmay be included if doubled, i.e. 'a single quote '' mark'.  This is
+Xthe preferred form for writing user displayed text and parameter
+Xinitializations.
+X.PP
+X.B text-strings
+Xare used for all shell scripts, initial values for parameters and as
+Xthe static components of user visible text \- menu titles, choice and
+Xparameter prompts.
+X.PP
+X.B prompt-strings
+Xare made up of the concatination of static text and the values of menu
+Xglobal variables.
+X.PP
+XThe evaluation of variables is done (excessivily) sufficiently to
+Xensure that any and all updates to variables are reflected in the
+Xdisplayed text.  Three concatinations are supported: Concatination
+Xwith no spaces inserted, concatination with a single space inserted,
+Xand concatination with a new-line inserted.  If the concatination
+Xcharacter is a vertical bar
+X.B (|),
+Xthen the text segments are concatinated without any intervening space
+Xinserted.
+XIf the concatination character is a plus
+X.B (+),
+Xthen the evaluator inserts single blank spaces between text segments.
+XIf the plus-new-line sequence
+X.B (+n)
+Xis used, the text is continued onto the next line [without the
+Xadditional space].
+X.PP
+XFor example, if
+X.B A_VARIABLE
+Xhas a current value of
+X.I foo bar,
+Xthen:
+X.IP
+X\&'This is some Text' + "A_VARIABLE" | 'some more text' +n 'next line
+X.PP
+Xevaluates to:
+X.IP
+XThis is some Text foo barsome more text.
+X.IP
+Xnext line.
+X.PP
+X.B key words
+Xare case insensitive and can not be abbreviated or misspelled.
+X.PP
+X.B white space
+Xseparates tokens and the
+X.B semi-colon
+Xis used to terminate some statements.
+X.PP
+XA menu definition file is a plain text file consisting of an optional
+Xenvironment section followed by one or more menu definitions.  The
+Xenvironment section allows the definition of alternate command
+Xprocessor and associated assignment  and the definition of
+Xmenu-environment variables.
+X.sp
+X.PP
+XThe path to the shell which executes scripts and associated variable
+Xassignment  are changed by the statements:
+X.br
+X.nf
+X.sp
+Xshell-path = 'new path' ;  # default is '/bin/sh'
+X.sp
+Xasg-fmt = 'new fmt' ;      # default is '$ID$="$VALUE$"'
+X                           # try 'setenv $ID$ $VALUE$'
+Xnull-value = 'string' ;    # string to insert into variable assignments
+X                           # for null values
+X.fi
+X.PP
+XThe shell path should be an absolute file name.  The asg-fmt is a
+X string which is copies literally except for two magic tokens:
+X.B $ID$
+X\- replaced by the name of each variable and
+X.B $VALUE$
+X\- replaced by the current value of the variable.  The literal copying
+Xallows internal new-lines to be embedded as follows:
+X.sp
+X.nf
+Xasg-fmt ='
+X $ID$="$VALUE"
+X export $ID$'
+X;
+X.fi
+X.PP
+XThe value of
+X.b null-value
+Xis used for all variables which have no value.  The default is an
+Xempty string ("").
+X.PP
+XThe menu-environment variables are variables which take their values
+Xfrom the menu, from the user's environment, or from a named file.
+XThey may optionally have a declared default value.
+X.IP
+XFor example:
+X.br
+X.nf
+Xfrom-env "EV_ONE" ;
+X.sp
+Xfrom-env "EV_TWO" = 'default value' ;
+X.sp
+Xfrom-file '/usr/lib/foo-file' "EV_THREE" ;
+X.sp
+Xfrom-file '/usr/lib/foo-file' "EV_FOUR" = 'default value two' ;
+X.sp
+Xglobal "EV_FIVE" ;
+X.sp
+Xglobal "EV_SIX" = 'value for EV_SIX' ;
+X.sp
+Xfrom-shell "DATE" = ' date ' ;
+X.fi
+X.PP
+XThe variables
+X.B EV_ONE
+Xand
+X.B EV_TWO
+Xhave default values of "" and "default value", respectively.  The
+Xuser's environment is queried to see if these variables are defined
+Xand, if they are, the user's environment values are used, otherwise
+Xthe default values are retained.
+X.PP
+XThe variables
+X.B EV_THREE
+Xand
+X.B EV_FOUR
+Xhave default values of "" and "default value two", respectively.  The
+Xfile
+X.I /usr/lib/foo-file
+Xis examined, if it exists, looking for lines of the form:
+X.br
+X.nf
+XEV_THREE = some stuff
+X.sp
+XEV_FOUR = some stuff
+X.fi
+X.PP
+XIf definition lines exist in
+X.I foo-file
+Xthen the values to the right of the equal sign (=) and up to the end
+Xof line are used for the values of these variables, otherwise they
+Xretain their defaults.  All lines which are not of the form described
+Xabove in foo-file are ignored, so there is quite a bit of latitude
+Xhere for commenting text and other things.  The first valid definition
+Xis used.
+X.PP
+XThe variables
+X.B EV_FIVE
+Xand
+X.B EV_SIX
+Xare defined as "" and "value for EV_SIX", respectively, and cannot be
+Xchanged exterior to the menu definition file itself.
+X.PP
+X.B DATE
+Xis set equal to the output of the
+X.I date
+Xcommand.
+X.sp
+X.PP
+XThe first menu definition is the top
+Xlevel menu and is named
+X.B MAIN
+Xby default.  Subsequent menu definitions must be named using the
+X.B menu
+Xkeyword and will only be invoked if they are referred to by a
+X.B do-menu
+Xcommand in the main menu or one of its descendents.
+X.sp
+X.PP
+XMenu declaration statements:
+X.HP
+X.B menu name
+X\- begins and names a menu.  This is optional for the first menu and
+Xmandatory for subsequent menus.
+X.IP
+XFor example,
+X.br
+X.nf
+Xmenu "A_FUNKY_menu_Name"
+X.fi
+X.HP
+X.B title text-string
+X\- defines the title of the menu.  This is mandatory.  It follows the
+X.B menu 
+Xstatement and precedes all menu items.
+X.IP
+XFor example,
+X.br
+X.nf
+Xtitle 'this is the text which will
+Xbe displayed at the top of the menu
+X  all leading and trailing white space will be stripped,
+X     but not any interior white space'
+X.fi
+X.sp
+X.PP
+XMenu Options:
+Xzero or more of the following menu options may follow the title and
+Xprecede the menu items.
+X.HP
+X.B bold
+X\- requests that the menu title be displayed in standout mode.
+X.HP
+X.B clear
+X\- requests that the screen be cleared prior to displaying and
+Xredisplaying the menu.
+X.HP
+X.B wait
+X\- applies to menus which use the
+X.B clear
+Xoption.  The default action upon finishing a menu item for a
+X.B clear
+Xmenu is to wait for either 10 seconds or the user to hit the return
+Xkey.  If the
+X.B wait
+Xoption is included, then we wait for the user to hit the return key.
+X.HP
+X.B always-show
+X\- requests that the menu choices be always displayed.  The default
+Xaction is to display all choices upon initiation of a menu and then to
+Xprompt for choice, quit, or ? \- where '?' causes the choices to be
+Xdisplayed.  This is a feature to accommodate slow terminals.
+X.HP
+X.B alpha
+X\- list the choices using upper case letters rather than numbers
+X(default).
+X.HP
+X.B once
+X\- run the menu one time only rather than looping until done.  I
+Xsuppose there are applications for this, but I suspect that I had an
+Xattack of creeping featurism and succumbed.
+X.HP
+X.B scope-variables
+X\- causes this menu to become the scope of all global variables.  This
+Xis accomplished by pushing the current values onto the value stack for
+Xeach variable.  These values will be restored when this menu exits.
+X.sp
+X.PP
+XMenu Items:
+Xone or more of the following items must be present.  These define the
+Xmenu actions.  Any item may be restricted to privileged users by
+Xpreceding it by the keyword
+X.B restricted .
+XRestricted items appear in the menu for only those users who have the
+Xenvironment variable
+X.B PRIVILEGED_USER
+Xdefined and exported into their environments.  This makes it possible
+Xfor privileged users and regular users to share the same menu
+Xdefinition files while still restricting certain commands from normal
+Xusers.
+X.HP
+X.B Shell Item
+X\- a shell item consists of some prompt text, a shell script, and zero
+Xor more shell script parameters.
+X.IP
+XFor example,
+X.nf
+Xshell ' this text is associated with this choice ' + "EV_ONE"
+X%(
+X  echo $PARM1 $PARM2
+X%)
+Xparm "PARM1" 'input value for PARM1'
+Xparm "PARM2" = 'foo' 'input value for PARM2'
+Xparm "PARM3" = "EV_ONE" ' input value for PARM3'
+X;
+X.fi
+X.IP
+XIn the above example, three parameters are set - the first has no
+Xdefault value.  The second has a default value declared in the menu
+Xdefinition.  The last one takes its default value from the
+Xmenu-environment variable EV_ONE.
+X.B simple_menu
+Xwill display this default and will substitute it if the user simply
+X\&hits return.  All white space strings are used \- we assume that
+Xthe user knows what he is doing and really does want
+Xleading/trailing/all white space for his variable.
+X.HP
+X.B Prelude Item
+X\- is identical to a normal item except that: (1) it begins with the
+Xkey word
+X.B prelude
+Xand (2) the shell script is run
+X.I prior
+Xto displaying the menu.
+X.IP
+XFor example,
+X.nf
+Xprelude ' checking for mail '
+X%(
+X  mail
+X%)
+X;
+X.fi
+X.HP
+X.B Epilogue Item
+X\- parallels the
+X.B prelude
+Xitem except that its shell script is run after terminating the menu.
+XIt begins with the key word
+X.B epilogue.
+X.HP
+X.B Menu Item
+X\- specifies that the named sub-menu is to be run.
+X.IP
+XFor example,
+X.nf
+Xdo-menu "FOO"
+X\&' run FOO menu '
+X;
+X.fi
+X.HP
+X.B Reset Global Item
+X\- allows menu-environment variables to be assigned new values.  These
+Xvalues are permanent in that they persist until the nearest scoping
+Xmenu exits.  Values can be changed in four different ways:
+X.B global,
+X.B from-shell,
+X.B from-file,
+Xand
+X.B from-user.
+X.B global
+Xchanges allow hard-coding new values into the menu.
+X.B from-shell
+Xchanges take the output of the associated shell script.
+X.B from-file
+Xworks just as above and allows the specification of an alternate file.
+X.IP
+X.B from-user
+Xprompts the user and the sets the global variable in the same way a
+Xparameter is set.
+XThis may be qualified by adding the key-word
+X.B through
+Xfollowed by a shell script in a text-string.  In this case, the user
+Xis prompted for a new value which is assigned to a variable called
+X.B USER_RESPONSE.
+XThe script is run with
+X.B the variable
+Xset to it's latest known value and USER_RESPONSE set to the user's
+Xresponse.
+XAfter the script is run, the variable will contain the output of the
+Xscript.  See the menus
+X.B readme?.menu
+Xfor an example of this.
+X.IP
+XFor example,
+X.nf
+Xreset-global 'Reset some Global Variables'
+Xglobal "EV_ONE" = 'new value for one'
+Xglobal "EV_SIX" = 'new value for six'
+Xfrom-file 'alternate-file-name' "EV_EIGHT"
+Xfrom-shell "PWD" = %( pwd %)
+Xfrom-user "FOO" 'input a new value for FOO'
+Xfrom-user "FOO" 'input a new value for FOO'
+X  through %( [ -z "$USER_RESPONSE" ] && echo $FOO || echo $USER_RESPONSE %)
+X;
+X.fi
+X.HP
+X.B Action Item
+X\-
+Xconsists of the sequence
+X.B action prompt_string action_list ;
+Xwhere the
+X.B action_list
+Xis one or more of the following.
+X.nf
+Xshell %( shell script %)
+Xdo-menu "MENU_NAME"
+Xreset-global sequence of environment variable assignments
+X.fi
+X.IP
+XThus, the Action Item allows a sequence of activities to occur, such
+Xas setting some global variables, executing a choice menu, and then
+Xrunning a shell script.  Action lists may not be nested.
+X.IP
+XFor example,
+X.nf
+Xaction 'Sample Action List'
+Xreset-global
+X  global "FOO" = 'bar'
+X  from-shell "TIME" = 'date'
+Xshell
+X%(
+X  echo "$FOO at $TIME"
+X  echo "Hit return to continue"
+X  line >/dev/null
+X%)
+Xdo-menu "FOO_MENU"
+Xshell
+X%(
+X  /bin/sh
+X%)
+X;
+X.fi
+X.IP
+XActions within an action list may be conditioned on a specified
+Xvariable being undefined.  This is done by preceding the action by the
+Xkeyword
+X.B if-not-defined
+Xand the variable name.
+X.IP
+XFor example,
+X.nf
+Xaction 'Sample Action List'
+Xif-not-defined "FOO"
+X  reset-global from-user "FOO" 'Please define variable FOO'
+Xshell %( echo $FOO %)
+X;
+X.fi
+X.HP
+X.B Skip Item
+X\-
+Xconsists of the sequence
+X.B skip prompt_string ;
+Xor
+X.B skip ;
+XIf the
+X.B prompt_string
+Xis present, it is displayed in bold [or whatever passes for emphasized
+Xtext] between the previous and succeeding menu items.  If the
+X.B prompt_string
+Xis not present, a blank line to occur in the menu between this and the
+Xsucceeding menu item.
+X.HP
+X.B commenting
+X\- exterior to text-strings, the hash mark (#) causes itself and the
+Xremainder of that line to be ignored.  This allows both full comment
+Xlines and in-line comments.
+X.HP
+X.B white space
+X\- white space is ignored, so it may be used liberally to make the
+Xdefinitions look nice.  Further, all leading and trailing white space
+Xin text-strings is stripped.
+X.PP
+XSee the sample menus for more detail and creative ideas.
+X.sp
+X.PP
+XGrammar:
+X.nf
+X.ta .5i
+Xmenu_def_file : ev_list menu_list
+X        | menu_list
+X        ;
+X
+Xev_list : ev_var
+X        | ev_list ev_var
+X        ;
+X
+Xev_var : SHELL_PATH '=' TEXT ';'
+X        | ASG_FMT '=' TEXT ';'
+X        | NULL_VALUE '=' TEXT ';'
+X        | FROM_ENV NAME ';'
+X        | FROM_ENV NAME '=' TEXT ';'
+X        | GLOBAL NAME ';'
+X        | GLOBAL NAME '=' TEXT ';'
+X        | FROM_FILE TEXT NAME ';'
+X        | FROM_FILE TEXT NAME '=' TEXT ';'
+X        | FROM_SHELL NAME '=' TEXT ';'
+X        ;
+X
+Xmenu_list : menu
+X        | menu_list menu
+X        ;
+X
+Xmenu : title menu_flags item
+X        | title menu_flags RESTRICTED item
+X        | menu item
+X        | menu RESTRICTED item
+X        ;
+X
+Xtitle : TITLE prompt_string
+X        | MENU NAME TITLE prompt_string
+X        ;
+X
+Xprompt_string : prompt_item
+X        | prompt_string '|' prompt_item
+X        | prompt_string '+' prompt_item
+X        | prompt_string PLUS_NL prompt_item
+X        ;
+X
+Xprompt_item : NAME
+X        | TEXT
+X        ;
+X
+Xmenu_flags :
+X        | menu_flags menu_flag
+X        ;
+X
+Xmenu_flag : CLEAR
+X        | BOLD
+X        | ALWAYS_SHOW
+X        | ONCE
+X        | ALPHA
+X        | WAIT
+X        | SCOPE_VARIABLES
+X        ;
+X
+Xitem : ACTION prompt_string action_list ';'
+X        | SHELL prompt_string  TEXT  parms ';'
+X        | PRELUDE  prompt_string  TEXT  parms ';'
+X        | PRELUDE  prompt_string  action_list ';'
+X        | EPILOGUE  prompt_string  TEXT  parms ';'
+X        | EPILOGUE  prompt_string  action_list ';'
+X        | DO_MENU NAME prompt_string ';'
+X        | RESET_GLOBAL prompt_string ev_vals ';'
+X        | SKIP ';'
+X        | SKIP prompt_string ';'
+X        ;
+X
+Xaction_list : conditioned_item
+X        | action_list conditioned_item
+X        ;
+X
+Xconditioned_item : action_item
+X        | IFNDEF NAME action_item
+X        ;
+X
+Xaction_item : SHELL TEXT parms
+X        | RESET_GLOBAL ev_vals
+X        | DO_MENU NAME
+X        ;
+X
+Xev_vals : /* empty */
+X        | ev_vals  GLOBAL NAME '=' TEXT
+X        | ev_vals  FROM_SHELL NAME '=' TEXT
+X        | ev_vals  FROM_FILE TEXT NAME
+X        | ev_vals FROM_USER NAME TEXT
+X        | ev_vals FROM_USER NAME TEXT VALIDATE_THROUGH TEXT
+X        ;
+X
+Xparms : /* empty */
+X        | parms parm
+X        ;
+X
+Xparm : PARM NAME prompt_string
+X        | PARM NAME '=' TEXT prompt_string
+X        | PARM NAME '=' NAME prompt_string
+X        ;
+X.fi
+X.SH CONDITIONS
+X.PP
+XCopyright (C) 1990,1991, 1992, 1993  Mike Howard
+X.PP
+XThis program is free software; you can redistribute it and/or modify
+Xit under the terms of the GNU General Public License as published by
+Xthe Free Software Foundation; either version 2 of the License, or
+X(at your option) any later version.
+X.PP  
+XThis program is distributed in the hope that it will be useful,
+Xbut WITHOUT ANY WARRANTY; without even the implied warranty of
+XMERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+XGNU General Public License for more details.
+X.PP
+XYou should have received a copy of the GNU General Public License
+Xalong with this program; if not, write to the Free Software
+XFoundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+X
+X.SH DIAGNOSTICS
+X.PP
+XThe diagnostics during the parse of the menu definition are all but
+Xnon-existent.
+X.SH BUGS
+X.PP
+XMenu syntax diagnostics are, at best, crude.
+END_OF_FILE
+if test 19536 -ne `wc -c <'./doc/simple_menu.1'`; then
+    echo shar: \"'./doc/simple_menu.1'\" unpacked with wrong size!
+fi
+# end of './doc/simple_menu.1'
+fi
+if test -f './tty_src/tty_display.c' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'./tty_src/tty_display.c'\"
+else
+echo shar: Extracting \"'./tty_src/tty_display.c'\" \(19887 characters\)
+sed "s/^X//" >'./tty_src/tty_display.c' <<'END_OF_FILE'
+X/* $Id: tty_display.c,v 3.3 1994/09/26 19:39:46 mike Exp $ 
+X
+X   $Author: mike $
+X   $Date: 1994/09/26 19:39:46 $
+X   $Log: tty_display.c,v $
+X * Revision 3.3  1994/09/26  19:39:46  mike
+X * moved cur_page to part of the menu_stack structure so that
+X * pop_menu_foo() brings back the previous context
+X *
+X * Revision 3.2  1994/09/21  17:22:19  mike
+X * added support for multi-page menus
+X *
+X * Revision 1.1  1994/09/21  14:34:27  mike
+X * Initial revision
+X *
+X*/
+X
+Xstatic char *cpy_str =
+X  "Copyright (c), Mike Howard, 1990,1991, 1992, 1993, 1994 all rights reserved";
+X
+X/* 
+X
+X  Copyright (C) 1990,1991, 1992, 1993, 1994  Mike Howard
+X
+X  This program is free software; you can redistribute it and/or modify
+X  it under the terms of the GNU General Public License as published by
+X  the Free Software Foundation; either version 2 of the License, or
+X  (at your option) any later version.
+X  
+X  This program is distributed in the hope that it will be useful,
+X  but WITHOUT ANY WARRANTY; without even the implied warranty of
+X  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+X  GNU General Public License for more details.
+X
+X  You should have received a copy of the GNU General Public License
+X  along with this program; if not, write to the Free Software
+X  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+X*/
+X
+X/* this is the display dependant part which knows how to talk to character
+X   terminals
+X
+X   must define these functions:
+X   init_terminal() - initializes the display - a tty for tty based stuff
+X   prepare_for_subshell() - this and the companion routine do whatever
+X   return_from_subshell() -  is required to the display to run a subshell
+X   close_terminal() - does whatever closedown is required for terminal
+X
+X   display_menu() - draws the menu on the display
+X   init_menu() - does whatever is necessary when we start a menu
+X   close_menu() - does whatever is necessary when we quit from a menu
+X   re_paginate_menu() - re-paginates menu after ev-variable evals
+X   change_menu_page_next() - display next page of multi-page menu
+X   change_menu_page_previous() - display previous page of multi-page menu
+X
+X   get_user_rsp() - returns single character user choice.
+X     this guy returns a positive integer indicating menu choice or
+X     one of the defines beginning with MENU_... in simple_menu.h
+X   get_variable_value(prompt, def) - returns Malloc'ed value of parameter
+X                                 after talking to user
+X   do_pause(flag) - implements a timed pause.  It should return after a user
+X                    action or default_timeout seconds have passed.  The
+X		    flag is 0 for an illegal menu choice and 1 if exiting
+X		    a menu
+X   display_msg(char *) - displays a message until cleared
+X   undisplay_msg() - clears the previously displayed message
+X   beep() - beep's
+X*/
+X
+X#include <includes.h>
+X
+X/* page display structures and utilities */
+X
+Xstruct tty_menu_item {
+X  struct tty_menu_item* next;
+X  int action;
+X  int item_number;
+X  struct prompt_string* prompt;
+X};
+X
+X#define PAGE_INFO_ONLY_PAGE     0
+X#define PAGE_INFO_FIRST_PAGE    1
+X#define PAGE_INFO_INTERIOR_PAGE 2
+X#define PAGE_INFO_LAST_PAGE     3
+X
+Xstruct tty_menu_page {
+X  struct tty_menu_page* next;
+X  struct tty_menu_page* previous;
+X  int page_info;
+X  int page_number;
+X  int lines;
+X  struct tty_menu_item* items;
+X};
+X
+Xstruct tty_menu_stack {
+X  struct tty_menu_stack* stack;
+X  struct tty_menu_page* page_list;
+X  struct tty_menu_page* cur_page;
+X};
+X
+Xstatic struct tty_menu_stack* menu_stack;
+Xstatic int line_limit;
+X
+Xstatic struct tty_menu_item* create_tty_menu_item(item_number, action, prompt)
+Xint item_number;
+Xint action;
+Xstruct prompt_string* prompt;
+X{
+X  struct tty_menu_item* ptr
+X    = (struct tty_menu_item*)Malloc(sizeof(struct tty_menu_item));
+X
+X  ptr->next = (struct tty_menu_item*)0;
+X  ptr->item_number = item_number;
+X  ptr->action = action;
+X  ptr->prompt = prompt;
+X
+X  return ptr;
+X}
+X
+Xstatic int lines_in_prompt(prompt)
+Xstruct prompt_string* prompt;
+X{
+X  int count = 1;
+X  char* cp;
+X
+X  if (!prompt)
+X    return 1;
+X  cp = prompt->value;
+X
+X  while (*cp)
+X    if (*cp++ == '\n')
+X      count++;
+X
+X  return count;
+X}
+X
+Xstatic struct tty_menu_page* create_tty_menu_page()
+X{
+X  struct tty_menu_page* ptr
+X    = (struct tty_menu_page*)Malloc(sizeof(struct tty_menu_page));
+X
+X  ptr->next = (struct tty_menu_page*)0;
+X  ptr->previous = (struct tty_menu_page*)0;
+X  ptr->page_number = 0;
+X  ptr->lines = 0;
+X  ptr->items = (struct tty_menu_item*)0;
+X
+X  return ptr;
+X}
+X
+Xstatic VOID_TYPE destroy_tty_menu_page(ptr)
+Xstruct tty_menu_page* ptr;
+X{
+X  struct tty_menu_item* iptr;
+X  if (!ptr)
+X    return;
+X  iptr = ptr->items;
+X
+X  while (iptr)
+X    {
+X      struct tty_menu_item* tmp = iptr->next;
+X      Free((char*)iptr);
+X      iptr = tmp;
+X    }
+X
+X  Free((char*)ptr);
+X}
+X
+XVOID_TYPE change_menu_page_next()
+X{
+X  if (menu_stack->cur_page->next)
+X    menu_stack->cur_page = menu_stack->cur_page->next;
+X}
+X
+XVOID_TYPE change_menu_page_previous()
+X{
+X  if (menu_stack->cur_page->previous)
+X    menu_stack->cur_page = menu_stack->cur_page->previous;
+X}
+X
+Xstatic VOID_TYPE push_menu_stack(ptr)
+Xstruct tty_menu_page* ptr;
+X{
+X  struct tty_menu_stack* sptr
+X    = (struct tty_menu_stack*)Malloc(sizeof(struct tty_menu_stack));
+X
+X  sptr->page_list = ptr;
+X  sptr->stack = menu_stack;
+X  menu_stack = sptr;
+X  menu_stack->cur_page = ptr;
+X}
+X
+Xstatic VOID_TYPE pop_menu_stack()
+X{
+X  struct tty_menu_stack* sptr = menu_stack;
+X
+X  if (!sptr)
+X    return;
+X
+X  menu_stack = sptr->stack;
+X  if (sptr->page_list)
+X    {
+X      struct tty_menu_page* ptr = sptr->page_list;
+X      while (ptr)
+X	{
+X	  struct tty_menu_page* tmp = ptr->next;
+X	  destroy_tty_menu_page(ptr);
+X	  ptr = tmp;
+X	}
+X    }
+X  Free((char*)sptr);
+X}
+X
+X#ifdef HAVE_TERMCAP
+Xint LINES;
+X#endif /* HAVE_TERMCAP */
+X#ifdef HAVE_TERMINFO
+Xextern int LINES;
+X#endif /* HAVE_TERMINFO */
+X
+Xstatic VOID_TYPE paginate_menu(menu_ptr)
+Xstruct menu* menu_ptr;
+X{
+X  struct tty_menu_item* iptr;
+X  struct tty_menu_page* pptr;
+X  int line_limit = LINES - lines_in_prompt(menu_ptr->menu_title) - 1;
+X
+X  if (line_limit <= 0)
+X    line_limit = 22 - lines_in_prompt(menu_ptr->menu_title);
+X
+X  {
+X    struct item* ptr = active_menu->item_head;
+X    struct tty_menu_item* tmp;
+X    int item_number = 1;
+X
+X    iptr =
+X      tmp = create_tty_menu_item(ptr->action == ITEM_SKIP ? 0 : item_number++,
+X				 ptr->action, ptr->prompt);
+X    ptr = ptr->next;
+X    while (ptr)
+X      {
+X	tmp->next =
+X	  create_tty_menu_item(ptr->action == ITEM_SKIP ? 0 : item_number++,
+X			       ptr->action, ptr->prompt);
+X	ptr = ptr->next;
+X	tmp = tmp->next;
+X      }
+X  }
+X
+X  pptr = create_tty_menu_page();
+X  pptr->items = iptr;
+X  pptr->page_info = PAGE_INFO_FIRST_PAGE | Once_Flag | Always_Display_Flag;
+X  pptr->page_number = 1;
+X  {
+X    struct tty_menu_page* tmp = pptr;
+X    struct tty_menu_item* prev_ptr = iptr;
+X
+X    while (iptr)
+X      {
+X	if ((tmp->lines += lines_in_prompt(iptr->prompt)) > line_limit)
+X	  {
+X	    tmp->lines -= lines_in_prompt(iptr->prompt);
+X	    prev_ptr->next = (struct tty_menu_item*)0;
+X	    tmp->next = create_tty_menu_page();
+X	    tmp->next->previous = tmp;
+X	    if (tmp->page_number > 1)
+X	      tmp->page_info = PAGE_INFO_INTERIOR_PAGE | Once_Flag
+X		| Always_Display_Flag;
+X	    tmp = tmp->next;
+X	    tmp->page_number = tmp->previous->page_number + 1;
+X	    tmp->items = iptr;
+X	    tmp->page_info = PAGE_INFO_LAST_PAGE | Once_Flag;
+X	    prev_ptr = iptr;
+X	  }
+X	else
+X	  {
+X	    prev_ptr = iptr;
+X	    iptr = iptr->next;
+X	  }
+X      }
+X  }
+X
+X  if (!pptr->next)
+X    pptr->page_info = PAGE_INFO_ONLY_PAGE | Once_Flag;
+X
+X  push_menu_stack(pptr);
+X}
+X
+XVOID_TYPE re_paginate_menu()
+X{
+X  int cur_page_number = menu_stack->cur_page->page_number;
+X
+X  pop_menu_stack();
+X  paginate_menu(active_menu);
+X  while (menu_stack->cur_page->page_number != cur_page_number
+X	 && menu_stack->cur_page->next)
+X    change_menu_page_next();
+X}
+X
+X/* main routine */
+X
+Xmain(argc, argv)
+Xint argc;
+Xchar **argv;
+X{
+X  menu_main(argc, argv);
+X  /* not reached */
+X  simple_menu_exit(0);
+X}
+X
+X/* common routine for displaying menu text and correctly indenting multi
+X   line menu-items */
+X
+X
+Xstatic VOID_TYPE
+Xdisplay_item_value(cp, indent)
+Xchar *cp;
+Xint indent;
+X{
+X  char c;
+X
+X  /* Note: there are ONLY interior \n's */
+X  while (c = *cp++) {
+X    putchar(c);
+X    if (c == '\n') {
+X      int i = indent;
+X      while (i-- > 0)
+X	putchar(' ');
+X      while (*cp && *cp == ' ')
+X	cp++;
+X    }
+X  }
+X}
+X
+X#ifdef HAVE_TERMCAP
+Xchar tty_bp[1024];
+Xchar tty_caps[1024];
+Xchar *term_cm;
+Xchar *term_so;
+Xchar *term_se;
+Xint term_sg;
+Xchar *term_cl;
+Xchar PC;
+Xchar *BC;
+Xchar *UP;
+Xshort ospeed;
+X
+Xint
+Xoutc(c)
+X     int c;
+X{
+X  putc(c, stdout);
+X}
+X
+XVOID_TYPE
+Xinit_terminal()
+X{
+X  char *getenv();
+X  char *tty_type = getenv("TERM");
+X  char *cp = tty_caps;
+X  char *tgetstr();
+X
+X  /* check to make sure stdout is a tty */
+X  if (!isatty(1))
+X    fatal("stdin is not a tty - must be run interactively");
+X
+X  /* this forces stdin and stderr all to be directed to stdout which
+X     is a tty.  I think there may be circumstances where this is necessary,
+X     but it may just be a stupid idea */
+X  close(0);
+X  dup(1);
+X  close(2);
+X  dup(1);
+X
+X  if (!tty_type || tgetent(tty_bp, tty_type) <= 0) {
+X    clear_flag =
+X      bold_flag = 0;
+X    return;
+X  }
+X
+X  PC = (BC = tgetstr("pc", &cp)) ? *BC : '\0';
+X  BC = tgetstr("bc", &cp);
+X  UP = tgetstr("up", &cp);
+X  LINES = tgetnum("li");
+X#ifdef HAVE_TERMIO_H
+X  {
+X#include <termio.h>
+X
+X    struct termio termio;
+X
+X    ioctl(0, TCGETA, &termio);
+X    ospeed = termio.c_cflag & CBAUD;
+X  }
+X#undef ECHO /* conflicts with lex code */
+X#else /* HAVE_TERMIO_H */
+X#ifdef HAVE_BSDTTY_H
+X  {
+X#include <sgtty.h>
+X    struct sgttyb sgttyb;
+X
+X    ioctl(0, TIOCGETP, &sgttyb);
+X    ospeed = sgttyb.sg_ospeed;
+X  }
+X#else /* HAVE_BSDTTY_H */
+X*** ERROR ERROR must have at least one of BSDTTY or TERMIO
+X#endif /* HAVE_BSDTTY_H */
+X#endif /* HAVE_TERMIO_H */
+X  term_cm = tgetstr("cm", &cp);
+X  term_so = tgetstr("so", &cp);
+X  term_se = tgetstr("se", &cp);
+X  term_sg = tgetnum("sg");
+X  bold_flag = term_so ? 1 : 0;
+X
+X  term_cl = tgetstr("cl", &cp);
+X  clear_flag = term_cl ? 1 : 0;
+X
+X  flush_char_input();
+X}
+X
+XVOID_TYPE
+Xclose_terminal()
+X{
+X  putchar('\n');
+X  fflush(stdout);
+X}
+X
+XVOID_TYPE
+Xprepare_for_subshell()
+X{
+X}
+X
+XVOID_TYPE
+Xreturn_from_subshell()
+X{
+X}
+X
+XVOID_TYPE
+Xinit_menu(menu_ptr)
+Xstruct menu *menu_ptr;
+X{
+X  paginate_menu(menu_ptr);
+X}
+X
+XVOID_TYPE
+Xclose_menu(menu_ptr)
+Xstruct menu *menu_ptr;
+X{
+X  pop_menu_stack();
+X}
+X
+XVOID_TYPE
+Xdisplay_menu()
+X{
+X  struct tty_menu_item *ptr;
+X  char* fmt;
+X  int i;
+X
+X  /* if we clear the screen, then do it, otherwise skip a line */
+X  if (Clear_Flag)
+X    tputs(term_cl, LINES, outc);
+X  else
+X    putc('\n', stdout);
+X
+X  /* this is not correct for magic cookie tubes - solving that problem
+X     requires counting lines in menu_title, maintaining line counts in the
+X     case we don't clear-screen-before-displaying, cursor positioning
+X     sequences, ... AND having a known tube environment - i.e. no one
+X     has reprogrammed something for their own purposes.  So, if you
+X     have any such tube, it will probably flash if you set the
+X     bold flag     */
+X  if (Bold_Flag) {
+X    tputs(term_so, 1, outc);
+X    printf("%s", active_menu->menu_title->value);
+X    tputs(term_se, 1, outc);
+X    putc('\n', stdout);
+X  }
+X  else
+X    printf("%s\n", active_menu->menu_title->value);
+X
+X  if (display_menu_flag) {
+X    for (ptr=menu_stack->cur_page->items;ptr;ptr = ptr->next) {
+X      switch (ptr->action) {
+X      case ITEM_SKIP:
+X	if (ptr->prompt) {
+X	  if (Bold_Flag)
+X	    tputs(term_so, 1, outc);
+X	  printf("%s", ptr->prompt->value);
+X	  if (Bold_Flag)
+X	    tputs(term_se, 1, outc);
+X	  putc('\n', stdout);
+X    	}
+X	else
+X	  putchar('\n');
+X	break;
+X      default:
+X	if (menu_stack->cur_page->page_info == PAGE_INFO_ONLY_PAGE
+X	    && Alpha_Flag) {
+X	  printf("%c. ", 'A' + ptr->item_number - 1);
+X	  display_item_value(ptr->prompt->value, 3);
+X	}
+X	else {
+X	  printf("%2d. ", ptr->item_number);
+X	  display_item_value(ptr->prompt->value, 4);
+X	}
+X	putchar('\n');
+X	break;
+X      }
+X    }
+X  }
+X
+X  switch (menu_stack->cur_page->page_info)
+X    {
+X    case PAGE_INFO_ONLY_PAGE:
+X      fmt = "Q) to End, ?) for Menu - choice? ";
+X      break;
+X    case PAGE_INFO_FIRST_PAGE:
+X      fmt = "Q) to End, Ctl N next page, ?) for Menu - choice? ";
+X      break;
+X    case PAGE_INFO_INTERIOR_PAGE:
+X      fmt = "Q) to End, Ctl N next page, Ctl P previous, ?) for Menu - choice? ";
+X      break;
+X    case PAGE_INFO_LAST_PAGE:
+X      fmt = "Q) to End, Ctl P previous, ?) for Menu - choice? ";
+X      break;
+X    case PAGE_INFO_ONLY_PAGE | ONCE_FLAG:
+X    case PAGE_INFO_ONLY_PAGE | ONCE_FLAG | ALWAYS_DISPLAY_FLAG:
+X      fmt = "Choice? ";
+X      break;
+X    case PAGE_INFO_FIRST_PAGE | ONCE_FLAG:
+X    case PAGE_INFO_FIRST_PAGE | ONCE_FLAG | ALWAYS_DISPLAY_FLAG:
+X      fmt = "Choice [N next page]? ";
+X      break;
+X    case PAGE_INFO_INTERIOR_PAGE | ONCE_FLAG:
+X    case PAGE_INFO_INTERIOR_PAGE | ONCE_FLAG | ALWAYS_DISPLAY_FLAG:
+X      fmt = "Choice [N next page/P previous]? ";
+X      break;
+X    case PAGE_INFO_LAST_PAGE | ONCE_FLAG:
+X    case PAGE_INFO_LAST_PAGE | ONCE_FLAG | ALWAYS_DISPLAY_FLAG:
+X      fmt = "Choice [P previous Page]? ";
+X      break;
+X    case PAGE_INFO_ONLY_PAGE | ALWAYS_DISPLAY_FLAG:
+X      fmt = "Q) to End - choice? ";
+X      break;
+X    case PAGE_INFO_FIRST_PAGE | ALWAYS_DISPLAY_FLAG:
+X      fmt = "Q) to End, Ctl N next page - choice? ";
+X      break;
+X    case PAGE_INFO_INTERIOR_PAGE | ALWAYS_DISPLAY_FLAG:
+X      fmt = "Q) to End, Ctl N next page, Ctl P previous - choice? ";
+X      break;
+X    case PAGE_INFO_LAST_PAGE | ALWAYS_DISPLAY_FLAG:
+X      fmt = "Q) to End, Ctl P previous - choice? ";
+X      break;
+X    }
+X
+X  printf(fmt);
+X  fflush(stdout);
+X
+X  display_menu_flag = Always_Display_Flag;
+X}
+X#endif /* HAVE_TERMCAP */
+X
+X#ifdef HAVE_TERMINFO
+X
+Xint havecalled_setupterm;
+X#include <curses.h>
+X#ifdef HAVE_TERM_H  /* an SCO Xenix header file which goes with <curses.h> */
+X#include <term.h>
+X#endif /* SCO_XENIX */
+X
+XVOID_TYPE
+Xinit_terminal()
+X{
+X  /* check to make sure stdout is a tty */
+X  if (!isatty(1))
+X    fatal("stdin is not a tty - must be run interactively");
+X
+X  /* this forces stdin and stderr all to be directed to stdout which
+X     is a tty.  I think there may be circumstances where this is necessary,
+X     but it may just be a stupid idea */
+X  close(0);
+X  dup(1);
+X  close(2);
+X  dup(1);
+X
+X  setupterm((char *)0, 1, &havecalled_setupterm);
+X  if (havecalled_setupterm != 1) {
+X    clear_flag =
+X      bold_flag = 0;
+X    return;
+X  }
+X
+X  if (clear_screen)
+X    clear_flag++;
+X  if (enter_standout_mode)
+X    bold_flag++;
+X
+X  flush_char_input();
+X}
+X
+XVOID_TYPE
+Xclose_terminal()
+X{
+X  if (havecalled_setupterm)
+X    resetterm();
+X  putchar('\n');
+X  fflush(stdout);
+X}
+X
+XVOID_TYPE
+Xprepare_for_subshell()
+X{
+X  if (havecalled_setupterm)
+X    resetterm();
+X}
+X
+XVOID_TYPE
+Xreturn_from_subshell()
+X{
+X  if (havecalled_setupterm)
+X    fixterm();
+X}
+X
+XVOID_TYPE
+Xinit_menu(menu_ptr)
+Xstruct menu *menu_ptr;
+X{
+X  paginate_menu(menu_ptr);
+X}
+X
+XVOID_TYPE
+Xclose_menu(menu_ptr)
+Xstruct menu *menu_ptr;
+X{
+X  pop_menu_stack();
+X}
+X
+XVOID_TYPE
+Xdisplay_menu()
+X{
+X  struct tty_menu_item *ptr;
+X  char* fmt;
+X  int i;
+X
+X  /* if we clear the screen, then do it, otherwise skip a line */
+X  if (Clear_Flag)
+X    putp(clear_screen);
+X  else
+X    putc('\n', stdout);
+X
+X  /* this is not correct for magic cookie tubes - solving that problem
+X     requires counting lines in menu_title, maintaining line counts in the
+X     case we don't clear-screen-before-displaying, cursor positioning
+X     sequences, ... AND having a known tube environment - i.e. no one
+X     has reprogrammed something for their own purposes.  So, if you
+X     have any such tube, it will probably flash if you set the
+X     bold flag     */
+X  if (Bold_Flag) {
+X    putp(enter_standout_mode);
+X    printf("%s", active_menu->menu_title->value);
+X    putp(exit_standout_mode);
+X    putc('\n', stdout);
+X  }
+X  else
+X    printf("%s\n", active_menu->menu_title->value);
+X
+X  if (display_menu_flag) {
+X    for (ptr=menu_stack->cur_page->items;ptr;ptr = ptr->next) {
+X      switch (ptr->action) {
+X      case ITEM_SKIP:
+X	if (ptr->prompt) {
+X	  if (Bold_Flag)
+X	    putp(enter_standout_mode);
+X	  printf("%s", ptr->prompt->value);
+X	  if (Bold_Flag)
+X	    putp(exit_standout_mode);
+X	  putc('\n', stdout);
+X	}
+X	else
+X	  putchar('\n');
+X	break;
+X      default:
+X	if (menu_stack->cur_page->page_info == PAGE_INFO_ONLY_PAGE
+X	    && Alpha_Flag) {
+X	  printf("%c. ", 'A' + ptr->item_number - 1);
+X	  display_item_value(ptr->prompt->value, 3);
+X	}
+X	else {
+X	  printf("%2d. ", ptr->item_number);
+X	  display_item_value(ptr->prompt->value, 4);
+X	}
+X	putchar('\n');
+X	break;
+X      }
+X    }
+X  }
+X
+X  switch (menu_stack->cur_page->page_info)
+X    {
+X    case PAGE_INFO_ONLY_PAGE:
+X      fmt = "Q) to End, ?) for Menu - choice? ";
+X      break;
+X    case PAGE_INFO_FIRST_PAGE:
+X      fmt = "Q) to End, Ctl N next page, ?) for Menu - choice? ";
+X      break;
+X    case PAGE_INFO_INTERIOR_PAGE:
+X      fmt = "Q) to End, Ctl N next page, Ctl P previous, ?) for Menu - choice? ";
+X      break;
+X    case PAGE_INFO_LAST_PAGE:
+X      fmt = "Q) to End, Ctl P previous, ?) for Menu - choice? ";
+X      break;
+X    case PAGE_INFO_ONLY_PAGE | ONCE_FLAG:
+X    case PAGE_INFO_ONLY_PAGE | ONCE_FLAG | ALWAYS_DISPLAY_FLAG:
+X      fmt = "Choice? ";
+X      break;
+X    case PAGE_INFO_FIRST_PAGE | ONCE_FLAG:
+X    case PAGE_INFO_FIRST_PAGE | ONCE_FLAG | ALWAYS_DISPLAY_FLAG:
+X      fmt = "Choice [N next page]? ";
+X      break;
+X    case PAGE_INFO_INTERIOR_PAGE | ONCE_FLAG:
+X    case PAGE_INFO_INTERIOR_PAGE | ONCE_FLAG | ALWAYS_DISPLAY_FLAG:
+X      fmt = "Choice [N next page/P previous]? ";
+X      break;
+X    case PAGE_INFO_LAST_PAGE | ONCE_FLAG:
+X    case PAGE_INFO_LAST_PAGE | ONCE_FLAG | ALWAYS_DISPLAY_FLAG:
+X      fmt = "Choice [P previous Page]? ";
+X      break;
+X    case PAGE_INFO_ONLY_PAGE | ALWAYS_DISPLAY_FLAG:
+X      fmt = "Q) to End - choice? ";
+X      break;
+X    case PAGE_INFO_FIRST_PAGE | ALWAYS_DISPLAY_FLAG:
+X      fmt = "Q) to End, Ctl N next page - choice? ";
+X      break;
+X    case PAGE_INFO_INTERIOR_PAGE | ALWAYS_DISPLAY_FLAG:
+X      fmt = "Q) to End, Ctl N next page, Ctl P previous - choice? ";
+X      break;
+X    case PAGE_INFO_LAST_PAGE | ALWAYS_DISPLAY_FLAG:
+X      fmt = "Q) to End, Ctl P previous - choice? ";
+X      break;
+X    }
+X
+X  printf(fmt);
+X  fflush(stdout);
+X
+X  display_menu_flag = Always_Display_Flag;
+X}
+X#endif /* HAVE_TERMINFO */
+X
+Xchar *
+Xget_variable_value(prompt, deflt)
+Xchar *prompt;
+Xchar *deflt;
+X{
+X  char *cp;
+X  int c;
+X
+X  printf("%s[%s]: ", prompt, deflt ? deflt : "");
+X  fflush(stdout);
+X  while ((c = next_char(0)) && c != '\n')
+X    add_char(c);
+X
+X  if ((cp = take_saved_text()) && strlen(cp)) {
+X    return cp;
+X  }
+X  else if (deflt) {
+X    strcpy(cp = Malloc(strlen(deflt) + 1), deflt);
+X  }
+X  else {
+X    cp = Malloc(1);
+X    cp[0] = '\0';
+X  }
+X
+X  return cp;
+X}
+X
+X
+Xint
+Xget_user_rsp()
+X{
+X  char c;
+X
+X  while ((c = next_char(0)) && c != '\n')
+X    add_char(c);
+X  strip_white_space();
+X
+X  if (user_rsp)
+X    Free(user_rsp);
+X  if (!(user_rsp = take_saved_text()))
+X    return c == '\n' ? MENU_NOP : MENU_EOINPUT;
+X
+X  switch (user_rsp[0]) {
+X  case 'N' & 0x1f:
+X    return MENU_NEXT_PAGE;
+X  case 'P' & 0x1f:
+X    return MENU_PREV_PAGE;
+X  case 'q':
+X  case 'Q':
+X    return MENU_QUIT;
+X  case '?':
+X    return MENU_REDISPLAY;
+X  case '\0':
+X    return c == '\n' ? MENU_NOP : MENU_EOINPUT;
+X  default:
+X    if (Alpha_Flag) {
+X      if (isalpha(user_rsp[0]))
+X	return toupper(user_rsp[0]) - 'A' + 1;
+X      return -1;
+X    }
+X    else if (isdigit(user_rsp[0]))
+X      return atoi(user_rsp);
+X    else
+X      return MENU_ILLEGAL;
+X  }
+X}
+X
+Xstatic VOID_TYPE
+Xalarm_trap()
+X{
+X  return;
+X}
+X
+XVOID_TYPE
+Xdo_pause(flag)
+X     int flag;
+X{
+X  char c;
+X
+X  if (Once_Flag && !Wait_Flag)
+X    return;
+X
+X  if (Clear_Flag) {
+X    if (flag)
+X      printf("Returning to '%s' [Press Return to Continue]",
+X	     active_menu->short_title);
+X    else
+X      printf("[Press Return to Continue]");
+X    fflush(stdout);
+X    if (!Wait_Flag) {
+X      alarm(default_timeout);
+X      signal(SIGALRM, alarm_trap);
+X    }
+X    while ((c = next_char(0)) && c != '\n')
+X      ;
+X    alarm(0);
+X    signal(SIGALRM, SIG_IGN);
+X  }
+X}
+X
+XVOID_TYPE
+Xdisplay_msg(text)
+Xchar *text;
+X{
+X  printf("%s\n", text);
+X}
+X
+XVOID_TYPE
+Xundisplay_msg()
+X{
+X}
+X
+XVOID_TYPE
+Xbeep()
+X{
+X  printf("\007");
+X}
+END_OF_FILE
+if test 19887 -ne `wc -c <'./tty_src/tty_display.c'`; then
+    echo shar: \"'./tty_src/tty_display.c'\" unpacked with wrong size!
+fi
+# end of './tty_src/tty_display.c'
+fi
+echo shar: End of archive 4 \(of 9\).
+cp /dev/null ark4isdone
+MISSING=""
+for I in 1 2 3 4 5 6 7 8 9 ; do
+    if test ! -f ark${I}isdone ; then
+	MISSING="${MISSING} ${I}"
+    fi
+done
+if test "${MISSING}" = "" ; then
+    echo You have unpacked all 9 archives.
+    rm -f ark[1-9]isdone ark[1-9][0-9]isdone
+else
+    echo You still need to unpack the following archives:
+    echo "        " ${MISSING}
+fi
+##  End of shell archive.
+exit 0
+

@@ -1,0 +1,554 @@
+KORN SHELL
+
+The following topics are discussed in this section:
+
+   * General information
+   * Getting started
+   * Using the korn shell
+   * Executing commands
+   * History stack operations
+   * Shell commands
+   * Conditional expressions
+   * Built-in commands
+   * Job control
+   * Command substitution
+   * File name substitution
+   * Redirecting input and output
+   * Aliases
+   * Tilde (~) substitution
+   * Environment variables
+   * Emacs editing mode
+   * Vi editing mode
+   * Explanation of .profile /etc/profile and .kshrc
+   * Helpful hints
+   * References/Manuals
+
+GENERAL INFORMATION
+
+The Korn shell is an interactive command interpreter and command
+programming language. The shell carries out commands specified at the
+terminal or from a file. The Korn shell is backwards compatible with the
+Bourne shell and contains all of its features. In addition, some of the
+better features of the C shell are also included.
+
+GETTING STARTED
+
+The Korn shell is executed by the login program if it is your default
+shell, or by issuing the ksh command. When executed, the shell runs
+commands found in the /etc/profile file and then in your $HOME/.profile
+file. If you specify a file on the command line of the subshell command,
+the shell will attempt to execute the file as if it were a script file.
+There is also a .kshrc file where you can define your korn shell variables
+and aliases. A copy of a useful .profile and .kshrc file is available here
+or in ~nick/public/ directory. Thse can be used as a guide. You can
+customise it from there.
+
+USING THE KORN SHELL
+
+Executing Commands
+
+When a command is issued in the ksh, the command is evaluated and all
+substitutions (variables and aliases) are made. If the evaluated command
+matches a ksh special command or a defined function, it is executed. If the
+command matches a name of an executable (binary) file, the shell (the
+parent) spawns a new (child) process which runs the binary program. If the
+command matches the name of a text file marked executable, the shell
+assumes that it is a shell procedure. To execute this procedure, the shell
+spawns a subshell that executes the commands specified in the file.
+
+By default the shell will search for external commands based on the value
+of the PATH environment variable. If the command can not be found in any of
+the directories specified by the path, it searches the current directory.
+If you specify a path with the command, the shell will not search the path
+for the specified command. Instead, it only searches the path specified on
+the command line.
+
+History Stack Operations
+
+The Korn Shell uses a file to store the history stack. This has the
+advantage that the command history is stored between sessions. The name of
+the history file is defined by the variable HISTFILE and the maximum number
+of commands that are stored is defined by the variable HISTSIZE. In the
+standard issue .kshrc file these are set to ~/.sh_history and 128
+respectively.
+
+If you are using the Korn Shell in vi mode, then the stack can be
+navigated, after hitting the [ESC] key, by:
+
+Key            Description
+---------------------------------------------------------------------------
+
+k or -         to go backward up the stack
+j or +         to go forward down the stack
+
+You can also issue the "history" command to list your command stack.  In
+the standard issue .kshrc file, history is aliased to "h".  By default,
+history only shows the last 16 commands.  If you wanted to show the last
+52 commands you would type "history -52", or "h -52".
+
+r              rerun the last command
+r 77           rerun command number 77
+r i7=j8        rerun the last command substituting j8 for i7
+r 77 i7=j8     rerun command number 77, substituting j8 for i7
+r ls           rerun the last ls command
+---------------------------------------------------------------------------
+
+If you are using the stack navigation keys (j,k or +,-) you can use vi
+commands to edit the recalled stack command. When you have finished editing
+just hit return and the command will be executed.
+
+Shell Commands
+
+The Korn shell is a programmable shell with several forms of structured
+commands similar to those found in traditional higher-level programming
+languages. The following commands can be used to program the Korn shell.
+The return value, unless otherwise stated, will be the value returned by
+the last executed simple command.
+
+The for command lets you execute a specified list of commands. The syntax
+for this command is:
+
+for identifier [in word ...]; do list; done
+
+where identifier is a variable which is assigned the value(s) specified by
+word ... and executes the commands specified by list. If the word option is
+not specified, the shell executes the list of commands for each positional
+parameter that is set.
+
+The select command will write the specified words to standard error. The
+syntax is:
+
+select identifier [in word...];do list ;done
+
+where identifier is assigned the value of the word matched by input.
+
+The case command can be used to executes commands based on a particular
+setting of another variable. The syntax for this command is:
+
+case word in pattern [[ ( ] pattern [ | pattern] ... ) list;;] ...esac
+
+where word is the variable to match with one of the specified patterns.
+When a matching pattern is found, the commands specified by list are
+executed. The vertical bar is used to denote an "or" operation.
+
+You can also use an if construct to specify conditions in the script. The
+syntax for this command is:
+
+if List ;then list [elif List; then list] ... [;else list] fi
+
+where the commands specified by list are executed if the last command
+executed by List has a return value of zero. The elif construct represents
+an else if phrase and the corresponding list commands are executed if the
+previous List returns a non zero value and the last command executed by the
+List following the elif phrase returns a value of zero. The else clause is
+executed only if all other conditions are return non-zero values.
+
+The while clause can be used to execute a list of commands while a certain
+condition holds true. The syntax for the while command is:
+
+while List ;do list ;done
+
+where the commands specified by list are executed after the last command
+specified by the List variable returns a zero value. The shell will
+continue to execute the commands until the last command specified in List
+returns a non-zero value.
+
+The until command works like the while command except the return values are
+reversed. This means the commands in list are executed as long as the last
+command specified by List returns a non-zero value. This repeats until the
+last command in List returns a zero value.
+
+Commands executed within parentheses are run within a subshell. To execute
+commands within the current shell, enclose them in braces ('{' and '}').
+
+Specifying an expression within a double set of brackets will cause the
+shell to evaluate the expression. If the expression has a true value, it
+will have a return code of zero.
+
+You can define a function for use with other shell commands. To do this,
+specify the name of the function followed by a set of parenthesis. The
+commands that are associated with the name should follow, and be enclosed
+within braces and separated by semi-colons. The syntax for this is:
+
+name () {list;}
+
+where name is the name of the function and list is a set of commands that
+are executed when the function is invoked.
+
+The Korn shell will also let you measure the execution time of a command.
+To do this, specify the command as the argument to the time command.
+
+Conditional Expressions
+
+A conditional expression is an expression placed between double brackets
+('[[' and ']]'). These expressions are used in conjuction with the test
+command to test the truth of a comparison. Their use is most beneficial in
+shell scripts. Word splitting and file name substitution are not performed
+in the expressions. The table below contains the unary and binary
+expressions allowed in these statements.
+
+Expr     Brief Description                   Expr     Brief Description
+---------------------------------------------------------------------------
+
+-a file  T if file exists                    -b file  T if file exists & a block file
+-c file  T if file exists & a char file      -d file  T if file exists & a directory
+-f file  T if file exists & a normal file    -g file  T if file exists & setgid bit set
+-k file  T if file exists & sticky bit set   -n str   T if length of str is > 0
+-o opt   T if opt is on                      -p file  T if file exists & a FIFO file
+-r file  T if file exists & readable         -s file  T if file exists & >  0 bytes in size
+-t desc  T if desc is open                   -u file  If file exists & setuid bit set
+-w file  T if file exists & no write access  -x file  T if file exists & executable
+-z str   T if the length of str = 0          -L file  T if file exists & a link
+-O file  T if file exists & owned by user    -G file  T if file exists & same group id
+-S file  T if file exists & a socket
+---------------------------------------------------------------------------
+
+The next table shows operands that can be used between two files, strings ,
+expressions or patterns. The symbols fi, str, expr, and pat are used to
+represent these respective items. The description states when the condition
+will evaluate with a TRUE return code.
+
+Item         Brief Description           Item    Brief Description
+---------------------------------------------------------------------------
+
+fi1 -nt fi2    fi1 newer than fi2         fi1 -ot fi2     fi1 older than fi2
+fi1 -ef fi2    fi1 refers to same file as fi2
+str = pat      str matches the pat        str != pat      str does not the pat
+str1 < str2     str1 comes before str2     str1 > str2      str1 comes after str2
+exp1 -eq exp2  exp1 equals exp2           exp1 -ne exp2   exp1 not equal to exp2
+exp1 -lt exp2  exp1 less than exp2        exp1 -gt exp2   exp1 greater than exp2
+exp1 -le exp2  exp1 < = exp2               exp1 -ge expr2  exp1 >= exp2
+(exp)          T if exp is to true        !exp            True if exp is false
+exp1 & & exp2    T if exp1 & exp2 are true  exp1 || exp2    True if exp1 or exp2 are true
+---------------------------------------------------------------------------
+
+Built-in Commands
+
+The following table shows a listing of the special commands to the Korn
+shell. Next to each command will be a brief description of the command.
+
+Command                 Description
+---------------------------------------------------------------------------
+
+: [argument]            The null command returns a zero exit value
+. file [argument...]    Executes commands specified in file using the search path and not starting a subshell
+alias [name[=value]]    Specify a nickname for the command, value
+bg [job...]             Place the specified job into the background
+break [n]               Exits the nth iteration from the for, while, or until loop.
+cd [directory]          Changes to the specified directory, or to $HOME if none specified
+continue [n]            Resumes the nth iteration of the for, while, or until loop
+echo [string]           Writes string to standard output
+eval [list]             Executes the commands specified in list
+exec [list]             Executes the commands in list in place of the current shell
+exit [n]                Causes the shell to exit with a return code of n
+export [name]           Marks the specified name for export to the environment of subsequent commands.
+fc [first [last]]       Selects a range of commands from first to last from the command history
+fg [job...]             Places the job in the foreground
+jobs [job]              Displays all the active jobs or the specified job
+kill job                Terminates the execution of the specified job
+newgrp [group]          Same as the /usr/bin/newgrp command
+let expression          Evaluates the specified expression
+print [arguments]       This is the shell output mechanism
+pwd                     Displays the current working directory
+read [name ...]         Reads one line from standard input and assigns to name
+readonly [name...]      Marks name to be read-only
+return [n]              Causes a function to return a value of n
+set [flag [argument]]   Sets the specified flags
+shift [n]               Shifts the command line arguments to the left n places ($0 is never shifted)
+times                   Displays the accumulated user and system times for processes running from the shell
+trap [command] [n]      Runs command when the shell receives a signal n
+typeset [name...]       Sets attributes and values for shell parameters
+ulimit [flag [var]]     Sets or queries process size limits using a specified flag
+umask [nnn]             Sets the access mode mask to be used with newly created files.
+unalias name            Removes the alias for the nickname name
+unset [name...]         Removes the specified variable, name from the environment
+wait [n]                Waits for the child process whose process number is n or all if none specified
+whence name             For each name specified, indicate how it would be used as a command
+---------------------------------------------------------------------------
+
+Job Control
+
+The Korn shell lets you run processes in the background, freeing your
+terminal for the execution of more commands. You can also control processes
+running in the foreground as well as the background. The easiest of these
+functions is the [CTRL] [Z] key sequence. This will stop the current
+process and return you to the OS prompt. Any job can be placed in the
+background by issuing the bg command. The fg command should be issued when
+you wish to place a job in the foreground. Both of these commands take a
+job number as an argument. The job number is returned by the jobs command.
+The job number is also displayed in brackets when you place it in the
+background.
+
+A command can be told to execute in the background if an ampersand (& ) is
+placed at the end of the command line. When the shell sees the ampersand,
+it will display the job number for that process in square brackets followed
+by its process ID. If the background process tries to read from the
+terminal, it will be stopped. These jobs will also stop when trying to
+write output if the stty tostop command has been given to the shell.
+
+When using any of the commands to control a job (bg, fg, and kill), an
+argument must be passed specifying which job is to be affected. This
+argument represents a specific job and can be specified by the job ID
+preceded by a percent sign. As an alternative, you can specify the command
+string after the percent sign to specify a job. If you wish to specify a
+series of jobs that match a specific string, precede the string with the %?
+characters. If no arguments are given, the commands will assume you wish to
+choose the previously affected job.
+
+Before logging out, you should know the statuses of any jobs which still
+exist. If you have stopped jobs, the shell will not allow you to logout.
+Before you can logout, you must resume or kill the job. If you have a job
+running in the background, you will be allowed to logout and the process
+will continue running. This, however, is strongly discouraged because it
+ties up valuable system resources.
+
+Command Substitution
+
+You can take the output of one command and use it as an argument for
+another command within the Korn shell. To do this, place the command to be
+used as an argument within parentheses preceded by a dollar sign. This will
+tell the shell to do a command substitution of that command for an argument
+in another command. The shell will then replace the command within the
+grave accents (`) with the output of the command. This is particularly
+useful for assignments such as today = $(date). For compatibility with the
+Bourne shell, you can also use the grave accents in place of the $()
+characters. You can nest commands by placing a backslash before the nested
+grave accents.
+
+File Name Substitution
+
+The Korn shell provides regular expression expansion. To match any string,
+including the null string, use the asterisk (*). The question mark can be
+used to match a single character. Characters enclosed within square
+brackets can signify a set of characters to match. Placing an exclamation
+point after the open bracket will signify a pattern that matches none of
+the characters specified with the brackets. A hyphen between letters that
+are located in brackets signifies a pattern to match all characters
+included in the specified range.
+
+There is an exception to the filename substitution rules. Any file that
+begins with a period will not match a pattern. In other words, to see a
+list of all files that begin with a period, you would have to use the
+pattern .* . If the pattern does not match any file names, the pattern is
+returned. Infinite recursion can occur if files have names that include any
+of the special pattern characters.
+
+Redirecting Input and Output
+
+Many UNIX commands take input from stdin, send output to stdout, and send
+errors to stderr. The Korn shell allows you to redirect standard input,
+standard output, or standard error to another file or command. These
+devices are given file descriptors zero through two respectively. File
+descriptors three through nine are free to use by your applications and can
+also be redirected as needed. File name substitution or pattern matching
+does not take place after a redirection symbol. Therefore, care should be
+taken to ensure files are not created using any of the special pattern
+characters.
+
+Redirection symbols should be used after the command and any of its
+arguments. The redirection symbol should then be followed by the file or
+command for which the redirection is occurring. The < symbol is used to
+redirect standard input from the specified file. The > sign redirects
+standard output to the specified file. The > > symbol appends the output of
+the command to file specified, creating it if it does not exist. You can
+redirect a specific file descriptor by placing its number directly after
+the redirection symbol and an ampersand. For example, cc prog1 > > & 2
+error.file will redirect all errors produced by the c compiler to the file
+error.file. You can redirect more than one file descriptor by placing each
+one with its own redirection symbol.
+
+Aliases
+
+Aliases can be used to give a nickname to a command or to give a name to a
+command with a specific set of options. You can alias a command by issuing
+an alias command in your .profile or preferably in your .kshrc file. The
+syntax for the alias command is
+
+alias nickname=command [options]
+
+where nickname is the nickname to be used and command is the UNIX command
+with the specified options being aliased. When the shell finds a command
+being executed that matches a nickname in the alias list, it will replace
+the nickname on the command line with command options. This substitution is
+followed by a space character so the substituted string does not combine
+with the remainder of the command line.
+
+Tilde (~) Substitution
+
+The Korn shell uses the tilde character to represent the login area of
+users. This provides a quick and easy way to change to a user's login
+directory. When the shell finds a tilde in a command, it checks the next
+word. If the word following the tilde matches a userid found in the
+/etc/passwd file, the tilde and userid are replaced with the user's login
+directory. If the word can not be found, the command is left unchanged. In
+all other cases, the shell replaces the tilde with your login directory as
+specified by the $HOME environment variable.
+
+Environment Variables
+
+When you run a command, the shell automatically assigns the command to $0.
+The first argument is assigned to $1 and so on for each argument on the
+command line up to $9. To access any arguments past position nine, you will
+need to use the shift command. In addition to passing arguments, the shell
+passes a copy of the environment. The environment is a list of parameter
+values that can be used by the child process.
+
+The Korn shell lets you create and assign values to system environment
+variables as well as user defined variables. A variable name is a sequence
+of letters and numbers and can include underscores. The only restriction is
+that it not begin with a number. A value can be assigned to a variable by
+typing the variable name followed by an equals sign and then the value to
+be assigned. Do not place any spaces around the equals sign, or they will
+be included as part of the variable name or value. If you wish to use
+spaces in the value, place the entire value within quotation marks (" ").
+If double quotation marks are used, the shell will still perform variable
+name substitution. In other words, values are substituted for their
+variables. Once a value has been assigned to a variable, it can be used by
+placing a $ before the variable name. If the value is to be used within a
+string, you can include the variable name (but not the $) within braces.
+The braces will separate the variable name from the rest of the string. For
+example, to show the value of the environment variable HOME, use the
+command
+
+echo $HOME
+
+Environment variables can be exported to subsequent subshells by using the
+export command.
+
+Below is a table showing the system environment variables and a brief
+description about them.
+
+Variable        Brief Description
+---------------------------------------------------------------------------
+
+CDPATH          The search path for the cd command
+COLUMNS         Defines the width of the edit window for the shell edit modes
+EDITOR          Specifies which editor option is on
+ENV             If set, parameter substitution is performed on the value to generate the path
+ERRNO           A value set by the most recently failed subroutine
+FCEDIT          The default editor name for the fc command
+FPATH           The search path for function definitions
+HISTFILE        The path name of the file to store the history of commands issued
+HISTSIZE        The number of commands stored in the history file
+HOME            The subdirectory that becomes current upon login and as a default for cd
+IFS             Characters that are to be used as internal field separators
+LANG            Determines the locale to use when LC_ALL does not specify one
+LC_ALL          Determines the locale to be used to override any previously set values
+LC_COLLATE      Defines the collating sequence to use when sorting
+LC_CTYPE        Determines the locale for the interpretation of sequence of bytes
+LC_MESSAGES     Determines the language in which messages should be written
+LINENO          The line number in the current line within the script or function being executed
+LINES           Determines the column length for printing select lists
+MAIL            The path name of the file used by the mail system to detect the arrival of new mail
+MAILCHECK       The number of seconds that the shell lets elapse before checking for new mail
+MAILPATH        A list of programs separated by colons where the shell will notify you of new mail
+MAILMSG         The mail notification message
+OLDPWD          The previous working directory set by the cd command
+OPTARG          The value of the last argument processed by the getopts special command
+OPTIND          The index of the last option argument processed by the getopts special command
+PATH            The search path for commands separated by colons
+PPID            The process number of the parent of the shell
+PS1             The string to be used as the primary system prompt
+PS2             The value of the secondary prompt (when the shell finds a new-line character)
+PS3             The value of the selection prompt string used within a select loop
+PS4             This value precedes each line of an execution trace
+PWD             The present working directory
+RANDOM          Generates a random number between 0 and 32767
+REPLY           Set by the select and read special commands when no arguments are given
+SECONDS         The number of seconds since the shell was invoked
+SHELL           The path name of the shell (should be exported by the $HOME/.profile script)
+TMEOUT          The number of minutes the shell remains inactive before it exits.
+---------------------------------------------------------------------------
+
+Emacs Editing Mode
+
+This mode can be entered by enabling the emacs option. To edit the command
+line, move the cursor to the point where the correction needs to be made.
+You can then insert and delete characters and words as needed. All of the
+editing commands are control characters or [ESC] sequences. The table below
+shows some of the more used commands.
+
+Key        Brief Description                Key        Brief Description
+---------------------------------------------------------------------------
+
+[CTRL][F]  Moves forward one character      [CTRL][B]  Moves back one character
+[CTRL][A]  Moves to the start of the line   [CTRL][E]  Moves to the end of the line
+[CTRL][D]  Deletes the current character    [ESC][D]   Deletes the current word
+[ESC][H]   Deletes the previous word        [ESC][C]   Capitalizes the current word
+[CTRL][K]  Deletes from to end of line      [CTRL][Y]  Restores the last item removed
+[CTRL][J]  Executes the current line        [CTRL][P]  Fetches the previous command
+[CTRL][N]  Fetches the next command line    [ESC]#     Insert a comment in the history
+[CTRL][O]  Executes line and fetches next   [ESC][L]   Changes the current word to lowercase
+[ESC]<      Fetches the oldest history line  [ESC]>      Fetches the newest history line
+---------------------------------------------------------------------------
+
+Vi Editing Mode
+
+This mode can be entered by enabling the vi option. The table below shows
+some of the more used commands.
+
+Key        Brief Description                Key        Brief Description
+---------------------------------------------------------------------------
+
+l          Moves forward one character      h          Moves back one character
+^          Moves to the start of the line   $          Moves to the end of the line
+x          Deletes the current character    dw         Deletes the current word
+db         Deletes the previous word        ~          Changes case of current character
+d$         Deletes from to end of line      \          Do filename completion
+[RETURN]   Executes the current line        k or -     Fetches the previous command
+j or +     Fetches the next command line    v          Run full vi session on current line
+A          Inserts text at end of line      i          Inserts text before current character
+w          Moves forward one word           b          Moves back one word
+---------------------------------------------------------------------------
+
+Explanation of .profile /etc/profile and .kshrc
+
+.profile and /etc/profile
+
+An annotated version of the .profile file is avialable here, which explains
+what the .profile file does. The system has a global profile file called
+/etc/profile that cannot be edited by the user. Click here to see the
+annotated version. The /etc/profile files has enough information in it to
+allow you to run a login session without the need for your own .profile
+file. However, your .profile file will add information to your environment,
+eg. search paths and OpenWindows start up. This allows you to customise
+your login session.
+
+The /etc/profile file adds arguments to PATH and MANPATH environment
+variables, tells you what disk space you have used and your quota, and
+gives you the message of the day.
+
+Type env at the command prompt to view your PATH and MANPATH variables. You
+may find that these path variables have been entered twice, once by the
+/etc/profile and once by your .profile. If so, remove the unnecessary
+statements from your .profile. This will increase the efficiency of your
+session. Use aliases (created in your .kshrc file), rather than the PATH
+variable to run programs. This will increase the speed of your sessions.
+
+.kshrc
+
+An annotated version of the .kshrc file is available here, with explanation
+of what each command does.
+
+HELPFUL HINTS
+
+You can determine the number of arguments passed to a shell by using the $#
+environment variable.
+
+The value of the last command to be executed will store its return code in
+the $? variable.
+
+You can see the value of user variables by using the set command. The env
+command can be used to display the values of the system variables.
+
+REFERENCES/MANUALS
+
+"man ksh" provides some help regarding the Korn shell
+
+Many books exist in the library and your local bookstore that cover UNIX
+and the Korn shell. Search through these for one that explains the amount
+of information you need at a level corresponding to your expertise with
+UNIX.
+
+Extensively modified from the original document obtained from UCF Computer
+Services I&R Support 17/8/93

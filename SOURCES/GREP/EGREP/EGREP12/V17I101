@@ -1,0 +1,2074 @@
+Path: ssbell!uunet!lll-winken!ames!mailrus!bbn!bbn.com!rsalz
+From: rsalz@uunet.uu.net (Rich Salz)
+Newsgroups: comp.sources.unix
+Subject: v17i101:  Gnu E?GREP (it's fast), Part04/05
+Message-ID: <1495@papaya.bbn.com>
+Date: 9 Feb 89 19:16:18 GMT
+Lines: 2065
+Approved: rsalz@uunet.UU.NET
+
+Submitted-by: Mike Haertel <mike@wheaties.ai.mit.edu>
+Posting-number: Volume 17, Issue 101
+Archive-name: gnugrep/part04
+
+#! /bin/sh
+# This is a shell archive.  Remove anything before this line, then unpack
+# it by saving it into a file and typing "sh file".  To overwrite existing
+# files, type "sh file -c".  You can also feed this as standard input via
+# unshar, or by typing "sh <file", e.g..  If this archive is complete, you
+# will see the following message at the end:
+#		"End of shell archive."
+# Contents:  dfa.c
+PATH=/bin:/usr/bin:/usr/ucb ; export PATH
+if test -f 'dfa.c' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'dfa.c'\"
+else
+echo shar: Extracting \"'dfa.c'\" \(54865 characters\)
+sed "s/^X//" >'dfa.c' <<'END_OF_FILE'
+X/* dfa.c - determinisitic extended regexp routines for GNU
+X   Copyright (C) 1988 Free Software Foundation, Inc.
+X                      Written June, 1988 by Mike Haertel
+X		      Modified July, 1988 by Arthur David Olson
+X			 to assist BMG speedups
+X
+X		       NO WARRANTY
+X
+X  BECAUSE THIS PROGRAM IS LICENSED FREE OF CHARGE, WE PROVIDE ABSOLUTELY
+XNO WARRANTY, TO THE EXTENT PERMITTED BY APPLICABLE STATE LAW.  EXCEPT
+XWHEN OTHERWISE STATED IN WRITING, FREE SOFTWARE FOUNDATION, INC,
+XRICHARD M. STALLMAN AND/OR OTHER PARTIES PROVIDE THIS PROGRAM "AS IS"
+XWITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
+XBUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND
+XFITNESS FOR A PARTICULAR PURPOSE.  THE ENTIRE RISK AS TO THE QUALITY
+XAND PERFORMANCE OF THE PROGRAM IS WITH YOU.  SHOULD THE PROGRAM PROVE
+XDEFECTIVE, YOU ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR
+XCORRECTION.
+X
+X IN NO EVENT UNLESS REQUIRED BY APPLICABLE LAW WILL RICHARD M.
+XSTALLMAN, THE FREE SOFTWARE FOUNDATION, INC., AND/OR ANY OTHER PARTY
+XWHO MAY MODIFY AND REDISTRIBUTE THIS PROGRAM AS PERMITTED BELOW, BE
+XLIABLE TO YOU FOR DAMAGES, INCLUDING ANY LOST PROFITS, LOST MONIES, OR
+XOTHER SPECIAL, INCIDENTAL OR CONSEQUENTIAL DAMAGES ARISING OUT OF THE
+XUSE OR INABILITY TO USE (INCLUDING BUT NOT LIMITED TO LOSS OF DATA OR
+XDATA BEING RENDERED INACCURATE OR LOSSES SUSTAINED BY THIRD PARTIES OR
+XA FAILURE OF THE PROGRAM TO OPERATE WITH ANY OTHER PROGRAMS) THIS
+XPROGRAM, EVEN IF YOU HAVE BEEN ADVISED OF THE POSSIBILITY OF SUCH
+XDAMAGES, OR FOR ANY CLAIM BY ANY OTHER PARTY.
+X
+X		GENERAL PUBLIC LICENSE TO COPY
+X
+X  1. You may copy and distribute verbatim copies of this source file
+Xas you receive it, in any medium, provided that you conspicuously and
+Xappropriately publish on each copy a valid copyright notice "Copyright
+X (C) 1988 Free Software Foundation, Inc."; and include following the
+Xcopyright notice a verbatim copy of the above disclaimer of warranty
+Xand of this License.  You may charge a distribution fee for the
+Xphysical act of transferring a copy.
+X
+X  2. You may modify your copy or copies of this source file or
+Xany portion of it, and copy and distribute such modifications under
+Xthe terms of Paragraph 1 above, provided that you also do the following:
+X
+X    a) cause the modified files to carry prominent notices stating
+X    that you changed the files and the date of any change; and
+X
+X    b) cause the whole of any work that you distribute or publish,
+X    that in whole or in part contains or is a derivative of this
+X    program or any part thereof, to be licensed at no charge to all
+X    third parties on terms identical to those contained in this
+X    License Agreement (except that you may choose to grant more extensive
+X    warranty protection to some or all third parties, at your option).
+X
+X    c) You may charge a distribution fee for the physical act of
+X    transferring a copy, and you may at your option offer warranty
+X    protection in exchange for a fee.
+X
+XMere aggregation of another unrelated program with this program (or its
+Xderivative) on a volume of a storage or distribution medium does not bring
+Xthe other program under the scope of these terms.
+X
+X  3. You may copy and distribute this program or any portion of it in
+Xcompiled, executable or object code form under the terms of Paragraphs
+X1 and 2 above provided that you do the following:
+X
+X    a) accompany it with the complete corresponding machine-readable
+X    source code, which must be distributed under the terms of
+X    Paragraphs 1 and 2 above; or,
+X
+X    b) accompany it with a written offer, valid for at least three
+X    years, to give any third party free (except for a nominal
+X    shipping charge) a complete machine-readable copy of the
+X    corresponding source code, to be distributed under the terms of
+X    Paragraphs 1 and 2 above; or,
+X
+X    c) accompany it with the information you received as to where the
+X    corresponding source code may be obtained.  (This alternative is
+X    allowed only for noncommercial distribution and only if you
+X    received the program in object code or executable form alone.)
+X
+XFor an executable file, complete source code means all the source code for
+Xall modules it contains; but, as a special exception, it need not include
+Xsource code for modules which are standard libraries that accompany the
+Xoperating system on which the executable file runs.
+X
+X  4. You may not copy, sublicense, distribute or transfer this program
+Xexcept as expressly provided under this License Agreement.  Any attempt
+Xotherwise to copy, sublicense, distribute or transfer this program is void and
+Xyour rights to use the program under this License agreement shall be
+Xautomatically terminated.  However, parties who have received computer
+Xsoftware programs from you with this License Agreement will not have
+Xtheir licenses terminated so long as such parties remain in full compliance.
+X
+X  5. If you wish to incorporate parts of this program into other free
+Xprograms whose distribution conditions are different, write to the Free
+XSoftware Foundation at 675 Mass Ave, Cambridge, MA 02139.  We have not yet
+Xworked out a simple rule that can be stated here, but we will often permit
+Xthis.  We will be guided by the two goals of preserving the free status of
+Xall derivatives our free software and of promoting the sharing and reuse of
+Xsoftware.
+X
+X
+XIn other words, you are welcome to use, share and improve this program.
+XYou are forbidden to forbid anyone else to use, share and improve
+Xwhat you give them.   Help stamp out software-hoarding!  */
+X
+X#include <ctype.h>
+X#include "dfa.h"
+X
+X#ifdef __STDC__
+Xtypedef void *ptr_t;
+X#else
+Xtypedef char *ptr_t;
+X#endif
+X
+Xstatic void	regmust();
+X
+Xstatic ptr_t
+Xxcalloc(n, s)
+X     int n;
+X     size_t s;
+X{
+X  ptr_t r = calloc(n, s);
+X
+X  if (r)
+X    return r;
+X  else
+X    regerror("Memory exhausted");
+X}
+X
+Xstatic ptr_t
+Xxmalloc(n)
+X     size_t n;
+X{
+X  ptr_t r = malloc(n);
+X
+X  if (r)
+X    return r;
+X  else
+X    regerror("Memory exhausted");
+X}
+X
+Xstatic ptr_t
+Xxrealloc(p, n)
+X     ptr_t p;
+X     size_t n;
+X{
+X  ptr_t r = realloc(p, n);
+X
+X  if (r)
+X    return r;
+X  else
+X    regerror("Memory exhausted");
+X}
+X
+X#define CALLOC(p, t, n) ((p) = (t *) xcalloc((n), sizeof (t)))
+X#define MALLOC(p, t, n) ((p) = (t *) xmalloc((n) * sizeof (t)))
+X#define REALLOC(p, t, n) ((p) = (t *) xrealloc((ptr_t) (p), (n) * sizeof (t)))
+X
+X/* Reallocate an array of type t if nalloc is too small for index. */
+X#define REALLOC_IF_NECESSARY(p, t, nalloc, index) \
+X  if ((index) >= (nalloc))			  \
+X    {						  \
+X      while ((index) >= (nalloc))		  \
+X	(nalloc) *= 2;				  \
+X      REALLOC(p, t, nalloc);			  \
+X    }
+X
+X/* Stuff pertaining to charsets. */
+X
+Xstatic
+Xtstbit(b, c)
+X     int b;
+X     _charset c;
+X{
+X  return c[b / INTBITS] & 1 << b % INTBITS;
+X}
+X
+Xstatic void
+Xsetbit(b, c)
+X     int b;
+X     _charset c;
+X{
+X  c[b / INTBITS] |= 1 << b % INTBITS;
+X}
+X
+Xstatic void
+Xclrbit(b, c)
+X     int b;
+X     _charset c;
+X{
+X  c[b / INTBITS] &= ~(1 << b % INTBITS);
+X}
+X
+Xstatic void
+Xcopyset(src, dst)
+X     const _charset src;
+X     _charset dst;
+X{
+X  int i;
+X
+X  for (i = 0; i < _CHARSET_INTS; ++i)
+X    dst[i] = src[i];
+X}
+X
+Xstatic void
+Xzeroset(s)
+X     _charset s;
+X{
+X  int i;
+X
+X  for (i = 0; i < _CHARSET_INTS; ++i)
+X    s[i] = 0;
+X}
+X
+Xstatic void
+Xnotset(s)
+X     _charset s;
+X{
+X  int i;
+X
+X  for (i = 0; i < _CHARSET_INTS; ++i)
+X    s[i] = ~s[i];
+X}
+X
+Xstatic
+Xequal(s1, s2)
+X     const _charset s1;
+X     const _charset s2;
+X{
+X  int i;
+X
+X  for (i = 0; i < _CHARSET_INTS; ++i)
+X    if (s1[i] != s2[i])
+X      return 0;
+X  return 1;
+X}
+X
+X/* A pointer to the current regexp is kept here during parsing. */
+Xstatic struct regexp *reg;
+X
+X/* Find the index of charset s in reg->charsets, or allocate a new charset. */
+Xstatic
+Xcharset_index(s)
+X     const _charset s;
+X{
+X  int i;
+X
+X  for (i = 0; i < reg->cindex; ++i)
+X    if (equal(s, reg->charsets[i]))
+X      return i;
+X  REALLOC_IF_NECESSARY(reg->charsets, _charset, reg->calloc, reg->cindex);
+X  ++reg->cindex;
+X  copyset(s, reg->charsets[i]);
+X  return i;
+X}
+X
+X/* Syntax bits controlling the behavior of the lexical analyzer. */
+Xstatic syntax_bits, syntax_bits_set;
+X
+X/* Flag for case-folding letters into sets. */
+Xstatic case_fold;
+X
+X/* Entry point to set syntax options. */
+Xvoid
+Xregsyntax(bits, fold)
+X     int bits;
+X     int fold;
+X{
+X  syntax_bits_set = 1;
+X  syntax_bits = bits;
+X  case_fold = fold;
+X}
+X
+X/* Lexical analyzer. */
+Xstatic const char *lexstart;	/* Pointer to beginning of input string. */
+Xstatic const char *lexptr;	/* Pointer to next input character. */
+Xstatic lexleft;			/* Number of characters remaining. */
+Xstatic caret_allowed;		/* True if backward context allows ^
+X				   (meaningful only if RE_CONTEXT_INDEP_OPS
+X				   is turned off). */
+Xstatic closure_allowed;		/* True if backward context allows closures
+X				   (meaningful only if RE_CONTEXT_INDEP_OPS
+X				   is turned off). */
+X
+X/* Note that characters become unsigned here. */
+X#define FETCH(c, eoferr)   	      \
+X  {			   	      \
+X    if (! lexleft)	   	      \
+X      if (eoferr)	   	      \
+X	regerror(eoferr);  	      \
+X      else		   	      \
+X	return _END;	   	      \
+X    (c) = (unsigned char) *lexptr++;  \
+X    --lexleft;		   	      \
+X  }
+X
+Xstatic _token
+Xlex()
+X{
+X  _token c, c2;
+X  int invert;
+X  _charset cset;
+X
+X  FETCH(c, (char *) 0);
+X  switch (c)
+X    {
+X    case '^':
+X      if (! (syntax_bits & RE_CONTEXT_INDEP_OPS)
+X	  && (!caret_allowed ||
+X	      (syntax_bits & RE_TIGHT_VBAR) && lexptr - 1 != lexstart))
+X	goto normal_char;
+X      caret_allowed = 0;
+X      return syntax_bits & RE_TIGHT_VBAR ? _ALLBEGLINE : _BEGLINE;
+X
+X    case '$':
+X      if (syntax_bits & RE_CONTEXT_INDEP_OPS || !lexleft
+X	  || (! (syntax_bits & RE_TIGHT_VBAR)
+X	      && ((syntax_bits & RE_NO_BK_PARENS
+X		   ? lexleft > 0 && *lexptr == ')'
+X		   : lexleft > 1 && *lexptr == '\\' && lexptr[1] == ')')
+X		  || (syntax_bits & RE_NO_BK_VBAR
+X		      ? lexleft > 0 && *lexptr == '|'
+X		      : lexleft > 1 && *lexptr == '\\' && lexptr[1] == '|'))))
+X	return syntax_bits & RE_TIGHT_VBAR ? _ALLENDLINE : _ENDLINE;
+X      goto normal_char;
+X
+X    case '\\':
+X      FETCH(c, "Unfinished \\ quote");
+X      switch (c)
+X	{
+X	case '1':
+X	case '2':
+X	case '3':
+X	case '4':
+X	case '5':
+X	case '6':
+X	case '7':
+X	case '8':
+X	case '9':
+X	  caret_allowed = 0;
+X	  closure_allowed = 1;
+X	  return _BACKREF;
+X
+X	case '<':
+X	  caret_allowed = 0;
+X	  return _BEGWORD;
+X
+X	case '>':
+X	  caret_allowed = 0;
+X	  return _ENDWORD;
+X
+X	case 'b':
+X	  caret_allowed = 0;
+X	  return _LIMWORD;
+X
+X	case 'B':
+X	  caret_allowed = 0;
+X	  return _NOTLIMWORD;
+X
+X	case 'w':
+X	case 'W':
+X	  zeroset(cset);
+X	  for (c2 = 0; c2 < _NOTCHAR; ++c2)
+X	    if (ISALNUM(c2))
+X	      setbit(c2, cset);
+X	  if (c == 'W')
+X	    notset(cset);
+X	  caret_allowed = 0;
+X	  closure_allowed = 1;
+X	  return _SET + charset_index(cset);
+X
+X	case '?':
+X	  if (syntax_bits & RE_BK_PLUS_QM)
+X	    goto qmark;
+X	  goto normal_char;
+X
+X	case '+':
+X	  if (syntax_bits & RE_BK_PLUS_QM)
+X	    goto plus;
+X	  goto normal_char;
+X
+X	case '|':
+X	  if (! (syntax_bits & RE_NO_BK_VBAR))
+X	    goto or;
+X	  goto normal_char;
+X
+X	case '(':
+X	  if (! (syntax_bits & RE_NO_BK_PARENS))
+X	    goto lparen;
+X	  goto normal_char;
+X
+X	case ')':
+X	  if (! (syntax_bits & RE_NO_BK_PARENS))
+X	    goto rparen;
+X	  goto normal_char;
+X
+X	default:
+X	  goto normal_char;
+X	}
+X
+X    case '?':
+X      if (syntax_bits & RE_BK_PLUS_QM)
+X	goto normal_char;
+X    qmark:
+X      if (! (syntax_bits & RE_CONTEXT_INDEP_OPS) && !closure_allowed)
+X	goto normal_char;
+X      return _QMARK;
+X
+X    case '*':
+X      if (! (syntax_bits & RE_CONTEXT_INDEP_OPS) && !closure_allowed)
+X	goto normal_char;
+X      return _STAR;
+X
+X    case '+':
+X      if (syntax_bits & RE_BK_PLUS_QM)
+X	goto normal_char;
+X    plus:
+X      if (! (syntax_bits & RE_CONTEXT_INDEP_OPS) && !closure_allowed)
+X	goto normal_char;
+X      return _PLUS;
+X
+X    case '|':
+X      if (! (syntax_bits & RE_NO_BK_VBAR))
+X	goto normal_char;
+X    or:
+X      caret_allowed = 1;
+X      closure_allowed = 0;
+X      return _OR;
+X
+X    case '\n':
+X      if (! (syntax_bits & RE_NEWLINE_OR))
+X	goto normal_char;
+X      goto or;
+X
+X    case '(':
+X      if (! (syntax_bits & RE_NO_BK_PARENS))
+X	goto normal_char;
+X    lparen:
+X      caret_allowed = 1;
+X      closure_allowed = 0;
+X      return _LPAREN;
+X
+X    case ')':
+X      if (! (syntax_bits & RE_NO_BK_PARENS))
+X	goto normal_char;
+X    rparen:
+X      caret_allowed = 0;
+X      closure_allowed = 1;
+X      return _RPAREN;
+X
+X    case '.':
+X      zeroset(cset);
+X      notset(cset);
+X      clrbit('\n', cset);
+X      caret_allowed = 0;
+X      closure_allowed = 1;
+X      return _SET + charset_index(cset);
+X
+X    case '[':
+X      zeroset(cset);
+X      FETCH(c, "Unbalanced [");
+X      if (c == '^')
+X	{
+X	  FETCH(c, "Unbalanced [");
+X	  invert = 1;
+X	}
+X      else
+X	invert = 0;
+X      do
+X	{
+X	  FETCH(c2, "Unbalanced [");
+X	  if (c2 == '-')
+X	    {
+X	      FETCH(c2, "Unbalanced [");
+X	      while (c <= c2)
+X		  setbit(c++, cset);
+X	      FETCH(c, "Unbalanced [");
+X	    }
+X	  else
+X	    {
+X	      setbit(c, cset);
+X	      c = c2;
+X	    }
+X	}
+X      while (c != ']');
+X      if (invert)
+X	notset(cset);
+X      caret_allowed = 0;
+X      closure_allowed = 1;
+X      return _SET + charset_index(cset);
+X
+X    default:
+X    normal_char:
+X      caret_allowed = 0;
+X      closure_allowed = 1;
+X      if (case_fold && ISALPHA(c))
+X	{
+X	  zeroset(cset);
+X	  if (isupper(c))
+X	    c = tolower(c);
+X	  setbit(c, cset);
+X	  setbit(toupper(c), cset);
+X	  return _SET + charset_index(cset);
+X	}
+X      return c;
+X    }
+X}
+X
+X/* Recursive descent parser for regular expressions. */
+X
+Xstatic _token tok;		/* Lookahead token. */
+Xstatic depth;			/* Current depth of a hypothetical stack
+X				   holding deferred productions.  This is
+X				   used to determine the depth that will be
+X				   required of the real stack later on in
+X				   reganalyze(). */
+X
+X/* Add the given token to the parse tree, maintaining the depth count and
+X   updating the maximum depth if necessary. */
+Xstatic void
+Xaddtok(t)
+X     _token t;
+X{
+X  REALLOC_IF_NECESSARY(reg->tokens, _token, reg->talloc, reg->tindex);
+X  reg->tokens[reg->tindex++] = t;
+X
+X  switch (t)
+X    {
+X    case _QMARK:
+X    case _STAR:
+X    case _PLUS:
+X      break;
+X
+X    case _CAT:
+X    case _OR:
+X      --depth;
+X      break;
+X
+X    default:
+X      ++reg->nleaves;
+X    case _EMPTY:
+X      ++depth;
+X      break;
+X    }
+X  if (depth > reg->depth)
+X    reg->depth = depth;
+X}
+X
+X/* The grammar understood by the parser is as follows.
+X
+X   start:
+X     regexp
+X     _ALLBEGLINE regexp
+X     regexp _ALLENDLINE
+X     _ALLBEGLINE regexp _ALLENDLINE
+X
+X   regexp:
+X     regexp _OR branch
+X     branch
+X
+X   branch:
+X     branch closure
+X     closure
+X
+X   closure:
+X     closure _QMARK
+X     closure _STAR
+X     closure _PLUS
+X     atom
+X
+X   atom:
+X     <normal character>
+X     _SET
+X     _BACKREF
+X     _BEGLINE
+X     _ENDLINE
+X     _BEGWORD
+X     _ENDWORD
+X     _LIMWORD
+X     _NOTLIMWORD
+X     <empty>
+X
+X   The parser builds a parse tree in postfix form in an array of tokens. */
+X
+X#ifdef __STDC__
+Xstatic void regexp(void);
+X#else
+Xstatic void regexp();
+X#endif
+X
+Xstatic void
+Xatom()
+X{
+X  if (tok >= 0 && tok < _NOTCHAR || tok >= _SET || tok == _BACKREF
+X      || tok == _BEGLINE || tok == _ENDLINE || tok == _BEGWORD
+X      || tok == _ENDWORD || tok == _LIMWORD || tok == _NOTLIMWORD)
+X    {
+X      addtok(tok);
+X      tok = lex();
+X    }
+X  else if (tok == _LPAREN)
+X    {
+X      tok = lex();
+X      regexp();
+X      if (tok != _RPAREN)
+X	regerror("Unbalanced (");
+X      tok = lex();
+X    }
+X  else
+X    addtok(_EMPTY);
+X}
+X
+Xstatic void
+Xclosure()
+X{
+X  atom();
+X  while (tok == _QMARK || tok == _STAR || tok == _PLUS)
+X    {
+X      addtok(tok);
+X      tok = lex();
+X    }
+X}
+X
+Xstatic void
+Xbranch()
+X{
+X  closure();
+X  while (tok != _RPAREN && tok != _OR && tok != _ALLENDLINE && tok >= 0)
+X    {
+X      closure();
+X      addtok(_CAT);
+X    }
+X}
+X
+Xstatic void
+Xregexp()
+X{
+X  branch();
+X  while (tok == _OR)
+X    {
+X      tok = lex();
+X      branch();
+X      addtok(_OR);
+X    }
+X}
+X
+X/* Main entry point for the parser.  S is a string to be parsed, len is the
+X   length of the string, so s can include NUL characters.  R is a pointer to
+X   the struct regexp to parse into. */
+Xvoid
+Xregparse(s, len, r)
+X     const char *s;
+X     size_t len;
+X     struct regexp *r;
+X{
+X  reg = r;
+X  lexstart = lexptr = s;
+X  lexleft = len;
+X  caret_allowed = 1;
+X  closure_allowed = 0;
+X
+X  if (! syntax_bits_set)
+X    regerror("No syntax specified");
+X
+X  tok = lex();
+X  depth = r->depth;
+X
+X  if (tok == _ALLBEGLINE)
+X    {
+X      addtok(_BEGLINE);
+X      tok = lex();
+X      regexp();
+X      addtok(_CAT);
+X    }
+X  else
+X    regexp();
+X
+X  if (tok == _ALLENDLINE)
+X    {
+X      addtok(_ENDLINE);
+X      addtok(_CAT);
+X      tok = lex();
+X    }
+X
+X  if (tok != _END)
+X    regerror("Unbalanced )");
+X
+X  addtok(_END - r->nregexps);
+X  addtok(_CAT);
+X
+X  if (r->nregexps)
+X    addtok(_OR);
+X
+X  ++r->nregexps;
+X}
+X
+X/* Some primitives for operating on sets of positions. */
+X
+X/* Copy one set to another; the destination must be large enough. */
+Xstatic void
+Xcopy(src, dst)
+X     const _position_set *src;
+X     _position_set *dst;
+X{
+X  int i;
+X
+X  for (i = 0; i < src->nelem; ++i)
+X    dst->elems[i] = src->elems[i];
+X  dst->nelem = src->nelem;
+X}
+X
+X/* Insert a position in a set.  Position sets are maintained in sorted
+X   order according to index.  If position already exists in the set with
+X   the same index then their constraints are logically or'd together.
+X   S->elems must point to an array large enough to hold the resulting set. */
+Xstatic void
+Xinsert(p, s)
+X     _position p;
+X     _position_set *s;
+X{
+X  int i;
+X  _position t1, t2;
+X
+X  for (i = 0; i < s->nelem && p.index < s->elems[i].index; ++i)
+X    ;
+X  if (i < s->nelem && p.index == s->elems[i].index)
+X    s->elems[i].constraint |= p.constraint;
+X  else
+X    {
+X      t1 = p;
+X      ++s->nelem;
+X      while (i < s->nelem)
+X	{
+X	  t2 = s->elems[i];
+X	  s->elems[i++] = t1;
+X	  t1 = t2;
+X	}
+X    }
+X}
+X
+X/* Merge two sets of positions into a third.  The result is exactly as if
+X   the positions of both sets were inserted into an initially empty set. */
+Xstatic void
+Xmerge(s1, s2, m)
+X     _position_set *s1;
+X     _position_set *s2;
+X     _position_set *m;
+X{
+X  int i = 0, j = 0;
+X
+X  m->nelem = 0;
+X  while (i < s1->nelem && j < s2->nelem)
+X    if (s1->elems[i].index > s2->elems[j].index)
+X      m->elems[m->nelem++] = s1->elems[i++];
+X    else if (s1->elems[i].index < s2->elems[j].index)
+X      m->elems[m->nelem++] = s2->elems[j++];
+X    else
+X      {
+X	m->elems[m->nelem] = s1->elems[i++];
+X	m->elems[m->nelem++].constraint |= s2->elems[j++].constraint;
+X      }
+X  while (i < s1->nelem)
+X    m->elems[m->nelem++] = s1->elems[i++];
+X  while (j < s2->nelem)
+X    m->elems[m->nelem++] = s2->elems[j++];
+X}
+X
+X/* Delete a position from a set. */
+Xstatic void
+Xdelete(p, s)
+X     _position p;
+X     _position_set *s;
+X{
+X  int i;
+X
+X  for (i = 0; i < s->nelem; ++i)
+X    if (p.index == s->elems[i].index)
+X      break;
+X  if (i < s->nelem)
+X    for (--s->nelem; i < s->nelem; ++i)
+X      s->elems[i] = s->elems[i + 1];
+X}
+X
+X/* Find the index of the state corresponding to the given position set with
+X   the given preceding context, or create a new state if there is no such
+X   state.  Newline and letter tell whether we got here on a newline or
+X   letter, respectively. */
+Xstatic
+Xstate_index(r, s, newline, letter)
+X     struct regexp *r;
+X     _position_set *s;
+X     int newline;
+X     int letter;
+X{
+X  int hash = 0;
+X  int constraint;
+X  int i, j;
+X
+X  newline = newline ? 1 : 0;
+X  letter = letter ? 1 : 0;
+X
+X  for (i = 0; i < s->nelem; ++i)
+X    hash ^= s->elems[i].index + s->elems[i].constraint;
+X
+X  /* Try to find a state that exactly matches the proposed one. */
+X  for (i = 0; i < r->sindex; ++i)
+X    {
+X      if (hash != r->states[i].hash || s->nelem != r->states[i].elems.nelem
+X	  || newline != r->states[i].newline || letter != r->states[i].letter)
+X	continue;
+X      for (j = 0; j < s->nelem; ++j)
+X	if (s->elems[j].constraint
+X	    != r->states[i].elems.elems[j].constraint
+X	    || s->elems[j].index != r->states[i].elems.elems[j].index)
+X	  break;
+X      if (j == s->nelem)
+X	return i;
+X    }
+X
+X  /* We'll have to create a new state. */
+X  REALLOC_IF_NECESSARY(r->states, _dfa_state, r->salloc, r->sindex);
+X  r->states[i].hash = hash;
+X  MALLOC(r->states[i].elems.elems, _position, s->nelem);
+X  copy(s, &r->states[i].elems);
+X  r->states[i].newline = newline;
+X  r->states[i].letter = letter;
+X  r->states[i].backref = 0;
+X  r->states[i].constraint = 0;
+X  r->states[i].first_end = 0;
+X  for (j = 0; j < s->nelem; ++j)
+X    if (r->tokens[s->elems[j].index] < 0)
+X      {
+X	constraint = s->elems[j].constraint;
+X	if (_SUCCEEDS_IN_CONTEXT(constraint, newline, 0, letter, 0)
+X	    || _SUCCEEDS_IN_CONTEXT(constraint, newline, 0, letter, 1)
+X	    || _SUCCEEDS_IN_CONTEXT(constraint, newline, 1, letter, 0)
+X	    || _SUCCEEDS_IN_CONTEXT(constraint, newline, 1, letter, 1))
+X	  r->states[i].constraint |= constraint;
+X	if (! r->states[i].first_end)
+X	  r->states[i].first_end = r->tokens[s->elems[j].index];
+X      }
+X    else if (r->tokens[s->elems[j].index] == _BACKREF)
+X      {
+X	r->states[i].constraint = _NO_CONSTRAINT;
+X	r->states[i].backref = 1;
+X      }
+X
+X  ++r->sindex;
+X
+X  return i;
+X}
+X
+X/* Find the epsilon closure of a set of positions.  If any position of the set
+X   contains a symbol that matches the empty string in some context, replace
+X   that position with the elements of its follow labeled with an appropriate
+X   constraint.  Repeat exhaustively until no funny positions are left.
+X   S->elems must be large enough to hold the result. */
+Xepsclosure(s, r)
+X     _position_set *s;
+X     struct regexp *r;
+X{
+X  int i, j;
+X  int *visited;
+X  _position p, old;
+X
+X  MALLOC(visited, int, r->tindex);
+X  for (i = 0; i < r->tindex; ++i)
+X    visited[i] = 0;
+X
+X  for (i = 0; i < s->nelem; ++i)
+X    if (r->tokens[s->elems[i].index] >= _NOTCHAR
+X	&& r->tokens[s->elems[i].index] != _BACKREF
+X	&& r->tokens[s->elems[i].index] < _SET)
+X      {
+X	old = s->elems[i];
+X	p.constraint = old.constraint;
+X	delete(s->elems[i], s);
+X	if (visited[old.index])
+X	  {
+X	    --i;
+X	    continue;
+X	  }
+X	visited[old.index] = 1;
+X	switch (r->tokens[old.index])
+X	  {
+X	  case _BEGLINE:
+X	    p.constraint &= _BEGLINE_CONSTRAINT;
+X	    break;
+X	  case _ENDLINE:
+X	    p.constraint &= _ENDLINE_CONSTRAINT;
+X	    break;
+X	  case _BEGWORD:
+X	    p.constraint &= _BEGWORD_CONSTRAINT;
+X	    break;
+X	  case _ENDWORD:
+X	    p.constraint &= _ENDWORD_CONSTRAINT;
+X	    break;
+X	  case _LIMWORD:
+X	    p.constraint &= _ENDWORD_CONSTRAINT;
+X	    break;
+X	  case _NOTLIMWORD:
+X	    p.constraint &= _NOTLIMWORD_CONSTRAINT;
+X	    break;
+X	  }
+X	for (j = 0; j < r->follows[old.index].nelem; ++j)
+X	  {
+X	    p.index = r->follows[old.index].elems[j].index;
+X	    insert(p, s);
+X	  }
+X	/* Force rescan to start at the beginning. */
+X	i = -1;
+X      }
+X
+X  free(visited);
+X}
+X
+X/* Perform bottom-up analysis on the parse tree, computing various functions.
+X   Note that at this point, we're pretending constructs like \< are real
+X   characters rather than constraints on what can follow them.
+X
+X   Nullable:  A node is nullable if it is at the root of a regexp that can
+X   match the empty string.
+X   *  _EMPTY leaves are nullable.
+X   * No other leaf is nullable.
+X   * A _QMARK or _STAR node is nullable.
+X   * A _PLUS node is nullable if its argument is nullable.
+X   * A _CAT node is nullable if both its arguments are nullable.
+X   * An _OR node is nullable if either argument is nullable.
+X
+X   Firstpos:  The firstpos of a node is the set of positions (nonempty leaves)
+X   that could correspond to the first character of a string matching the
+X   regexp rooted at the given node.
+X   * _EMPTY leaves have empty firstpos.
+X   * The firstpos of a nonempty leaf is that leaf itself.
+X   * The firstpos of a _QMARK, _STAR, or _PLUS node is the firstpos of its
+X     argument.
+X   * The firstpos of a _CAT node is the firstpos of the left argument, union
+X     the firstpos of the right if the left argument is nullable.
+X   * The firstpos of an _OR node is the union of firstpos of each argument.
+X
+X   Lastpos:  The lastpos of a node is the set of positions that could
+X   correspond to the last character of a string matching the regexp at
+X   the given node.
+X   * _EMPTY leaves have empty lastpos.
+X   * The lastpos of a nonempty leaf is that leaf itself.
+X   * The lastpos of a _QMARK, _STAR, or _PLUS node is the lastpos of its
+X     argument.
+X   * The lastpos of a _CAT node is the lastpos of its right argument, union
+X     the lastpos of the left if the right argument is nullable.
+X   * The lastpos of an _OR node is the union of the lastpos of each argument.
+X
+X   Follow:  The follow of a position is the set of positions that could
+X   correspond to the character following a character matching the node in
+X   a string matching the regexp.  At this point we consider special symbols
+X   that match the empty string in some context to be just normal characters.
+X   Later, if we find that a special symbol is in a follow set, we will
+X   replace it with the elements of its follow, labeled with an appropriate
+X   constraint.
+X   * Every node in the firstpos of the argument of a _STAR or _PLUS node is in
+X     the follow of every node in the lastpos.
+X   * Every node in the firstpos of the second argument of a _CAT node is in
+X     the follow of every node in the lastpos of the first argument.
+X
+X   Because of the postfix representation of the parse tree, the depth-first
+X   analysis is conveniently done by a linear scan with the aid of a stack.
+X   Sets are stored as arrays of the elements, obeying a stack-like allocation
+X   scheme; the number of elements in each set deeper in the stack can be
+X   used to determine the address of a particular set's array. */
+Xvoid
+Xreganalyze(r, searchflag)
+X     struct regexp *r;
+X     int searchflag;
+X{
+X  int *nullable;		/* Nullable stack. */
+X  int *nfirstpos;		/* Element count stack for firstpos sets. */
+X  _position *firstpos;		/* Array where firstpos elements are stored. */
+X  int *nlastpos;		/* Element count stack for lastpos sets. */
+X  _position *lastpos;		/* Array where lastpos elements are stored. */
+X  int *nalloc;			/* Sizes of arrays allocated to follow sets. */
+X  _position_set tmp;		/* Temporary set for merging sets. */
+X  _position_set merged;		/* Result of merging sets. */
+X  int wants_newline;		/* True if some position wants newline info. */
+X  int *o_nullable;
+X  int *o_nfirst, *o_nlast;
+X  _position *o_firstpos, *o_lastpos;
+X  int i, j;
+X  _position *pos;
+X
+X  r->searchflag = searchflag;
+X
+X  MALLOC(nullable, int, r->depth);
+X  o_nullable = nullable;
+X  MALLOC(nfirstpos, int, r->depth);
+X  o_nfirst = nfirstpos;
+X  MALLOC(firstpos, _position, r->nleaves);
+X  o_firstpos = firstpos, firstpos += r->nleaves;
+X  MALLOC(nlastpos, int, r->depth);
+X  o_nlast = nlastpos;
+X  MALLOC(lastpos, _position, r->nleaves);
+X  o_lastpos = lastpos, lastpos += r->nleaves;
+X  MALLOC(nalloc, int, r->tindex);
+X  for (i = 0; i < r->tindex; ++i)
+X    nalloc[i] = 0;
+X  MALLOC(merged.elems, _position, r->nleaves);
+X
+X  CALLOC(r->follows, _position_set, r->tindex);
+X
+X  for (i = 0; i < r->tindex; ++i)
+X    switch (r->tokens[i])
+X      {
+X      case _EMPTY:
+X	/* The empty set is nullable. */
+X	*nullable++ = 1;
+X
+X	/* The firstpos and lastpos of the empty leaf are both empty. */
+X	*nfirstpos++ = *nlastpos++ = 0;
+X	break;
+X
+X      case _STAR:
+X      case _PLUS:
+X	/* Every element in the firstpos of the argument is in the follow
+X	   of every element in the lastpos. */
+X	tmp.nelem = nfirstpos[-1];
+X	tmp.elems = firstpos;
+X	pos = lastpos;
+X	for (j = 0; j < nlastpos[-1]; ++j)
+X	  {
+X	    merge(&tmp, &r->follows[pos[j].index], &merged);
+X	    REALLOC_IF_NECESSARY(r->follows[pos[j].index].elems, _position,
+X				 nalloc[pos[j].index], merged.nelem - 1);
+X	    copy(&merged, &r->follows[pos[j].index]);
+X	  }
+X
+X      case _QMARK:
+X	/* A _QMARK or _STAR node is automatically nullable. */
+X	if (r->tokens[i] != _PLUS)
+X	  nullable[-1] = 1;
+X	break;
+X
+X      case _CAT:
+X	/* Every element in the firstpos of the second argument is in the
+X	   follow of every element in the lastpos of the first argument. */
+X	tmp.nelem = nfirstpos[-1];
+X	tmp.elems = firstpos;
+X	pos = lastpos + nlastpos[-1];
+X	for (j = 0; j < nlastpos[-2]; ++j)
+X	  {
+X	    merge(&tmp, &r->follows[pos[j].index], &merged);
+X	    REALLOC_IF_NECESSARY(r->follows[pos[j].index].elems, _position,
+X				 nalloc[pos[j].index], merged.nelem - 1);
+X	    copy(&merged, &r->follows[pos[j].index]);
+X	  }
+X
+X	/* The firstpos of a _CAT node is the firstpos of the first argument,
+X	   union that of the second argument if the first is nullable. */
+X	if (nullable[-2])
+X	  nfirstpos[-2] += nfirstpos[-1];
+X	else
+X	  firstpos += nfirstpos[-1];
+X	--nfirstpos;
+X
+X	/* The lastpos of a _CAT node is the lastpos of the second argument,
+X	   union that of the first argument if the second is nullable. */
+X	if (nullable[-1])
+X	  nlastpos[-2] += nlastpos[-1];
+X	else
+X	  {
+X	    pos = lastpos + nlastpos[-2];
+X	    for (j = nlastpos[-1] - 1; j >= 0; --j)
+X	      pos[j] = lastpos[j];
+X	    lastpos += nlastpos[-2];
+X	    nlastpos[-2] = nlastpos[-1];
+X	  }
+X	--nlastpos;
+X
+X	/* A _CAT node is nullable if both arguments are nullable. */
+X	nullable[-2] = nullable[-1] && nullable[-2];
+X	--nullable;
+X	break;
+X
+X      case _OR:
+X	/* The firstpos is the union of the firstpos of each argument. */
+X	nfirstpos[-2] += nfirstpos[-1];
+X	--nfirstpos;
+X
+X	/* The lastpos is the union of the lastpos of each argument. */
+X	nlastpos[-2] += nlastpos[-1];
+X	--nlastpos;
+X
+X	/* An _OR node is nullable if either argument is nullable. */
+X	nullable[-2] = nullable[-1] || nullable[-2];
+X	--nullable;
+X	break;
+X
+X      default:
+X	/* Anything else is a nonempty position.  (Note that special
+X	   constructs like \< are treated as nonempty strings here;
+X	   an "epsilon closure" effectively makes them nullable later.
+X	   Backreferences have to get a real position so we can detect
+X	   transitions on them later.  But they are nullable. */
+X	*nullable++ = r->tokens[i] == _BACKREF;
+X
+X	/* This position is in its own firstpos and lastpos. */
+X	*nfirstpos++ = *nlastpos++ = 1;
+X	--firstpos, --lastpos;
+X	firstpos->index = lastpos->index = i;
+X	firstpos->constraint = lastpos->constraint = _NO_CONSTRAINT;
+X
+X	/* Allocate the follow set for this position. */
+X	nalloc[i] = 1;
+X	MALLOC(r->follows[i].elems, _position, nalloc[i]);
+X	break;
+X      }
+X
+X  /* For each follow set that is the follow set of a real position, replace
+X     it with its epsilon closure. */
+X  for (i = 0; i < r->tindex; ++i)
+X    if (r->tokens[i] < _NOTCHAR || r->tokens[i] == _BACKREF
+X	|| r->tokens[i] >= _SET)
+X      {
+X	copy(&r->follows[i], &merged);
+X	epsclosure(&merged, r);
+X	REALLOC(r->follows[i].elems, _position, merged.nelem);
+X	copy(&merged, &r->follows[i]);
+X      }
+X
+X  /* Get the epsilon closure of the firstpos of the regexp.  The result will
+X     be the set of positions of state 0. */
+X  merged.nelem = 0;
+X  for (i = 0; i < nfirstpos[-1]; ++i)
+X    insert(firstpos[i], &merged);
+X  epsclosure(&merged, r);
+X
+X  /* Check if any of the positions of state 0 will want newline context. */
+X  wants_newline = 0;
+X  for (i = 0; i < merged.nelem; ++i)
+X    if (_PREV_NEWLINE_DEPENDENT(merged.elems[i].constraint))
+X      wants_newline = 1;
+X
+X  /* Build the initial state. */
+X  r->salloc = 1;
+X  r->sindex = 0;
+X  MALLOC(r->states, _dfa_state, r->salloc);
+X  state_index(r, &merged, wants_newline, 0);
+X
+X  free(o_nullable);
+X  free(o_nfirst);
+X  free(o_firstpos);
+X  free(o_nlast);
+X  free(o_lastpos);
+X  free(nalloc);
+X  free(merged.elems);
+X}
+X
+X/* Find, for each character, the transition out of state s of r, and store
+X   it in the appropriate slot of trans.
+X
+X   We divide the positions of s into groups (positions can appear in more
+X   than one group).  Each group is labeled with a set of characters that
+X   every position in the group matches (taking into account, if necessary,
+X   preceding context information of s).  For each group, find the union
+X   of the its elements' follows.  This set is the set of positions of the
+X   new state.  For each character in the group's label, set the transition
+X   on this character to be to a state corresponding to the set's positions,
+X   and its associated backward context information, if necessary.
+X
+X   If we are building a searching matcher, we include the positions of state
+X   0 in every state.
+X
+X   The collection of groups is constructed by building an equivalence-class
+X   partition of the positions of s.
+X
+X   For each position, find the set of characters C that it matches.  Eliminate
+X   any characters from C that fail on grounds of backward context.
+X
+X   Search through the groups, looking for a group whose label L has nonempty
+X   intersection with C.  If L - C is nonempty, create a new group labeled
+X   L - C and having the same positions as the current group, and set L to
+X   the intersection of L and C.  Insert the position in this group, set
+X   C = C - L, and resume scanning.
+X
+X   If after comparing with every group there are characters remaining in C,
+X   create a new group labeled with the characters of C and insert this
+X   position in that group. */
+Xvoid
+Xregstate(s, r, trans)
+X     int s;
+X     struct regexp *r;
+X     int trans[];
+X{
+X  _position_set grps[_NOTCHAR];	/* As many as will ever be needed. */
+X  _charset labels[_NOTCHAR];	/* Labels corresponding to the groups. */
+X  int ngrps = 0;		/* Number of groups actually used. */
+X  _position pos;		/* Current position being considered. */
+X  _charset matches;		/* Set of matching characters. */
+X  int matchesf;			/* True if matches is nonempty. */
+X  _charset intersect;		/* Intersection with some label set. */
+X  int intersectf;		/* True if intersect is nonempty. */
+X  _charset leftovers;		/* Stuff in the label that didn't match. */
+X  int leftoversf;		/* True if leftovers is nonempty. */
+X  static _charset letters;	/* Set of characters considered letters. */
+X  static _charset newline;	/* Set of characters that aren't newline. */
+X  _position_set follows;	/* Union of the follows of some group. */
+X  _position_set tmp;		/* Temporary space for merging sets. */
+X  int state;			/* New state. */
+X  int wants_newline;		/* New state wants to know newline context. */
+X  int state_newline;		/* New state on a newline transition. */
+X  int wants_letter;		/* New state wants to know letter context. */
+X  int state_letter;		/* New state on a letter transition. */
+X  static initialized;		/* Flag for static initialization. */
+X  int i, j, k;
+X
+X  /* Initialize the set of letters, if necessary. */
+X  if (! initialized)
+X    {
+X      initialized = 1;
+X      for (i = 0; i < _NOTCHAR; ++i)
+X	if (ISALNUM(i))
+X	  setbit(i, letters);
+X      setbit('\n', newline);
+X    }
+X
+X  zeroset(matches);
+X
+X  for (i = 0; i < r->states[s].elems.nelem; ++i)
+X    {
+X      pos = r->states[s].elems.elems[i];
+X      if (r->tokens[pos.index] >= 0 && r->tokens[pos.index] < _NOTCHAR)
+X	setbit(r->tokens[pos.index], matches);
+X      else if (r->tokens[pos.index] >= _SET)
+X	copyset(r->charsets[r->tokens[pos.index] - _SET], matches);
+X      else
+X	continue;
+X
+X      /* Some characters may need to be climinated from matches because
+X	 they fail in the current context. */
+X      if (pos.constraint != 0xff)
+X	{
+X	  if (! _MATCHES_NEWLINE_CONTEXT(pos.constraint,
+X					 r->states[s].newline, 1))
+X	    clrbit('\n', matches);
+X	  if (! _MATCHES_NEWLINE_CONTEXT(pos.constraint,
+X					 r->states[s].newline, 0))
+X	    for (j = 0; j < _CHARSET_INTS; ++j)
+X	      matches[j] &= newline[j];
+X	  if (! _MATCHES_LETTER_CONTEXT(pos.constraint,
+X					r->states[s].letter, 1))
+X	    for (j = 0; j < _CHARSET_INTS; ++j)
+X	      matches[j] &= ~letters[j];
+X	  if (! _MATCHES_LETTER_CONTEXT(pos.constraint,
+X					r->states[s].letter, 0))
+X	    for (j = 0; j < _CHARSET_INTS; ++j)
+X	      matches[j] &= letters[j];
+X
+X	  /* If there are no characters left, there's no point in going on. */
+X	  for (j = 0; j < _CHARSET_INTS && !matches[j]; ++j)
+X	    ;
+X	  if (j == _CHARSET_INTS)
+X	    continue;
+X	}
+X
+X      for (j = 0; j < ngrps; ++j)
+X	{
+X	  /* If matches contains a single character only, and the current
+X	     group's label doesn't contain that character, go on to the
+X	     next group. */
+X	  if (r->tokens[pos.index] >= 0 && r->tokens[pos.index] < _NOTCHAR
+X	      && !tstbit(r->tokens[pos.index], labels[j]))
+X	    continue;
+X
+X	  /* Check if this group's label has a nonempty intersection with
+X	     matches. */
+X	  intersectf = 0;
+X	  for (k = 0; k < _CHARSET_INTS; ++k)
+X	    (intersect[k] = matches[k] & labels[j][k]) ? intersectf = 1 : 0;
+X	  if (! intersectf)
+X	    continue;
+X
+X	  /* It does; now find the set differences both ways. */
+X	  leftoversf = matchesf = 0;
+X	  for (k = 0; k < _CHARSET_INTS; ++k)
+X	    {
+X	      /* Even an optimizing compiler can't know this for sure. */
+X	      int match = matches[k], label = labels[j][k];
+X
+X	      (leftovers[k] = ~match & label) ? leftoversf = 1 : 0;
+X	      (matches[k] = match & ~label) ? matchesf = 1 : 0;
+X	    }
+X
+X	  /* If there were leftovers, create a new group labeled with them. */
+X	  if (leftoversf)
+X	    {
+X	      copyset(leftovers, labels[ngrps]);
+X	      copyset(intersect, labels[j]);
+X	      MALLOC(grps[ngrps].elems, _position, r->nleaves);
+X	      copy(&grps[j], &grps[ngrps]);
+X	      ++ngrps;
+X	    }
+X
+X	  /* Put the position in the current group.  Note that there is no
+X	     reason to call insert() here. */
+X	  grps[j].elems[grps[j].nelem++] = pos;
+X
+X	  /* If every character matching the current position has been
+X	     accounted for, we're done. */
+X	  if (! matchesf)
+X	    break;
+X	}
+X
+X      /* If we've passed the last group, and there are still characters
+X	 unaccounted for, then we'll have to create a new group. */
+X      if (j == ngrps)
+X	{
+X	  copyset(matches, labels[ngrps]);
+X	  zeroset(matches);
+X	  MALLOC(grps[ngrps].elems, _position, r->nleaves);
+X	  grps[ngrps].nelem = 1;
+X	  grps[ngrps].elems[0] = pos;
+X	  ++ngrps;
+X	}
+X    }
+X
+X  MALLOC(follows.elems, _position, r->nleaves);
+X  MALLOC(tmp.elems, _position, r->nleaves);
+X
+X  /* If we are a searching matcher, the default transition is to a state
+X     containing the positions of state 0, otherwise the default transition
+X     is to fail miserably. */
+X  if (r->searchflag)
+X    {
+X      wants_newline = 0;
+X      wants_letter = 0;
+X      for (i = 0; i < r->states[0].elems.nelem; ++i)
+X	{
+X	  if (_PREV_NEWLINE_DEPENDENT(r->states[0].elems.elems[i].constraint))
+X	    wants_newline = 1;
+X	  if (_PREV_LETTER_DEPENDENT(r->states[0].elems.elems[i].constraint))
+X	    wants_letter = 1;
+X	}
+X      copy(&r->states[0].elems, &follows);
+X      state = state_index(r, &follows, 0, 0);
+X      if (wants_newline)
+X	state_newline = state_index(r, &follows, 1, 0);
+X      else
+X	state_newline = state;
+X      if (wants_letter)
+X	state_letter = state_index(r, &follows, 0, 1);
+X      else
+X	state_letter = state;
+X      for (i = 0; i < _NOTCHAR; ++i)
+X	if (i == '\n')
+X	  trans[i] = state_newline;
+X	else if (ISALNUM(i))
+X	  trans[i] = state_letter;
+X	else
+X	  trans[i] = state;
+X    }
+X  else
+X    for (i = 0; i < _NOTCHAR; ++i)
+X      trans[i] = -1;
+X
+X  for (i = 0; i < ngrps; ++i)
+X    {
+X      follows.nelem = 0;
+X
+X      /* Find the union of the follows of the positions of the group.
+X	 This is a hideously inefficient loop.  Fix it someday. */
+X      for (j = 0; j < grps[i].nelem; ++j)
+X	for (k = 0; k < r->follows[grps[i].elems[j].index].nelem; ++k)
+X	  insert(r->follows[grps[i].elems[j].index].elems[k], &follows);
+X
+X      /* If we are building a searching matcher, throw in the positions
+X	 of state 0 as well. */
+X      if (r->searchflag)
+X	for (j = 0; j < r->states[0].elems.nelem; ++j)
+X	  insert(r->states[0].elems.elems[j], &follows);
+X
+X      /* Find out if the new state will want any context information. */
+X      wants_newline = 0;
+X      if (tstbit('\n', labels[i]))
+X	for (j = 0; j < follows.nelem; ++j)
+X	  if (_PREV_NEWLINE_DEPENDENT(follows.elems[j].constraint))
+X	    wants_newline = 1;
+X
+X      wants_letter = 0;
+X      for (j = 0; j < _CHARSET_INTS; ++j)
+X	if (labels[i][j] & letters[j])
+X	  break;
+X      if (j < _CHARSET_INTS)
+X	for (j = 0; j < follows.nelem; ++j)
+X	  if (_PREV_LETTER_DEPENDENT(follows.elems[j].constraint))
+X	    wants_letter = 1;
+X
+X      /* Find the state(s) corresponding to the union of the follows. */
+X      state = state_index(r, &follows, 0, 0);
+X      if (wants_newline)
+X	state_newline = state_index(r, &follows, 1, 0);
+X      else
+X	state_newline = state;
+X      if (wants_letter)
+X	state_letter = state_index(r, &follows, 0, 1);
+X      else
+X	state_letter = state;
+X
+X      /* Set the transitions for each character in the current label. */
+X      for (j = 0; j < _CHARSET_INTS; ++j)
+X	for (k = 0; k < INTBITS; ++k)
+X	  if (labels[i][j] & 1 << k)
+X	    {
+X	      int c = j * INTBITS + k;
+X
+X	      if (c == '\n')
+X		trans[c] = state_newline;
+X	      else if (ISALNUM(c))
+X		trans[c] = state_letter;
+X	      else if (c < _NOTCHAR)
+X		trans[c] = state;
+X	    }
+X    }
+X
+X  for (i = 0; i < ngrps; ++i)
+X    free(grps[i].elems);
+X  free(follows.elems);
+X  free(tmp.elems);
+X}
+X
+X/* Some routines for manipulating a compiled regexp's transition tables.
+X   Each state may or may not have a transition table; if it does, and it
+X   is a non-accepting state, then r->trans[state] points to its table.
+X   If it is an accepting state then r->fails[state] points to its table.
+X   If it has no table at all, then r->trans[state] is NULL.
+X   TODO: Improve this comment, get rid of the unnecessary redundancy. */
+X
+Xstatic void
+Xbuild_state(s, r)
+X     int s;
+X     struct regexp *r;
+X{
+X  int *trans;			/* The new transition table. */
+X  int i;
+X
+X  /* Set an upper limit on the number of transition tables that will ever
+X     exist at once.  1024 is arbitrary.  The idea is that the frequently
+X     used transition tables will be quickly rebuilt, whereas the ones that
+X     were only needed once or twice will be cleared away. */
+X  if (r->trcount >= 1024)
+X    {
+X      for (i = 0; i < r->tralloc; ++i)
+X	if (r->trans[i])
+X	  {
+X	    free((ptr_t) r->trans[i]);
+X	    r->trans[i] = NULL;
+X	  }
+X	else if (r->fails[i])
+X	  {
+X	    free((ptr_t) r->fails[i]);
+X	    r->fails[i] = NULL;
+X	  }
+X      r->trcount = 0;
+X    }
+X
+X  ++r->trcount;
+X
+X  /* Set up the success bits for this state. */
+X  r->success[s] = 0;
+X  if (ACCEPTS_IN_CONTEXT(r->states[s].newline, 1, r->states[s].letter, 0,
+X      s, *r))
+X    r->success[s] |= 4;
+X  if (ACCEPTS_IN_CONTEXT(r->states[s].newline, 0, r->states[s].letter, 1,
+X      s, *r))
+X    r->success[s] |= 2;
+X  if (ACCEPTS_IN_CONTEXT(r->states[s].newline, 0, r->states[s].letter, 0,
+X      s, *r))
+X    r->success[s] |= 1;
+X
+X  MALLOC(trans, int, _NOTCHAR);
+X  regstate(s, r, trans);
+X
+X  /* Now go through the new transition table, and make sure that the trans
+X     and fail arrays are allocated large enough to hold a pointer for the
+X     largest state mentioned in the table. */
+X  for (i = 0; i < _NOTCHAR; ++i)
+X    if (trans[i] >= r->tralloc)
+X      {
+X	int oldalloc = r->tralloc;
+X
+X	while (trans[i] >= r->tralloc)
+X	  r->tralloc *= 2;
+X	REALLOC(r->realtrans, int *, r->tralloc + 1);
+X	r->trans = r->realtrans + 1;
+X	REALLOC(r->fails, int *, r->tralloc);
+X	REALLOC(r->success, int, r->tralloc);
+X	REALLOC(r->newlines, int, r->tralloc);
+X	while (oldalloc < r->tralloc)
+X	  {
+X	    r->trans[oldalloc] = NULL;
+X	    r->fails[oldalloc++] = NULL;
+X	  }
+X      }
+X
+X  /* Keep the newline transition in a special place so we can use it as
+X     a sentinel. */
+X  r->newlines[s] = trans['\n'];
+X  trans['\n'] = -1;
+X
+X  if (ACCEPTING(s, *r))
+X    r->fails[s] = trans;
+X  else
+X    r->trans[s] = trans;
+X}
+X
+Xstatic void
+Xbuild_state_zero(r)
+X     struct regexp *r;
+X{
+X  r->tralloc = 1;
+X  r->trcount = 0;
+X  CALLOC(r->realtrans, int *, r->tralloc + 1);
+X  r->trans = r->realtrans + 1;
+X  CALLOC(r->fails, int *, r->tralloc);
+X  MALLOC(r->success, int, r->tralloc);
+X  MALLOC(r->newlines, int, r->tralloc);
+X  build_state(0, r);
+X}
+X
+X/* Search through a buffer looking for a match to the given struct regexp.
+X   Find the first occurrence of a string matching the regexp in the buffer,
+X   and the shortest possible version thereof.  Return a pointer to the first
+X   character after the match, or NULL if none is found.  Begin points to
+X   the beginning of the buffer, and end points to the first character after
+X   its end.  We store a newline in *end to act as a sentinel, so end had
+X   better point somewhere valid.  Newline is a flag indicating whether to
+X   allow newlines to be in the matching string.  If count is non-
+X   NULL it points to a place we're supposed to increment every time we
+X   see a newline.  Finally, if backref is non-NULL it points to a place
+X   where we're supposed to store a 1 if backreferencing happened and the
+X   match needs to be verified by a backtracking matcher.  Otherwise
+X   we store a 0 in *backref. */
+Xchar *
+Xregexecute(r, begin, end, newline, count, backref)
+X     struct regexp *r;
+X     char *begin;
+X     char *end;
+X     int newline;
+X     int *count;
+X     int *backref;
+X{
+X  register s, s1, tmp;		/* Current state. */
+X  register unsigned char *p;	/* Current input character. */
+X  register **trans, *t;		/* Copy of r->trans so it can be optimized
+X				   into a register. */
+X  static sbit[_NOTCHAR];	/* Table for anding with r->success. */
+X  static sbit_init;
+X
+X  if (! sbit_init)
+X    {
+X      int i;
+X
+X      sbit_init = 1;
+X      for (i = 0; i < _NOTCHAR; ++i)
+X	if (i == '\n')
+X	  sbit[i] = 4;
+X	else if (ISALNUM(i))
+X	  sbit[i] = 2;
+X	else
+X	  sbit[i] = 1;
+X    }
+X
+X  if (! r->tralloc)
+X    build_state_zero(r);
+X
+X  s = 0;
+X  p = (unsigned char *) begin;
+X  trans = r->trans;
+X  *end = '\n';
+X
+X  for (;;)
+X    {
+X      /* The dreaded inner loop. */
+X      if (t = trans[s])
+X	do
+X	  {
+X	    s1 = t[*p++];
+X	    if (! (t = trans[s1]))
+X	      goto last_was_s;
+X	    s = t[*p++];
+X	  }
+X        while (t = trans[s]);
+X      goto last_was_s1;
+X    last_was_s:
+X      tmp = s, s = s1, s1 = tmp;
+X    last_was_s1:
+X
+X      if (s >= 0 && p <= (unsigned char *) end && r->fails[s])
+X	{
+X	  if (r->success[s] & sbit[*p])
+X	    {
+X	      if (backref)
+X		if (r->states[s].backref)
+X		  *backref = 1;
+X		else
+X		  *backref = 0;
+X	      return (char *) p;
+X	    }
+X
+X	  s1 = s;
+X	  s = r->fails[s][*p++];
+X	  continue;
+X	}
+X
+X      /* If the previous character was a newline, count it. */
+X      if (count && (char *) p <= end && p[-1] == '\n')
+X	++*count;
+X
+X      /* Check if we've run off the end of the buffer. */
+X      if ((char *) p >= end)
+X	return NULL;
+X
+X      if (s >= 0)
+X	{
+X	  build_state(s, r);
+X	  trans = r->trans;
+X	  continue;
+X	}
+X
+X      if (p[-1] == '\n' && newline)
+X	{
+X	  s = r->newlines[s1];
+X	  continue;
+X	}
+X
+X      s = 0;
+X    }
+X}
+X
+X/* Initialize the components of a regexp that the other routines don't
+X   initialize for themselves. */
+Xvoid
+Xreginit(r)
+X     struct regexp *r;
+X{
+X  r->calloc = 1;
+X  MALLOC(r->charsets, _charset, r->calloc);
+X  r->cindex = 0;
+X
+X  r->talloc = 1;
+X  MALLOC(r->tokens, _token, r->talloc);
+X  r->tindex = r->depth = r->nleaves = r->nregexps = 0;
+X
+X  r->searchflag = 0;
+X  r->tralloc = 0;
+X}
+X
+X/* Parse and analyze a single string of the given length. */
+Xvoid
+Xregcompile(s, len, r, searchflag)
+X     const char *s;
+X     size_t len;
+X     struct regexp *r;
+X     int searchflag;
+X{
+X  if (case_fold)	/* dummy folding in service of regmust() */
+X    {
+X	static char *p;
+X
+X	case_fold = 0;
+X	for (p = (char *)s; *p != 0; p++)
+X		if (isupper((int)*p))
+X			*p = tolower((int) *p);
+X	reginit(r);
+X	r->mustn = 0;
+X	r->must[0] = '\0';
+X	regparse(s, len, r);
+X	regmust(r);
+X        reganalyze(r, searchflag);
+X	case_fold = 1;
+X	reginit(r);
+X	regparse(s, len, r);
+X        reganalyze(r, searchflag);
+X    }
+X  else
+X    {
+X        reginit(r);
+X        regparse(s, len, r);
+X        regmust(r);
+X        reganalyze(r, searchflag);
+X    }
+X}
+X
+X/* Free the storage held by the components of a regexp. */
+Xvoid
+Xregfree(r)
+X     struct regexp *r;
+X{
+X  int i;
+X
+X  free((ptr_t) r->charsets);
+X  free((ptr_t) r->tokens);
+X  for (i = 0; i < r->sindex; ++i)
+X    free((ptr_t) r->states[i].elems.elems);
+X  free((ptr_t) r->states);
+X  for (i = 0; i < r->tindex; ++i)
+X    if (r->follows[i].elems)
+X      free((ptr_t) r->follows[i].elems);
+X  free((ptr_t) r->follows);
+X  for (i = 0; i < r->tralloc; ++i)
+X    if (r->trans[i])
+X      free((ptr_t) r->trans[i]);
+X    else if (r->fails[i])
+X      free((ptr_t) r->fails[i]);
+X  free((ptr_t) r->realtrans);
+X  free((ptr_t) r->fails);
+X  free((ptr_t) r->newlines);
+X}
+X
+X/*
+XHaving found the postfix representation of the regular expression,
+Xtry to find a long sequence of characters that must appear in any line
+Xcontaining the r.e.
+XFinding a "longest" sequence is beyond the scope of this bagatelle;
+Xwe take the easy way out and hope for the best.
+X
+XWe do a bottom-up calculation of several (possibly zero-length) sequences
+Xof characters that must appear in matches of r.e.'s represented by trees
+Xrooted at the nodes of the postfix representation:
+X	sequences that must appear at the left of the match ("left")
+X	sequences that must appear at the right of the match ("right")
+X	sequences that must appear somewhere in the match ("in")
+X	sequences that must constitute the match ("is")
+XWhen we get to the root of the tree, we use its calculated "in" sequence
+Xas our answer.  The sequence we find is returned in r->must (where "r" is
+Xthe single argument passed to "regmust"); the length of the sequence is
+Xreturned in r->mustn.
+X
+XThe sequences calculated for the various types of node (in pseudo ANSI c)
+Xare shown below.  "p" is the operand of unary operators (and the left-hand
+Xoperand of binary operators); "q" is the right-hand operand of binary operators.
+X"ZERO" means "a zero-length sequence" below.
+X
+XType	left		right		is		in
+X----	----		-----		--		--
+Xchar c	# c		# c		# c		# c
+X
+XSET	ZERO		ZERO		ZERO		ZERO
+X
+XSTAR	ZERO		ZERO		ZERO		ZERO
+X
+XQMARK	ZERO		ZERO		ZERO		ZERO
+X
+XPLUS	p->left		p->right	ZERO		ZERO
+X
+XCAT	(p->is==ZERO)?	(q->is==ZERO)?	(p->is!=ZERO &&	longest of
+X	p->left :	q->right :	q->is!=ZERO) ?	p->in, q->in, or
+X	p->is##q->left	p->right##q->is	p->is##q->is :	p->right##q->left
+X					ZERO
+X
+XOR	longest common	longest common	(do p->is and	(do p->in and
+X	leading		trailing	q->is have same	q->in have same
+X	(sub)sequence	(sub)sequence	length and	length and
+X	of p->left	of p->right	content) ?	content) ?
+X	and q->left	and q->right	p->is : NULL	p->in : NULL
+X
+XIf there's anything else we recognize in the tree, all four sequences get set
+Xto zero-length sequences.  If there's something we don't recognize in the tree,
+Xwe just return a zero-length sequence.
+X
+XAfter the above calculations are performed, three additional steps are taken:
+X
+X1.	If there's a non-zero-length "is" sequence, it replaces the
+X	"left", "right", and "in" sequences.
+X2.	If the "left" sequence is longer than the "in" sequence, it replaces
+X	the "in" sequence.
+X3.	If the "right" sequence is longer than the "in" sequence, it replaces
+X	the "in" sequence.
+X
+XPossibilities:
+X1.	Find the longest common (sub)sequence of p->in and q->in when doing
+X	an OR node's "in" sequence?  Possibly effective, as in
+X		egrep 'pepsi|epsilon'
+X	but is it cheap and easy enough?
+X2.	In replacing "in" sequences with "left" and "right" sequences, how
+X	should ties be broken?
+X3.	Switch to allocated memory, rather than relying on a defined MUST_MAX?
+X*/
+X
+X#define TRUE	1
+X#define FALSE	0
+X
+Xtypedef struct {
+X	int	n;
+X	char	p[MUST_MAX];
+X} counted;
+X
+X#define initcounted(cp)	((cp)->n = 0)
+X
+Xstatic void
+Xcntcpy(top, fromp)
+Xcounted *	top;
+Xcounted *	fromp;
+X{
+X	register char *	fp;
+X	register char *	tp;
+X	register int	n;
+X
+X	fp = fromp->p;
+X	tp = top->p;
+X	n = fromp->n;
+X	top->n = n;
+X	while (n-- > 0)
+X		*tp++ = *fp++;
+X}
+X
+Xstatic void
+Xcntcat(top, fromp)
+Xcounted *	top;
+Xcounted *	fromp;
+X{
+X	register char *	fp;
+X	register char *	tp;
+X	register int	n;
+X
+X	fp = fromp->p;
+X	tp = top->p + top->n;
+X	n = fromp->n;
+X	top->n += n;
+X	while (n-- > 0)
+X		*tp++ = *fp++;
+X}
+X
+Xstatic int
+Xcntsame(acp, bcp)
+Xcounted *	acp;
+Xcounted *	bcp;
+X{
+X	register int	i;
+X
+X	if (acp->n != bcp->n)
+X		return FALSE;
+X	for (i = 0; i < acp->n; ++i)
+X		if (acp->p[i] != bcp->p[i])
+X			return FALSE;
+X	return TRUE;
+X}
+X
+X
+Xtypedef struct {
+X	counted	left;
+X	counted	right;
+X	counted	in;
+X	counted	is;
+X} must;
+X
+Xstatic void
+Xinitmust(mp)
+Xmust *	mp;
+X{
+X	initcounted(&mp->left);
+X	initcounted(&mp->right);
+X	initcounted(&mp->in);
+X	initcounted(&mp->is);
+X}
+X
+Xstatic void
+Xregmust(r)
+Xregister struct regexp *	r;
+X{
+X	must			musts[MUST_MAX];
+X	register must *		mp;
+X	counted			result;
+X	register int		ri;
+X	register int		i;
+X	register _token		t;
+X
+X	reg->mustn = 0;
+X	reg->must[0] = '\0';
+X	if (reg->tindex > MUST_MAX)
+X		return;
+X	mp = musts;
+X	initcounted(&result);
+X	for (ri = 0; ri < reg->tindex; ++ri) {
+X		switch (t = reg->tokens[ri]) {
+X		case _ALLBEGLINE:
+X		case _ALLENDLINE:
+X		case _LPAREN:
+X		case _RPAREN:
+X			goto done;		/* "cannot happen" */
+X		case _EMPTY:
+X		case _BEGLINE:
+X		case _ENDLINE:
+X		case _BEGWORD:
+X		case _ENDWORD:
+X		case _LIMWORD:
+X		case _NOTLIMWORD:
+X		case _BACKREF:
+X			initmust(mp);
+X			break;
+X		case _STAR:
+X		case _QMARK:
+X			if (mp <= musts)
+X				goto done;	/* "cannot happen" */
+X			--mp;
+X			initmust(mp);
+X			break;
+X		case _OR:
+X			if (mp < &musts[2])
+X				goto done;	/* "cannot happen" */
+X			{
+X				register must *	lmp;
+X				register must *	rmp;
+X				register int	j, n;
+X
+X				rmp = --mp;
+X				lmp = --mp;
+X				/* Guaranteed to be.  Unlikely, but. . . */
+X				if (!cntsame(&lmp->is, &rmp->is))
+X					initcounted(&lmp->is);
+X				/* Left side--easy */
+X				n = lmp->left.n;
+X				if (n > rmp->left.n)
+X					n = rmp->left.n;
+X				for (i = 0; i < n; ++i)
+X					if (lmp->left.p[i] != rmp->left.p[i])
+X						break;
+X				lmp->left.n = i;
+X				/* Right side */
+X				n = lmp->right.n;
+X				if (n > rmp->right.n)
+X					n = rmp->right.n;
+X				for (i = 0; i < n; ++i)
+X					if (lmp->right.p[lmp->right.n-i-1] !=
+X					    rmp->right.p[rmp->right.n-i-1])
+X						break;
+X				for (j = 0; j < i; ++j)
+X					lmp->right.p[j] =
+X						lmp->right.p[(lmp->right.n -
+X							i) + j];
+X				lmp->right.n = i;
+X				/* Includes.  Unlikely, but. . . */
+X				if (!cntsame(&lmp->in, &rmp->in))
+X					initcounted(&lmp->in);
+X			}
+X			break;
+X		case _PLUS:
+X			if (mp <= musts)
+X				goto done;	/* "cannot happen" */
+X			--mp;
+X			initcounted(&mp->is);
+X			break;
+X		case _END:
+X			if (mp != &musts[1])
+X				goto done;	/* "cannot happen" */
+X			result = musts[0].in;
+X			goto done;
+X		case _CAT:
+X			if (mp < &musts[2])
+X				goto done;	/* "cannot happen" */
+X			{
+X				must *	lmp;
+X				must *	rmp;
+X				must	new;
+X				must *	nmp;
+X				int	a, b, c;
+X
+X				rmp = --mp;
+X				lmp = --mp;
+X				nmp = &new;
+X				initmust(nmp);
+X				/* Left-hand */
+X				cntcat(&nmp->left, &lmp->left);
+X				if (lmp->is.n != 0)
+X					cntcat(&nmp->left, &rmp->left);
+X				/* Right-hand */
+X				if (rmp->is.n != 0)
+X					cntcat(&nmp->right, &lmp->right);
+X				cntcat(&nmp->right, &rmp->right);
+X				/* Guaranteed to be */
+X				if (lmp->is.n != 0 && rmp->is.n != 0) {
+X					cntcat(&nmp->is, &lmp->is);
+X					cntcat(&nmp->is, &rmp->is);
+X				}
+X				/* Interior */
+X				a = lmp->in.n;
+X				b = rmp->in.n;
+X				c = lmp->right.n + rmp->left.n;
+X				if (a == 0 && b == 0 && c == 0) {
+X					/* nothing */
+X					;
+X				} else if (c > a && c > b) {
+X					cntcat(&nmp->in, &lmp->right);
+X					cntcat(&nmp->in, &rmp->left);
+X				} else if (a > b) {
+X					cntcat(&nmp->in, &lmp->in);
+X				} else {
+X					cntcat(&nmp->in, &rmp->in);
+X				}
+X				*mp = new;
+X			}
+X			break;
+X		default:
+X			if (t < _END) {
+X				/* "cannot happen" */
+X				goto done;
+X			} else if (t >= _SET) {
+X				/* easy enough */
+X				initmust(mp);
+X			} else {
+X				/* plain character */
+X				mp->left.p[0] = mp->right.p[0] =
+X					mp->in.p[0] = mp->is.p[0] = t;
+X				mp->left.n = mp->right.n =
+X					mp->in.n = mp->is.n = 1;
+X				break;
+X			}
+X			break;
+X		}
+X		/*
+X		** "Additional steps"
+X		*/
+X		if (mp->is.n > 0) {
+X			cntcpy(&mp->left, &mp->is);
+X			cntcpy(&mp->right, &mp->is);
+X			cntcpy(&mp->in, &mp->is);
+X		}
+X		if (mp->left.n > mp->in.n)
+X			cntcpy(&mp->in, &mp->left);
+X		if (mp->right.n > mp->in.n)
+X			cntcpy(&mp->in, &mp->right);
+X		++mp;
+X	}
+Xdone:
+X	reg->mustn = result.n;
+X	for (i = 0; i < result.n; ++i)
+X		reg->must[i] = result.p[i];
+X}
+END_OF_FILE
+if test 54865 -ne `wc -c <'dfa.c'`; then
+    echo shar: \"'dfa.c'\" unpacked with wrong size!
+fi
+# end of 'dfa.c'
+fi
+echo shar: End of shell archive.
+exit 0
+
+-- 
+Please send comp.sources.unix-related mail to rsalz@uunet.uu.net.

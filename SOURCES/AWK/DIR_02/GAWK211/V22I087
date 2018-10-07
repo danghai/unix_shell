@@ -1,0 +1,1923 @@
+From: rsalz@uunet.uu.net (Rich Salz)
+Newsgroups: comp.sources.unix
+Subject: v22i087:  GNU AWK, version 2.11, Part01/16
+Message-ID: <2620@litchi.bbn.com>
+Date: 6 Jun 90 16:35:58 GMT
+Approved: rsalz@uunet.UU.NET
+
+Submitted-by: "Arnold D. Robbins" <arnold@unix.cc.emory.edu>
+Posting-number: Volume 22, Issue 87
+Archive-name: gawk2.11/part01
+
+[  This is the GNU version of AWK.  It is compatible with NAWK, the
+   "new awk" described in the AWK book, and shipped with SysVr4.
+
+   A couple of files were split into pieces for posting; they are
+   noted in the MANIFEST.  --r$  ]
+
+I think I mentioned that we're dropping the 'beta' label on gawk with
+the c.s.u. release.  But I wanted to mention that gawk has been endorsed
+by Rick Adams of UUNET.  He replaced /bin/awk with gawk for all his work
+on UUNET...
+
+Arnold
+
+#! /bin/sh
+# This is a shell archive.  Remove anything before this line, then feed it
+# into a shell via "sh file" or similar.  To overwrite existing files,
+# type "sh file -c".
+# The tool that generated this appeared in the comp.sources.unix newsgroup;
+# send mail to comp-sources-unix@uunet.uu.net if you want that tool.
+# Contents:  MANIFEST ./missing.d ./missing.d/getopt.c ./pc.d ./support
+#   ./support/texindex.c
+# Wrapped by rsalz@litchi.bbn.com on Wed Jun  6 12:24:45 1990
+PATH=/bin:/usr/bin:/usr/ucb ; export PATH
+echo If this archive is complete, you will see the following message:
+echo '          "shar: End of archive 1 (of 16)."'
+if test -f 'MANIFEST' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'MANIFEST'\"
+else
+  echo shar: Extracting \"'MANIFEST'\" \(1881 characters\)
+  sed "s/^X//" >'MANIFEST' <<'END_OF_FILE'
+X   File Name		Archive #	Description
+X----------------------------------------------------------
+XMANIFEST                   1	This shipping list
+X./CHANGES                 15	
+X./COPYING                 14	
+X./FUTURES                  9	
+X./Makefile                15	
+X./PROBLEMS                 9	
+X./README                  16	
+X./alloca.c                16	
+X./alloca.s                15	
+X./array.c                 16	
+X./awk.h                   13	
+X./awk.y                   10	
+X./builtin.c               12	
+X./debug.c                 14	
+X./eval.c                  12	
+X./field.c                 15	
+X./gawk.1                  11	
+X./gawk.texinfo.01          2	(part 1)
+X./gawk.texinfo.02          5	(part 2)
+X./gawk.texinfo.03          6	(part 3)
+X./gawk.texinfo.04          3	(part 4)
+X./gawk.texinfo.05          4	(part 5)
+X./gawk.texinfo.06          7	(part 6)
+X./gawk.texinfo.07         15	(part 7)
+X./io.c                    11	
+X./main.c                  14	
+X./missing.c                8	
+X./missing.d                1	
+X./missing.d/dup2.c         9	
+X./missing.d/gcvt.c        12	
+X./missing.d/getopt.c       1	
+X./missing.d/memcmp.c       9	
+X./missing.d/memcpy.c      11	
+X./missing.d/memset.c      10	
+X./missing.d/random.c      10	
+X./missing.d/strcase.c     16	
+X./missing.d/strchr.c       6	
+X./missing.d/strerror.c     7	
+X./missing.d/strtod.c       3	
+X./missing.d/tmpnam.c       7	
+X./missing.d/vprintf.c      8	
+X./msg.c                    2	
+X./node.c                  15	
+X./patchlevel.h             4	
+X./pc.d                     1	
+X./pc.d/Makefile.pc        13	
+X./pc.d/popen.c             4	
+X./pc.d/popen.h            10	
+X./regex.c.01               8	(part 1)
+X./regex.c.02               5	(part 2)
+X./regex.h                 14	
+X./support                  1	
+X./support/texindex.c       1	
+X./support/texinfo.tex.01   9	(part 1)
+X./support/texinfo.tex.02  13	(part 2)
+X./version.sh               6	
+END_OF_FILE
+  if test 1881 -ne `wc -c <'MANIFEST'`; then
+    echo shar: \"'MANIFEST'\" unpacked with wrong size!
+  fi
+  # end of 'MANIFEST'
+fi
+if test ! -d './missing.d' ; then
+    echo shar: Creating directory \"'./missing.d'\"
+    mkdir './missing.d'
+fi
+if test -f './missing.d/getopt.c' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'./missing.d/getopt.c'\"
+else
+  echo shar: Extracting \"'./missing.d/getopt.c'\" \(2434 characters\)
+  sed "s/^X//" >'./missing.d/getopt.c' <<'END_OF_FILE'
+X/*
+X**	@(#)getopt.c	2.5 (smail) 9/15/87
+X*/
+X
+X/*
+X * Here's something you've all been waiting for:  the AT&T public domain
+X * source for getopt(3).  It is the code which was given out at the 1985
+X * UNIFORUM conference in Dallas.  I obtained it by electronic mail
+X * directly from AT&T.  The people there assure me that it is indeed
+X * in the public domain.
+X * 
+X * There is no manual page.  That is because the one they gave out at
+X * UNIFORUM was slightly different from the current System V Release 2
+X * manual page.  The difference apparently involved a note about the
+X * famous rules 5 and 6, recommending using white space between an option
+X * and its first argument, and not grouping options that have arguments.
+X * Getopt itself is currently lenient about both of these things White
+X * space is allowed, but not mandatory, and the last option in a group can
+X * have an argument.  That particular version of the man page evidently
+X * has no official existence, and my source at AT&T did not send a copy.
+X * The current SVR2 man page reflects the actual behavor of this getopt.
+X * However, I am not about to post a copy of anything licensed by AT&T.
+X */
+X
+X#if defined(MSDOS) || defined(USG)
+X#define index strchr
+X#endif
+X
+X/*LINTLIBRARY*/
+X#define NULL	0
+X#define EOF	(-1)
+X#define ERR(s, c)	if(opterr){\
+X	extern int write();\
+X	char errbuf[2];\
+X	errbuf[0] = c; errbuf[1] = '\n';\
+X	(void) write(2, argv[0], (unsigned)strlen(argv[0]));\
+X	(void) write(2, s, (unsigned)strlen(s));\
+X	(void) write(2, errbuf, 2);}
+X
+Xextern char *index();
+X
+Xint	opterr = 1;
+Xint	optind = 1;
+Xint	optopt;
+Xchar	*optarg;
+X
+Xint
+Xgetopt(argc, argv, opts)
+Xint	argc;
+Xchar	**argv, *opts;
+X{
+X	static int sp = 1;
+X	register int c;
+X	register char *cp;
+X
+X	if(sp == 1)
+X		if(optind >= argc ||
+X		   argv[optind][0] != '-' || argv[optind][1] == '\0')
+X			return(EOF);
+X		else if(strcmp(argv[optind], "--") == NULL) {
+X			optind++;
+X			return(EOF);
+X		}
+X	optopt = c = argv[optind][sp];
+X	if(c == ':' || (cp=index(opts, c)) == NULL) {
+X		ERR(": illegal option -- ", c);
+X		if(argv[optind][++sp] == '\0') {
+X			optind++;
+X			sp = 1;
+X		}
+X		return('?');
+X	}
+X	if(*++cp == ':') {
+X		if(argv[optind][sp+1] != '\0')
+X			optarg = &argv[optind++][sp+1];
+X		else if(++optind >= argc) {
+X			ERR(": option requires an argument -- ", c);
+X			sp = 1;
+X			return('?');
+X		} else
+X			optarg = argv[optind++];
+X		sp = 1;
+X	} else {
+X		if(argv[optind][++sp] == '\0') {
+X			sp = 1;
+X			optind++;
+X		}
+X		optarg = NULL;
+X	}
+X	return(c);
+X}
+END_OF_FILE
+  if test 2434 -ne `wc -c <'./missing.d/getopt.c'`; then
+    echo shar: \"'./missing.d/getopt.c'\" unpacked with wrong size!
+  fi
+  # end of './missing.d/getopt.c'
+fi
+if test ! -d './pc.d' ; then
+    echo shar: Creating directory \"'./pc.d'\"
+    mkdir './pc.d'
+fi
+if test ! -d './support' ; then
+    echo shar: Creating directory \"'./support'\"
+    mkdir './support'
+fi
+if test -f './support/texindex.c' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'./support/texindex.c'\"
+else
+  echo shar: Extracting \"'./support/texindex.c'\" \(42774 characters\)
+  sed "s/^X//" >'./support/texindex.c' <<'END_OF_FILE'
+X/* Prepare Tex index dribble output into an actual index.
+X   Copyright (C) 1987 Free Software Foundation, Inc.
+X
+X		       NO WARRANTY
+X
+X  BECAUSE THIS PROGRAM IS LICENSED FREE OF CHARGE, WE PROVIDE ABSOLUTELY
+XNO WARRANTY, TO THE EXTENT PERMITTED BY APPLICABLE STATE LAW.  EXCEPT
+XWHEN OTHERWISE STATED IN WRITING, FREE SOFTWARE FOUNDATION, INC,
+XRICHARD M. STALLMAN AND/OR OTHER PARTIES PROVIDE THIS PROGRAM "AS IS"
+XWITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
+XBUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND
+XFITNESS FOR A PARTICULAR PURPOSE.  THE ENTIRE RISK AS TO THE QUALITY
+XAND PERFORMANCE OF THE PROGRAM IS WITH YOU.  SHOULD THE PROGRAM PROVE
+XDEFECTIVE, YOU ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR
+XCORRECTION.
+X
+X IN NO EVENT UNLESS REQUIRED BY APPLICABLE LAW WILL RICHARD M.
+XSTALLMAN, THE FREE SOFTWARE FOUNDATION, INC., AND/OR ANY OTHER PARTY
+XWHO MAY MODIFY AND REDISTRIBUTE THIS PROGRAM AS PERMITTED BELOW, BE
+XLIABLE TO YOU FOR DAMAGES, INCLUDING ANY LOST PROFITS, LOST MONIES, OR
+XOTHER SPECIAL, INCIDENTAL OR CONSEQUENTIAL DAMAGES ARISING OUT OF THE
+XUSE OR INABILITY TO USE (INCLUDING BUT NOT LIMITED TO LOSS OF DATA OR
+XDATA BEING RENDERED INACCURATE OR LOSSES SUSTAINED BY THIRD PARTIES OR
+XA FAILURE OF THE PROGRAM TO OPERATE WITH ANY OTHER PROGRAMS) THIS
+XPROGRAM, EVEN IF YOU HAVE BEEN ADVISED OF THE POSSIBILITY OF SUCH
+XDAMAGES, OR FOR ANY CLAIM BY ANY OTHER PARTY.
+X
+X		GENERAL PUBLIC LICENSE TO COPY
+X
+X  1. You may copy and distribute verbatim copies of this source file
+Xas you receive it, in any medium, provided that you conspicuously
+Xand appropriately publish on each copy a valid copyright notice
+X"Copyright (C) 1987 Free Software Foundation, Inc.", and include
+Xfollowing the copyright notice a verbatim copy of the above disclaimer
+Xof warranty and of this License.
+X
+X  2. You may modify your copy or copies of this source file or
+Xany portion of it, and copy and distribute such modifications under
+Xthe terms of Paragraph 1 above, provided that you also do the following:
+X
+X    a) cause the modified files to carry prominent notices stating
+X    that you changed the files and the date of any change; and
+X
+X    b) cause the whole of any work that you distribute or publish,
+X    that in whole or in part contains or is a derivative of this
+X    program or any part thereof, to be licensed at no charge to all
+X    third parties on terms identical to those contained in this
+X    License Agreement (except that you may choose to grant more extensive
+X    warranty protection to some or all third parties, at your option).
+X
+X    c) You may charge a distribution fee for the physical act of
+X    transferring a copy, and you may at your option offer warranty
+X    protection in exchange for a fee.
+X
+XMere aggregation of another unrelated program with this program (or its
+Xderivative) on a volume of a storage or distribution medium does not bring
+Xthe other program under the scope of these terms.
+X
+X  3. You may copy and distribute this program (or a portion or derivative
+Xof it, under Paragraph 2) in object code or executable form under the terms
+Xof Paragraphs 1 and 2 above provided that you also do one of the following:
+X
+X    a) accompany it with the complete corresponding machine-readable
+X    source code, which must be distributed under the terms of
+X    Paragraphs 1 and 2 above; or,
+X
+X    b) accompany it with a written offer, valid for at least three
+X    years, to give any third party free (except for a nominal
+X    shipping charge) a complete machine-readable copy of the
+X    corresponding source code, to be distributed under the terms of
+X    Paragraphs 1 and 2 above; or,
+X
+X    c) accompany it with the information you received as to where the
+X    corresponding source code may be obtained.  (This alternative is
+X    allowed only for noncommercial distribution and only if you
+X    received the program in object code or executable form alone.)
+X
+XFor an executable file, complete source code means all the source code for
+Xall modules it contains; but, as a special exception, it need not include
+Xsource code for modules which are standard libraries that accompany the
+Xoperating system on which the executable file runs.
+X
+X  4. You may not copy, sublicense, distribute or transfer this program
+Xexcept as expressly provided under this License Agreement.  Any attempt
+Xotherwise to copy, sublicense, distribute or transfer this program is void and
+Xyour rights to use the program under this License agreement shall be
+Xautomatically terminated.  However, parties who have received computer
+Xsoftware programs from you with this License Agreement will not have
+Xtheir licenses terminated so long as such parties remain in full compliance.
+X
+X  5. If you wish to incorporate parts of this program into other free
+Xprograms whose distribution conditions are different, write to the Free
+XSoftware Foundation at 675 Mass Ave, Cambridge, MA 02139.  We have not yet
+Xworked out a simple rule that can be stated here, but we will often permit
+Xthis.  We will be guided by the two goals of preserving the free status of
+Xall derivatives of our free software and of promoting the sharing and reuse of
+Xsoftware.
+X
+X In other words, you are welcome to use, share and improve this program.
+X You are forbidden to forbid anyone else to use, share and improve
+X what you give them.   Help stamp out software-hoarding!  */
+X
+X
+X#include <stdio.h>
+X#include <ctype.h>
+X
+X#ifdef VMS
+X#include <file.h>
+X
+X#define EXIT_SUCCESS ((1 << 28) | 1)
+X#define EXIT_FATAL ((1 << 28) | 4)
+X#define unlink delete
+X#define tell(fd) lseek(fd, 0L, 1)
+X#else
+X#include <sys/file.h>
+X
+X#define EXIT_SUCCESS 0
+X#define EXIT_FATAL 1
+X#endif
+X
+X
+X#ifndef L_XTND
+X#define L_XTND 2
+X#endif
+X
+X/* When sorting in core, this structure describes one line
+X and the position and length of its first keyfield.  */
+X
+Xstruct lineinfo
+X  {
+X    char *text;		/* The actual text of the line */
+X    union
+X      {			/* The start of the key (for textual comparison) */
+X	char *text;
+X	long number;	/* or the numeric value (for numeric comparison) */
+X      } key;
+X    long keylen;	/* Length of key field */
+X  };
+X
+X/* This structure describes a field to use as a sort key */
+X
+Xstruct keyfield
+X  {
+X    int startwords;		/* # words to skip  */
+X    int startchars;		/*  and # additional chars to skip, to start of field */
+X    int endwords;		/* similar, from beg (or end) of line, to find end of field */
+X    int endchars;
+X    char ignore_blanks;		/* Ignore spaces and tabs within the field */
+X    char fold_case;		/* Convert upper case to lower before comparing */
+X    char reverse;		/* Compare in reverse order */
+X    char numeric;		/* Parse text as an integer and compare the integers */
+X    char positional;		/* Sort according to position within the file */
+X    char braced;		/* Count balanced-braced groupings as fields */
+X  };
+X
+X/* Vector of keyfields to use */
+X
+Xstruct keyfield keyfields[3];
+X
+X/* Number of keyfields stored in that vector.  */
+X
+Xint num_keyfields = 3;
+X
+X/* Vector of input file names, terminated with a zero (null pointer) */
+X
+Xchar **infiles;
+X
+X/* Vector of corresponding output file names, or zero meaning default it */
+X
+Xchar **outfiles;
+X
+X/* Length of `infiles' */
+X
+Xint num_infiles;
+X
+X/* Pointer to the array of pointers to lines being sorted */
+X
+Xchar **linearray;
+X
+X/* The allocated length of `linearray'. */
+X
+Xlong lines;
+X
+X/* Directory to use for temporary files.  On Unix, it ends with a slash.  */
+X
+Xchar *tempdir;
+X
+X/* Start of filename to use for temporary files.  */
+X
+Xchar *tempbase;
+X
+X/* Number of last temporary file.  */
+X
+Xint tempcount;
+X
+X/* Number of last temporary file already deleted.
+X Temporary files are deleted by `flush_tempfiles' in order of creation.  */
+X
+Xint last_deleted_tempcount;
+X
+X/* During in-core sort, this points to the base of the data block
+X which contains all the lines of data.  */
+X
+Xchar *text_base;
+X
+X/* Additional command switches */
+X
+Xint keep_tempfiles;	/* Nonzero means do not delete tempfiles -- for debugging */
+X
+X/* Forward declarations of functions in this file */
+X
+Xvoid decode_command ();
+Xvoid sort_in_core ();
+Xvoid sort_offline ();
+Xchar **parsefile ();
+Xchar *find_field ();
+Xchar *find_pos ();
+Xlong find_value ();
+Xchar *find_braced_pos ();
+Xchar *find_braced_end ();
+Xvoid writelines ();
+Xint compare_full ();
+Xlong readline ();
+Xint merge_files ();
+Xint merge_direct ();
+Xchar *concat ();
+Xchar *maketempname ();
+Xvoid flush_tempfiles ();
+Xchar *tempcopy ();
+X
+Xextern char *mktemp ();
+X
+X#define MAX_IN_CORE_SORT 500000
+X
+Xint
+Xmain (argc, argv)
+X     int argc;
+X     char **argv;
+X{
+X  int i;
+X
+X  tempcount = 0;
+X  last_deleted_tempcount = 0;
+X
+X  /* Describe the kind of sorting to do. */
+X  /* The first keyfield uses the first braced field and folds case */
+X  keyfields[0].braced = 1;
+X  keyfields[0].fold_case = 1;
+X  keyfields[0].endwords = -1;
+X  keyfields[0].endchars = -1;
+X  /* The second keyfield uses the second braced field, numerically */
+X  keyfields[1].braced = 1;
+X  keyfields[1].numeric = 1;
+X  keyfields[1].startwords = 1;
+X  keyfields[1].endwords = -1;
+X  keyfields[1].endchars = -1;
+X  /* The third keyfield (which is ignored while discarding duplicates)
+X     compares the whole line */
+X  keyfields[2].endwords = -1;
+X  keyfields[2].endchars = -1;
+X
+X  decode_command (argc, argv);
+X
+X  tempbase = mktemp (concat ("txiXXXXXX", "", ""));
+X
+X  /* Process input files completely, one by one.  */
+X
+X  for (i = 0; i < num_infiles; i++)
+X    {
+X      int desc;
+X      long ptr;
+X      char *outfile;
+X      char *p;
+X
+X      desc = open (infiles[i], 0, 0);
+X      if (desc < 0) pfatal_with_name (infiles[i]);
+X      lseek (desc, 0, L_XTND);
+X      ptr = tell (desc);
+X      close (desc);
+X
+X      outfile = outfiles[i];
+X      if (!outfile)
+X	{
+X	  outfile = concat (infiles[i], "s", "");
+X	}
+X
+X      if (ptr < MAX_IN_CORE_SORT)
+X        /* Sort a small amount of data */
+X        sort_in_core (infiles[i], ptr, outfile);
+X      else
+X        sort_offline (infiles[i], ptr, outfile);
+X    }
+X
+X  flush_tempfiles (tempcount);
+X  exit (EXIT_SUCCESS);
+X}
+X
+X/* This page decodes the command line arguments to set the parameter variables
+X and set up the vector of keyfields and the vector of input files */
+X
+Xvoid
+Xdecode_command (argc, argv)
+X     int argc;
+X     char **argv;
+X{
+X  int i;
+X  char **ip;
+X  char **op;
+X
+X  /* Store default values into parameter variables */
+X
+X#ifdef VMS
+X  tempdir = "sys$scratch:";
+X#else
+X  tempdir = "/tmp/";
+X#endif
+X
+X  keep_tempfiles = 0;
+X
+X  /* Allocate argc input files, which must be enough.  */
+X
+X  infiles = (char **) xmalloc (argc * sizeof (char *));
+X  outfiles = (char **) xmalloc (argc * sizeof (char *));
+X  ip = infiles;
+X  op = outfiles;
+X
+X  /* First find all switches that control the default kind-of-sort */
+X
+X  for (i = 1; i < argc; i++)
+X    {
+X      int tem = classify_arg (argv[i]);
+X      char c;
+X      char *p;
+X
+X      if (tem <= 0)
+X	{
+X	  *ip++ = argv[i];
+X	  *op++ = 0;
+X	  continue;
+X	}
+X      if (tem > 1)
+X	{
+X	  if (i + 1 == argc)
+X	    fatal ("switch %s given with no argument following it", argv[i]);
+X	  else if (!strcmp (argv[i], "-T"))
+X	    tempdir = argv[i + 1];
+X	  else if (!strcmp (argv[i], "-o"))
+X	    *(op - 1) = argv[i + 1];
+X	  i += tem - 1;
+X	  continue;
+X	}
+X
+X      p = &argv[i][1];
+X      while (c = *p++)
+X	switch (c)
+X	  {
+X	  case 'k':
+X	    keep_tempfiles = 1;
+X	    break;
+X
+X	  default:
+X	    fatal ("invalid command switch %c", c);
+X	  }
+X    switchdone: ;
+X    }
+X
+X  /* Record number of keyfields, terminate list of filenames */
+X
+X  num_infiles = ip - infiles;
+X  *ip = 0;
+X}
+X
+X/* Return 0 for an argument that is not a switch;
+X for a switch, return 1 plus the number of following arguments that the switch swallows.
+X*/
+X
+Xint
+Xclassify_arg (arg)
+X     char *arg;
+X{
+X  if (!strcmp (arg, "-T") || !strcmp (arg, "-o"))
+X    return 2;
+X  if (arg[0] == '-')
+X    return 1;
+X  return 0;
+X}
+X
+X/* Create a name for a temporary file */
+X
+Xchar *
+Xmaketempname (count)
+X     int count;
+X{
+X  char tempsuffix[10];
+X  sprintf (tempsuffix, "%d", count);
+X  return concat (tempdir, tempbase, tempsuffix);
+X}
+X
+X/* Delete all temporary files up to the specified count */
+X
+Xvoid
+Xflush_tempfiles (to_count)
+X     int to_count;
+X{
+X  if (keep_tempfiles) return;
+X  while (last_deleted_tempcount < to_count)
+X    unlink (maketempname (++last_deleted_tempcount));
+X}
+X
+X/* Copy an input file into a temporary file, and return the temporary file name */
+X
+X#define BUFSIZE 1024
+X
+Xchar *
+Xtempcopy (idesc)
+X     int idesc;
+X{
+X  char *outfile = maketempname (++tempcount);
+X  int odesc;
+X  char buffer[BUFSIZE];
+X
+X  odesc = open (outfile, O_WRONLY | O_CREAT, 0666);
+X
+X  if (odesc < 0) pfatal_with_name (outfile);
+X
+X  while (1)
+X    {
+X      int nread = read (idesc, buffer, BUFSIZE);
+X      write (odesc, buffer, nread);
+X      if (!nread) break;
+X    }
+X
+X  close (odesc);
+X
+X  return outfile;
+X}
+X
+X/* Compare two lines, provided as pointers to pointers to text,
+X according to the specified set of keyfields */
+X
+Xint
+Xcompare_full (line1, line2)
+X     char **line1, **line2;
+X{
+X  int i;
+X
+X  /* Compare using the first keyfield;
+X     if that does not distinguish the lines, try the second keyfield; and so on. */
+X
+X  for (i = 0; i < num_keyfields; i++)
+X    {
+X      long length1, length2;
+X      char *start1 = find_field (&keyfields[i], *line1, &length1);
+X      char *start2 = find_field (&keyfields[i], *line2, &length2);
+X      int tem = compare_field (&keyfields[i], start1, length1, *line1 - text_base,
+X					      start2, length2, *line2 - text_base);
+X      if (tem)
+X	{
+X	  if (keyfields[i].reverse)
+X	    return - tem;
+X          return tem;
+X	}
+X    }
+X
+X  return 0;    /* Lines match exactly */
+X}
+X
+X/* Compare two lines described by structures
+X in which the first keyfield is identified in advance.
+X For positional sorting, assumes that the order of the lines in core
+X reflects their nominal order.  */
+X
+Xint
+Xcompare_prepared (line1, line2)
+X     struct lineinfo *line1, *line2;
+X{
+X  int i;
+X  int tem;
+X  char *text1, *text2;
+X
+X  /* Compare using the first keyfield, which has been found for us already */
+X  if (keyfields->positional)
+X    {
+X      if (line1->text - text_base > line2->text - text_base)
+X	tem = 1;
+X      else
+X	tem = -1;
+X    }
+X  else if (keyfields->numeric)
+X    tem = line1->key.number - line2->key.number;
+X  else
+X    tem = compare_field (keyfields, line1->key.text, line1->keylen, 0, line2->key.text, line2->keylen, 0);
+X  if (tem)
+X    {
+X      if (keyfields->reverse)
+X	return - tem;
+X      return tem;
+X    }
+X
+X  text1 = line1->text;
+X  text2 = line2->text;
+X
+X  /* Compare using the second keyfield;
+X     if that does not distinguish the lines, try the third keyfield; and so on. */
+X
+X  for (i = 1; i < num_keyfields; i++)
+X    {
+X      long length1, length2;
+X      char *start1 = find_field (&keyfields[i], text1, &length1);
+X      char *start2 = find_field (&keyfields[i], text2, &length2);
+X      int tem = compare_field (&keyfields[i], start1, length1, text1 - text_base,
+X					      start2, length2, text2 - text_base);
+X      if (tem)
+X	{
+X	  if (keyfields[i].reverse)
+X	    return - tem;
+X          return tem;
+X	}
+X    }
+X
+X  return 0;    /* Lines match exactly */
+X}
+X
+X/* Like compare_full but more general.
+X You can pass any strings, and you can say how many keyfields to use.
+X `pos1' and `pos2' should indicate the nominal positional ordering of
+X the two lines in the input.  */
+X
+Xint
+Xcompare_general (str1, str2, pos1, pos2, use_keyfields)
+X     char *str1, *str2;
+X     long pos1, pos2;
+X     int use_keyfields;
+X{
+X  int i;
+X
+X  /* Compare using the first keyfield;
+X     if that does not distinguish the lines, try the second keyfield; and so on. */
+X
+X  for (i = 0; i < use_keyfields; i++)
+X    {
+X      long length1, length2;
+X      char *start1 = find_field (&keyfields[i], str1, &length1);
+X      char *start2 = find_field (&keyfields[i], str2, &length2);
+X      int tem = compare_field (&keyfields[i], start1, length1, pos1, start2, length2, pos2);
+X      if (tem)
+X	{
+X	  if (keyfields[i].reverse)
+X	    return - tem;
+X          return tem;
+X	}
+X    }
+X
+X  return 0;    /* Lines match exactly */
+X}
+X
+X/* Find the start and length of a field in `str' according to `keyfield'.
+X A pointer to the starting character is returned, and the length
+X is stored into the int that `lengthptr' points to.  */
+X
+Xchar *
+Xfind_field (keyfield, str, lengthptr)
+X     struct keyfield *keyfield;
+X     char *str;
+X     long *lengthptr;
+X{
+X  char *start;
+X  char *end;
+X  char *(*fun) ();
+X
+X  if (keyfield->braced) fun = find_braced_pos;
+X  else fun = find_pos;
+X
+X  start = ( *fun )(str, keyfield->startwords, keyfield->startchars,
+X	       keyfield->ignore_blanks);
+X  if (keyfield->endwords < 0)
+X    {
+X      if (keyfield->braced)
+X	end = find_braced_end (start);
+X      else
+X	{
+X	  end = start;
+X	  while (*end && *end != '\n') end++;
+X	}
+X    }
+X  else
+X    {
+X      end = ( *fun )(str, keyfield->endwords, keyfield->endchars, 0);
+X      if (end - str < start - str) end = start;
+X    }
+X  *lengthptr = end - start;
+X  return start;
+X}
+X
+X/* Find a pointer to a specified place within `str',
+X skipping (from the beginning) `words' words and then `chars' chars.
+X If `ignore_blanks' is nonzero, we skip all blanks
+X after finding the specified word.  */
+X
+Xchar *
+Xfind_pos (str, words, chars, ignore_blanks)
+X     char *str;
+X     int words, chars;
+X     int ignore_blanks;
+X{
+X  int i;
+X  char *p = str;
+X
+X  for (i = 0; i < words; i++)
+X    {
+X      char c;
+X      /* Find next bunch of nonblanks and skip them. */
+X      while ((c = *p) == ' ' || c == '\t') p++;
+X      while ((c = *p) && c != '\n' && !(c == ' ' || c == '\t')) p++;
+X      if (!*p || *p == '\n') return p;
+X    }
+X
+X  while (*p == ' ' || *p == '\t') p++;
+X
+X  for (i = 0; i < chars; i++)
+X    {
+X      if (!*p  || *p == '\n') break;
+X      p++;
+X    }
+X  return p;
+X}
+X
+X/* Like find_pos but assumes that each field is surrounded by braces
+X and that braces within fields are balanced. */
+X
+Xchar *
+Xfind_braced_pos (str, words, chars, ignore_blanks)
+X     char *str;
+X     int words, chars;
+X     int ignore_blanks;
+X{
+X  int i;
+X  int bracelevel;
+X  char *p = str;
+X  char c;
+X
+X  for (i = 0; i < words; i++)
+X    {
+X      bracelevel = 1;
+X      while ((c = *p++) != '{' && c != '\n' && c);
+X      if (c != '{')
+X	return p - 1;
+X      while (bracelevel)
+X	{
+X	  c = *p++;
+X	  if (c == '{') bracelevel++;
+X	  if (c == '}') bracelevel--;
+X	  if (c == '\\') c = *p++;	/* \ quotes braces and \ */
+X	  if (c == 0 || c == '\n') return p-1;
+X	}
+X    }
+X
+X  while ((c = *p++) != '{' && c != '\n' && c);
+X
+X  if (c != '{')
+X    return p-1;
+X
+X  if (ignore_blanks)
+X    while ((c = *p) == ' ' || c == '\t') p++;
+X  
+X  for (i = 0; i < chars; i++)
+X    {
+X      if (!*p  || *p == '\n') break;
+X      p++;
+X    }
+X  return p;
+X}
+X
+X/* Find the end of the balanced-brace field which starts at `str'.
+X  The position returned is just before the closing brace. */
+X
+Xchar *
+Xfind_braced_end (str)
+X     char *str;
+X{
+X  int bracelevel;
+X  char *p = str;
+X  char c;
+X
+X  bracelevel = 1;
+X  while (bracelevel)
+X    {
+X      c = *p++;
+X      if (c == '{') bracelevel++;
+X      if (c == '}') bracelevel--;
+X      if (c == '\\') c = *p++;
+X      if (c == 0 || c == '\n') return p-1;
+X    }
+X  return p - 1;
+X}
+X
+Xlong
+Xfind_value (start, length)
+X     char *start;
+X     long length;
+X{
+X  while (length != 0L) {
+X    if (isdigit(*start))
+X      return atol(start);
+X    length--;
+X    start++;
+X  }
+X  return 0l;
+X}
+X
+X/* Vector used to translate characters for comparison.
+X   This is how we make all alphanumerics follow all else,
+X   and ignore case in the first sorting.  */
+Xint char_order[256];
+X
+Xinit_char_order ()
+X{
+X  int i;
+X  for (i = 1; i < 256; i++)
+X    char_order[i] = i;
+X
+X  for (i = '0'; i <= '9'; i++)
+X    char_order[i] += 512;
+X
+X  for (i = 'a'; i <= 'z'; i++) {
+X    char_order[i] = 512 + i;
+X    char_order[i + 'A' - 'a'] = 512 + i;
+X  }
+X}
+X
+X/* Compare two fields (each specified as a start pointer and a character count)
+X according to `keyfield'.  The sign of the value reports the relation between the fields */
+X
+Xint
+Xcompare_field (keyfield, start1, length1, pos1, start2, length2, pos2)
+X     struct keyfield *keyfield;
+X     char *start1;
+X     long length1;
+X     long pos1;
+X     char *start2;
+X     long length2;
+X     long pos2;
+X{
+X  if (keyfields->positional)
+X    {
+X      if (pos1 > pos2)
+X	return 1;
+X      else
+X	return -1;
+X    }
+X  if (keyfield->numeric)
+X    {
+X	long value = find_value (start1, length1) - find_value (start2, length2);
+X      if (value > 0) return 1;
+X      if (value < 0) return -1;
+X      return 0;
+X    }
+X  else
+X    {
+X      char *p1 = start1;
+X      char *p2 = start2;
+X      char *e1 = start1 + length1;
+X      char *e2 = start2 + length2;
+X
+X      int fold_case = keyfield->fold_case;
+X
+X      while (1)
+X	{
+X	  int c1, c2;
+X
+X	  if (p1 == e1) c1 = 0;
+X	  else c1 = *p1++;
+X	  if (p2 == e2) c2 = 0;
+X	  else c2 = *p2++;
+X
+X	  if (char_order[c1] != char_order[c2])
+X	    return char_order[c1] - char_order[c2];
+X	  if (!c1) break;
+X	}
+X
+X      /* Strings are equal except possibly for case.  */
+X      p1 = start1;
+X      p2 = start2;
+X      while (1)
+X	{
+X	  int c1, c2;
+X
+X	  if (p1 == e1) c1 = 0;
+X	  else c1 = *p1++;
+X	  if (p2 == e2) c2 = 0;
+X	  else c2 = *p2++;
+X
+X	  if (c1 != c2)
+X	    /* Reverse sign here so upper case comes out last.  */
+X	    return c2 - c1;
+X	  if (!c1) break;
+X	}
+X
+X      return 0;
+X    }
+X}
+X
+X/* A `struct linebuffer' is a structure which holds a line of text.
+X `readline' reads a line from a stream into a linebuffer
+X and works regardless of the length of the line.  */
+X
+Xstruct linebuffer
+X  {
+X    long size;
+X    char *buffer;
+X  };
+X
+X/* Initialize a linebuffer for use */
+X
+Xvoid
+Xinitbuffer (linebuffer)
+X     struct linebuffer *linebuffer;
+X{
+X  linebuffer->size = 200;
+X  linebuffer->buffer = (char *) xmalloc (200);
+X}
+X
+X/* Read a line of text from `stream' into `linebuffer'.
+X Return the length of the line.  */
+X
+Xlong
+Xreadline (linebuffer, stream)
+X     struct linebuffer *linebuffer;
+X     FILE *stream;
+X{
+X  char *buffer = linebuffer->buffer;
+X  char *p = linebuffer->buffer;
+X  char *end = p + linebuffer->size;
+X
+X  while (1)
+X    {
+X      int c = getc (stream);
+X      if (p == end)
+X	{
+X	  buffer = (char *) xrealloc (buffer, linebuffer->size *= 2);
+X	  p += buffer - linebuffer->buffer;
+X	  end += buffer - linebuffer->buffer;
+X	  linebuffer->buffer = buffer;
+X	}
+X      if (c < 0 || c == '\n')
+X	{
+X	  *p = 0;
+X	  break;
+X	}
+X      *p++ = c;
+X    }
+X
+X  return p - buffer;
+X}
+X
+X/* Sort an input file too big to sort in core.  */
+X
+Xvoid
+Xsort_offline (infile, nfiles, total, outfile)
+X     char *infile;
+X     long total;
+X     char *outfile;
+X{
+X  int ntemps = 2 * (total + MAX_IN_CORE_SORT - 1) / MAX_IN_CORE_SORT;  /* More than enough */
+X  char **tempfiles = (char **) xmalloc (ntemps * sizeof (char *));
+X  FILE *istream = fopen (infile, "r");
+X  int i;
+X  struct linebuffer lb;
+X  long linelength;
+X  int failure = 0;
+X
+X  initbuffer (&lb);
+X
+X  /* Read in one line of input data.  */
+X
+X  linelength = readline (&lb, istream);
+X
+X  if (lb.buffer[0] != '\\')
+X    {
+X      error ("%s: not a texinfo index file", infile);
+X      return;
+X    }
+X
+X  /* Split up the input into `ntemps' temporary files, or maybe fewer,
+X    and put the new files' names into `tempfiles' */
+X
+X  for (i = 0; i < ntemps; i++)
+X    {
+X      char *outname = maketempname (++tempcount);
+X      FILE *ostream = fopen (outname, "w");
+X      long tempsize = 0;
+X
+X      if (!ostream) pfatal_with_name (outname);
+X      tempfiles[i] = outname;
+X
+X      /* Copy lines into this temp file as long as it does not make file "too big"
+X	or until there are no more lines.  */
+X
+X      while (tempsize + linelength + 1 <= MAX_IN_CORE_SORT)
+X	{
+X	  tempsize += linelength + 1;
+X	  fputs (lb.buffer, ostream);
+X	  putc ('\n', ostream);
+X
+X	  /* Read another line of input data.  */
+X
+X	  linelength = readline (&lb, istream);
+X	  if (!linelength && feof (istream)) break;
+X
+X	  if (lb.buffer[0] != '\\')
+X	    {
+X	      error ("%s: not a texinfo index file", infile);
+X	      failure = 1;
+X	      goto fail;
+X	    }
+X	}
+X      fclose (ostream);
+X      if (feof (istream)) break;
+X    }
+X
+X  free (lb.buffer);
+X
+X fail:
+X  /* Record number of temp files we actually needed.  */
+X
+X  ntemps = i;
+X
+X  /* Sort each tempfile into another tempfile.
+X    Delete the first set of tempfiles and put the names of the second into `tempfiles' */
+X
+X  for (i = 0; i < ntemps; i++)
+X    {
+X      char *newtemp = maketempname (++tempcount);
+X      sort_in_core (&tempfiles[i], MAX_IN_CORE_SORT, newtemp);
+X      if (!keep_tempfiles)
+X        unlink (tempfiles[i]);
+X      tempfiles[i] = newtemp;
+X    }
+X
+X  if (failure)
+X    return;
+X
+X  /* Merge the tempfiles together and indexify */
+X
+X  merge_files (tempfiles, ntemps, outfile);
+X}
+X
+X/* Sort `infile', whose size is `total',
+X assuming that is small enough to be done in-core,
+X then indexify it and send the output to `outfile' (or to stdout).  */
+X
+Xvoid
+Xsort_in_core (infile, total, outfile)
+X     char *infile;
+X     long total;
+X     char *outfile;
+X{
+X  char **nextline;
+X  char *data = (char *) xmalloc (total + 1);
+X  char *file_data;
+X  long file_size;
+X  int i;
+X  FILE *ostream = stdout;
+X  struct lineinfo *lineinfo;
+X
+X  /* Read the contents of the file into the moby array `data' */
+X
+X  int desc = open (infile, 0, 0);
+X
+X  if (desc < 0)
+X    fatal ("failure reopening %s", infile);
+X  for (file_size = 0; ; )
+X    {
+X      if ((i = read (desc, data + file_size, total - file_size)) <= 0)
+X	break;
+X      file_size += i;
+X    }
+X  file_data = data;
+X  data[file_size] = 0;
+X
+X  close (desc);
+X
+X  if (file_size > 0 && data[0] != '\\')
+X    {
+X      error ("%s: not a texinfo index file", infile);
+X      return;
+X    }
+X
+X  init_char_order ();
+X
+X  /* Sort routines want to know this address */
+X
+X  text_base = data;
+X
+X  /* Create the array of pointers to lines, with a default size frequently enough.  */
+X
+X  lines = total / 50;
+X  if (!lines) lines = 2;
+X  linearray = (char **) xmalloc (lines * sizeof (char *));
+X
+X  /* `nextline' points to the next free slot in this array.
+X     `lines' is the allocated size.  */
+X
+X  nextline = linearray;
+X
+X  /* Parse the input file's data, and make entries for the lines.  */
+X
+X  nextline = parsefile (infile, nextline, file_data, file_size);
+X  if (nextline == 0)
+X    {
+X      error ("%s: not a texinfo index file", infile);
+X      return;
+X    }
+X
+X  /* Sort the lines */
+X
+X  /* If we have enough space, find the first keyfield of each line in advance.
+X    Make a `struct lineinfo' for each line, which records the keyfield
+X    as well as the line, and sort them.  */
+X
+X  lineinfo = (struct lineinfo *) malloc ((nextline - linearray) * sizeof (struct lineinfo));
+X
+X  if (lineinfo)
+X    {
+X      struct lineinfo *lp;
+X      char **p;
+X
+X      for (lp = lineinfo, p = linearray; p != nextline; lp++, p++)
+X	{
+X	  lp->text = *p;
+X	  lp->key.text = find_field (keyfields, *p, &lp->keylen);
+X	  if (keyfields->numeric)
+X	    lp->key.number = find_value (lp->key.text, lp->keylen);
+X	}
+X
+X      qsort (lineinfo, nextline - linearray, sizeof (struct lineinfo), compare_prepared);
+X
+X      for (lp = lineinfo, p = linearray; p != nextline; lp++, p++)
+X	*p = lp->text;
+X
+X      free (lineinfo);
+X    }
+X  else
+X    qsort (linearray, nextline - linearray, sizeof (char *), compare_full);
+X
+X  /* Open the output file */
+X
+X  if (outfile)
+X    {
+X      ostream = fopen (outfile, "w");
+X      if (!ostream)
+X	pfatal_with_name (outfile);
+X    }
+X
+X  writelines (linearray, nextline - linearray, ostream);
+X  if (outfile) fclose (ostream);
+X
+X  free (linearray);
+X  free (data);
+X}
+X
+X/* Parse an input string in core into lines.
+X   DATA is the input string, and SIZE is its length.
+X   Data goes in LINEARRAY starting at NEXTLINE.
+X   The value returned is the first entry in LINEARRAY still unused.
+X   Value 0 means input file contents are invalid.  */
+X
+Xchar **
+Xparsefile (filename, nextline, data, size)
+X     char *filename;
+X     char **nextline;
+X     char *data;
+X     long size;
+X{
+X  char *p, *end;
+X  char **line = nextline;
+X
+X  p = data;
+X  end = p + size;
+X  *end = 0;
+X
+X  while (p != end)
+X    {
+X      if (p[0] != '\\')
+X	return 0;
+X
+X      *line = p;
+X      while (*p && *p != '\n') p++;
+X      if (p != end) p++;
+X
+X      line++;
+X      if (line == linearray + lines)
+X	{
+X	  char **old = linearray;
+X	  linearray = (char **) xrealloc (linearray, sizeof (char *) * (lines *= 4));
+X	  line += linearray - old;
+X	}
+X    }
+X
+X  return line;
+X}
+X
+X/* Indexification is a filter applied to the sorted lines
+X as they are being written to the output file.
+X Multiple entries for the same name, with different page numbers,
+X get combined into a single entry with multiple page numbers.
+X The first braced field, which is used for sorting, is discarded.
+X However, its first character is examined, folded to lower case,
+X and if it is different from that in the previous line fed to us
+X a \initial line is written with one argument, the new initial.
+X
+X If an entry has four braced fields, then the second and third
+X constitute primary and secondary names.
+X In this case, each change of primary name
+X generates a \primary line which contains only the primary name,
+X and in between these are \secondary lines which contain
+X just a secondary name and page numbers.
+X*/
+X
+X/* The last primary name we wrote a \primary entry for.
+X If only one level of indexing is being done, this is the last name seen */
+Xchar *lastprimary;
+Xint lastprimarylength;  /* Length of storage allocated for lastprimary */
+X
+X/* Similar, for the secondary name. */
+Xchar *lastsecondary;
+Xint lastsecondarylength;
+X
+X/* Zero if we are not in the middle of writing an entry.
+X One if we have written the beginning of an entry but have not
+X  yet written any page numbers into it.
+X Greater than one if we have written the beginning of an entry
+X  plus at least one page number. */
+Xint pending;
+X
+X/* The initial (for sorting purposes) of the last primary entry written.
+X When this changes, a \initial {c} line is written */
+X
+Xchar * lastinitial;
+X
+Xint lastinitiallength;
+X
+X/* When we need a string of length 1 for the value of lastinitial,
+X   store it here.  */
+X
+Xchar lastinitial1[2];
+X
+X/* Initialize static storage for writing an index */
+X
+Xvoid
+Xinit_index ()
+X{
+X  pending = 0;
+X  lastinitial = lastinitial1;
+X  lastinitial1[0] = 0;
+X  lastinitial1[1] = 0;
+X  lastinitiallength = 0;
+X  lastprimarylength = 100;
+X  lastprimary = (char *) xmalloc (lastprimarylength + 1);
+X  bzero (lastprimary, lastprimarylength + 1);
+X  lastsecondarylength = 100;
+X  lastsecondary = (char *) xmalloc (lastsecondarylength + 1);
+X  bzero (lastsecondary, lastsecondarylength + 1);
+X}
+X
+X/* Indexify.  Merge entries for the same name,
+X insert headers for each initial character, etc.  */
+X
+Xindexify (line, ostream)
+X     char *line;
+X     FILE *ostream;
+X{
+X  char *primary, *secondary, *pagenumber;
+X  int primarylength, secondarylength, pagelength;
+X  int len = strlen (line);
+X  int nosecondary;
+X  int initiallength;
+X  char *initial;
+X  char initial1[2];
+X  register char *p;
+X
+X  /* First, analyze the parts of the entry fed to us this time */
+X
+X  p = find_braced_pos (line, 0, 0, 0);
+X  if (*p == '{')
+X    {
+X      initial = p;
+X      /* Get length of inner pair of braces starting at p,
+X	 including that inner pair of braces.  */
+X      initiallength = find_braced_end (p + 1) + 1 - p;
+X    }
+X  else
+X    {
+X      initial = initial1;
+X      initial1[0] = *p;
+X      initial1[1] = 0;
+X      initiallength = 1;
+X
+X      if (initial1[0] >= 'a' && initial1[0] <= 'z')
+X	initial1[0] -= 040;
+X    }
+X
+X  pagenumber = find_braced_pos (line, 1, 0, 0);
+X  pagelength = find_braced_end (pagenumber) - pagenumber;
+X  if (pagelength == 0)
+X    abort ();
+X
+X  primary = find_braced_pos (line, 2, 0, 0);
+X  primarylength = find_braced_end (primary) - primary;
+X
+X  secondary = find_braced_pos (line, 3, 0, 0);
+X  nosecondary = !*secondary;
+X  if (!nosecondary)
+X    secondarylength = find_braced_end (secondary) - secondary;
+X
+X  /* If the primary is different from before, make a new primary entry */
+X  if (strncmp (primary, lastprimary, primarylength))
+X    {
+X      /* Close off current secondary entry first, if one is open */
+X      if (pending)
+X	{
+X	  fputs ("}\n", ostream);
+X	  pending = 0;
+X	}
+X
+X      /* If this primary has a different initial, include an entry for the initial */
+X      if (initiallength != lastinitiallength ||
+X	  strncmp (initial, lastinitial, initiallength))
+X	{
+X	  fprintf (ostream, "\\initial {");
+X	  fwrite (initial, 1, initiallength, ostream);
+X	  fprintf (ostream, "}\n", initial);
+X	  if (initial == initial1)
+X	    {
+X	      lastinitial = lastinitial1;
+X	      *lastinitial1 = *initial1;
+X	    }
+X	  else
+X	    {
+X	      lastinitial = initial;
+X	    }
+X	  lastinitiallength = initiallength;
+X	}
+X
+X      /* Make the entry for the primary.  */
+X      if (nosecondary)
+X	fputs ("\\entry {", ostream);
+X      else
+X	fputs ("\\primary {", ostream);
+X      fwrite (primary, primarylength, 1, ostream);
+X      if (nosecondary)
+X	{
+X	  fputs ("}{", ostream);
+X	  pending = 1;
+X	}
+X      else
+X	fputs ("}\n", ostream);
+X
+X      /* Record name of most recent primary */
+X      if (lastprimarylength < primarylength)
+X	{
+X          lastprimarylength = primarylength + 100;
+X	  lastprimary = (char *) xrealloc (lastprimary,
+X					   1 + lastprimarylength);
+X	}
+X      strncpy (lastprimary, primary, primarylength);
+X      lastprimary[primarylength] = 0;
+X
+X      /* There is no current secondary within this primary, now */
+X      lastsecondary[0] = 0;
+X    }
+X
+X  /* Should not have an entry with no subtopic following one with a subtopic */
+X
+X  if (nosecondary && *lastsecondary)
+X    error ("entry %s follows an entry with a secondary name", line);
+X
+X  /* Start a new secondary entry if necessary */
+X  if (!nosecondary && strncmp (secondary, lastsecondary, secondarylength))
+X    {
+X      if (pending)
+X	{
+X	  fputs ("}\n", ostream);
+X	  pending = 0;
+X	}
+X
+X      /* Write the entry for the secondary.  */
+X      fputs ("\\secondary {", ostream);
+X      fwrite (secondary, secondarylength, 1, ostream);
+X      fputs ("}{", ostream);
+X      pending = 1;
+X
+X      /* Record name of most recent secondary */
+X      if (lastsecondarylength < secondarylength)
+X	{
+X          lastsecondarylength = secondarylength + 100;
+X	  lastsecondary = (char *) xrealloc (lastsecondary,
+X					   1 + lastsecondarylength);
+X	}
+X      strncpy (lastsecondary, secondary, secondarylength);
+X      lastsecondary[secondarylength] = 0;
+X    }
+X
+X  /* Here to add one more page number to the current entry */
+X  if (pending++ != 1)
+X    fputs (", ", ostream);	/* Punctuate first, if this is not the first */
+X  fwrite (pagenumber, pagelength, 1, ostream);
+X}
+X
+X/* Close out any unfinished output entry */
+X
+Xvoid
+Xfinish_index (ostream)
+X     FILE *ostream;
+X{
+X  if (pending)
+X    fputs ("}\n", ostream);
+X  free (lastprimary);
+X  free (lastsecondary);
+X}
+X
+X/* Copy the lines in the sorted order.
+X Each line is copied out of the input file it was found in. */
+X
+Xvoid
+Xwritelines (linearray, nlines, ostream)
+X     char **linearray;
+X     int nlines;
+X     FILE *ostream;
+X{
+X  char **stop_line = linearray + nlines;
+X  char **next_line;
+X
+X  init_index ();
+X
+X  /* Output the text of the lines, and free the buffer space */
+X
+X  for (next_line = linearray; next_line != stop_line; next_line++)
+X    {
+X      /* If -u was specified, output the line only if distinct from previous one.  */
+X      if (next_line == linearray
+X	  /* Compare previous line with this one, using only the explicitly specd keyfields */
+X	  || compare_general (*(next_line - 1), *next_line, 0L, 0L, num_keyfields - 1))
+X	{
+X	  char *p = *next_line;
+X	  char c;
+X	  while ((c = *p++) && c != '\n');
+X	  *(p-1) = 0;
+X	  indexify (*next_line, ostream);
+X	}
+X    }
+X
+X  finish_index (ostream);
+X}
+X
+X/* Assume (and optionally verify) that each input file is sorted;
+X merge them and output the result.
+X Returns nonzero if any input file fails to be sorted.
+X
+X This is the high-level interface that can handle an unlimited number of files.  */
+X
+X#define MAX_DIRECT_MERGE 10
+X
+Xint
+Xmerge_files (infiles, nfiles, outfile)
+X     char **infiles;
+X     int nfiles;
+X     char *outfile;
+X{
+X  char **tempfiles;
+X  int ntemps;
+X  int i;
+X  int value = 0;
+X  int start_tempcount = tempcount;
+X
+X  if (nfiles <= MAX_DIRECT_MERGE)
+X    return merge_direct (infiles, nfiles, outfile);
+X
+X  /* Merge groups of MAX_DIRECT_MERGE input files at a time,
+X     making a temporary file to hold each group's result.  */
+X
+X  ntemps = (nfiles + MAX_DIRECT_MERGE - 1) / MAX_DIRECT_MERGE;
+X  tempfiles = (char **) xmalloc (ntemps * sizeof (char *));
+X  for (i = 0; i < ntemps; i++)
+X    {
+X      int nf = MAX_DIRECT_MERGE;
+X      if (i + 1 == ntemps)
+X	nf = nfiles - i * MAX_DIRECT_MERGE;
+X      tempfiles[i] = maketempname (++tempcount);
+X      value |= merge_direct (&infiles[i * MAX_DIRECT_MERGE], nf, tempfiles[i]);
+X    }
+X
+X  /* All temporary files that existed before are no longer needed
+X     since their contents have been merged into our new tempfiles.
+X     So delete them.  */
+X  flush_tempfiles (start_tempcount);
+X
+X  /* Now merge the temporary files we created.  */
+X
+X  merge_files (tempfiles, ntemps, outfile);
+X
+X  free (tempfiles);
+X
+X  return value;
+X}  
+X
+X/* Assume (and optionally verify) that each input file is sorted;
+X merge them and output the result.
+X Returns nonzero if any input file fails to be sorted.
+X
+X This version of merging will not work if the number of
+X input files gets too high.  Higher level functions
+X use it only with a bounded number of input files.  */
+X
+Xint
+Xmerge_direct (infiles, nfiles, outfile)
+X     char **infiles;
+X     int nfiles;
+X     char *outfile;
+X{
+X  char **ip = infiles;
+X  struct linebuffer *lb1, *lb2;
+X  struct linebuffer **thisline, **prevline;
+X  FILE **streams;
+X  int i;
+X  int nleft;
+X  int lossage = 0;
+X  int *file_lossage;
+X  struct linebuffer *prev_out = 0;
+X  FILE *ostream = stdout;
+X
+X  if (outfile)
+X    {
+X      ostream = fopen (outfile, "w");
+X    }
+X  if (!ostream) pfatal_with_name (outfile);
+X
+X  init_index ();
+X
+X  if (nfiles == 0)
+X    {
+X      if (outfile)
+X        fclose (ostream);
+X      return 0;
+X    }
+X
+X  /* For each file, make two line buffers.
+X     Also, for each file, there is an element of `thisline'
+X     which points at any time to one of the file's two buffers,
+X     and an element of `prevline' which points to the other buffer.
+X     `thisline' is supposed to point to the next available line from the file,
+X     while `prevline' holds the last file line used,
+X     which is remembered so that we can verify that the file is properly sorted. */
+X
+X  /* lb1 and lb2 contain one buffer each per file */
+X  lb1 = (struct linebuffer *) xmalloc (nfiles * sizeof (struct linebuffer));
+X  lb2 = (struct linebuffer *) xmalloc (nfiles * sizeof (struct linebuffer));
+X
+X  /* thisline[i] points to the linebuffer holding the next available line in file i,
+X     or is zero if there are no lines left in that file.  */
+X  thisline = (struct linebuffer **) xmalloc (nfiles * sizeof (struct linebuffer *));
+X  /* prevline[i] points to the linebuffer holding the last used line from file i.
+X     This is just for verifying that file i is properly sorted.  */
+X  prevline = (struct linebuffer **) xmalloc (nfiles * sizeof (struct linebuffer *));
+X  /* streams[i] holds the input stream for file i.  */
+X  streams = (FILE **) xmalloc (nfiles * sizeof (FILE *));
+X  /* file_lossage[i] is nonzero if we already know file i is not properly sorted.  */
+X  file_lossage = (int *) xmalloc (nfiles * sizeof (int));
+X
+X  /* Allocate and initialize all that storage */
+X
+X  for (i = 0; i < nfiles; i++)
+X    {
+X      initbuffer (&lb1[i]);
+X      initbuffer (&lb2[i]);
+X      thisline[i] = &lb1[i];
+X      prevline[i] = &lb2[i];
+X      file_lossage[i] = 0;
+X      streams[i] = fopen (infiles[i], "r");
+X      if (!streams[i])
+X	pfatal_with_name (infiles[i]);
+X
+X      readline (thisline[i], streams[i]);
+X    }
+X
+X  /* Keep count of number of files not at eof */
+X  nleft = nfiles;
+X
+X  while (nleft)
+X    {
+X      struct linebuffer *best = 0;
+X      struct linebuffer *exch;
+X      int bestfile = -1;
+X      int i;
+X
+X      /* Look at the next avail line of each file; choose the least one.  */
+X
+X      for (i = 0; i < nfiles; i++)
+X	{
+X	  if (thisline[i] &&
+X	      (!best ||
+X	       0 < compare_general (best->buffer, thisline[i]->buffer,
+X				    (long) bestfile, (long) i, num_keyfields)))
+X	    {
+X	      best = thisline[i];
+X	      bestfile = i;
+X	    }
+X	}
+X
+X      /* Output that line, unless it matches the previous one and we don't want duplicates */
+X
+X      if (!(prev_out &&
+X	    !compare_general (prev_out->buffer, best->buffer, 0L, 1L, num_keyfields - 1)))
+X	indexify (best->buffer, ostream);
+X      prev_out = best;
+X
+X      /* Now make the line the previous of its file, and fetch a new line from that file */
+X
+X      exch = prevline[bestfile];
+X      prevline[bestfile] = thisline[bestfile];
+X      thisline[bestfile] = exch;
+X
+X      while (1)
+X	{
+X	  /* If the file has no more, mark it empty */
+X
+X	  if (feof (streams[bestfile]))
+X	    {
+X	      thisline[bestfile] = 0;
+X	      nleft--;		/* Update the number of files still not empty */
+X	      break;
+X	    }
+X	  readline (thisline[bestfile], streams[bestfile]);
+X	  if (thisline[bestfile]->buffer[0] || !feof (streams[bestfile])) break;
+X	}
+X    }
+X
+X  finish_index (ostream);
+X
+X  /* Free all storage and close all input streams */
+X
+X  for (i = 0; i < nfiles; i++)
+X    {
+X      fclose (streams[i]);
+X      free (lb1[i].buffer);
+X      free (lb2[i].buffer);
+X    }
+X  free (file_lossage);
+X  free (lb1);
+X  free (lb2);
+X  free (thisline);
+X  free (prevline);
+X  free (streams);
+X
+X  if (outfile)
+X    fclose (ostream);
+X
+X  return lossage;
+X}
+X
+X/* Print error message and exit.  */
+X
+Xfatal (s1, s2)
+X     char *s1, *s2;
+X{
+X  error (s1, s2);
+X  exit (EXIT_FATAL);
+X}
+X
+X/* Print error message.  `s1' is printf control string, `s2' is arg for it. */
+X
+Xerror (s1, s2)
+X     char *s1, *s2;
+X{
+X  printf ("texindex: ");
+X  printf (s1, s2);
+X  printf ("\n");
+X}
+X
+Xperror_with_name (name)
+X     char *name;
+X{
+X#ifdef VMS
+X#include <errno.h>
+X  extern noshare int sys_nerr;
+X  extern noshare char *sys_errlist[];
+X#else
+X  extern int errno, sys_nerr;
+X  extern char *sys_errlist[];
+X#endif
+X  char *s;
+X
+X  if (errno < sys_nerr)
+X    s = concat ("", sys_errlist[errno], " for %s");
+X  else
+X    s = "cannot open %s";
+X  error (s, name);
+X}
+X
+Xpfatal_with_name (name)
+X     char *name;
+X{
+X  extern int errno, sys_nerr;
+X  extern char *sys_errlist[];
+X  char *s;
+X
+X  if (errno < sys_nerr)
+X    s = concat ("", sys_errlist[errno], " for %s");
+X  else
+X    s = "cannot open %s";
+X  fatal (s, name);
+X}
+X
+X/* Return a newly-allocated string whose contents concatenate those of s1, s2, s3.  */
+X
+Xchar *
+Xconcat (s1, s2, s3)
+X     char *s1, *s2, *s3;
+X{
+X  int len1 = strlen (s1), len2 = strlen (s2), len3 = strlen (s3);
+X  char *result = (char *) xmalloc (len1 + len2 + len3 + 1);
+X
+X  strcpy (result, s1);
+X  strcpy (result + len1, s2);
+X  strcpy (result + len1 + len2, s3);
+X  *(result + len1 + len2 + len3) = 0;
+X
+X  return result;
+X}
+X
+X/* Like malloc but get fatal error if memory is exhausted.  */
+X
+Xint
+Xxmalloc (size)
+X     int size;
+X{
+X  int result = malloc (size);
+X  if (!result)
+X    fatal ("virtual memory exhausted", 0);
+X  return result;
+X}
+X
+X
+Xint
+Xxrealloc (ptr, size)
+X     char *ptr;
+X     int size;
+X{
+X  int result = realloc (ptr, size);
+X  if (!result)
+X    fatal ("virtual memory exhausted");
+X  return result;
+X}
+X
+Xbzero (b, length)
+X     register char *b;
+X     register int length;
+X{
+X#ifdef VMS
+X  short zero = 0;
+X  long max_str = 65535;
+X
+X  while (length > max_str) {
+X    (void) LIB$MOVC5 (&zero, &zero, &zero, &max_str, b);
+X    length -= max_str;
+X    b += max_str;
+X  }
+X  (void) LIB$MOVC5 (&zero, &zero, &zero, &length, b);
+X#else
+X  while (length-- > 0)
+X    *b++ = 0;
+X#endif /* not VMS */
+X}
+END_OF_FILE
+  if test 42774 -ne `wc -c <'./support/texindex.c'`; then
+    echo shar: \"'./support/texindex.c'\" unpacked with wrong size!
+  fi
+  # end of './support/texindex.c'
+fi
+echo shar: End of archive 1 \(of 16\).
+cp /dev/null ark1isdone
+MISSING=""
+for I in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 ; do
+    if test ! -f ark${I}isdone ; then
+	MISSING="${MISSING} ${I}"
+    fi
+done
+if test "${MISSING}" = "" ; then
+    echo You have unpacked all 16 archives.
+    rm -f ark[1-9]isdone ark[1-9][0-9]isdone
+else
+    echo You still must unpack the following archives:
+    echo "        " ${MISSING}
+fi
+exit 0
+exit 0 # Just in case...
+-- 
+Please send comp.sources.unix-related mail to rsalz@uunet.uu.net.
+Use a domain-based address or give alternate paths, or you may lose out.

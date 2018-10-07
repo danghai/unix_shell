@@ -1,0 +1,2159 @@
+From: Steve Baker (ice@judy.indstate.edu)
+Newsgroups: comp.sources.unix
+Subject: v26i170: ssh - Steve's SHell (a small csh-like shell), V1.7, Part04/04
+Date: 15 Apr 1993 22:52:01 -0700
+Approved: paul@vix.com
+Message-ID: <1qlhi1$kv0@gw.home.vix.com>
+
+Submitted-By: Steve Baker (ice@judy.indstate.edu)
+Posting-Number: Volume 26, Issue 170
+Archive-Name: ssh-1.7/part04
+
+#! /bin/sh
+# This is a shell archive.  Remove anything before this line, then unpack
+# it by saving it into a file and typing "sh file".  To overwrite existing
+# files, type "sh file -c".  You can also feed this as standard input via
+# unshar, or by typing "sh <file", e.g..  If this archive is complete, you
+# will see the following message at the end:
+#		"End of archive 4 (of 4)."
+# Contents:  ssh.1
+# Wrapped by vixie@gw.home.vix.com on Thu Apr 15 22:49:02 1993
+PATH=/bin:/usr/bin:/usr/ucb ; export PATH
+if test -f 'ssh.1' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'ssh.1'\"
+else
+echo shar: Extracting \"'ssh.1'\" \(57433 characters\)
+sed "s/^X//" >'ssh.1' <<'END_OF_FILE'
+X.\" $Copyright:	$
+X.\" Copyright (c) 1991,1992,1993 by Steve Baker
+X.\" All rights reserved
+X.\" 
+X.\" This software is provided as is without any express or implied
+X.\" warranties, including, without limitation, the implied warranties
+X.\" of merchantability and fitness for a particular purpose.
+X...
+X.V= $Header: ssh.1 1.7 1993 $
+X.TH SSH 1 "\*(V)" "UNIX Programmer's Manual"
+X.SH NAME
+ssh \- another UNIX shell
+X.SH SYNOPSIS
+X.B ssh
+X[ \-cefntxvXV ] [ arg ... ]
+X.SH DESCRIPTION
+X.I Ssh
+or Steve's SHell is a implementation of a command line interpreter using
+X.I csh
+like job control and commands.
+X.I Ssh
+features advanced alias and variable
+parsing, logical assignments, C like mathematical expressions, advanced key
+macro support and command line editing with over 20 editing functions,
+sophisticated file wildcard expression parsing and an advanced script
+language.
+X
+If an instance of
+X.I ssh
+is a login shell, it first executes commands found in the file
+X.I /etc/.sshrc.
+It then checks for the existence of the file
+X.I .second
+in the users home directory.  If the file exists a password is read out
+of the file and the user is prompted for the password.  Failure to enter
+the correct password results in the incorrect password and information about
+the aborted login attempt to be logged in the file
+X.I .warning
+which is created if necessary.  If successful the shell checks for the
+existence of the
+X.I .warning
+file and determines how many bad login attempts have been made and notifies
+the user.  Next it then begins to read commands from the
+X.I .login
+file found in the users home directory, then it loads the saved history
+from the
+X.I .hist
+file and finally reads commands from the
+X.I .sshrc
+file, also found in the users home directory.
+X
+If it is the case that it is not a login shell, 
+X.I ssh
+executes the system login file
+X.I /etc/.sshrc
+then executes the
+X.I .sshrc
+file found in the users home directory.  The
+X.I .sshrc
+file in the users home directory may be skipped if the -f command line
+option is passed as an argument to
+X.I ssh.
+X
+After successfully logging in, the shell begins to accept input from the
+user, prompting with a `>' (or `#' if the user is the superuser), unless
+the prompt was changed by the user in either their
+X.I .login
+or
+X.I .sshrc
+file.
+X
+The shell then begins to repeatedly input lines of text from the user.
+These lines are placed in the shells history and then broken up into words,
+which are parsed each in turn for aliases, variables, logical assignments,
+and wildcards.  Finally the words are passed to the executor where it parses
+for redirections and pipes and then finally executes the command.
+X
+XFinally, when the shell terminates, it reads commands out of the
+X.I .logout
+file located in the users home directory.  Upon executing all the logout
+commands the shell exits.
+X
+X.SH LEXICAL STRUCTURE
+X
+The shell splits input lines into words at spaces and tabs with the
+following exceptions. The characters `;', `&', `|', `<', `>', `(', `)'
+as well as the metacharacters `&&', `&!', `&=', `||', `|!', `|&', `|=',
+X`>>', `>!', `>>!', `>&', `>>&', `>=', `>>=', `<<', `<<=', `$<', `!=',
+X`<%' `<<%', `>%', `>!%', `>&%', `>>%', `>>!%', `>>&%' form single words.
+These parser metacharacters may be made part of of other words by escaping
+them with backslashs `\\'.
+X
+In additions, strings enclosed in `'', '`', or '"', form a whole word.
+Characters enclosed in these strings, save newline and the `\\' are not
+parsed for any other special meaning except inside of double quoted strings
+where variable expansion may take place.  The `\\' followed by one of the
+following characters is replaced by a non-printing character:
+X
+X.br
+X	\\a     Bell            (Ascii  7)
+X.br
+X	\\b     Backspace       (Ascii  8)
+X.br
+X	\\t     Tab             (Ascii  9)
+X.br
+X	\\n     Newline         (Ascii 10)
+X.br
+X	\\f     Form Feed       (Ascii 11)
+X.br
+X	\\r     Carriage return (Ascii 13)
+X.br
+X	\\e     Escape          (Ascii 27)
+X.br
+X	\\0xxx  Octal escape
+X.br
+X
+X`\\' may also be used to escape the string quote itself as well and in
+double-quoted strings to escape the special meaning of the `$' symbol.
+X
+Words placed inside of `(' and `)' lose their special meaning to the
+shell.  This includes all redirection, piping, background, variable
+identifiers, logical assignments, and all other special symbols.
+X
+XFinally, the `#' at the start of a word starts a comment, where everything
+following the `#' is ignored by the shell. If preceded by a `\\' or enclosed
+in a string it is prevented it's special meaning.
+X
+X.SH COMMANDS
+X
+Simple commands are composed of a sequence of words, the first of which
+is the command to be executed.  A pipeline is two or more simple commands
+separated by `|', `|!' or `|&' metacharacters to form a complex command.
+In pipelines, the output of the first command is redirected into the input
+of the next command and so on. Simple commands or complex commands may be
+separated by `;' to execute them each in succession.
+X
+Commands may also be separated by the metacharacters `&&' indicate to the
+shell that if the previous command executed correctly, then the second
+command is also executed, otherwise it is not.  Commands separated by `||'
+indicate that if the previous command executed correctly, then the second
+command is not executed, otherwise it is.
+X
+Commands may also be terminated or separated by `&'or `&!' to prevent the
+shell from waiting for the command to terminate. Commands submitted in this
+fashion are said to be in the
+X.I background
+X, as opposed to
+X.I foreground
+jobs which are waited on to complete and have control of the terminal.
+X
+X.SH JOBS
+X
+The shell keeps a table of all jobs that are currently running or stopped
+that the user has executed.  This table is printed by use of the builtin
+command
+X.I jobs.
+XEach entry has the form:
+X
+X.br
+X[<\fIjob number\fP>] (<\fIPID\fP>) <\fIstatus\fP>		<\fIjob name\fP>
+X
+where <\fIjob number\fP> is the logical number the shell assigns to the job.
+The job is referenced by this number for the process control commands
+X.I bg, fg
+and
+X.I stop.
+The <\fIPID\fP> is the system process ID of the job. <\fIStatus\fP> is the
+status of the job, which indicates whether the job is running or stopped
+and if it is in the background or foreground.  The <\fIjob name\fP> is the
+command word (first word) of the job started.
+X
+Typing ^Z (control-Z) while running a foreground process usually sends the
+stop signal to that processes.  When this happens the process is stopped and
+the shell indicates that the job is stopped and return the user to the
+command line where they may run other commands or manipulate other jobs.
+Stopped jobs may be manipulated with the
+X.I fg, bg
+and
+X.I stop
+commands to place them in the foreground or background.
+X
+A job made to run in the background with the `&' or `&!' metacharacters has
+its input and output redirected to `/dev/null', the null device,
+automatically if it does not already have preexisting input and output
+redirections. This is to insure that background jobs do not attempt to read
+from or write to the terminal while you are doing something else. This
+automatic redirection to `/dev/null' can be turned off by setting the
+X.I nobgnull
+shell variable, however it is recommended that if you desire terminal input
+or output for background jobs, you explicitly specify such by redirecting
+the appropriate descriptors to or from `/dev/tty' which is a system construct
+to equate to your current tty (which is also given in the string variable
+X.I tty
+X). Jobs spawned with `&!' are in addition dissociated from the
+terminal entirely and the shell will no longer keep track of these jobs.
+This allows the user to spawn a background job, then logout without having
+background jobs "hang on" to the tty, sometimes causing inconvenience to
+the next user.
+X
+X.SH COMMAND LINE INPUT
+X
+The shells input routines support some 20+ editing functions.  None of these
+functions are automatically bound to keys however, and should be defined in
+the global startup file
+X.I .sshrc
+in the /usr/etc directory.  These functions can be added, changed or removed
+with the use of the
+X.I key
+and
+X.I unkey
+builtin commands.  The available editing functions are described briefly
+below in the description of the builtin command
+X.I key.
+X
+An example of defining an editing macro:
+X.br
+X
+X     key -f5 "\\010"
+X.br
+X
+This macro defines the backspace key (octal 010) as a delete previous
+character (function 5) editing function.  More than one key sequence can be
+bound to the same function, thus several keys can be made to delete the
+previous character (the author likes to make the backspace and delete
+perform the same function because they are very near each other on his
+keyboard).
+X
+Those with function keypads (like most vt100 keyboards), may define keypad
+keys as macros for editing or to quickly type out large commands.  An
+example of a key macro is assigning control-D to logout the user:
+X.br
+X
+X     key -r -c "\\004" logout
+X.br
+X
+This macro emulates the csh shells logout on EOF.  The `-r' means to make
+the input routine act as if the return key has been pressed after the macro
+has been inserted onto the command line. The `-c' means to clear the command
+line before inserting the macro string.  The "\\004" is the key sequence to
+bind the macro string to (in this case ^D), and `logout' is the macro string.
+X
+The shells macro routines also support the concept of keypad levels and
+X`gold keys'.  Keypad levels can be thought of as a stack of keypads, each
+with their own macros and function bindings.  The purpose of gold keys is to
+change the current keypad level when it is pressed.  An example:
+X.br
+X
+X     key -l0 -g1 "\\033OP"
+X.br
+X     key -l1 -g0 "\\033OP"
+X.br
+X
+These make the vt100 PF1 key a gold key which toggles between keypad levels
+zero and one (level zero is the default).  The `-ln' assigns the gold key to
+keypad level
+X.I n
+and the `-gn' defines the key sequence as a gold key, that when pressed, sets
+the keypad to level
+X.I n.
+The shell maintains a stack of 10 keypad levels (0-9).
+X
+X.SH STATUS REPORTING
+X
+The shell performs status reporting of changes in the state of a job in an
+asynchronous manner.  If the shell itself does not have control of the
+terminal (therefore is waiting for a process to complete), the status of
+child processes will not be reported.
+X
+Should you attempt to logout of your shell while you have stopped jobs, you
+will be notified with the message `You have stopped jobs.' and will not
+logout. The shell will not alert you a second time however, allowing you to
+logout normally.  Any stopped jobs present at logout will no doubt be killed.
+X
+X.SH SUBSTITUTIONS
+X
+The following describe the various substitutions of the input line performed
+by the shell and in the order that they occur.
+X
+X.SH COMMAND SUBSTITUTION
+X
+Commands enclosed in ``' are parsed and executed before any other
+substitutions are done on the command line.  The output of these commands is
+placed back into the command line in place of the command string.  The
+resulting command line is then subject to the remaining substitutions.
+X
+The output of these commands are normally broken up into words in an
+identical fashion as described above in the lexical structure, save that
+newlines and null words are discarded.
+X
+X.SH ALIAS SUBSTITUTION
+X
+After command substitution is performed, the command line is parsed into
+distinct commands, and the first word of each command is scanned to see if
+it corresponds to one of the aliases setup by the user.  If a match is
+found, the command line is replaced entirely by the alias, placing arguments
+into the new command line where indicated by the alias.  An alias contains
+switches, signified by a `%', that specify the argument placement desired for
+the alias.  These switches are evaluated left to right, and place the words
+of the old command line (numbered from 0) into the new command line. When a
+word from the old command line is inserted into the new command line, it is
+said to have been used.  The following is a list of the valid switches:
+X.TP
+X.BI % n
+Word n is placed here.
+X.PP
+X.TP
+X.BI % n-m
+Word
+X.I n
+through
+X.I m
+are placed here.
+X.PP
+X.TP
+X.B %-
+All unused words are placed here.
+X.PP
+X.TP
+X.B %+
+All previously used words are placed here.
+X.PP
+X.TP
+X.B %%
+All words are placed here.
+X.PP
+X.TP
+X.B %#
+Places the number of words here. Useful for use with the single line
+if-then to insure the correct number of words for an alias command.
+X.PP
+X
+Argument zero is ignored for switches `%-', `%+', and `%%'. These switches
+may be embedded in a word, and since this substitution is recursive,
+multiple switches embedded in a word will produce every possible combination
+of those words. Examples:
+X
+X.br
+X> alias x (secho %%.%%)
+X.br
+X> x a b c  #will yield:
+X.br
+X> secho a.a a.b a.c b.a b.b b.c c.a c.b c.c
+X
+X.br
+X> alias user (ls ~%1-10)
+X.br
+X> user aa bb cc # will yield:
+X.br
+X> ls ~aa ~bb ~cc
+X
+If no matches are possible for the switch, then the word the switch appears
+in is removed from the new command line. By default, if no valid argument
+switches are contained in the alias, then all the words from the old command
+line (minus the command) are placed at the end of the resulting new command
+line. Alias parsing only takes place once, unlike with other shells.
+X
+X.SH VARIABLE SUBSTITUTION
+X
+Shell variables are used by the shell to maintain information about the
+users current environment and by the user for his own ends.
+X.I Ssh
+provides three different types of variables: string and null variables which
+are modified with the
+X.I set
+and
+X.I unset
+commands, and numeric variables which are modified with the
+X.I nset
+and
+X.I unset
+commands.
+X
+String variables are lists of 1 or more variable length words, while null
+variables contain no information, and finally, numeric variables are long
+integers with a single value. Null variables are usually used for true/false
+conditions where their existence, or lack thereof, signifies their value.
+X
+After alias parsing, variable parsing is performed.  Like the switches in
+aliases, variables are prefixed with the `$' or `$$' for environment
+variables, to signify that the value of the variable being named is to be
+substituted here.  This substitution is recursive and variables embedded in
+words produce every possible combination. Example:
+X
+X.br
+X> set var = aa bb cc
+X.br
+X> ls ~$var	# will yield:
+X.br
+X> ls ~aa ~bb ~cc
+X
+Individual words in a string variable may be substituted by placing an
+expression in `[' and `]' following the name of the variable. For example:
+X
+X.br
+X> set var = aa bb cc
+X.br
+X> ls ~$var[1]	# will yield:
+X.br
+X> ls ~bb
+X
+Variable names may be enclosed in `{' and `}' to separate them from other
+letters so that they may be embedded in a word. Example:
+X.br
+X
+X	/usr/tmp/${file}ext	"$${USER}XXXX"
+X.br
+X
+Prefixing a variable name with `$#' or `$$#' for environment variables,
+returns the number of words contained in a string variable or the number of
+letters in an individual word. Prefixing a variable with `$?' or `$$?' for
+environment variables, returns the type of variable or 0 if it is not
+defined. Environment variables are considered string variables always. The
+valid types are:
+X
+X.br
+X	0   Not defined
+X.br
+X	1   String variable
+X.br
+X	2   Numeric variable
+X.br
+X	3   Null variable
+X.br
+X
+The metacharacter `$<' reads in a line of text from the
+X.I stdin
+and replaces itself with the input read.
+X
+X.SH LOGICAL ASSIGNMENT SUBSTITUTION
+X
+The shell maintains a list of assignments that can be used to reference
+file and directory prefixes with a minimal amount of typing. Assignments
+are defined and undefined using the commands
+X.I assign
+and
+X.I unassign.
+Logical assignments are placed at the beginning of the word, followed by a
+X`:', then possibly followed by more path components or filenames. Logical
+assignment substitutions take place before wildcard substitution, so
+wildcards may be placed in the assignment to make conditional assignments.
+XExamples:
+X
+X.br
+X> assign inc "{{/usr/include,/usr/include/sys}}/"
+X.br
+X> more inc:ioctl.h		# Will yield:
+X.br
+X  more {{/usr/include,/usr/include/sys}}/ioctl.h
+X.br
+X  # To finally yield after wildcard substitution:
+X.br
+X  more /usr/include/sys/ioctl.h
+X
+Obviously files and directory paths are not the only possible use for
+logical assignments.  Assignment processing can be circumvented by setting
+the shell variable
+X.I noassigns.
+X
+X.SH WILDCARD SUBSTITUTION
+X
+Any word containing the characters `*', `?', `[', `{' or begins with `~'
+is considered a candidate for wildcard expansion, provided that the shell
+variable
+X.I noglob
+does not exist. The word is then parsed and the file system is examined to
+find files that match the pattern. If matches are found then the wildcard
+pattern is replaced on the command line with a sorted list of filenames
+that matched the pattern.  If the pattern matcher fails to find a valid
+match then it prints an error and the command is aborted, unless the shell
+variable
+X.I nonomatch
+is set, in which case it is not an error and the original pattern is left
+on the command line.
+X
+Hidden files (those beginning with a period `.') are also included in
+wildcard searches unless the
+X.I nodots
+shell variable is set, in which case they are ignored unless explicitly
+specified. The file system constructs `.' (current directory) and `..'
+X(previous directory) are always ignored for purposes of wildcard searches.
+X
+The various wildcard characters have the following meanings:
+X.TP
+X.B ~
+XFollowed by a user name expands to the full path of that users home
+directory. `~' alone expands to the shell users home directory as defined
+in the shell variable
+X.I home.
+X`~' followed by a wildcard expression searches the passwd file for possible
+user names and replaces them with the full path to their home directory.
+X.PP
+X.TP
+X.B *
+Matches zero or more characters.
+X.PP
+X.TP
+X.B ?
+Matches any single character.
+X.PP
+X.TP
+X.B [...]
+Matches to any single character that is present inside of the []'s.
+A `-' in between characters denotes a range of characters, where any single
+character in the range is matched.
+X.PP
+X.TP
+X.B [^...]
+Matches to any single character that is not present inside of the
+X[]'s. Just as `[...]' above.
+X.PP
+X.TP
+X.B {...}
+Comma `,', separated words are automatically expanded (macro
+expansion). Words inside of {}'s may be directories or more wildcard
+expressions.  Braces inside of the outermost level of braces becomes
+wildcard expansion and only matches files that exist.
+X.PP
+X.TP
+X.B {^...}
+Like `{...}', but matches anything not contained in the comma separated
+list. Braces inside the outermost level of braces becomes wildcard
+expansion like above and only match files that are not specified in the
+expression.
+X.PP
+X
+X.SH REDIRECTION
+X
+The standard input, standard output and standard error of a command may be
+redirected with the following syntax:
+X.br
+X.HP 5
+X\fB<\fP \fIname\fP
+X.br
+X.ns
+Open the file
+X.I name
+as the commands standard input.
+X.PP
+X.HP 5
+X\fB<%\fP \fIdescriptor\fP
+X.br
+X.ns
+Opens the file or pipe referenced by
+X.I descriptor
+as the commands standard input.  If the descriptor does not exists, a pipe
+is automatically made.  The read portion of a pipe is closed at the shell
+level.
+X.PP
+X.HP 5
+X\fB<<%\fP \fIdescriptor\fP
+X.br
+X.ns
+Opens the file or pipe referenced by
+X.I descriptor
+as above, but the read portion of a pipe is left open at the shell level.
+X.PP
+X.HP 5
+X\fB>\fP \fIname\fP
+X.br
+X.ns
+X.HP 5
+X\fB>!\fP \fIname\fP
+X.br
+X.ns
+X.HP 5
+X\fB>&\fP \fIname\fP
+X.br
+X.ns
+The commands
+X.I stdout
+X`>',
+X.I stderr
+X`>!' or both `>&' will be redirected to the named file, overwriting any
+data and creating the file if necessary.  If the shell variable
+X.I noclobber
+exists then the file must not exist or an error results in order to prevent
+the accidental destruction of files.
+X.PP
+X.HP 5
+X\fB>%\fP \fIdescriptor\fP
+X.br
+X.ns
+X.HP 5
+X\fB>!%\fP \fIdescriptor\fP
+X.br
+X.ns
+X.HP 5
+X\fB>&%\fP \fIdescriptor\fP
+X.br
+X.ns
+Opens a file or pipe referenced by
+X.I descriptor
+for output on the commands
+X.I stdout, stderr
+or both.  Like `<%' above, a pipe is created if the descriptor does not
+reference a pre-existing object.  The write-side of a pipe is also closed at
+the shell level as per `<%'.
+X.PP
+X.HP 5
+X\fB>>\fP \fIname\fP
+X.br
+X.ns
+X.HP 5
+X\fB>>!\fP \fIname\fP
+X.br
+X.ns
+X.HP 5
+X\fB>>&\fP \fIname\fP
+X.br
+X.ns
+Like `>', `>!' and `>&' above, except that the redirection appends to files
+rather than overwriting them. If the variable
+X.I noclobber
+exists then it is an error for the file not to exist.
+X.PP
+X.HP 5
+X\fB>>%\fP \fIdescriptor\fP
+X.br
+X.ns
+X.HP 5
+X\fB>>!%\fP \fIdescriptor\fP
+X.br
+X.ns
+X.HP 5
+X\fB>>&%\fP \fIdescriptor\fP
+X.br
+X.ns
+As `>%', `>!%' and `>&%' above, however the write-side of the pipe remains
+open at the shell level for further use.
+X.PP
+X.HP 5
+X\fIcmd\fP \fB|\fP \fIcmd2\fP
+X.br
+X.ns
+X.HP 5
+X\fIcmd\fP \fB|!\fP \fIcmd2\fP
+X.br
+X.ns
+X.HP 5
+X\fIcmd\fP \fB|&\fP \fIcmd2\fP
+X.br
+X.ns
+Pipes the output of the
+X.I stdout
+X`|',
+X.I stderr
+X`|!' or both `|&' of
+X.I cmd
+into the
+X.I stdin
+of
+X.I cmd2.
+X.PP
+X
+The redirection constructs `<%', `>%', etc, can be used to implement
+tree-like pipe structures and `reverse piping'.  Examples:
+X.br
+X
+X    errparse <% err > errors & cmd >!% err | cmd2
+X.br
+X.br
+X    cmd1 <% xx | cmd2 >% xx
+X.br
+X
+In the first example, the stdout of `cmd' is piped to the stdin of `cmd2'
+at the same time that the stderr of `cmd' is piped to the stdin of
+X`errparse', which is spawed in the background, so all three commands run
+concurrently. In the second example the two commands are made to
+communicate with each other via their stdin and stdout.
+X
+X
+X.SH EXPRESSIONS
+X
+The shell supports C like expressions that are used in some builtin
+commands and for indexes for string variables.  The following operators
+are supported:
+X
+X(   )
+X.br
+X!   ~   ++  --  +   - (unary)
+X.br
+X*   /   %
+X.br
+X+   -   <<  >>  &   ^   |
+X.br
+X<   <=  >   >=  ==  !=  !~  =~
+X.br
+X&&  ||
+X.br
+X
+Numbers may be expressed either as decimal, hex (with a leading 0x or 0X),
+octal (with a leading 0), or binary (with a leading 0b or 0B). For example:
+X255, 0x00FF, 0377 and 0b11111111 are all equivalent.  In ssh, all numbers
+are signed longword integers. `++' and `--' only operate on numeric
+variables.  Strings and string variables can only be compared together and
+only then, can two strings be compared.  A single string equates to true.
+The operators `=~' and `!~' compare a string (on the left side of the
+operator) and a pattern (on the right side of the operator) for a match or
+lack thereof.
+X
+A dash `-' followed by one of `defgmoprsuwxz' test the next argument, taken
+to be a filename, for some property of that file.  These switches have the
+following properties:
+X.TP
+X.B -d
+True if file is a directory.
+X.PP
+X.TP
+X.B -e
+True if file exists.
+X.PP
+X.TP
+X.B -f
+True if file is a regular file.
+X.PP
+X.TP
+X.B -g
+Returns the Group ID of the file.
+X.PP
+X.TP
+X.B -m
+Returns the entire mode word of the file.
+X.PP
+X.TP
+X.B -o
+True if file is owned by the user.
+X.PP
+X.TP
+X.B -p
+Returns the protection bits of the file.
+X.PP
+X.TP
+X.B -r
+True if file is readable.
+X.PP
+X.TP
+X.B -s
+Returns the size of the file in bytes.
+X.PP
+X.TP
+X.B -u
+Returns the User ID of the file owner.
+X.PP
+X.TP
+X.B -w
+True if file permits writing.
+X.PP
+X.TP
+X.B -x
+True if file is executable.
+X.PP
+X.TP
+X.B -z
+True if file is zero length.
+X.PP
+X
+X.SH BUILTIN COMMANDS
+X
+Builtin commands are normally executed within the context of the shell,
+however, if they are included in a pipeline (except as the last command in
+the pipeline) or placed in the background, they are then executed in a
+subshell. Multi-line commands like
+X.I for-next, repeat-until,
+and
+X.I if-then-else-endif
+commands are only usable in shell scripts.
+X.TP
+X\fBalias\fP [<\fIname\fP> [<\fIwordlist\fP>]]
+Alias with no arguments lists all the aliases, One argument, which may
+be a wildcard, lists all aliases that matches it. Two or more arguments
+makes an alias assignment.
+X.PP
+X
+X.TP
+X\fBassign\fP [<\fIname\fP> [<\fIassignment\fP>]]
+Assign with no arguments lists all logical assignments, One argument
+returns the value of that particular assignment. Two arguments makes or
+changes a logical assignment.
+X.PP
+X
+X.TP
+X\fBbg\fP [<\fIjob number\fP>]
+With no argument,
+X.I bg
+puts the first stopped job it finds into the background and starts it
+running. A particular job can be selected by providing bg with an argument
+specifying the job number.
+X.PP
+X
+X.TP
+X.B break
+This command is used to break out of one of the looping commands or a
+switch statement and continue execution at the end of the loop or switch.
+X.PP
+X
+X.TP
+X\fBcd\fP [<\fIpath\fP>]
+Cd without an argument changes the current working directory to the users
+home directory, as defined by the shell variable
+X.I home.
+Cd attempts to change dir into the argument given, failing that, it will
+search for the directory in the directories defined in the shell variable
+X.I cdpath.
+X.PP
+X
+X.TP
+X.B continue
+Continue skips over any remaining commands inside of a loop and continues
+execution of the next loop, if applicable.
+X.PP
+X
+X.TP
+X\fBdec\fP <\fIvar\fP> [<\fIvar\fP> [<\fIvar\fP> ... [<\fIvar\fP>] ... ]]
+decrement numeric variable by one.
+X.PP
+X
+X.TP
+X\fBelse\fP <\fIwordlist\fP>
+The single line
+X.Ielse
+X, when placed immediately following a single line
+X.I if-then
+command in a script file will execute the wordlist as a command, provided
+that the if condition was false.  This command must follow immediately the
+if statement and can only be used in script files.
+X.PP
+X
+X.TP
+X\fBeval\fP <\fIwordlist\fP>
+XEval executes the wordlist as a command in the context of the current
+shell.  Usefull for executing the resulting wordlist of a command string
+or variable.
+X.PP
+X
+X.TP
+X\fBexec\fP <\fIwordlist\fP>
+The specified wordlist is executed as a command in place of the current
+shell. Due to the nature of this command, only the rightmost command in a
+pipeline will be executed, as the shell will cease to exist when it is
+successfully executed.
+X.PP
+X
+X.TP
+X\fBexit\fP [<\fIexpression\fP>]
+The shell exits either with the value of 0 (without an argument) or with
+the value of the resulting expression.
+X.PP
+X
+X.TP
+X\fBfg\fP [<\fIjob number\fP>]
+Brings the first job found or the specified job into the foreground,
+restarting them if they were stopped.
+X.PP
+X
+X.HP 5
+X\fBfor\fP <\fIvar\fP> = <\fIexpr\fP> \fBto\fP <\fIexpr\fP> [\fBstep\fP <\fIexpr\fP>]
+X.br
+X.ns
+X.HP 5
+X  ...
+X.br
+X.ns
+X.HP 5
+X.B next
+X.br
+X.ns
+The variable <\fIvar\fP> is set equal to the first expression, and is
+incremented by the step value (default is 1), executing all the commands in
+between the
+X.I for
+and
+X.I next
+statements until it reaches or exceeds the resulting value of the second
+expression.
+X.PP
+X
+X.HP 5
+X\fBforeach\fP <\fIvar\fP> <\fIwordlist\fP>
+X.br
+X.ns
+X.HP 5
+X  ...
+X.br
+X.ns
+X.HP 5
+X.B endfor
+X.br
+X.ns
+The variable <\fIvar\fP> is set to each word in <\fIwordlist\fP> successively
+in turn, executing all the commands between the
+X.I foreach
+and
+X.I endfor
+statements for each word in <\fIwordlist\fP>.
+X.PP
+X
+X.TP
+X\fBgoto\fP [\fB-f\fP] [\fB-r\fP] [\fB-t\fP] <\fIlabel\fP>
+Goto searches the script file for a matching label, defined by the label
+command and continues execution from there.  Goto uses several options to
+improve its efficiency in this search.  The following switches have these
+meanings:
+X.br
+X.RS 5
+X.TP
+X.B -f
+Search forward from the current position.
+X.PP
+X.TP
+X.B -r
+Search backward from the current position.
+X.PP
+X.TP
+X.B -t
+Start search at the top of file.
+X.PP
+X.RE 5
+X.PP
+X
+X.TP
+X\fBhistory\fP [\fB-r\fP] [\fB-n\fP] [\fI-nn\fP]
+Displays a list of the saved command history. It supports the following
+switches:
+X.br
+X.RS 5
+X.TP
+X.B -r
+Display history list in reverse order.
+X.PP
+X.TP
+X.B -n
+Do not number output of history list.
+X.PP
+X.TP
+X.I -nn
+Display only
+X.I nn
+histories.
+X.PP
+X.RE 5
+X.PP
+X
+X.TP
+X\fBif\fP <\fIexpression\fP> \fBthen\fP <\fIcommand\fP>
+If the expression evaluates to true (non-zero), then the statement is
+executed.  To implement pipelines and complex commands and redirection, the
+command should be enclosed in ()'s to insure that parsing is not done on
+command until it is to be executed.  This command may be immediately
+followed by a single line \fIelse\fP if executed in the context of a script.
+X.PP
+X
+X.HP 5
+X\fBif\fP <\fIexpression\fP> \fBthen\fP
+X.br
+X.ns
+X.HP 5
+X  ...
+X.br
+X.ns
+X.HP 5
+X.B else
+X.br
+X.ns
+X.HP 5
+X  ...
+X.br
+X.ns
+X.HP 5
+X.B endif
+X.br
+X.ns
+Like the single line if, the multi-line if, executes all the commands in
+between the
+X.I if-then
+and
+X.I else
+or
+X.I endif
+statements if the expression evaluates to true. If the expression evaluates
+to false and an else statement exists, then the commands in between the
+X.I else
+and
+X.I endif
+statements are executed.
+X.PP
+X
+X.TP
+X\fBinc\fP <\fIvar\fP> [<\fIvar\fP> [<\fIvar\fP> ... [<\fIvar\fP>] ... ]]
+Increment the given numeric variable(s) by one.
+X.PP
+X
+X.TP
+X\fBinput\fP [\fB-c\fP] [\fB-e\fP] [\fB-w\fP] [\fB-n\fP] [\fB-p\fP] <\fIvar\fP>
+Inputs a line or character from the
+X.I stdin.
+The way input reads in the data is modified by these switches:
+X.br
+X.RS 5
+X.TP
+X.B -c
+Reads a single character from the
+X.I stdin
+and then places the character in the variable immediately, without echoing
+the character to the screen.
+X.PP
+X.TP
+X.B -e
+Like `-c', except the character read is echoed to the screen.
+X.PP
+X.TP
+X.B -w
+Splits the input line into words separated by spaces and tabs.
+X.PP
+X.TP
+X.B -n
+Does not overwrite or create the variable if nothing was typed in (ignored
+for `-c' and `-e').
+X.PP
+X.TP
+X.B -p
+The next word is taken to be the prompt string, which will be printed before
+input is taken.
+X.PP
+X.RE 5
+X.PP
+X
+X.TP
+X\fBintr\fP [+] [-] <\fIsignal list\fP>
+X.I Intr
+is used in script files to set which termination signals that the shell
+will abort scripting on.  By default the SIGPIPE signal is ignored.
+X.I Intr
+with no arguments lists all the termination signals that the shell acts on.
+The `-' option removes all signals from the list, and the `+' option adds
+all signals to the list. <\fISignal list\fP> is a list of valid signal names
+that toggle the signal on or off.  Valid signal names are:
+X
+HUP INT QUIT ILL TRAP IOT EMT FPE KILL BUS SEGV SYS PIPE ALRM TERM URG STOP
+TSTP CONT CHLD TTIN TTOU IO XCPU XFSZ VTALRM PROF WINCH USR1 USR2
+X.PP
+X
+X.HP 5
+X.B jobs
+X.br
+X.ns
+Prints the number, process ID, status and job name of the all jobs that the
+shell is tracking.
+X.PP
+X
+X.TP
+X\fBkey\fP [\fB-r\fP] [\fB-c\fP] [\fB-f\fIn\fP] [\fB-g\fIn\fP] [\fB-l\fIn\fP] [<\fIkeylist\fP> [<\fIwordlist\fP>]]
+X.I Key
+allows the user to setup and maintain multi-level key macros and assign
+editing functions to specific key sequences. It supports these switches:
+X.br
+X.RS 5
+X.TP
+X.B \-r
+XExecutes the key macro as a command immediately.
+X.PP
+X.TP
+X.B \-c
+Clears the line before inserting the key macro.
+X.PP
+X.TP
+X.BI \-f n
+Assign key sequence to edit function
+X.I n.
+Valid edit functions are:
+X.br
+X 0   No function.
+X.br
+X 1   Previous history.
+X.br
+X 2   Next history.
+X.br
+X 3   Move left.
+X.br
+X 4   Move right.
+X.br
+X 5   Delete previous character.
+X.br
+X 6   Toggle insert/overstrike.
+X.br
+X 7   Move to start of line.
+X.br
+X 8   Delete to the right.
+X.br
+X 9   Move to the end of line.
+X.br
+X10   Kill to end of line.
+X.br
+X11   Restore line.
+X.br
+X12   Kill line.
+X.br
+X13   Quoted insert.
+X.br
+X14   Find matching history.
+X.br
+X15   Kill to start of line.
+X.br
+X16   Filename completion.
+X.br
+X17   Forward word.
+X.br
+X18   Backward word.
+X.br
+X19   Parse line and replace.
+X.br
+X20   Kill word.
+X.br
+X21   Make next character a control character.
+X.PP
+X.TP
+X.BI \-g n
+Defines a gold key that makes the current keypad level equal to
+X.I n
+when the key sequence is entered.  There are a maximum of 10 keypad levels
+X(0-9).
+X.PP
+X.TP
+X.BI \-l n
+Keypad level that this macro is being defined for.  Keypad level 0 is the
+default.
+X.PP
+X.RE 5
+X.PP
+X
+X.TP
+X\fBlabel\fP <\fIlablename\fP>
+Defines a label for use with the goto command.
+X.PP
+X
+X.TP
+X\fBlimit\fP [<\fIresource\fP> [<\fIresource limit\fP>]]
+Without arguments,
+X.I limit
+displays the current resource limits for
+X.I cpu, filesize, datasize, stacksize, coredumpsize
+and
+X.I memoryuse,
+specified in K (1024) bytes or seconds for cpu usage, or
+X.I unlimited
+for unlimited resources in that area.
+With one argument, limit displays the current limit for that resource.
+With two arguments, limit sets the limit for that resource.
+X.PP
+X
+X.TP
+X.B login
+Starts a new session by replacing the shell with the system login command.
+X.PP
+X
+X.TP
+X\fBlogout\fP [<\fIwordlist\fP>]
+If the shell is a login shell, then logout saves the history to the
+X.I .hist
+file in the users home directory, then sources the users
+X.I .logout
+file located in their home directory, passing the wordlist in the shell
+variable
+X.I argv
+to the script and then exits. If the shell is not a login shell, the shell
+simply exits.
+X.PP
+X
+X.TP
+X\fBprotect\fP <\fIvar\fP>
+Makes the variable ``protected'', in that it cannot be reset or unset.
+X.PP
+X
+X.HP 5
+X.B repeat
+X.br
+X.ns
+X.HP 5
+X  ...
+X.br
+X.ns
+X.HP 5
+X\fBuntil\fP <\fIexpression\fP>
+X.br
+X.ns
+XExecutes commands inside of the
+X.I repeat
+and
+X.I until
+commands until the <\fIexpression\fP> evaluates to true.
+X.PP
+X
+X.TP
+X\fBsclose\fP <\fIdescriptor\fP> [<\fIdescriptor\fP> ... <\fIdescriptor\fP>]
+Closes open files or pipes referenced by <\fIdescriptor\fP>.
+X.PP
+X
+X.TP
+X\fBsecho\fP [\fB-n\fP] [\fB-w\fP] [\fB-e\fP] [\fB-\fP] [<\fIwordlist\fP>]
+X.I Secho
+is the shells version of the
+X.I echo
+command, with the wordlist being routed through the shells stat
+facility to convert certain `%' switches (see STATUS SWITCHES below),
+unless the `-e' switch is given.
+These switches to
+X.I secho
+are supported:
+X.br
+X.RS 5
+X.TP
+X.B -n
+Do not print a newline at the end of the wordlist.
+X.PP
+X.TP
+X.B -w
+Toggles printing of a newline after each word.
+X.PP
+X.TP
+X.B -e
+Toggles interpretation of status switches off and on.
+X.PP
+X.TP
+X.B -x
+XEverything after this switch is taken to be an expression to be evaluated
+and the result printed.
+X.PP
+X.TP
+X.B -
+All dash arguments after this are taken to be words to be printed. No
+further arguments are parsed.
+X.PP
+X.RE 5
+X.PP
+X
+X.HP 5
+X\fBset\fP [<\fIvar\fP> [< = | += > <\fIwordlist\fP>]]
+X.br
+X.ns
+X.HP 5
+X\fBnset\fP [<\fIvar\fP> [<\fIoperator\fP> [<\fIexpression\fP>]]]
+X.br
+X.ns
+X.I Set
+or
+X.I nset
+list the value of all known variables when used with no arguments. With
+only one argument they creates a null variable of name <\fIvar\fP>.
+X.I Set
+when used with a `=', sets the variable equal to the wordlist. When used
+with `+=' set appends the wordlist to the wordlist in <\fIvar\fP> (useful
+for quickly adding directories to the
+X.I path
+variable).
+X.I Nset
+is used to create and modify numeric variables and 
+supports the following numeric assignment operators: `=', `+=', `-=',
+X`*=', `/=', `|=', `^=', `<<=' and `>>='.  The operators `++' and `--' can
+be used to increment or decrement the variable by one.
+X.PP
+X
+X.TP
+X\fBsetenv\fP <\fIname\fP> [[=] <\fIwordlist\fP>]
+X.I Setenv
+displays and sets environment variables for the shell.  With one argument,
+setenv displays the value of the environment variable <\fIname\fP>. With two or
+more arguments,
+X.I setenv
+assigns the <\fIwordlist\fP> to the variable <\fIname\fP>.  The equal sign
+X`=' is optional for setenv.
+X.PP
+X
+X.TP
+X\fBshift\fP <\fIshiftval\fP> <\fIvar\fP> [<\fIvar\fP> ... [<\fIvar\fP>]]
+X.I Shift
+shifts words left in <\fIvar\fP>, <\fIshiftval\fP> number of times.  This is
+useful for removing the beginning words in the shell variable
+X.I argv
+so that it may be fed to a
+X.I foreach
+command to parse the arguments fed to the script.
+X.PP
+X
+X.TP
+X\fBsopen\fP [<\fIdescriptor\fP> [<\fIfile\fP> <\fImodelist\fP>]]
+With no arguments,
+X.I sopen
+lists all open files and pipes and their modes.  Provided the descriptor,
+X.I sopen
+lists the file or pipe it references and modes for that descriptor.
+X.I Sopen
+with three or more arguments opens a file or pipe and associated with a
+logical descriptor name <\fIdescriptor\fP> which is used in the
+X.I sread, swrite, sseek
+and
+X.I sclose
+calls and the `<%' `<<%' ,`>%', etc redirections to reference the open file
+or pipe.
+X.I Mode
+is one of the following, defining how the file is to be opened:
+X.br
+X	READ       Open for reading
+X.br
+X	WRITE      Open for writing
+X.br
+X	APPEND     Append to end of file.
+X.br
+X	TRUNCATE   Truncate file upon open.
+X.br
+X	PIPE       Open a pipe for reading and writing
+X.br
+A file may be open for reading and writing at the same time.  When a PIPE
+descriptor is made, the pipe is made to be read and writeable until the
+first sread or swrite is performed on the pipe, at which time the mode of the
+pipe is selected (this is done to allow the user to launch any pipe
+redirections before reading/writing on the pipe).
+X.PP
+X
+X.TP
+X\fBsource\fP [<\fIfile\fP> [<\fIfile\fP> ... [<\fIfile\fP>] ... ]]
+X.I Source
+with no file arguments, reads input from the user, up until it reaches the
+X`exit' command and then sources the input.  With file arguments,
+X.I source
+sources each file in turn.  Files sourced in this way are executed in the
+context of the shell, so changes made to the shell environment are permanent.
+X.PP
+X
+X.TP
+X\fBsread\fP <\fIdescriptor\fP> [\fB-c\fP] [\fB-l\fP] [\fB-w\fP] [\fB-b\fIn\fP] <\fIvarlist\fP>
+X.I Sread
+reads input from a file or pipe referenced by the logical file descriptor
+X<descriptor> into a variable.  Switches may be interspersed on the command
+line to change how the data is read for each variable.  Valid switches are:
+X.br
+X.RS 5
+X.TP
+X.B -c
+Read a single character.
+X.PP
+X.TP
+X.B -l
+Read in a line and do no processing on it.
+X.PP
+X.TP
+X.B -w
+Read in a line and break it into words separated at spaces and tabs.
+Useful for separating input into fields which can be easily manipulated.
+X.PP
+X.TP
+X.BI \-b n
+Read in
+X.I n
+bytes.
+X.PP
+A read past end of file returns an error and sets the shell variable
+X.I EOF
+with the name of the offending descriptor.
+X.RE 5
+X.PP
+X
+X.TP
+X\fBsseek\fP <\fIdescriptor\fP> <\fImode\fP> <\fIexpression\fP>
+X.I Sseek
+sets the file pointer for the file referenced by <\fIdescriptor\fP> based
+upon the mode.  Valid modes are:
+X.br
+X	INCR   Increment the file pointer.
+X.br
+X	SET    Set the file pointer.
+X.br
+X	XTND   Extend the file pointer past the
+X.I EOF.
+X.br
+X<\fIExpression\fP> is the resulting value used to change the file pointer with.
+Upon a successful seek, the shell variable
+X.I filepos
+is updated to reflect the current file pointer value.  Sseek's cannot be
+performed on descriptors referencing a pipe.
+X.PP
+X
+X.TP
+X\fBstop\fP [<\fIjob number\fP>]
+Stops the first running background process found in the job queue, or stops
+the specified job by sending the jobs the SIGTSTP signal.
+X.PP
+X
+X.HP 5
+X\fBswitch\fP <\fIstring\fP>
+X.br
+X.ns
+X.HP 5
+X  \fBcase\fP <\fIpattern list\fP>
+X.br
+X.ns
+X.HP 5
+X    ...
+X.br
+X.ns
+X.HP 5
+X    \fBbreak\fP
+X.br
+X.ns
+X.HP 5
+X  ...
+X.br
+X.ns
+X.HP 5
+X  \fBdefault\fP
+X.br
+X.ns
+X.HP 5
+X    ...
+X.br
+X.ns
+X.HP 5
+X    \fBbreak\fP
+X.br
+X.ns
+X.HP 5
+X.B endsw
+X.br
+X.ns
+X.I Switch
+compares string against each case label, that is variable expanded and may
+be a filename wildcard expression, until it finds a match.  If it finds a
+match, then it begins executing lines after the case until it reaches a
+break statement or endsw, falling through other case statements.  If no
+match is found and there exists the
+X.I default
+label, then commands are executed after the default label.  If no match was
+found and no default label exists, then the switch is aborted and execution
+continues after the endsw command.
+X.PP
+X
+X.TP
+X\fBswrite\fP <\fIdescriptor\fP> [\fB-n\fP] <\fIwordlist\fP>
+X.I Swrite
+writes the specified wordlist to the file or pipe referenced by
+X<\fIdescriptor\fP>, which may contain the shells status switches (see
+STATUS SWITCHES below).
+X.PP
+X
+X.TP
+X\fBterm\fP [<\fIcapability ID\fP> [<\fIcharacter sequence\fP>]]
+X.I Term
+prints the current terminal that the shell is using and several of the
+escape sequences that the terminal understands that the shell will use.  The
+values of these sequences may be shown by specifying one of the valid
+terminal capabilities.  A terminal capability may be altered by specifying an
+additional character sequence after the capability ID.  The following
+capabilities are used by the shell:
+X.br
+X	SO    Begin standout mode.
+X.br
+X	SE    End standout mode.
+X.br
+X	CE    Clear to end of line.
+X.br
+X	KS    Function keypad enable.
+X.br
+X	KE    Function keypad disable.
+X.br
+X	DC    Delete character.
+X.br
+X	IC    Insert character.
+X.br
+X	DS    Display status line.
+X.br
+X	TC    Begin writing on status line.
+X.br
+X	FS    End writing on status line.
+X.br
+X	HS    Has status line (1=TRUE).
+X.br
+The shell is intelligent enough to work without almost all of the above
+terminal capabilities, but CE is recommended. DC and IC may greatly improve
+speed of editing for slower baud rates as well.  Unsetting DC and IC for
+slow-editing terminals at higher baud rates may also improve editing speed.
+X.PP
+X
+X.TP
+X\fBumask\fP [<\fIexpression\fP>]
+X.I Umask
+with no arguments returns the current file protection mask in octal,
+otherwise
+X.I umask
+sets the value of the file protection mask to the value of the resulting
+expression.
+X.PP
+X
+X.TP
+X\fBunalias\fP <\fIpatternlist\fP>
+Removes all aliases that match the given wildcard patterns.
+X.PP
+X
+X.TP
+X\fBunassign\fP <\fIassignmentlist\fP>
+Removes the given assignments from the list of known assignments.
+X.PP
+X
+X.TP
+X\fBunkey\fP [\fB-l\fIn\fB] <\fIkey sequence\fP>
+Removes the key macro associated with the given key sequence. The switch
+X.BI \-l n
+specifies the keypad level the macro is to be removed from.
+X.PP
+X
+X.TP
+X\fBunlimit\fP <\fIresource\fP>
+This command attempts to remove the system imposed limits on the specified
+resource, if possible.  Valid resources are the same as those given with
+the limit command:
+X.I cpu, filesize, datasize, stacksize, coredumpsize
+and
+X.I memoryuse.
+X.PP
+X
+X.TP
+X\fBunset\fP <\fIvariable\fP>
+Removes the named variable from the list of known variables.
+X.PP
+X
+X.TP
+X\fBunsetenv\fP <\fIvariable\fP>
+Removes the named variable from the environment.
+X.PP
+X
+X.TP
+X.B usage
+Displays some information about the system resource usage of the shell,
+including: Total user and system time used by the shell, the resident set
+size (RSS) of the shell, total page reclaims and faults, number of times
+the shell has been swapped, number of I/O pages read and written and the
+number of signals received. The amount of valid information maintained and
+the true meaning of the above information may vary from OS to OS.
+X.PP
+X
+X.TP
+X.B version
+Displays the shells version information.
+X.PP
+X
+X.HP 5
+X\fBwhile\fP <\fIexpression\fP>
+X.br
+X.ns
+X.HP 5
+X  ...
+X.br
+X.ns
+X.HP 5
+X.B wend
+X.br
+X.ns
+XExecutes commands inside of the
+X.I while - wend
+loop so long as the expression evaluates to true.
+X.PP
+X
+X.SH SHELL VARIABLES
+X
+Certain variables have special meaning to the shell.  The variables
+X.I cwd, failat, history, home, host, insert, path, pid, prompt,
+X.I status, term, tty,
+and
+X.I user
+are always set upon login. The variables
+X.I echo, remotehost
+and
+X.I verbose
+might also be set at login. Aside from the variables
+X.I cwd
+and
+X.I status
+which are updated by the shell automatically, these variables are only set
+once at login.
+X
+XFor the variables user, term and path, the shell attempts to use the
+environment if possible to set these values initially.  Variables like term
+and path, are likewise automatically exported to the environment any time
+they are changed by the user.
+X
+The following variables have special meaning to the shell:
+X.TP 15
+X.B argc
+Defined to be equal to the number of words in
+X.I argv,
+therefore it is
+essentially the same as `$#argv'.  Only defined when
+X.I argv
+is defined.
+X.PP
+X.TP 15
+X.B argv
+Set to the arguments passed to an auto-executed shell script, including the
+command itself in `$argv[0]'.
+X.PP
+X.TP 15
+X.B cdpath
+Directories specified in this string variable are searched in the event of
+a failed `cd' to find a valid subdirectory.
+X.PP
+X.TP 15
+X.B cwd
+This variable is maintained by the shell to be reflect the current working
+directory at all times. This variable is automatically exported to the
+environment.
+X.PP
+X.TP 15
+X.B echo
+Set when the -x or -X command line option is given.  Causes the shell to
+echo the entire command line before each command is executed.  Useful for
+debugging shell scripts.
+X.PP
+X.TP 15
+X.B EOF
+This string variable is set by the command
+X.I sread
+when it reads the end of
+file.  The resulting string is equal to the name of the file descriptor.
+X.PP
+X.TP 15
+X.B failat
+The value of this numeric variable is used in script files when a command
+returns an error condition (greater than 0).  The value of
+X.I failat
+is checked against the return status of the command, and if it is lower or
+equal to the status, then the script file is aborted.
+X.PP
+X.TP 15
+X.B filepos
+This numeric variable contains the current file pointer position as returned
+by the last successful
+X.I sseek
+command.
+X.TP 15
+X.B history
+This numeric variable determines the number of histories maintained by the
+shell.  By default this variable is set to 30 histories by the shell, and
+is also set automatically by the shell when it reads the first line in the
+X.I .hist
+file in the users home directory, which should contain the number of
+histories to save.  The history list will never be less than one entry,
+even if the variable is unset.
+X.PP
+X.TP 15
+X.B home
+Set to the home directory of the user. Used by
+X.I cd
+to return to the users home directory, when no arguments are given it,
+and by the wildcard character `~'. This variable is exported to the
+environment automatically.
+X.PP
+X.TP 15
+X.B homedirs
+This string variable contains a list of user directories for use with the
+X`%~' status switch.
+X.PP
+X.TP 15
+X.B insert
+Used by the input functions to determine if the user is in insert mode or
+overstrike mode.  Insert mode is selected if the variable exists.
+X.PP
+X.TP 15
+X.B mail
+This string variable contains a list of files that are checked after each
+command completion and if the interval specified by the variable
+X.I mailchkint
+has elapsed, to see if they contain new mail.  If new mail is found, then
+the shell reports to the user `You have new mail.' If the mail file is not
+the first entry in the
+X.I mail
+variable, then the filename with the new mail is also reported.  This
+message may be modified by setting the
+X.I mailnotice
+variable. This variable is exported to the environment automatically.
+X.PP
+X.TP 15
+X.B mailchkint
+This numeric variable defines the minimum interval that new mail is to be
+checked for.
+X.PP
+X.TP 15
+X.B mailnotice
+The first word of this string variable defines the message the shell prints
+in the event of new mail.  The second word, if present defines what to
+print for the status switch `%n'.
+X.PP
+X.TP 15
+X.B noassigns
+If this variable exists, then logical assignment processing is not performed
+by the shell.
+X.PP
+X.TP 15
+X.B nobgnull
+If this variable exists, the shell will not redirect to
+X.I /dev/null
+by default for jobs spawned in the background.
+X.PP
+X.TP 15
+X.B noclobber
+If this variable exists, then it is an error for the user to attempt to
+redirect into a file that already exists, or perform appended redirection
+into a file that does not already exist.
+X.PP
+X.TP 15
+X.B nodots
+When this variable exists, files preceded by a dot `.', therefore
+hidden files, will not be considered candidates for pattern matching,
+unless the dot is explicitly given in the expression.
+X.PP
+X.TP 15
+X.B noglob
+If this variable exists, then wildcard expansion is not performed by the
+shell.
+X.PP
+X.TP 15
+X.B nohup
+If this variable exists, then jobs executed in the background are made to
+ignore the SIGHUP signal.
+X.PP
+X.TP 15
+X.B nonomatch
+When this variable exists, then it is not an error for a wildcard
+expression to not match any files and is not removed from the command line.
+X.PP
+X.TP 15
+X.B notypeahead
+When this variable exists, then the shell throws away any pending input
+X(typeahead), before it prints the prompt and begins accepting input for the
+command line.
+X.PP
+X.TP 15
+X.B path
+This string variable contains a list of directories in which the shell
+searches for commands to be executed by the user.  If no path variable
+exists, then the path is considered to be the current directory only.
+This variable is exported to the environment automatically.
+X.PP
+X.TP 15
+X.B prompt
+This string variable is printed before each command is read. This variable
+may contain status switches as well. Only the first 80 characters of this
+variable (after status switches are interpreted) are used.
+X.PP
+X.TP 15
+remotehost
+Set to the remote login host as specified in the /etc/utmp file for your
+login session if you are logged in remotely.
+X.PP
+X.TP 15
+X.B statline
+This string is printed in the status line after every command completion if
+it is possible to do so, i.e. the terminal must support a status line.
+Like the prompt variable, the statline may contain any of the status
+switches.
+X.PP
+X.TP 15
+X.B status
+This numeric variable is maintained by the shell, and may not be altered or
+unset by the user.  This variable contains the exit status of the last
+command to complete (including completed background jobs). The lower 8
+order bits are formed by the exit status of the command, the next 8 order
+bits are formed from the value of the killing signal (if any). To determine
+if the command exited abnormally you would use an if statement similar to:
+X.br
+X
+X     if ($status>>8) then ...
+X.br
+X
+To separate the status information:
+X.br
+X
+X     nset exitval = $status
+X.br
+X     nset signal = ($exitval>>8)
+X.br
+X     nset exitval &= 255
+X.br
+X
+Shell builtins return a `1' upon failure, otherwise they return a `0'.
+X.PP
+X.TP 15
+X.B term
+This string variable is used to set the terminal type of the current login
+session. The terminal capabilities used by the shell (as displayed by the
+X.I term
+command) are automatically loaded whenever this variable is changed.  This
+variable is automatically exported to the environment whenever it is
+altered.
+X.PP
+X.TP 15
+X.B timeout
+When this numeric variable is set, the shell will logout automatically
+after the number of seconds defined by the variable has elapsed and no
+input has been entered by the user. This count-down only happens when the
+user is at the shell prompt and idle.
+X.PP
+X.TP 15
+X.B verbose
+Set by the -v and -V command line options.  When this variable exists, the
+command line is printed before any parsing is done on the command line.
+X.PP
+X
+X.SH NON-BUILTIN COMMAND EXECUTION
+X
+When a command to be executed is determined to not be a builtin command, the
+shell searches the path list defined in the
+X.I path
+shell variable for the requested command.  If the command is found then the
+shell checks to see if the command is actually a directory, if so then it
+attempts to make it the current working directory.  Otherwise the shell
+forks and attempts to execute the command.
+X
+If the command was spawed to be a background process with the `&!'
+metacharacter, then the shell closes stdin, stdout, and stderr (input and
+output redirections will not be affected by this), forks several more times
+and attempts to dissociate the terminal.  Due to the extra forking
+involved in the terminal dissociation process, the shell will lose track
+of the child process.
+X
+Immediately after forking, the shell determines if the job was a process
+leader.  Process leaders are the right most commands in pipelines.
+Processes not in pipelines are also process leaders.  If a job has been
+determined to be a process leader and the job was not spawned as a
+background job, then the shell relinquishes control of the terminal, adds
+an entry in the shell job table and waits for the job to complete.  The
+process is nearly identical for non-process leaders, however non-process
+leaders inherit the same control terminal as the process leader.
+X
+Should the process leader complete before any of the non-leaders, then the
+remaining processes are certain losers as the shell will regain control of
+the terminal when the process leader completes.  Since most non-leaders in
+pipes would be killed by the broken pipe or by other means, this is not
+really a problem.
+X
+If the shell fails in its effort to exec the command, and it is determined
+that it failed because the file that it was attempting to execute was not a
+binary file or a script file which specified its shell in the first line,
+then it will attempt to auto-source the file.  Files auto-sourced in this
+manner, have the arguments passed to them in the shell variables
+X.I argv
+and
+X.I argc.
+XFiles sourced in this manner are executed in a subshell and will not affect
+the environment of the parent shell.
+X
+XFiles that are sourced or auto-sourced, are read entirely into a buffer and
+parsed before they are executed.  Command strings are also parsed and
+executed at this time.  The resulting buffer is then sourced, performing
+the neccessary variable, logical assignment and wildcard expansion at each
+line.
+X
+X.SH STATUS SWITCHES
+X
+The following switches may be embedded in the words of the
+X.I prompt
+and
+X.I statline
+variables and passed to the
+X.I secho
+command for printing.  Their meanings are:
+X.br
+X.TP
+X.B %t
+Replaced by the time in hh:mm [am|pm] format.
+X.PP
+X.TP
+X.B %M
+Replaced by the time in hh:mm military format.
+X.PP
+X.TP
+X.B %w
+Replaced by the name of the day of the week.
+X.PP
+X.TP
+X.B %d
+Replaced by the day of the month.
+X.PP
+X.TP
+X.B %m
+Replaced by the name of the month.
+X.PP
+X.TP
+X.B %y
+Replaced by the year.
+X.PP
+X.TP
+X.B %T
+Replaced by the time the user has been logged in, in hh:mm format.
+X.PP
+X.TP
+X.B %j
+Replaced by the number of jobs the shell has active.
+X.PP
+X.TP
+X.B %p
+Replaced by the path of the current working directory.
+X.PP
+X.TP
+X.B %P
+Replaced by the last path component in the current working directory.
+X.PP
+X.TP
+X.B %~
+Replaced with the path, substituting a `~' for a users home directory path.
+X.PP
+X.TP
+X.B %u
+Replaced with the number of users currently logged into the system.
+X.PP
+X.TP
+X.B %U
+Replaced with a list of the users logged in.
+X.PP
+X.TP
+X.B %l
+Replaced by the number of times the user is logged in.
+X.PP
+X.TP
+X.B %n
+Replaced with an `*' or the second word in the
+X.I mailnotice
+variable when you have new mail, or nothing at all when you do not have
+new mail.
+X.PP
+X.TP
+X.B %i
+Begins standout mode.
+X.PP
+X.TP
+X.B %I
+XEnds standout mode.
+X.PP
+X.TP
+X.B %<\fITC\fP>
+Where <\fITC\fP> is one of the known terminal capabilities, therefore:
+SO, SE, CE, KS, KE, DC, IC, DS, TC, FS and HS.
+X.PP
+X.TP
+X.B %%
+Replaced with a single percent `%'.
+X.PP
+X
+X.SH SSH ARGUMENTS
+X
+If argument zero is a dash `-', then the shell is taken to be a login
+shell.
+X.I Ssh
+interprets the following arguments:
+X.TP
+X.B -c
+The next word is executed as a command.
+X.PP
+X.TP
+X.B -e
+The shell exits if any command terminates abnormally or returns a non-zero
+exit status.
+X.PP
+X.TP
+X.B -f
+The shell skips sourcing of the the
+X.I .sshrc
+file in the users home directory, making it start faster.
+X.PP
+X.TP
+X.B -n
+Commands are parsed, but not executed.
+X.PP
+X.TP
+X.B -t
+A single line is read and executed.
+X.PP
+X.TP
+X.B -x
+Causes the
+X.I echo
+variable to be set, echoing commands before execution and after all parsing
+is done.
+X.PP
+X.TP
+X.B -X
+As with -x, except that echoing begins even before the system
+X.I .sshrc
+file is sourced.
+X.PP
+X.TP
+X.B -v
+Sets the verbose variable, which echoes commands before any parsing is done
+to the commands.
+X.PP
+X.TP
+X.B -V
+Is to -v what -X is to -x.
+X.PP
+X
+X.SH AUTHORS
+X
+Steve Baker (ice@judy.indstate.edu)
+X.br
+X  and
+X.br
+Thomas Moore (dark@judy.indstate.edu)
+X.br
+X  - Wildcard routines (wc.c)
+X.br
+X
+X.SH FILES
+X
+X/etc/.sshrc       Read first at startup.
+X.br
+X~/.login          Read by login shells after `/etc/.sshrc'.
+X.br
+X~/.sshrc          Read at startup after `~/.login'.
+X.br
+X~/.logout         Read by login shells at logout.
+X.br
+X~/.hist           History save file.
+X.br
+X~/.second         Secondary password store.
+X.br
+X~/.warning        Failed second-password login notification.
+X.br
+X/etc/passwd       Source of home dirs for `~'.
+X.br
+X/etc/utmp         Source for finding current logins.
+X.br
+X/etc/termcap      Source for terminal capabilities.
+X.br
+X/dev/null         Auto-redirect file for background jobs.
+X.br
+X
+X.SH BUGS AND LIMITATIONS
+X
+X.TP 4
+X1.
+Words can be no more than 1024 characters. System limit of 10240 byte
+commands, except for shell builtins.
+X.PP
+X.TP 4
+X2.
+Should maintain a "current job" pointer or maintain a restart priority
+within the process table.
+X.PP
+X.TP 4
+X3.
+Behavior for deciding what gets alias substituted is screwy. Since alias
+substitution is only performed once, the following shouldn't work:
+X.br
+X    > alias more less
+X.br
+X    > alias x (cat yyy | more)
+X.br
+X    > x  # will yield:
+X.br
+X    > cat yyy | less
+X.br
+The ``| more'' was parsed as an alias before it was put into the alias `x',
+so it became `less' instead of the `more' it should have been.  The parens
+failed to stop the alias parsing like they should do.  Not too sure if this
+X{-eally should be fixed!
+X.PP
+X.TP 4
+X4.
+Should allow a secondary index for string variables to examine individual
+characters of a word. And should be able to use indexes when assigning values
+to string variables.
+X.PP
+X.TP 4
+X5.
+In expressions, operators do not necessarily have the same precedence as
+they do in C. Parens should be used when in doubt about precedence.
+X.PP
+X.TP 4
+X6.
+Limit should be a little more intelligent with reguards to setting the
+limits, by allowing size parameters like csh's limit.
+X.PP
+X.TP 4
+X7.
+The shell really needs to understand more terminal capabilities to
+improve efficiency. The shell also makes pessimistic assumptions
+like backspace is always ascii 8, and carriage return doesn't cause a
+newline.
+X.PP
+X.TP 4
+X8.
+A special string malloc'er should be made for the shells amazing about
+of small mallocs.
+X.PP
+X.TP 4
+X9.
+Ssh's command line editor doesn't understand that most terminals have a
+maximum line width shorter than the 256 input buffer, and so it should be a
+little smarter and try and pull the cursor back up to the end of the
+previous line when you backspace at the beginning of the line.
+X.PP
+X.TP 4
+X10.
+When a job is stopped in a shell script, the script should stop as well
+and when restarted, the script should attempt to restart the stopped job
+and continue normally.
+X.PP
+X.TP 4
+X11.
+And many many more little things.
+X.PP
+X
+X.SH SEE ALSO
+sh(1), csh(1), tcsh(1), clam(1), zsh(1)
+END_OF_FILE
+if test 57433 -ne `wc -c <'ssh.1'`; then
+    echo shar: \"'ssh.1'\" unpacked with wrong size!
+fi
+# end of 'ssh.1'
+fi
+echo shar: End of archive 4 \(of 4\).
+cp /dev/null ark4isdone
+MISSING=""
+for I in 1 2 3 4 ; do
+    if test ! -f ark${I}isdone ; then
+	MISSING="${MISSING} ${I}"
+    fi
+done
+if test "${MISSING}" = "" ; then
+    echo You have unpacked all 4 archives.
+    rm -f ark[1-9]isdone
+else
+    echo You still need to unpack the following archives:
+    echo "        " ${MISSING}
+fi
+##  End of shell archive.
+exit 0

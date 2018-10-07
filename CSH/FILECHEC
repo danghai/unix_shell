@@ -1,0 +1,18 @@
+#!/bin/csh -f
+# Scriptname: filecheck
+# Usage: filecheck filename
+
+	set file=$1
+if ( ! -e $file ) then
+		echo "$file does not exist"
+		exit 1
+	endif 
+if ( -d $file ) then
+		echo "$file is a directory" 
+else if ( -f $file ) then 
+if (  -r $file &&  -x $file ) then      # nested if construct
+			echo  "You have read and execute permission on file $file.
+endif
+	else
+		print "$file is neither a plain file nor a directory.  "
+endif 

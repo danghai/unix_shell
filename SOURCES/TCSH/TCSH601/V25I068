@@ -1,0 +1,3344 @@
+Newsgroups: comp.sources.unix
+From: christos@ee.cornell.edu (Christos Zoulas)
+Subject: v25i068: tcsh6.01 - a csh replacement with lots of extra goodies, Part15/18
+Message-ID: <1991Dec20.214617.7955@PA.dec.com>
+Date: Fri, 20 Dec 91 21:46:17 GMT
+Approved: vixie@pa.dec.com
+
+Submitted-By: christos@ee.cornell.edu (Christos Zoulas)
+Posting-Number: Volume 25, Issue 68
+Archive-Name: tcsh-6.01/part15
+
+#! /bin/sh
+# This is a shell archive.  Remove anything before this line, then unpack
+# it by saving it into a file and typing "sh file".  To overwrite existing
+# files, type "sh file -c".  You can also feed this as standard input via
+# unshar, or by typing "sh <file", e.g..  If this archive is complete, you
+# will see the following message at the end:
+#		"End of archive 15 (of 18)."
+# Contents:  ed.defns.c sh.c
+# Wrapped by vixie@cognition.pa.dec.com on Fri Dec 20 13:29:29 1991
+PATH=/bin:/usr/bin:/usr/ucb ; export PATH
+if test -f 'ed.defns.c' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'ed.defns.c'\"
+else
+echo shar: Extracting \"'ed.defns.c'\" \(40810 characters\)
+sed "s/^X//" >'ed.defns.c' <<'END_OF_FILE'
+X/* $Header: /home/hyperion/mu/christos/src/sys/tcsh-6.01/RCS/ed.defns.c,v 3.10 1991/11/26 04:28:26 christos Exp $ */
+X/*
+X * ed.defns.c: Editor function definitions and initialization
+X */
+X/*-
+X * Copyright (c) 1980, 1991 The Regents of the University of California.
+X * All rights reserved.
+X *
+X * Redistribution and use in source and binary forms, with or without
+X * modification, are permitted provided that the following conditions
+X * are met:
+X * 1. Redistributions of source code must retain the above copyright
+X *    notice, this list of conditions and the following disclaimer.
+X * 2. Redistributions in binary form must reproduce the above copyright
+X *    notice, this list of conditions and the following disclaimer in the
+X *    documentation and/or other materials provided with the distribution.
+X * 3. All advertising materials mentioning features or use of this software
+X *    must display the following acknowledgement:
+X *	This product includes software developed by the University of
+X *	California, Berkeley and its contributors.
+X * 4. Neither the name of the University nor the names of its contributors
+X *    may be used to endorse or promote products derived from this software
+X *    without specific prior written permission.
+X *
+X * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+X * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+X * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+X * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+X * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+X * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+X * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+X * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+X * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+X * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+X * SUCH DAMAGE.
+X */
+X#include "sh.h"
+X
+RCSID("$Id: ed.defns.c,v 3.10 1991/11/26 04:28:26 christos Exp $")
+X
+X#include "ed.h"
+X
+static	void		ed_InitMetaBindings 	__P((void));
+X
+PFCmd   CcFuncTbl[] = {		/* table of available commands */
+X    e_unassigned,
+X/* no #define here -- this is a dummy to detect initing of the key map */
+X    e_unassigned,
+X#define		F_UNASSIGNED	1
+X    e_insert,
+X#define		F_INSERT	2
+X    e_newline,
+X#define		F_NEWLINE	3
+X    e_delprev,
+X#define		F_DELPREV	4
+X    e_delnext,
+X#define		F_DELNEXT	5
+X    e_toend,
+X#define		F_TOEND		6
+X    e_tobeg,
+X#define		F_TOBEG		7
+X    e_charback,
+X#define		F_CHARBACK	8
+X    e_charfwd,
+X#define		F_CHARFWD	9
+X    e_quote,
+X#define		F_QUOTE		10
+X    e_startover,
+X#define		F_STARTOVER	11
+X    e_redisp,
+X#define		F_REDISP	12
+X    e_tty_int,
+X#define		F_TTY_INT	13
+X    e_wordback,
+X#define		F_WORDBACK	14
+X    e_wordfwd,
+X#define		F_WORDFWD	15
+X    e_cleardisp,
+X#define		F_CLEARDISP	16
+X    e_complete,
+X#define		F_COMPLETE	17
+X    e_correct,
+X#define		F_CORRECT	18
+X    e_up_hist,
+X#define		F_UP_HIST	19
+X    e_down_hist,
+X#define		F_DOWN_HIST	20
+X    e_up_search_hist,
+X#define		F_UP_SEARCH_HIST	21
+X    e_down_search_hist,
+X#define		F_DOWN_SEARCH_HIST	22
+X    e_helpme,
+X#define		F_HELPME	23
+X    e_list_choices,
+X#define		F_LIST_CHOICES	24
+X    e_delwordprev,
+X#define		F_DELWORDPREV	25
+X    e_delwordnext,
+X#define		F_DELWORDNEXT	26
+X    e_digit,
+X#define		F_DIGIT		27
+X    e_killend,
+X#define		F_KILLEND	28
+X    e_killbeg,
+X#define		F_KILLBEG	29
+X    e_metanext,
+X#define		F_METANEXT	30
+X    e_send_eof,
+X#define		F_SEND_EOF	31
+X    e_charswitch,
+X#define		F_CHARSWITCH	32
+X    e_which,
+X#define		F_WHICH		33
+X    e_yank_kill,
+X#define		F_YANK_KILL	34
+X    e_tty_dsusp,
+X#define		F_TTY_DSUSP	35
+X    e_tty_flusho,
+X#define		F_TTY_FLUSHO	36
+X    e_tty_quit,
+X#define		F_TTY_QUIT	37
+X    e_tty_tsusp,
+X#define		F_TTY_TSUSP	38
+X    e_tty_stopo,
+X#define		F_TTY_STOPO	39
+X    e_tty_starto,
+X#define		F_TTY_STARTO	40
+X    e_argfour,
+X#define		F_ARGFOUR	41
+X    e_set_mark,
+X#define		F_SET_MARK	42
+X    e_exchange_mark,
+X#define		F_EXCHANGE_MARK	43
+X    e_last_item,
+X#define		F_LAST_ITEM	44
+X    e_list_delnext,
+X#define		F_LIST_DELNEXT	45
+X    v_cmd_mode,
+X#define		V_CMD_MODE	46
+X    v_insert,
+X#define		V_INSERT	47
+X    e_argdigit,
+X#define		F_ARGDIGIT	48
+X    e_killregion,
+X#define		F_KILLREGION	49
+X    e_copyregion,
+X#define		F_COPYREGION	50
+X    e_gcharswitch,
+X#define		F_GCHARSWITCH	51
+X    e_run_fg_editor,
+X#define		F_RUN_FG_EDITOR	52
+X    e_unassigned,	/* place holder for sequence lead in character */
+X#define		F_XKEY		53
+X    e_uppercase,
+X#define         F_CASEUPPER     54
+X    e_lowercase,
+X#define         F_CASELOWER     55
+X    e_capitolcase,
+X#define         F_CASECAPITAL   56
+X    v_zero,
+X#define		V_ZERO		57
+X    v_add,
+X#define		V_ADD		58
+X    v_addend,
+X#define		V_ADDEND	59
+X    v_wordbegnext,
+X#define		V_WORDBEGNEXT	60
+X    e_killall,
+X#define		F_KILLALL	61
+X    e_unassigned,
+X/* F_EXTENDNEXT removed */
+X    v_insbeg,
+X#define		V_INSBEG	63
+X    v_replmode,
+X#define		V_REPLMODE	64
+X    v_replone,
+X#define		V_REPLONE	65
+X    v_substline,
+X#define		V_SUBSTLINE	66
+X    v_substchar,
+X#define		V_SUBSTCHAR	67
+X    v_chgtoend,
+X#define		V_CHGTOEND	68
+X    e_list_eof,
+X#define		F_LIST_EOF	69
+X    e_list_glob,
+X#define		F_LIST_GLOB	70
+X    e_expand_history,
+X#define		F_EXPAND_HISTORY	71
+X    e_magic_space,
+X#define		F_MAGIC_SPACE	72
+X    e_insovr,
+X#define		F_INSOVR	73
+X    v_cm_complete,
+X#define		V_CM_COMPLETE	74
+X    e_copyprev,
+X#define		F_COPYPREV	75
+X    e_correctl,
+X#define		F_CORRECT_L	76
+X    e_expand_glob,
+X#define		F_EXPAND_GLOB	77
+X    e_expand_vars,
+X#define		F_EXPAND_VARS	78
+X    e_toggle_hist,
+X#define		F_TOGGLE_HIST	79
+X    v_change_case,
+X#define		V_CHGCASE	80
+X    e_expand,
+X#define		F_EXPAND	81
+X    e_load_average,
+X#define		F_LOAD_AVERAGE	82
+X    v_delprev,
+X#define		V_DELPREV	83
+X    v_delmeta,
+X#define		V_DELMETA	84
+X    v_wordfwd,
+X#define		V_WORDFWD	85
+X    v_wordback,
+X#define		V_WORDBACK	86
+X    v_endword,
+X#define		V_ENDWORD	87
+X    v_eword,
+X#define		V_EWORD		88
+X    v_undo,
+X#define		V_UNDO		89
+X    v_ush_meta,
+X#define		V_USH_META	90
+X    v_dsh_meta,
+X#define		V_DSH_META	91
+X    v_rsrch_fwd,
+X#define		V_RSRCH_FWD	92
+X    v_rsrch_back,
+X#define		V_RSRCH_BACK	93
+X    v_char_fwd,
+X#define		V_CHAR_FWD	94
+X    v_char_back,
+X#define		V_CHAR_BACK	95
+X    v_chgmeta,
+X#define		V_CHGMETA	96
+X    e_inc_fwd,
+X#define		F_INC_FWD	97
+X    e_inc_back,
+X#define		F_INC_BACK	98
+X    v_rchar_fwd,
+X#define		V_RCHAR_FWD	99
+X    v_rchar_back,
+X#define		V_RCHAR_BACK	100
+X    v_charto_fwd,
+X#define		V_CHARTO_FWD	101
+X    v_charto_back,
+X#define		V_CHARTO_BACK	102
+X    e_normalize_path,
+X#define		F_PATH_NORM	103
+X    0				/* DUMMY VALUE */
+X#define		F_NUM_FNS	104
+X};
+X
+KEYCMD  NumFuns = F_NUM_FNS;
+X
+KEYCMD  CcKeyMap[256];		/* the real key map */
+KEYCMD  CcAltMap[256];		/* the alternative key map */
+X
+KEYCMD  CcEmacsMap[] = {
+X/* keymap table, each index into above tbl; should be 256*sizeof(KEYCMD)
+X   bytes long */
+X
+X    F_SET_MARK,			/* ^@ */
+X    F_TOBEG,			/* ^A */
+X    F_CHARBACK,			/* ^B */
+X    F_TTY_INT,			/* ^C */
+X    F_LIST_DELNEXT,		/* ^D */
+X    F_TOEND,			/* ^E */
+X    F_CHARFWD,			/* ^F */
+X    F_UNASSIGNED,		/* ^G */
+X    F_DELPREV,			/* ^H */
+X    F_COMPLETE,			/* ^I */
+X    F_NEWLINE,			/* ^J */
+X    F_KILLEND,			/* ^K */
+X    F_CLEARDISP,		/* ^L */
+X    F_NEWLINE,			/* ^M */
+X    F_DOWN_HIST,		/* ^N */
+X    F_TTY_FLUSHO,		/* ^O */
+X    F_UP_HIST,			/* ^P */
+X    F_TTY_STARTO,		/* ^Q */
+X    F_REDISP,			/* ^R */
+X    F_TTY_STOPO,		/* ^S */
+X    F_CHARSWITCH,		/* ^T */
+X    F_KILLALL,			/* ^U */
+X    F_QUOTE,			/* ^V */
+X    F_KILLREGION,		/* ^W */
+X    F_XKEY,			/* ^X */
+X    F_YANK_KILL,		/* ^Y */
+X    F_TTY_TSUSP,		/* ^Z */
+X    F_METANEXT,			/* ^[ */
+X    F_TTY_QUIT,			/* ^\ */
+X    F_TTY_DSUSP,		/* ^] */
+X    F_UNASSIGNED,		/* ^^ */
+X    F_UNASSIGNED,		/* ^_ */
+X    F_INSERT,			/* SPACE */
+X    F_INSERT,			/* ! */
+X    F_INSERT,			/* " */
+X    F_INSERT,			/* # */
+X    F_INSERT,			/* $ */
+X    F_INSERT,			/* % */
+X    F_INSERT,			/* & */
+X    F_INSERT,			/* ' */
+X    F_INSERT,			/* ( */
+X    F_INSERT,			/* ) */
+X    F_INSERT,			/* * */
+X    F_INSERT,			/* + */
+X    F_INSERT,			/* , */
+X    F_INSERT,			/* - */
+X    F_INSERT,			/* . */
+X    F_INSERT,			/* / */
+X    F_DIGIT,			/* 0 */
+X    F_DIGIT,			/* 1 */
+X    F_DIGIT,			/* 2 */
+X    F_DIGIT,			/* 3 */
+X    F_DIGIT,			/* 4 */
+X    F_DIGIT,			/* 5 */
+X    F_DIGIT,			/* 6 */
+X    F_DIGIT,			/* 7 */
+X    F_DIGIT,			/* 8 */
+X    F_DIGIT,			/* 9 */
+X    F_INSERT,			/* : */
+X    F_INSERT,			/* ; */
+X    F_INSERT,			/* < */
+X    F_INSERT,			/* = */
+X    F_INSERT,			/* > */
+X    F_INSERT,			/* ? */
+X    F_INSERT,			/* @ */
+X    F_INSERT,			/* A */
+X    F_INSERT,			/* B */
+X    F_INSERT,			/* C */
+X    F_INSERT,			/* D */
+X    F_INSERT,			/* E */
+X    F_INSERT,			/* F */
+X    F_INSERT,			/* G */
+X    F_INSERT,			/* H */
+X    F_INSERT,			/* I */
+X    F_INSERT,			/* J */
+X    F_INSERT,			/* K */
+X    F_INSERT,			/* L */
+X    F_INSERT,			/* M */
+X    F_INSERT,			/* N */
+X    F_INSERT,			/* O */
+X    F_INSERT,			/* P */
+X    F_INSERT,			/* Q */
+X    F_INSERT,			/* R */
+X    F_INSERT,			/* S */
+X    F_INSERT,			/* T */
+X    F_INSERT,			/* U */
+X    F_INSERT,			/* V */
+X    F_INSERT,			/* W */
+X    F_INSERT,			/* X */
+X    F_INSERT,			/* Y */
+X    F_INSERT,			/* Z */
+X    F_INSERT,			/* [ */
+X    F_INSERT,			/* \ */
+X    F_INSERT,			/* ] */
+X    F_INSERT,			/* ^ */
+X    F_INSERT,			/* _ */
+X    F_INSERT,			/* ` */
+X    F_INSERT,			/* a */
+X    F_INSERT,			/* b */
+X    F_INSERT,			/* c */
+X    F_INSERT,			/* d */
+X    F_INSERT,			/* e */
+X    F_INSERT,			/* f */
+X    F_INSERT,			/* g */
+X    F_INSERT,			/* h */
+X    F_INSERT,			/* i */
+X    F_INSERT,			/* j */
+X    F_INSERT,			/* k */
+X    F_INSERT,			/* l */
+X    F_INSERT,			/* m */
+X    F_INSERT,			/* n */
+X    F_INSERT,			/* o */
+X    F_INSERT,			/* p */
+X    F_INSERT,			/* q */
+X    F_INSERT,			/* r */
+X    F_INSERT,			/* s */
+X    F_INSERT,			/* t */
+X    F_INSERT,			/* u */
+X    F_INSERT,			/* v */
+X    F_INSERT,			/* w */
+X    F_INSERT,			/* x */
+X    F_INSERT,			/* y */
+X    F_INSERT,			/* z */
+X    F_INSERT,			/* { */
+X    F_INSERT,			/* | */
+X    F_INSERT,			/* } */
+X    F_INSERT,			/* ~ */
+X    F_DELPREV,			/* ^? */
+X    F_UNASSIGNED,		/* M-^@ */
+X    F_UNASSIGNED,		/* M-^A */
+X    F_UNASSIGNED,		/* M-^B */
+X    F_UNASSIGNED,		/* M-^C */
+X    F_LIST_CHOICES,		/* M-^D */
+X    F_UNASSIGNED,		/* M-^E */
+X    F_UNASSIGNED,		/* M-^F */
+X    F_UNASSIGNED,		/* M-^G */
+X    F_DELWORDPREV,		/* M-^H */
+X    F_COMPLETE,			/* M-^I */
+X    F_UNASSIGNED,		/* M-^J */
+X    F_UNASSIGNED,		/* M-^K */
+X    F_CLEARDISP,		/* M-^L */
+X    F_UNASSIGNED,		/* M-^M */
+X    F_UNASSIGNED,		/* M-^N */
+X    F_UNASSIGNED,		/* M-^O */
+X    F_UNASSIGNED,		/* M-^P */
+X    F_UNASSIGNED,		/* M-^Q */
+X    F_UNASSIGNED,		/* M-^R */
+X    F_UNASSIGNED,		/* M-^S */
+X    F_UNASSIGNED,		/* M-^T */
+X    F_UNASSIGNED,		/* M-^U */
+X    F_UNASSIGNED,		/* M-^V */
+X    F_UNASSIGNED,		/* M-^W */
+X    F_UNASSIGNED,		/* M-^X */
+X    F_UNASSIGNED,		/* M-^Y */
+X    F_RUN_FG_EDITOR,		/* M-^Z */
+X    F_COMPLETE,			/* M-^[ */
+X    F_UNASSIGNED,		/* M-^\ */
+X    F_UNASSIGNED,		/* M-^] */
+X    F_UNASSIGNED,		/* M-^^ */
+X    F_COPYPREV,			/* M-^_ */
+X    F_EXPAND_HISTORY,		/* M-SPACE */
+X    F_EXPAND_HISTORY,		/* M-! */
+X    F_UNASSIGNED,		/* M-" */
+X    F_UNASSIGNED,		/* M-# */
+X    F_CORRECT_L,		/* M-$ */
+X    F_UNASSIGNED,		/* M-% */
+X    F_UNASSIGNED,		/* M-& */
+X    F_UNASSIGNED,		/* M-' */
+X    F_UNASSIGNED,		/* M-( */
+X    F_UNASSIGNED,		/* M-) */
+X    F_UNASSIGNED,		/* M-* */
+X    F_UNASSIGNED,		/* M-+ */
+X    F_UNASSIGNED,		/* M-, */
+X    F_UNASSIGNED,		/* M-- */
+X    F_UNASSIGNED,		/* M-. */
+X    F_UNASSIGNED,		/* M-/ */
+X    F_ARGDIGIT,			/* M-0 */
+X    F_ARGDIGIT,			/* M-1 */
+X    F_ARGDIGIT,			/* M-2 */
+X    F_ARGDIGIT,			/* M-3 */
+X    F_ARGDIGIT,			/* M-4 */
+X    F_ARGDIGIT,			/* M-5 */
+X    F_ARGDIGIT,			/* M-6 */
+X    F_ARGDIGIT,			/* M-7 */
+X    F_ARGDIGIT,			/* M-8 */
+X    F_ARGDIGIT,			/* M-9 */
+X    F_UNASSIGNED,		/* M-: */
+X    F_UNASSIGNED,		/* M-; */
+X    F_UNASSIGNED,		/* M-< */
+X    F_UNASSIGNED,		/* M-= */
+X    F_UNASSIGNED,		/* M-> */
+X    F_WHICH,			/* M-? */
+X    F_UNASSIGNED,		/* M-@ */
+X    F_UNASSIGNED,		/* M-A */
+X    F_WORDBACK,			/* M-B */
+X    F_CASECAPITAL,		/* M-C */
+X    F_DELWORDNEXT,		/* M-D */
+X    F_UNASSIGNED,		/* M-E */
+X    F_WORDFWD,			/* M-F */
+X    F_UNASSIGNED,		/* M-G */
+X    F_HELPME,			/* M-H */
+X    F_UNASSIGNED,		/* M-I */
+X    F_UNASSIGNED,		/* M-J */
+X    F_UNASSIGNED,		/* M-K */
+X    F_CASELOWER,		/* M-L */
+X    F_UNASSIGNED,		/* M-M */
+X    F_DOWN_SEARCH_HIST,		/* M-N */
+X    F_XKEY,			/* M-O *//* extended key esc PWP Mar 88 */
+X    F_UP_SEARCH_HIST,		/* M-P */
+X    F_UNASSIGNED,		/* M-Q */
+X    F_TOGGLE_HIST,		/* M-R */
+X    F_CORRECT,			/* M-S */
+X    F_UNASSIGNED,		/* M-T */
+X    F_CASEUPPER,		/* M-U */
+X    F_UNASSIGNED,		/* M-V */
+X    F_COPYREGION,		/* M-W */
+X    F_UNASSIGNED,		/* M-X */
+X    F_UNASSIGNED,		/* M-Y */
+X    F_UNASSIGNED,		/* M-Z */
+X    F_XKEY,			/* M-[ *//* extended key esc -mf Oct 87 */
+X    F_UNASSIGNED,		/* M-\ */
+X    F_UNASSIGNED,		/* M-] */
+X    F_UNASSIGNED,		/* M-^ */
+X    F_LAST_ITEM,		/* M-_ */
+X    F_UNASSIGNED,		/* M-` */
+X    F_UNASSIGNED,		/* M-a */
+X    F_WORDBACK,			/* M-b */
+X    F_CASECAPITAL,		/* M-c */
+X    F_DELWORDNEXT,		/* M-d */
+X    F_UNASSIGNED,		/* M-e */
+X    F_WORDFWD,			/* M-f */
+X    F_UNASSIGNED,		/* M-g */
+X    F_HELPME,			/* M-h */
+X    F_UNASSIGNED,		/* M-i */
+X    F_UNASSIGNED,		/* M-j */
+X    F_UNASSIGNED,		/* M-k */
+X    F_CASELOWER,		/* M-l */
+X    F_UNASSIGNED,		/* M-m */
+X    F_DOWN_SEARCH_HIST,		/* M-n */
+X    F_UNASSIGNED,		/* M-o */
+X    F_UP_SEARCH_HIST,		/* M-p */
+X    F_UNASSIGNED,		/* M-q */
+X    F_TOGGLE_HIST,		/* M-r */
+X    F_CORRECT,			/* M-s */
+X    F_UNASSIGNED,		/* M-t */
+X    F_CASEUPPER,		/* M-u */
+X    F_UNASSIGNED,		/* M-v */
+X    F_COPYREGION,		/* M-w */
+X    F_UNASSIGNED,		/* M-x */
+X    F_UNASSIGNED,		/* M-y */
+X    F_UNASSIGNED,		/* M-z */
+X    F_UNASSIGNED,		/* M-{ */
+X    F_UNASSIGNED,		/* M-| */
+X    F_UNASSIGNED,		/* M-} */
+X    F_UNASSIGNED,		/* M-~ */
+X    F_DELWORDPREV		/* M-^? */
+X};
+X
+X/*
+X * keymap table for vi.  Each index into above tbl; should be
+X * 256 entries long.  Vi mode uses a sticky-extend to do command mode:
+X * insert mode characters are in the normal keymap, and command mode
+X * in the extended keymap.
+X */
+KEYCMD  CcViMap[] = {
+X#ifdef KSHVI
+X    F_UNASSIGNED,		/* ^@ */
+X    F_INSERT,			/* ^A */
+X    F_INSERT,			/* ^B */
+X    F_INSERT,			/* ^C */
+X    F_INSERT,			/* ^D */
+X    F_INSERT,			/* ^E */
+X    F_INSERT,			/* ^F */
+X    F_INSERT,			/* ^G */
+X    V_DELPREV,			/* ^H */   /* BackSpace key */
+X    F_COMPLETE,			/* ^I */   /* Tab Key  */
+X    F_NEWLINE,			/* ^J */
+X    F_INSERT,			/* ^K */
+X    F_INSERT,			/* ^L */
+X    F_NEWLINE,			/* ^M */
+X    F_INSERT,			/* ^N */
+X    F_INSERT,			/* ^O */
+X    F_INSERT,			/* ^P */
+X    F_TTY_STARTO,		/* ^Q */
+X    F_INSERT,			/* ^R */
+X    F_INSERT,			/* ^S */
+X    F_INSERT,			/* ^T */
+X    F_INSERT,			/* ^U */
+X    F_QUOTE,			/* ^V */
+X    F_DELWORDPREV,		/* ^W */  /* Only until start edit pos */
+X    F_INSERT,			/* ^X */
+X    F_INSERT,			/* ^Y */
+X    F_INSERT,			/* ^Z */
+X    V_CMD_MODE,			/* ^[ */  /* [ Esc ] key */
+X    F_TTY_QUIT,			/* ^\ */
+X    F_INSERT,			/* ^] */
+X    F_INSERT,			/* ^^ */
+X    F_INSERT,			/* ^_ */
+X#else /* !KSHVI */
+X    F_UNASSIGNED,		/* ^@ */   /* NOTE: These mapping do NOT */
+X    F_TOBEG,			/* ^A */   /* Correspond well to the KSH */
+X    F_CHARBACK,			/* ^B */   /* VI editting assignments    */
+X    F_TTY_INT,			/* ^C */   /* On the other hand they are */
+X    F_LIST_EOF,			/* ^D */   /* convenient any many people */
+X    F_TOEND,			/* ^E */   /* have gotten used to them   */
+X    F_CHARFWD,			/* ^F */
+X    F_LIST_GLOB,		/* ^G */
+X    F_DELPREV,			/* ^H */   /* BackSpace key */
+X    F_COMPLETE,			/* ^I */   /* Tab Key */
+X    F_NEWLINE,			/* ^J */
+X    F_KILLEND,			/* ^K */
+X    F_CLEARDISP,		/* ^L */
+X    F_NEWLINE,			/* ^M */
+X    F_DOWN_HIST,		/* ^N */
+X    F_TTY_FLUSHO,		/* ^O */
+X    F_UP_HIST,			/* ^P */
+X    F_TTY_STARTO,		/* ^Q */
+X    F_REDISP,			/* ^R */
+X    F_TTY_STOPO,		/* ^S */
+X    F_CHARSWITCH,		/* ^T */
+X    F_KILLBEG,			/* ^U */
+X    F_QUOTE,			/* ^V */
+X    F_DELWORDPREV,		/* ^W */
+X    F_EXPAND,			/* ^X */
+X    F_TTY_DSUSP,		/* ^Y */
+X    F_TTY_TSUSP,		/* ^Z */
+X    V_CMD_MODE,			/* ^[ */
+X    F_TTY_QUIT,			/* ^\ */
+X    F_UNASSIGNED,		/* ^] */
+X    F_UNASSIGNED,		/* ^^ */
+X    F_UNASSIGNED,		/* ^_ */
+X#endif  /* KSHVI */
+X    F_INSERT,			/* SPACE */
+X    F_INSERT,			/* ! */
+X    F_INSERT,			/* " */
+X    F_INSERT,			/* # */
+X    F_INSERT,			/* $ */
+X    F_INSERT,			/* % */
+X    F_INSERT,			/* & */
+X    F_INSERT,			/* ' */
+X    F_INSERT,			/* ( */
+X    F_INSERT,			/* ) */
+X    F_INSERT,			/* * */
+X    F_INSERT,			/* + */
+X    F_INSERT,			/* , */
+X    F_INSERT,			/* - */
+X    F_INSERT,			/* . */
+X    F_INSERT,			/* / */
+X    F_INSERT,			/* 0 */
+X    F_INSERT,			/* 1 */
+X    F_INSERT,			/* 2 */
+X    F_INSERT,			/* 3 */
+X    F_INSERT,			/* 4 */
+X    F_INSERT,			/* 5 */
+X    F_INSERT,			/* 6 */
+X    F_INSERT,			/* 7 */
+X    F_INSERT,			/* 8 */
+X    F_INSERT,			/* 9 */
+X    F_INSERT,			/* : */
+X    F_INSERT,			/* ; */
+X    F_INSERT,			/* < */
+X    F_INSERT,			/* = */
+X    F_INSERT,			/* > */
+X    F_INSERT,			/* ? */
+X    F_INSERT,			/* @ */
+X    F_INSERT,			/* A */
+X    F_INSERT,			/* B */
+X    F_INSERT,			/* C */
+X    F_INSERT,			/* D */
+X    F_INSERT,			/* E */
+X    F_INSERT,			/* F */
+X    F_INSERT,			/* G */
+X    F_INSERT,			/* H */
+X    F_INSERT,			/* I */
+X    F_INSERT,			/* J */
+X    F_INSERT,			/* K */
+X    F_INSERT,			/* L */
+X    F_INSERT,			/* M */
+X    F_INSERT,			/* N */
+X    F_INSERT,			/* O */
+X    F_INSERT,			/* P */
+X    F_INSERT,			/* Q */
+X    F_INSERT,			/* R */
+X    F_INSERT,			/* S */
+X    F_INSERT,			/* T */
+X    F_INSERT,			/* U */
+X    F_INSERT,			/* V */
+X    F_INSERT,			/* W */
+X    F_INSERT,			/* X */
+X    F_INSERT,			/* Y */
+X    F_INSERT,			/* Z */
+X    F_INSERT,			/* [ */
+X    F_INSERT,			/* \ */
+X    F_INSERT,			/* ] */
+X    F_INSERT,			/* ^ */
+X    F_INSERT,			/* _ */
+X    F_INSERT,			/* ` */
+X    F_INSERT,			/* a */
+X    F_INSERT,			/* b */
+X    F_INSERT,			/* c */
+X    F_INSERT,			/* d */
+X    F_INSERT,			/* e */
+X    F_INSERT,			/* f */
+X    F_INSERT,			/* g */
+X    F_INSERT,			/* h */
+X    F_INSERT,			/* i */
+X    F_INSERT,			/* j */
+X    F_INSERT,			/* k */
+X    F_INSERT,			/* l */
+X    F_INSERT,			/* m */
+X    F_INSERT,			/* n */
+X    F_INSERT,			/* o */
+X    F_INSERT,			/* p */
+X    F_INSERT,			/* q */
+X    F_INSERT,			/* r */
+X    F_INSERT,			/* s */
+X    F_INSERT,			/* t */
+X    F_INSERT,			/* u */
+X    F_INSERT,			/* v */
+X    F_INSERT,			/* w */
+X    F_INSERT,			/* x */
+X    F_INSERT,			/* y */
+X    F_INSERT,			/* z */
+X    F_INSERT,			/* { */
+X    F_INSERT,			/* | */
+X    F_INSERT,			/* } */
+X    F_INSERT,			/* ~ */
+X    F_DELPREV,			/* ^? */
+X    F_UNASSIGNED,		/* M-^@ */
+X    F_UNASSIGNED,		/* M-^A */
+X    F_UNASSIGNED,		/* M-^B */
+X    F_UNASSIGNED,		/* M-^C */
+X    F_UNASSIGNED,		/* M-^D */
+X    F_UNASSIGNED,		/* M-^E */
+X    F_UNASSIGNED,		/* M-^F */
+X    F_UNASSIGNED,		/* M-^G */
+X    F_UNASSIGNED,		/* M-^H */
+X    F_UNASSIGNED,		/* M-^I */
+X    F_UNASSIGNED,		/* M-^J */
+X    F_UNASSIGNED,		/* M-^K */
+X    F_UNASSIGNED,		/* M-^L */
+X    F_UNASSIGNED,		/* M-^M */
+X    F_UNASSIGNED,		/* M-^N */
+X    F_UNASSIGNED,		/* M-^O */
+X    F_UNASSIGNED,		/* M-^P */
+X    F_UNASSIGNED,		/* M-^Q */
+X    F_UNASSIGNED,		/* M-^R */
+X    F_UNASSIGNED,		/* M-^S */
+X    F_UNASSIGNED,		/* M-^T */
+X    F_UNASSIGNED,		/* M-^U */
+X    F_UNASSIGNED,		/* M-^V */
+X    F_UNASSIGNED,		/* M-^W */
+X    F_UNASSIGNED,		/* M-^X */
+X    F_UNASSIGNED,		/* M-^Y */
+X    F_UNASSIGNED,		/* M-^Z */
+X    F_UNASSIGNED,		/* M-^[ */
+X    F_UNASSIGNED,		/* M-^\ */
+X    F_UNASSIGNED,		/* M-^] */
+X    F_UNASSIGNED,		/* M-^^ */
+X    F_UNASSIGNED,		/* M-^_ */
+X    F_UNASSIGNED,		/* M-SPACE */
+X    F_UNASSIGNED,		/* M-! */
+X    F_UNASSIGNED,		/* M-" */
+X    F_UNASSIGNED,		/* M-# */
+X    F_UNASSIGNED,		/* M-$ */
+X    F_UNASSIGNED,		/* M-% */
+X    F_UNASSIGNED,		/* M-& */
+X    F_UNASSIGNED,		/* M-' */
+X    F_UNASSIGNED,		/* M-( */
+X    F_UNASSIGNED,		/* M-) */
+X    F_UNASSIGNED,		/* M-* */
+X    F_UNASSIGNED,		/* M-+ */
+X    F_UNASSIGNED,		/* M-, */
+X    F_UNASSIGNED,		/* M-- */
+X    F_UNASSIGNED,		/* M-. */
+X    F_UNASSIGNED,		/* M-/ */
+X    F_UNASSIGNED,		/* M-0 */
+X    F_UNASSIGNED,		/* M-1 */
+X    F_UNASSIGNED,		/* M-2 */
+X    F_UNASSIGNED,		/* M-3 */
+X    F_UNASSIGNED,		/* M-4 */
+X    F_UNASSIGNED,		/* M-5 */
+X    F_UNASSIGNED,		/* M-6 */
+X    F_UNASSIGNED,		/* M-7 */
+X    F_UNASSIGNED,		/* M-8 */
+X    F_UNASSIGNED,		/* M-9 */
+X    F_UNASSIGNED,		/* M-: */
+X    F_UNASSIGNED,		/* M-; */
+X    F_UNASSIGNED,		/* M-< */
+X    F_UNASSIGNED,		/* M-= */
+X    F_UNASSIGNED,		/* M-> */
+X    F_UNASSIGNED,		/* M-? */
+X    F_UNASSIGNED,		/* M-@ */
+X    F_UNASSIGNED,		/* M-A */
+X    F_UNASSIGNED,		/* M-B */
+X    F_UNASSIGNED,		/* M-C */
+X    F_UNASSIGNED,		/* M-D */
+X    F_UNASSIGNED,		/* M-E */
+X    F_UNASSIGNED,		/* M-F */
+X    F_UNASSIGNED,		/* M-G */
+X    F_UNASSIGNED,		/* M-H */
+X    F_UNASSIGNED,		/* M-I */
+X    F_UNASSIGNED,		/* M-J */
+X    F_UNASSIGNED,		/* M-K */
+X    F_UNASSIGNED,		/* M-L */
+X    F_UNASSIGNED,		/* M-M */
+X    F_UNASSIGNED,		/* M-N */
+X    F_UNASSIGNED,		/* M-O */
+X    F_UNASSIGNED,		/* M-P */
+X    F_UNASSIGNED,		/* M-Q */
+X    F_UNASSIGNED,		/* M-R */
+X    F_UNASSIGNED,		/* M-S */
+X    F_UNASSIGNED,		/* M-T */
+X    F_UNASSIGNED,		/* M-U */
+X    F_UNASSIGNED,		/* M-V */
+X    F_UNASSIGNED,		/* M-W */
+X    F_UNASSIGNED,		/* M-X */
+X    F_UNASSIGNED,		/* M-Y */
+X    F_UNASSIGNED,		/* M-Z */
+X    F_UNASSIGNED,		/* M-[ */
+X    F_UNASSIGNED,		/* M-\ */
+X    F_UNASSIGNED,		/* M-] */
+X    F_UNASSIGNED,		/* M-^ */
+X    F_UNASSIGNED,		/* M-_ */
+X    F_UNASSIGNED,		/* M-` */
+X    F_UNASSIGNED,		/* M-a */
+X    F_UNASSIGNED,		/* M-b */
+X    F_UNASSIGNED,		/* M-c */
+X    F_UNASSIGNED,		/* M-d */
+X    F_UNASSIGNED,		/* M-e */
+X    F_UNASSIGNED,		/* M-f */
+X    F_UNASSIGNED,		/* M-g */
+X    F_UNASSIGNED,		/* M-h */
+X    F_UNASSIGNED,		/* M-i */
+X    F_UNASSIGNED,		/* M-j */
+X    F_UNASSIGNED,		/* M-k */
+X    F_UNASSIGNED,		/* M-l */
+X    F_UNASSIGNED,		/* M-m */
+X    F_UNASSIGNED,		/* M-n */
+X    F_UNASSIGNED,		/* M-o */
+X    F_UNASSIGNED,		/* M-p */
+X    F_UNASSIGNED,		/* M-q */
+X    F_UNASSIGNED,		/* M-r */
+X    F_UNASSIGNED,		/* M-s */
+X    F_UNASSIGNED,		/* M-t */
+X    F_UNASSIGNED,		/* M-u */
+X    F_UNASSIGNED,		/* M-v */
+X    F_UNASSIGNED,		/* M-w */
+X    F_UNASSIGNED,		/* M-x */
+X    F_UNASSIGNED,		/* M-y */
+X    F_UNASSIGNED,		/* M-z */
+X    F_UNASSIGNED,		/* M-{ */
+X    F_UNASSIGNED,		/* M-| */
+X    F_UNASSIGNED,		/* M-} */
+X    F_UNASSIGNED,		/* M-~ */
+X    F_UNASSIGNED		/* M-^? */
+X};
+X
+KEYCMD  CcViCmdMap[] = {
+X    F_UNASSIGNED,		/* ^@ */
+X    F_TOBEG,			/* ^A */
+X    F_UNASSIGNED,		/* ^B */
+X    F_TTY_INT,			/* ^C */
+X    F_LIST_CHOICES,		/* ^D */
+X    F_TOEND,			/* ^E */
+X    F_UNASSIGNED,		/* ^F */
+X    F_LIST_GLOB,		/* ^G */
+X    F_CHARBACK,			/* ^H */
+X    V_CM_COMPLETE,		/* ^I */
+X    F_NEWLINE,			/* ^J */
+X    F_KILLEND,			/* ^K */
+X    F_CLEARDISP,		/* ^L */
+X    F_NEWLINE,			/* ^M */
+X    F_DOWN_HIST,		/* ^N */
+X    F_TTY_FLUSHO,		/* ^O */
+X    F_UP_HIST,			/* ^P */
+X    F_TTY_STARTO,		/* ^Q */
+X    F_REDISP,			/* ^R */
+X    F_TTY_STOPO,		/* ^S */
+X    F_UNASSIGNED,		/* ^T */
+X    F_KILLBEG,			/* ^U */
+X    F_UNASSIGNED,		/* ^V */
+X    F_DELWORDPREV,		/* ^W */
+X    F_EXPAND,			/* ^X */
+X    F_UNASSIGNED,		/* ^Y */
+X    F_UNASSIGNED,		/* ^Z */
+X    F_METANEXT,			/* ^[ */
+X    F_TTY_QUIT,			/* ^\ */
+X    F_UNASSIGNED,		/* ^] */
+X    F_UNASSIGNED,		/* ^^ */
+X    F_UNASSIGNED,		/* ^_ */
+X    F_CHARFWD,			/* SPACE */
+X    F_EXPAND_HISTORY,		/* ! */
+X    F_UNASSIGNED,		/* " */
+X    F_UNASSIGNED,		/* # */
+X    F_TOEND,			/* $ */
+X    F_UNASSIGNED,		/* % */
+X    F_UNASSIGNED,		/* & */
+X    F_UNASSIGNED,		/* ' */
+X    F_UNASSIGNED,		/* ( */
+X    F_UNASSIGNED,		/* ) */
+X    F_EXPAND_GLOB,		/* * */
+X    F_DOWN_HIST,		/* + */
+X    V_RCHAR_BACK,		/* , */	
+X    F_UP_HIST,			/* - */	
+X    F_UNASSIGNED,		/* . */
+X    V_DSH_META,			/* / */
+X    V_ZERO,			/* 0 */
+X    F_ARGDIGIT,			/* 1 */
+X    F_ARGDIGIT,			/* 2 */
+X    F_ARGDIGIT,			/* 3 */
+X    F_ARGDIGIT,			/* 4 */
+X    F_ARGDIGIT,			/* 5 */
+X    F_ARGDIGIT,			/* 6 */
+X    F_ARGDIGIT,			/* 7 */
+X    F_ARGDIGIT,			/* 8 */
+X    F_ARGDIGIT,			/* 9 */
+X    F_UNASSIGNED,		/* : */
+X    V_RCHAR_FWD,		/* ; */
+X    F_UNASSIGNED,		/* < */
+X    F_UNASSIGNED,		/* = */
+X    F_UNASSIGNED,		/* > */
+X    V_USH_META,			/* ? */
+X    F_UNASSIGNED,		/* @ */
+X    V_ADDEND,			/* A */
+X    V_WORDBACK,			/* B */
+X    V_CHGTOEND,			/* C */
+X    F_KILLEND,			/* D */
+X    V_ENDWORD,			/* E */
+X    V_CHAR_BACK,		/* F */
+X    F_UNASSIGNED,		/* G */
+X    F_UNASSIGNED,		/* H */
+X    V_INSBEG,			/* I */
+X    F_DOWN_SEARCH_HIST,		/* J */
+X    F_UP_SEARCH_HIST,		/* K */
+X    F_UNASSIGNED,		/* L */
+X    F_UNASSIGNED,		/* M */
+X    V_RSRCH_BACK,		/* N */
+X    F_XKEY,			/* O */
+X    F_UNASSIGNED,		/* P */
+X    F_UNASSIGNED,		/* Q */
+X    V_REPLMODE,			/* R */
+X    V_SUBSTLINE,		/* S */
+X    V_CHARTO_BACK,		/* T */
+X    F_UNASSIGNED,		/* U */
+X    F_EXPAND_VARS,		/* V */
+X    V_WORDFWD,			/* W */
+X    F_DELPREV,			/* X */
+X    F_UNASSIGNED,		/* Y */
+X    F_UNASSIGNED,		/* Z */
+X    F_XKEY,			/* [ */
+X    F_UNASSIGNED,		/* \ */
+X    F_UNASSIGNED,		/* ] */
+X    F_TOBEG,			/* ^ */
+X    F_UNASSIGNED,		/* _ */
+X    F_UNASSIGNED,		/* ` */
+X    V_ADD,			/* a */
+X    F_WORDBACK,			/* b */
+X    V_CHGMETA,			/* c */
+X    V_DELMETA,			/* d */
+X    V_EWORD,			/* e */
+X    V_CHAR_FWD,			/* f */
+X    F_UNASSIGNED,		/* g */
+X    F_CHARBACK,			/* h */
+X    V_INSERT,			/* i */
+X    F_DOWN_HIST,		/* j */
+X    F_UP_HIST,			/* k */
+X    F_CHARFWD,			/* l */
+X    F_UNASSIGNED,		/* m */
+X    V_RSRCH_FWD,		/* n */
+X    F_UNASSIGNED,		/* o */
+X    F_UNASSIGNED,		/* p */
+X    F_UNASSIGNED,		/* q */
+X    V_REPLONE,			/* r */
+X    V_SUBSTCHAR,		/* s */
+X    V_CHARTO_FWD,		/* t */
+X    V_UNDO,			/* u */
+X    F_EXPAND_VARS,		/* v */
+X    V_WORDBEGNEXT,		/* w */
+X    F_DELNEXT,			/* x */
+X    F_UNASSIGNED,		/* y */
+X    F_UNASSIGNED,		/* z */
+X    F_UNASSIGNED,		/* { */
+X    F_UNASSIGNED,		/* | */
+X    F_UNASSIGNED,		/* } */
+X    V_CHGCASE,			/* ~ */
+X    F_DELPREV,			/* ^? */
+X    F_UNASSIGNED,		/* M-^@ */
+X    F_UNASSIGNED,		/* M-^A */
+X    F_UNASSIGNED,		/* M-^B */
+X    F_UNASSIGNED,		/* M-^C */
+X    F_UNASSIGNED,		/* M-^D */
+X    F_UNASSIGNED,		/* M-^E */
+X    F_UNASSIGNED,		/* M-^F */
+X    F_UNASSIGNED,		/* M-^G */
+X    F_UNASSIGNED,		/* M-^H */
+X    F_UNASSIGNED,		/* M-^I */
+X    F_UNASSIGNED,		/* M-^J */
+X    F_UNASSIGNED,		/* M-^K */
+X    F_UNASSIGNED,		/* M-^L */
+X    F_UNASSIGNED,		/* M-^M */
+X    F_UNASSIGNED,		/* M-^N */
+X    F_UNASSIGNED,		/* M-^O */
+X    F_UNASSIGNED,		/* M-^P */
+X    F_UNASSIGNED,		/* M-^Q */
+X    F_UNASSIGNED,		/* M-^R */
+X    F_UNASSIGNED,		/* M-^S */
+X    F_UNASSIGNED,		/* M-^T */
+X    F_UNASSIGNED,		/* M-^U */
+X    F_UNASSIGNED,		/* M-^V */
+X    F_UNASSIGNED,		/* M-^W */
+X    F_UNASSIGNED,		/* M-^X */
+X    F_UNASSIGNED,		/* M-^Y */
+X    F_UNASSIGNED,		/* M-^Z */
+X    F_UNASSIGNED,		/* M-^[ */
+X    F_UNASSIGNED,		/* M-^\ */
+X    F_UNASSIGNED,		/* M-^] */
+X    F_UNASSIGNED,		/* M-^^ */
+X    F_UNASSIGNED,		/* M-^_ */
+X    F_UNASSIGNED,		/* M-SPACE */
+X    F_UNASSIGNED,		/* M-! */
+X    F_UNASSIGNED,		/* M-" */
+X    F_UNASSIGNED,		/* M-# */
+X    F_UNASSIGNED,		/* M-$ */
+X    F_UNASSIGNED,		/* M-% */
+X    F_UNASSIGNED,		/* M-& */
+X    F_UNASSIGNED,		/* M-' */
+X    F_UNASSIGNED,		/* M-( */
+X    F_UNASSIGNED,		/* M-) */
+X    F_UNASSIGNED,		/* M-* */
+X    F_UNASSIGNED,		/* M-+ */
+X    F_UNASSIGNED,		/* M-, */
+X    F_UNASSIGNED,		/* M-- */
+X    F_UNASSIGNED,		/* M-. */
+X    F_UNASSIGNED,		/* M-/ */
+X    F_UNASSIGNED,		/* M-0 */
+X    F_UNASSIGNED,		/* M-1 */
+X    F_UNASSIGNED,		/* M-2 */
+X    F_UNASSIGNED,		/* M-3 */
+X    F_UNASSIGNED,		/* M-4 */
+X    F_UNASSIGNED,		/* M-5 */
+X    F_UNASSIGNED,		/* M-6 */
+X    F_UNASSIGNED,		/* M-7 */
+X    F_UNASSIGNED,		/* M-8 */
+X    F_UNASSIGNED,		/* M-9 */
+X    F_UNASSIGNED,		/* M-: */
+X    F_UNASSIGNED,		/* M-; */
+X    F_UNASSIGNED,		/* M-< */
+X    F_UNASSIGNED,		/* M-= */
+X    F_UNASSIGNED,		/* M-> */
+X    F_HELPME,			/* M-? */
+X    F_UNASSIGNED,		/* M-@ */
+X    F_UNASSIGNED,		/* M-A */
+X    F_UNASSIGNED,		/* M-B */
+X    F_UNASSIGNED,		/* M-C */
+X    F_UNASSIGNED,		/* M-D */
+X    F_UNASSIGNED,		/* M-E */
+X    F_UNASSIGNED,		/* M-F */
+X    F_UNASSIGNED,		/* M-G */
+X    F_UNASSIGNED,		/* M-H */
+X    F_UNASSIGNED,		/* M-I */
+X    F_UNASSIGNED,		/* M-J */
+X    F_UNASSIGNED,		/* M-K */
+X    F_UNASSIGNED,		/* M-L */
+X    F_UNASSIGNED,		/* M-M */
+X    F_UNASSIGNED,		/* M-N */
+X    F_XKEY,			/* M-O *//* extended key esc PWP Mar 88 */
+X    F_UNASSIGNED,		/* M-P */
+X    F_UNASSIGNED,		/* M-Q */
+X    F_UNASSIGNED,		/* M-R */
+X    F_UNASSIGNED,		/* M-S */
+X    F_UNASSIGNED,		/* M-T */
+X    F_UNASSIGNED,		/* M-U */
+X    F_UNASSIGNED,		/* M-V */
+X    F_UNASSIGNED,		/* M-W */
+X    F_UNASSIGNED,		/* M-X */
+X    F_UNASSIGNED,		/* M-Y */
+X    F_UNASSIGNED,		/* M-Z */
+X    F_XKEY,			/* M-[ *//* extended key esc -mf Oct 87 */
+X    F_UNASSIGNED,		/* M-\ */
+X    F_UNASSIGNED,		/* M-] */
+X    F_UNASSIGNED,		/* M-^ */
+X    F_UNASSIGNED,		/* M-_ */
+X    F_UNASSIGNED,		/* M-` */
+X    F_UNASSIGNED,		/* M-a */
+X    F_UNASSIGNED,		/* M-b */
+X    F_UNASSIGNED,		/* M-c */
+X    F_UNASSIGNED,		/* M-d */
+X    F_UNASSIGNED,		/* M-e */
+X    F_UNASSIGNED,		/* M-f */
+X    F_UNASSIGNED,		/* M-g */
+X    F_UNASSIGNED,		/* M-h */
+X    F_UNASSIGNED,		/* M-i */
+X    F_UNASSIGNED,		/* M-j */
+X    F_UNASSIGNED,		/* M-k */
+X    F_UNASSIGNED,		/* M-l */
+X    F_UNASSIGNED,		/* M-m */
+X    F_UNASSIGNED,		/* M-n */
+X    F_UNASSIGNED,		/* M-o */
+X    F_UNASSIGNED,		/* M-p */
+X    F_UNASSIGNED,		/* M-q */
+X    F_UNASSIGNED,		/* M-r */
+X    F_UNASSIGNED,		/* M-s */
+X    F_UNASSIGNED,		/* M-t */
+X    F_UNASSIGNED,		/* M-u */
+X    F_UNASSIGNED,		/* M-v */
+X    F_UNASSIGNED,		/* M-w */
+X    F_UNASSIGNED,		/* M-x */
+X    F_UNASSIGNED,		/* M-y */
+X    F_UNASSIGNED,		/* M-z */
+X    F_UNASSIGNED,		/* M-{ */
+X    F_UNASSIGNED,		/* M-| */
+X    F_UNASSIGNED,		/* M-} */
+X    F_UNASSIGNED,		/* M-~ */
+X    F_UNASSIGNED		/* M-^? */
+X};
+X
+X
+struct KeyFuncs FuncNames[] = {
+X    "backward-char", F_CHARBACK,
+X    "Move back a character",
+X    "backward-delete-char", F_DELPREV,
+X    "Delete the character behind cursor",
+X    "backward-delete-word", F_DELWORDPREV,
+X    "Cut from beginning of current word to cursor - saved in cut buffer",
+X    "backward-kill-line", F_KILLBEG,
+X    "Cut from beginning of line to cursor - save in cut buffer",
+X    "backward-word", F_WORDBACK,
+X    "Move to beginning of current word",
+X    "beginning-of-line", F_TOBEG,
+X    "Move to beginning of line",
+X    "capitalize-word", F_CASECAPITAL,
+X    "Capitalize the characters from cursor to end of current word",
+X    "change-case", V_CHGCASE,
+X    "Vi change case of character under cursor and advance one character",
+X    "change-till-end-of-line", V_CHGTOEND,	/* backwards compat. */
+X    "Vi change to end of line",
+X    "clear-screen", F_CLEARDISP,
+X    "Clear screen leaving current line on top",
+X    "complete-word", F_COMPLETE,
+X    "Complete current word",
+X    "copy-prev-word", F_COPYPREV,
+X    "Copy current word to cursor",
+X    "copy-region-as-kill", F_COPYREGION,
+X    "Copy area between mark and cursor to cut buffer",
+X    "delete-char", F_DELNEXT,
+X    "Delete character under cursor",
+X    "delete-char-or-list", F_LIST_DELNEXT,
+X    "Delete character under cursor or list completions if at end of line",
+X    "delete-word", F_DELWORDNEXT,
+X    "Cut from cursor to end of current word - save in cut buffer",
+X    "digit", F_DIGIT,
+X    "Adds to argument if started or enters digit",
+X    "digit-argument", F_ARGDIGIT,
+X    "Digit that starts argument",
+X    "down-history", F_DOWN_HIST,
+X    "Move to next history line",
+X    "downcase-word", F_CASELOWER,
+X    "Lowercase the characters from cursor to end of current word",
+X    "end-of-file", F_SEND_EOF,
+X    "Indicate end of file",
+X    "end-of-line", F_TOEND,
+X    "Move cursor to end of line",
+X    "exchange-point-and-mark", F_EXCHANGE_MARK,
+X    "Exchange the cursor and mark",
+X    "expand-glob", F_EXPAND_GLOB,
+X    "Expand file name wildcards",
+X    "expand-history", F_EXPAND_HISTORY,
+X    "Expand history escapes",
+X    "expand-line", F_EXPAND,
+X    "Expand the history escapes in a line",
+X    "expand-variables", F_EXPAND_VARS,
+X    "Expand variables",
+X    "forward-char", F_CHARFWD,
+X    "Move forward one character",
+X    "forward-word", F_WORDFWD,
+X    "Move forward to end of current word",
+X    "gosmacs-transpose-chars", F_GCHARSWITCH,
+X    "Exchange the two characters before the cursor",
+X    "history-search-backward", F_UP_SEARCH_HIST,
+X    "Search in history backwards for line beginning as current",
+X    "history-search-forward", F_DOWN_SEARCH_HIST,
+X    "Search in history forward for line beginning as current",
+X    "insert-last-word", F_LAST_ITEM,
+X    "Insert last item of previous command",
+X    "i-search-fwd", F_INC_FWD,
+X    "Incremental search forward",
+X    "i-search-back", F_INC_BACK,
+X    "Incremental search backwards",
+X    "keyboard-quit", F_STARTOVER,
+X    "Clear line",
+X    "kill-line", F_KILLEND,
+X    "Cut to end of line and save in cut buffer",
+X    "kill-region", F_KILLREGION,
+X    "Cut area between mark and cursor and save in cut buffer",
+X    "kill-whole-line", F_KILLALL,
+X    "Cut the entire line and save in cut buffer",
+X    "list-choices", F_LIST_CHOICES,
+X    "List choices for completion",
+X    "list-glob", F_LIST_GLOB,
+X    "List file name wildcard matches",
+X    "list-or-eof", F_LIST_EOF,
+X    "List choices for completion or indicate end of file if empty line",
+X    "load-average", F_LOAD_AVERAGE,
+X    "Display load average and current process status",
+X    "magic-space", F_MAGIC_SPACE,
+X    "Expand history escapes and insert a space",
+X    "newline", F_NEWLINE,
+X    "Execute command",
+X    "normalize-path", F_PATH_NORM,
+X    "Expand pathnames, eliminating leading .'s and ..'s",
+X    "overwrite-mode", F_INSOVR,
+X    "Switch from insert to overwrite mode or vice versa",
+X    "prefix-meta", F_METANEXT,
+X    "Add 8th bit to next character typed",
+X    "quoted-insert", F_QUOTE,
+X    "Add the next character typed to the line verbatim",
+X    "redisplay", F_REDISP,
+X    "Redisplay everything",
+X    "run-fg-editor", F_RUN_FG_EDITOR,
+X    "Restart stopped editor",
+X    "run-help", F_HELPME,
+X    "Look for help on current command",
+X    "self-insert-command", F_INSERT,
+X    "This character is added to the line",
+X    "sequence-lead-in", F_XKEY,
+X    "This character is the first in a character sequence",
+X    "set-mark-command", F_SET_MARK,
+X    "Set the mark at cursor",
+X    "spell-word", F_CORRECT,
+X    "Correct the spelling of current word",
+X    "spell-line", F_CORRECT_L,
+X    "Correct the spelling of entire line",
+X    "toggle-literal-history", F_TOGGLE_HIST,
+X    "Toggle between literal and lexical current history line",
+X    "transpose-chars", F_CHARSWITCH,
+X    "Exchange the character to the left of the cursor with the one under",
+X    "transpose-gosling", F_GCHARSWITCH,
+X    "Exchange the two characters before the cursor",
+X    /* EGS: make Convex Users happy */
+X    "tty-dsusp", F_TTY_DSUSP,
+X    "Tty delayed suspend character",
+X    "tty-flush-output", F_TTY_FLUSHO,
+X    "Tty flush output character",
+X    "tty-sigintr", F_TTY_INT,
+X    "Tty interrupt character",
+X    "tty-sigquit", F_TTY_QUIT,
+X    "Tty quit character",
+X    "tty-sigtsusp", F_TTY_TSUSP,
+X    "Tty suspend character",
+X    "tty-start-output", F_TTY_STARTO,
+X    "Tty allow output character",
+X    "tty-stop-output", F_TTY_STOPO,
+X    "Tty disallow output character",
+X    "undefined-key", F_UNASSIGNED,
+X    "Indicates unbound character",
+X    "universal-argument", F_ARGFOUR,
+X    "Emacs universal argument (argument times 4)",
+X    "up-history", F_UP_HIST,
+X    "Move to previous history line",
+X    "upcase-word", F_CASEUPPER,
+X    "Uppercase the characters from cursor to end of current word",
+X    "vi-beginning-of-next-word", V_WORDBEGNEXT,
+X    "Vi goto the beginning of next word",
+X    "vi-add", V_ADD,
+X    "Vi enter insert mode after the cursor",
+X    "vi-add-at-eol", V_ADDEND,
+X    "Vi enter insert mode at end of line",
+X    "vi-chg-case", V_CHGCASE,
+X    "Vi change case of character under cursor and advance one character",
+X    "vi-chg-meta", V_CHGMETA,
+X    "Vi change prefix command",
+X    "vi-chg-to-eol", V_CHGTOEND,
+X    "Vi change to end of line",
+X    "vi-cmd-mode", V_CMD_MODE,
+X    "Enter vi command mode (use alternative key bindings)",
+X    "vi-cmd-mode-complete", V_CM_COMPLETE,
+X    "Vi command mode complete current word",
+X    "vi-delprev", V_DELPREV,
+X    "Vi move to previous character (backspace)",
+X    "vi-delmeta", V_DELMETA,
+X    "Vi delete prefix command",
+X    "vi-endword", V_ENDWORD,
+X    "Vi move to the end of the current space delimited word",
+X    "vi-eword", V_EWORD,
+X    "Vi move to the end of the current word",
+X    "vi-char-back", V_CHAR_BACK,
+X    "Vi move to the character specified backwards",
+X    "vi-char-fwd", V_CHAR_FWD,
+X    "Vi move to the character specified forward",
+X    "vi-charto-back", V_CHARTO_BACK,
+X    "Vi move up to the character specified backwards",
+X    "vi-charto-fwd", V_CHARTO_FWD,
+X    "Vi move up to the character specified forward",
+X    "vi-insert", V_INSERT,
+X    "Enter vi insert mode",
+X    "vi-insert-at-bol", V_INSBEG,
+X    "Enter vi insert mode at beginning of line",
+X    "vi-repeat-char-fwd", V_RCHAR_FWD,
+X    "Vi repeat current character search in the same search direction",
+X    "vi-repeat-char-back", V_RCHAR_BACK,
+X    "Vi repeat current character search in the opposite search direction",
+X    "vi-repeat-search-fwd", V_RSRCH_FWD,
+X    "Vi repeat current search in the same search direction",
+X    "vi-repeat-search-back", V_RSRCH_BACK,
+X    "Vi repeat current search in the opposite search direction",
+X    "vi-replace-char", V_REPLONE,
+X    "Vi replace character under the cursor with the next character typed",
+X    "vi-replace-mode", V_REPLMODE,
+X    "Vi replace mode",
+X    "vi-search-back", V_USH_META,
+X    "Vi search history backwards",
+X    "vi-search-fwd", V_DSH_META,
+X    "Vi search history forward",
+X    "vi-substitute-char", V_SUBSTCHAR,
+X    "Vi replace character under the cursor and enter insert mode",
+X    "vi-substitute-line", V_SUBSTLINE,
+X    "Vi replace entire line",
+X    "vi-word-back", V_WORDBACK,
+X    "Vi move to the previous word",
+X    "vi-word-fwd", V_WORDFWD,
+X    "Vi move to the next word",
+X    "vi-undo", V_UNDO,
+X    "Vi undo last change",
+X    "vi-zero", V_ZERO,
+X    "Vi goto the beginning of line",
+X    "which-command", F_WHICH,
+X    "Perform which of current command",
+X    "yank", F_YANK_KILL,
+X    "Paste cut buffer at cursor position",
+X    0, 0
+X};
+X
+X#ifdef DEBUG_EDIT
+void
+CheckMaps()
+X{				/* check the size of the key maps */
+X    int     c1 = (256 * sizeof(KEYCMD));
+X
+X    if ((sizeof(CcKeyMap)) != c1)
+X	xprintf("CcKeyMap should be 256 entries, but is %d.\r\n",
+X		(sizeof(CcKeyMap) / sizeof(KEYCMD)));
+X
+X    if ((sizeof(CcAltMap)) != c1)
+X	xprintf("CcAltMap should be 256 entries, but is %d.\r\n",
+X		(sizeof(CcAltMap) / sizeof(KEYCMD)));
+X
+X    if ((sizeof(CcEmacsMap)) != c1)
+X	xprintf("CcEmacsMap should be 256 entries, but is %d.\r\n",
+X		(sizeof(CcEmacsMap) / sizeof(KEYCMD)));
+X
+X    if ((sizeof(CcViMap)) != c1)
+X	xprintf("CcViMap should be 256 entries, but is %d.\r\n",
+X		(sizeof(CcViMap) / sizeof(KEYCMD)));
+X
+X    if ((sizeof(CcViCmdMap)) != c1)
+X	xprintf("CcViCmdMap should be 256 entries, but is %d.\r\n",
+X		(sizeof(CcViCmdMap) / sizeof(KEYCMD)));
+X}
+X
+X#endif
+X
+bool    MapsAreInited = 0;
+bool    NLSMapsAreInited = 0;
+bool    NoNLSRebind;
+X
+void
+ed_InitNLSMaps()
+X{
+X    register int i;
+X
+X    if (AsciiOnly)
+X	return;
+X    if (NoNLSRebind)
+X	return;
+X    for (i = 0200; i <= 0377; i++) {
+X	if (Isprint(i)) {
+X	    CcKeyMap[i] = F_INSERT;
+X	}
+X    }
+X    NLSMapsAreInited = 1;
+X}
+X
+static void
+ed_InitMetaBindings()
+X{
+X    Char    buf[3];
+X    register int i;
+X    KEYCMD *map;
+X
+X    map = CcKeyMap;
+X    for (i = 0; i <= 0377 && CcKeyMap[i] != F_METANEXT; i++);
+X    if (i > 0377) {
+X	for (i = 0; i <= 0377 && CcAltMap[i] != F_METANEXT; i++);
+X	if (i > 0377) {
+X	    i = 033;
+X	    if (VImode)
+X		map = CcAltMap;
+X	}
+X	else {
+X	    map = CcAltMap;
+X	}
+X    }
+X    buf[0] = i;
+X    buf[2] = 0;
+X    for (i = 0200; i <= 0377; i++) {
+X	if (map[i] != F_INSERT && map[i] != F_UNASSIGNED && map[i] != F_XKEY) {
+X	    buf[1] = i & ASCII;
+X	    AddXkey(buf, XmapCmd((int) map[i]), XK_CMD);
+X	}
+X    }
+X    map[buf[0]] = F_XKEY;
+X}
+X
+void
+ed_InitVIMaps()
+X{
+X    register int i;
+X
+X    VImode = 1;
+X    (void) ResetXmap(VImode);
+X    for (i = 0; i < 256; i++) {
+X	CcKeyMap[i] = CcViMap[i];
+X	CcAltMap[i] = CcViCmdMap[i];
+X    }
+X    ed_InitMetaBindings();
+X    (void) ed_InitNLSMaps();
+X    BindArrowKeys();
+X}
+X
+void
+ed_InitEmacsMaps()
+X{
+X    register int i;
+X    Char    buf[3];
+X
+X    VImode = 0;
+X    (void) ResetXmap(VImode);
+X    for (i = 0; i < 256; i++) {
+X	CcKeyMap[i] = CcEmacsMap[i];
+X	CcAltMap[i] = F_UNASSIGNED;
+X    }
+X    ed_InitMetaBindings();
+X    (void) ed_InitNLSMaps();
+X    buf[0] = 030;
+X    buf[2] = 0;
+X    buf[1] = 030;
+X    AddXkey(buf, XmapCmd(F_EXCHANGE_MARK), XK_CMD);
+X    buf[1] = '*';
+X    AddXkey(buf, XmapCmd(F_EXPAND_GLOB),   XK_CMD);
+X    buf[1] = '$';
+X    AddXkey(buf, XmapCmd(F_EXPAND_VARS),   XK_CMD);
+X    buf[1] = 'G';
+X    AddXkey(buf, XmapCmd(F_LIST_GLOB),     XK_CMD);
+X    buf[1] = 'g';
+X    AddXkey(buf, XmapCmd(F_LIST_GLOB),     XK_CMD);
+X    buf[1] = 'n';
+X    AddXkey(buf, XmapCmd(F_PATH_NORM),     XK_CMD);
+X    buf[1] = 'N';
+X    AddXkey(buf, XmapCmd(F_PATH_NORM),     XK_CMD);
+X    BindArrowKeys();
+X}
+X
+void
+ed_InitMaps()
+X{
+X    if (MapsAreInited)
+X	return;
+X#ifdef VIDEFAULT
+X    ed_InitVIMaps();
+X#else
+X    ed_InitEmacsMaps();
+X#endif
+X
+X    MapsAreInited = 1;
+X}
+END_OF_FILE
+if test 40810 -ne `wc -c <'ed.defns.c'`; then
+    echo shar: \"'ed.defns.c'\" unpacked with wrong size!
+fi
+# end of 'ed.defns.c'
+fi
+if test -f 'sh.c' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'sh.c'\"
+else
+echo shar: Extracting \"'sh.c'\" \(45105 characters\)
+sed "s/^X//" >'sh.c' <<'END_OF_FILE'
+X/* $Header: /home/hyperion/mu/christos/src/sys/tcsh-6.01/RCS/sh.c,v 3.20 1991/12/19 22:34:14 christos Exp $ */
+X/*
+X * sh.c: Main shell routines
+X */
+X/*-
+X * Copyright (c) 1980, 1991 The Regents of the University of California.
+X * All rights reserved.
+X *
+X * Redistribution and use in source and binary forms, with or without
+X * modification, are permitted provided that the following conditions
+X * are met:
+X * 1. Redistributions of source code must retain the above copyright
+X *    notice, this list of conditions and the following disclaimer.
+X * 2. Redistributions in binary form must reproduce the above copyright
+X *    notice, this list of conditions and the following disclaimer in the
+X *    documentation and/or other materials provided with the distribution.
+X * 3. All advertising materials mentioning features or use of this software
+X *    must display the following acknowledgement:
+X *	This product includes software developed by the University of
+X *	California, Berkeley and its contributors.
+X * 4. Neither the name of the University nor the names of its contributors
+X *    may be used to endorse or promote products derived from this software
+X *    without specific prior written permission.
+X *
+X * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+X * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+X * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+X * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+X * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+X * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+X * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+X * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+X * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+X * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+X * SUCH DAMAGE.
+X */
+X#define EXTERN	/* Intern */
+X#include "sh.h"
+X
+X#ifndef lint
+char    copyright[] =
+X"@(#) Copyright (c) 1991 The Regents of the University of California.\n\
+X All rights reserved.\n";
+X#endif				/* not lint */
+X
+RCSID("$Id: sh.c,v 3.20 1991/12/19 22:34:14 christos Exp $")
+X
+X#include "tc.h"
+X#include "ed.h"
+X
+extern bool MapsAreInited;
+extern bool NLSMapsAreInited;
+extern bool NoNLSRebind;
+X
+X/*
+X * C Shell
+X *
+X * Bill Joy, UC Berkeley, California, USA
+X * October 1978, May 1980
+X *
+X * Jim Kulp, IIASA, Laxenburg, Austria
+X * April 1980
+X *
+X * Filename recognition added:
+X * Ken Greer, Ind. Consultant, Palo Alto CA
+X * October 1983.
+X *
+X * Karl Kleinpaste, Computer Consoles, Inc.
+X * Added precmd, periodic/tperiod, prompt changes,
+X * directory stack hack, and login watch.
+X * Sometime March 1983 - Feb 1984.
+X *
+X * Added scheduled commands, including the "sched" command,
+X * plus the call to sched_run near the precmd et al
+X * routines.
+X * Upgraded scheduled events for running events while
+X * sitting idle at command input.
+X *
+X * Paul Placeway, Ohio State
+X * added stuff for running with twenex/inputl  9 Oct 1984.
+X *
+X * ported to Apple Unix (TM) (OREO)  26 -- 29 Jun 1987
+X */
+X
+jmp_buf reslab;
+X
+X#ifdef TESLA
+int do_logout;
+X#endif				/* TESLA */
+X
+Char   *dumphist[] = {STRhistory, STRmh, 0, 0};
+Char   *loadhist[] = {STRsource, STRmh, STRtildothist, 0};
+X
+X#ifdef CSHDIRS
+Char   *loaddirs[] = {STRsource, STRdirfile, 0};
+bool    dflag = 0;
+X#endif
+X
+X#if defined(convex) || defined(__convex__)
+bool    use_fork = 0;		/* use fork() instead of vfork()? */
+X#endif
+X
+int     nofile = 0;
+bool    reenter = 0;
+bool    nverbose = 0;
+bool    nexececho = 0;
+bool    quitit = 0;
+bool    fast = 0;
+bool    batch = 0;
+bool    mflag = 0;
+bool    prompt = 1;
+bool    enterhist = 0;
+bool    tellwhat = 0;
+time_t  t_period;
+X
+extern char **environ;
+X
+static	int		  srccat	__P((Char *, Char *));
+static	int		  srcfile	__P((char *, bool, bool));
+static	sigret_t	  phup		__P((int));
+static	void		  srcunit	__P((int, bool, bool));
+static	void		  mailchk	__P((void));
+static	Char	 	**defaultpath	__P((void));
+X
+int
+main(argc, argv)
+X    int     argc;
+X    char  **argv;
+X{
+X    register Char *cp;
+X#ifdef AUTOLOGOUT
+X    register Char *cp2;
+X#endif
+X    register char *tcp, *ttyn;
+X    register int f;
+X    register char **tempv;
+X
+X#ifdef BSDSIGS
+X    sigvec_t osv;
+X#endif				/* BSDSIGS */
+X
+X    settimes();			/* Immed. estab. timing base */
+X#ifdef TESLA
+X    do_logout = 0;
+X#endif				/* TESLA */
+X
+X    osinit();			/* Os dependent initialization */
+X
+X    /*
+X     * Initialize non constant strings
+X     */
+X#ifdef _PATH_BSHELL
+X    STR_BSHELL = SAVE(_PATH_BSHELL);
+X#endif
+X#ifdef _PATH_CSHELL
+X    STR_SHELLPATH = SAVE(_PATH_CSHELL);
+X#endif
+X#ifdef _PATH_TCSHELL
+X    STR_SHELLPATH = SAVE(_PATH_TCSHELL);
+X#endif
+X    STR_environ = blk2short(environ);
+X    environ = short2blk(STR_environ);	/* So that we can free it */
+X    STR_WORD_CHARS = SAVE(WORD_CHARS);
+X
+X    HIST = '!';
+X    HISTSUB = '^';
+X    word_chars = STR_WORD_CHARS;
+X    bslash_quote = 0;		/* PWP: do tcsh-style backslash quoting? */
+X
+X    tempv = argv;
+X    if (eq(str2short(tempv[0]), STRaout))	/* A.out's are quittable */
+X	quitit = 1;
+X    uid = getuid();
+X    gid = getgid();
+X    /*
+X     * We are a login shell if: 1. we were invoked as -<something> and we had
+X     * no arguments 2. or we were invoked only with the -l flag
+X     */
+X    loginsh = (**tempv == '-' && argc == 1) || (argc == 2 &&
+X				   tempv[1][0] == '-' && tempv[1][1] == 'l' &&
+X						tempv[1][2] == '\0');
+X    if (loginsh && **tempv != '-') {
+X	/*
+X	 * Mangle the argv space
+X	 */
+X	tempv[1][0] = '\0';
+X	tempv[1][1] = '\0';
+X	tempv[1] = NULL;
+X	for (tcp = *tempv; *tcp++;);
+X	for (tcp--; tcp >= *tempv; tcp--)
+X	    tcp[1] = tcp[0];
+X	*++tcp = '-';
+X	argc--;
+X    }
+X    if (loginsh)
+X	(void) time(&chktim);
+X
+X    AsciiOnly = 1;
+X    NoNLSRebind = getenv("NOREBIND") != NULL;
+X#ifdef NLS
+X    (void) setlocale(LC_ALL, "");
+X    {
+X	int     k;
+X
+X	for (k = 0200; k <= 0377 && !Isprint(k); k++);
+X	AsciiOnly = k > 0377;
+X    }
+X#else
+X    AsciiOnly = getenv("LANG") == NULL && getenv("LC_CTYPE") == NULL;
+X#endif				/* NLS */
+X    if (MapsAreInited && !NLSMapsAreInited)
+X	ed_InitNLSMaps();
+X
+X    /*
+X     * Initialize for periodic command intervals. Also, initialize the dummy
+X     * tty list for login-watch.
+X     */
+X    (void) time(&t_period);
+X    initwatch();
+X
+X    /*
+X     * Move the descriptors to safe places. The variable didfds is 0 while we
+X     * have only FSH* to work with. When didfds is true, we have 0,1,2 and
+X     * prefer to use these.
+X     */
+X    initdesc();
+X
+X    /*
+X     * Get and set the tty now
+X     */
+X    if (ttyn = ttyname(SHIN)) {
+X	/*
+X	 * Could use rindex to get rid of other possible path components, but
+X	 * hpux preserves the subdirectory /pty/ when storing the tty name in
+X	 * utmp, so we keep it too.
+X	 */
+X	if (strncmp(ttyn, "/dev/", 5) == 0)
+X	    set(STRtty, cp = SAVE(ttyn + 5));
+X	else
+X	    set(STRtty, cp = SAVE(ttyn));
+X    }
+X    else
+X	set(STRtty, cp = SAVE(""));
+X    /*
+X     * Initialize the shell variables. ARGV and PROMPT are initialized later.
+X     * STATUS is also munged in several places. CHILD is munged when
+X     * forking/waiting
+X     */
+X
+X    /*
+X     * 7-10-87 Paul Placeway autologout should be set ONLY on login shells and
+X     * on shells running as root.  Out of these, autologout should NOT be set
+X     * for any psudo-terminals (this catches most window systems) and not for
+X     * any terminal running X windows.
+X     * 
+X     * At Ohio State, we have had problems with a user having his X session 
+X     * drop out from under him (on a Sun) because the shell in his master 
+X     * xterm timed out and exited.
+X     * 
+X     * Really, this should be done with a program external to the shell, that
+X     * watches for no activity (and NO running programs, such as dump) on a
+X     * terminal for a long peroid of time, and then SIGHUPS the shell on that
+X     * terminal.
+X     * 
+X     * bugfix by Rich Salz <rsalz@PINEAPPLE.BBN.COM>: For root rsh things 
+X     * allways first check to see if loginsh or really root, then do things 
+X     * with ttyname()
+X     * 
+X     * Also by Jean-Francois Lamy <lamy%ai.toronto.edu@RELAY.CS.NET>: check the
+X     * value of cp before using it! ("root can rsh too")
+X     * 
+X     * PWP: keep the nested ifs; the order of the tests matters and a good 
+X     * (smart) C compiler might re-arange things wrong.
+X     */
+X#ifdef AUTOLOGOUT
+X    if (loginsh || (uid == 0)) {
+X	if (*cp) {
+X	    /* only for login shells or root and we must have a tty */
+X	    if ((cp2 = Strrchr(cp, (Char) '/')) != NULL) {
+X		cp = cp2 + 1;
+X	    }
+X	    if (!((Strncmp(cp, STRtty, 3) == 0) &&
+X		  (cp[3] >= 'p' && cp[3] <= 'u'))) {
+X		if (getenv("DISPLAY") == NULL) {
+X		    /* NOT on X window shells */
+X		    set(STRautologout, Strsave(STRdefautologout));
+X		}
+X	    }
+X	}
+X    }
+X#endif				/* AUTOLOGOUT */
+X
+X    (void) sigset(SIGALRM, alrmcatch);
+X
+X    set(STRstatus, Strsave(STR0));
+X    fix_version();		/* publish the shell version */
+X
+X    /*
+X     * increment the shell level.
+X     */
+X    shlvl(1);
+X
+X    if ((tcp = getenv("HOME")) != NULL)
+X	cp = SAVE(tcp);
+X    else
+X	cp = NULL;
+X    if (cp == NULL)
+X	fast = 1;		/* No home -> can't read scripts */
+X    else
+X	set(STRhome, cp);
+X    dinit(cp);			/* dinit thinks that HOME == cwd in a login
+X				 * shell */
+X    /*
+X     * Grab other useful things from the environment. Should we grab
+X     * everything??
+X     */
+X    {
+X	char *cln, *cus;
+X	Char    buff[BUFSIZE];
+X	struct passwd *pw;
+X
+X
+X#ifdef apollo
+X	int     oid = getoid();
+X
+X	Itoa(oid, buff);
+X	set(STRoid, Strsave(buff));
+X#endif /* apollo */
+X
+X	Itoa(uid, buff);
+X	set(STRuid, Strsave(buff));
+X
+X	Itoa(gid, buff);
+X	set(STRgid, Strsave(buff));
+X
+X	cln = getenv("LOGNAME");
+X	cus = getenv("USER");
+X	if (cus != NULL)
+X	    set(STRuser, SAVE(cus));
+X	else if (cln != NULL)
+X	    set(STRuser, SAVE(cln));
+X	else if ((pw = getpwuid(uid)) == NULL)
+X	    set(STRuser, SAVE("unknown"));
+X	else
+X	    set(STRuser, SAVE(pw->pw_name));
+X	if (cln == NULL)
+X	    Setenv(STRLOGNAME, value(STRuser));
+X	if (cus == NULL)
+X	    Setenv(STRUSER, value(STRuser));
+X	    
+X    }
+X
+X    /*
+X     * HOST may be wrong, since rexd transports the entire environment on sun
+X     * 3.x Just set it again
+X     */
+X    {
+X	char    cbuff[MAXHOSTNAMELEN];
+X
+X	if (gethostname(cbuff, sizeof(cbuff)) >= 0) {
+X	    cbuff[sizeof(cbuff) - 1] = '\0';	/* just in case */
+X	    Setenv(STRHOST, str2short(cbuff));
+X	}
+X	else
+X	    Setenv(STRHOST, str2short("unknown"));
+X    }
+X
+X
+X    /*
+X     * HOSTTYPE, too. Just set it again.
+X     */
+X    Setenv(STRHOSTTYPE, gethosttype());
+X#ifdef apollo
+X    if ((tcp = getenv("SYSTYPE")) == NULL)
+X	tcp = "bsd4.3";
+X    Setenv(STRSYSTYPE, str2short(tcp));
+X#endif				/* apollo */
+X
+X    /*
+X     * set editing on by default, unless running under Emacs as an inferior
+X     * shell.
+X     * We try to do this intelligently. If $TERM is available, then it
+X     * should determine if we should edit or not. $TERM is preserved
+X     * across rlogin sessions, so we will not get confused if we rlogin
+X     * under an emacs shell. Another advantage is that if we run an
+X     * xterm under an emacs shell, then the $TERM will be set to 
+X     * xterm, so we are going to want to edit. Unfortunately emacs
+X     * does not restore all the tty modes, so xterm is not very well
+X     * set up. But this is not the shell's fault.
+X     */
+X    if ((tcp = getenv("TERM")) != NULL) {
+X	set(STRterm, SAVE(tcp));
+X	editing = (strcmp(tcp, "emacs") != 0);
+X    }
+X    else 
+X	editing = ((tcp = getenv("EMACS")) == NULL || strcmp(tcp, "t") != 0);
+X
+X    /* 
+X     * The 'edit' variable is either set or unset.  It doesn't 
+X     * need a value.  Making it 'emacs' might be confusing. 
+X     */
+X    if (editing)
+X	set(STRedit, Strsave(STRNULL));
+X
+X
+X    /*
+X     * still more mutability: make the complete routine automatically add the
+X     * suffix of file names...
+X     */
+X    set(STRaddsuffix, Strsave(STRNULL));
+X
+X    /*
+X     * Re-initialize path if set in environment
+X     */
+X    if ((tcp = getenv("PATH")) == NULL)
+X	set1(STRpath, defaultpath(), &shvhed);
+X    else
+X	importpath(SAVE(tcp));
+X
+X    set(STRshell, Strsave(STR_SHELLPATH));
+X
+X    doldol = putn((int) getpid());	/* For $$ */
+X    shtemp = Strspl(STRtmpsh, doldol);	/* For << */
+X
+X    /*
+X     * Record the interrupt states from the parent process. If the parent is
+X     * non-interruptible our hand must be forced or we (and our children) won't
+X     * be either. Our children inherit termination from our parent. We catch it
+X     * only if we are the login shell.
+X     */
+X#ifdef BSDSIGS
+X    /* parents interruptibility */
+X    (void) mysigvec(SIGINT, NULL, &osv);
+X    parintr = (sigret_t(*) ()) osv.sv_handler;
+X    (void) mysigvec(SIGTERM, NULL, &osv);
+X    parterm = (sigret_t(*) ()) osv.sv_handler;
+X#else				/* BSDSIGS */
+X    parintr = signal(SIGINT, SIG_IGN);	/* parents interruptibility */
+X    (void) sigset(SIGINT, parintr);	/* ... restore */
+X    parterm = signal(SIGTERM, SIG_IGN);	/* parents terminability */
+X    (void) sigset(SIGTERM, parterm);	/* ... restore */
+X#endif				/* BSDSIGS */
+X
+X    if (loginsh) {
+X	(void) signal(SIGHUP, phup);	/* exit processing on HUP */
+X#ifdef SIGXCPU
+X	(void) signal(SIGXCPU, phup);	/* ...and on XCPU */
+X#endif				/* SIGXCPU */
+X#ifdef SIGXFSZ
+X	(void) signal(SIGXFSZ, phup);	/* ...and on XFSZ */
+X#endif				/* SIGXFSZ */
+X    }
+X
+X#ifdef TCF
+X    /* Enable process migration on ourselves and our progeny */
+X    (void) signal(SIGMIGRATE, SIG_DFL);
+X#endif				/* TCF */
+X
+X    /*
+X     * Process the arguments.
+X     * 
+X     * Note that processing of -v/-x is actually delayed till after script
+X     * processing.
+X     * 
+X     * We set the first character of our name to be '-' if we are a shell running
+X     * interruptible commands.  Many programs which examine ps'es use this to
+X     * filter such shells out.
+X     */
+X    argc--, tempv++;
+X    while (argc > 0 && (tcp = tempv[0])[0] == '-' &&
+X	   *++tcp != '\0' && !batch) {
+X	do
+X	    switch (*tcp++) {
+X
+X	    case 0:		/* -	Interruptible, no prompt */
+X		prompt = 0;
+X		setintr = 1;
+X		nofile = 1;
+X		break;
+X
+X	    case 'b':		/* -b	Next arg is input file */
+X		batch = 1;
+X		break;
+X
+X	    case 'c':		/* -c	Command input from arg */
+X		if (argc == 1)
+X		    xexit(0);
+X		argc--, tempv++;
+X		arginp = SAVE(tempv[0]);
+X		/*
+X		 * * Give an error on -c arguments that end in * backslash to
+X		 * ensure that you don't make * nonportable csh scripts.
+X		 */
+X		{
+X		    register Char *cp;
+X		    register int count;
+X
+X		    cp = arginp + Strlen(arginp);
+X		    count = 0;
+X		    while (cp > arginp && *--cp == '\\')
+X			++count;
+X		    if ((count & 1) != 0) {
+X			exiterr = 1;
+X			stderror(ERR_ARGC);
+X		    }
+X		}
+X		prompt = 0;
+X		nofile = 1;
+X		break;
+X
+X#ifdef apollo
+X	    case 'D':		/* -D	Define environment variable */
+X		{
+X		    register Char *cp, *dp;
+X
+X		    cp = str2short(tcp);
+X		    if (dp = Strchr(cp, '=')) {
+X			*dp++ = '\0';
+X			Setenv(cp, dp);
+X		    }
+X		    else
+X			Setenv(cp, STRNULL);
+X		}
+X		*tcp = '\0'; 	/* done with this argument */
+X		break;
+X#endif /* apollo */
+X
+X#ifdef CSHDIRS
+X	    case 'd':		/* -d   Force load of ~/.cshdirs */
+X		dflag++;
+X		break;
+X#endif
+X
+X
+X	    case 'e':		/* -e	Exit on any error */
+X		exiterr = 1;
+X		break;
+X
+X	    case 'f':		/* -f	Fast start */
+X		fast = 1;
+X		break;
+X
+X	    case 'i':		/* -i	Interactive, even if !intty */
+X		intact = 1;
+X		nofile = 1;
+X		break;
+X
+X	    case 'm':		/* -m	read .cshrc (from su) */
+X		mflag = 1;
+X		break;
+X
+X	    case 'n':		/* -n	Don't execute */
+X		noexec = 1;
+X		break;
+X
+X	    case 'q':		/* -q	(Undoc'd) ... die on quit */
+X		quitit = 1;
+X		break;
+X
+X	    case 's':		/* -s	Read from std input */
+X		nofile = 1;
+X		break;
+X
+X	    case 't':		/* -t	Read one line from input */
+X		onelflg = 2;
+X		prompt = 0;
+X		nofile = 1;
+X		break;
+X
+X	    case 'v':		/* -v	Echo hist expanded input */
+X		nverbose = 1;	/* ... later */
+X		break;
+X
+X	    case 'x':		/* -x	Echo just before execution */
+X		nexececho = 1;	/* ... later */
+X		break;
+X
+X	    case 'V':		/* -V	Echo hist expanded input */
+X		setNS(STRverbose);	/* NOW! */
+X		break;
+X
+X	    case 'X':		/* -X	Echo just before execution */
+X		setNS(STRecho);	/* NOW! */
+X		break;
+X
+X#if defined(__convex__) || defined(convex)
+X	    case 'F':		/* Undocumented flag */
+X		/*
+X		 * This will cause children to be created using fork instead of
+X		 * vfork.
+X		 */
+X		use_fork = 1;
+X		break;
+X#endif
+X	    default:		/* Unknown command option */
+X		exiterr = 1;
+X		stderror(ERR_TCSHUSAGE, tcp-1);
+X		break;
+X
+X	} while (*tcp);
+X	tempv++, argc--;
+X    }
+X
+X    if (quitit)			/* With all due haste, for debugging */
+X	(void) signal(SIGQUIT, SIG_DFL);
+X
+X    /*
+X     * Unless prevented by -, -c, -i, -s, or -t, if there are remaining
+X     * arguments the first of them is the name of a shell file from which to
+X     * read commands.
+X     */
+X    if (nofile == 0 && argc > 0) {
+X	nofile = open(tempv[0], O_RDONLY);
+X	if (nofile < 0) {
+X	    child = 1;		/* So this ... */
+X	    /* ... doesn't return */
+X	    stderror(ERR_SYSTEM, tempv[0], strerror(errno));
+X	}
+X	ffile = SAVE(tempv[0]);
+X	/* 
+X	 * Replace FSHIN. Handle /dev/std{in,out,err} specially
+X	 * since once they are closed we cannot open them again.
+X	 * In that case we use our own saved descriptors
+X	 */
+X	if ((SHIN = dmove(nofile, FSHIN)) < 0) 
+X	    switch(nofile) {
+X	    case 0:
+X		SHIN = FSHIN;
+X		break;
+X	    case 1:
+X		SHIN = FSHOUT;
+X		break;
+X	    case 2:
+X		SHIN = FSHDIAG;
+X		break;
+X	    default:
+X		stderror(ERR_SYSTEM, tempv[0], strerror(errno));
+X		break;
+X	    }
+X#ifdef FIOCLEX
+X	(void) ioctl(SHIN, FIOCLEX, NULL);
+X#endif
+X	prompt = 0;
+X	 /* argc not used any more */ tempv++;
+X    }
+X    /*
+X     * Consider input a tty if it really is or we are interactive. but not for
+X     * editing (christos)
+X     */
+X    if (!(intty = isatty(SHIN))) {
+X	if (adrof(STRedit))
+X	    unsetv(STRedit);
+X	editing = 0;
+X    }
+X    intty |= intact;
+X    if (intty || (intact && isatty(SHOUT))) {
+X	if (!batch && (uid != geteuid() || gid != getegid())) {
+X	    errno = EACCES;
+X	    child = 1;		/* So this ... */
+X	    /* ... doesn't return */
+X	    stderror(ERR_SYSTEM, "tcsh", strerror(errno));
+X	}
+X    }
+X    isoutatty = isatty(SHOUT);
+X    isdiagatty = isatty(SHDIAG);
+X    /*
+X     * Decide whether we should play with signals or not. If we are explicitly
+X     * told (via -i, or -) or we are a login shell (arg0 starts with -) or the
+X     * input and output are both the ttys("csh", or "csh</dev/ttyx>/dev/ttyx")
+X     * Note that in only the login shell is it likely that parent may have set
+X     * signals to be ignored
+X     */
+X    if (loginsh || intact || (intty && isatty(SHOUT)))
+X	setintr = 1;
+X    settell();
+X    /*
+X     * Save the remaining arguments in argv.
+X     */
+X    setq(STRargv, blk2short(tempv), &shvhed);
+X
+X    /*
+X     * Set up the prompt.
+X     */
+X    if (prompt) {
+X	set(STRprompt, Strsave(uid == 0 ? STRsymhash : STRsymarrow));
+X	/* that's a meta-questionmark */
+X	set(STRprompt2, Strsave(STRmquestion));
+X	set(STRprompt3, Strsave(STRCORRECT));
+X    }
+X
+X    /*
+X     * If we are an interactive shell, then start fiddling with the signals;
+X     * this is a tricky game.
+X     */
+X    shpgrp = mygetpgrp();
+X    opgrp = tpgrp = -1;
+X    if (setintr) {
+X	**argv = '-';
+X	if (!quitit)		/* Wary! */
+X	    (void) signal(SIGQUIT, SIG_IGN);
+X	(void) sigset(SIGINT, pintr);
+X	(void) sighold(SIGINT);
+X	(void) signal(SIGTERM, SIG_IGN);
+X	if (quitit == 0 && arginp == 0) {
+X#ifdef SIGTSTP
+X	    (void) signal(SIGTSTP, SIG_IGN);
+X#endif
+X#ifdef SIGTTIN
+X	    (void) signal(SIGTTIN, SIG_IGN);
+X#endif
+X#ifdef SIGTTOU
+X	    (void) signal(SIGTTOU, SIG_IGN);
+X#endif
+X	    /*
+X	     * Wait till in foreground, in case someone stupidly runs csh &
+X	     * dont want to try to grab away the tty.
+X	     */
+X	    if (isatty(FSHDIAG))
+X		f = FSHDIAG;
+X	    else if (isatty(FSHOUT))
+X		f = FSHOUT;
+X	    else if (isatty(OLDSTD))
+X		f = OLDSTD;
+X	    else
+X		f = -1;
+X
+X#ifdef NeXT
+X	    /* NeXT 2.0 /usr/etc/rlogind, does not set our process group! */
+X	    if (shpgrp == 0) {
+X	        shpgrp = getpid();
+X		(void) setpgid(0, shpgrp);
+X	        (void) tcsetpgrp(f, shpgrp);
+X	    }
+X#endif /* NeXT */
+X#ifdef BSDJOBS			/* if we have tty job control */
+X    retry:
+X	    if ((tpgrp = tcgetpgrp(f)) != -1) {
+X		if (tpgrp != shpgrp) {
+X		    sigret_t(*old) () = signal(SIGTTIN, SIG_DFL);
+X		    (void) kill(0, SIGTTIN);
+X		    (void) signal(SIGTTIN, old);
+X		    goto retry;
+X		}
+X		/*
+X		 * Thanks to Matt Day for the POSIX references, and to
+X		 * Paul Close for the SGI clarification.
+X		 */
+X		if (setdisc(f) != -1) {
+X		    opgrp = shpgrp;
+X		    shpgrp = getpid();
+X		    tpgrp = shpgrp;
+X		    if (tcsetpgrp(f, shpgrp) == -1) {
+X			/*
+X			 * On hpux 7.03 this fails with EPERM. This happens on
+X			 * the 800 when opgrp != shpgrp at this point. (we were
+X			 * forked from a non job control shell)
+X			 * POSIX 7.2.4, says we failed because the process
+X			 * group specified did not belong to a process
+X			 * in the same session with the tty. So we set our
+X			 * process group and try again.
+X			 */
+X			if (setpgid(0, shpgrp) == -1) {
+X			    xprintf("setpgid:");
+X			    goto notty;
+X			}
+X			if (tcsetpgrp(f, shpgrp) == -1) {
+X			    xprintf("tcsetpgrp:");
+X			    goto notty;
+X			}
+X		    }
+X		    /*
+X		     * We check the process group now. If it is the same, then
+X		     * we don't need to set it again. On hpux 7.0 on the 300's
+X		     * if we set it again it fails with EPERM. This is the
+X		     * correct behavior according to POSIX 4.3.3 if the process
+X		     * was a session leader .
+X		     */
+X		    else if (shpgrp != mygetpgrp()) {
+X			if(setpgid(0, shpgrp) == -1) {
+X			    xprintf("setpgid:");
+X			    goto notty;
+X			}
+X		    }
+X#ifdef IRIS4D
+X		    /*
+X		     * But on irix 3.3 we need to set it again, even if it is
+X		     * the same. We do that to tell the system that we
+X		     * need BSD process group compatibility.
+X		     */
+X		    else
+X			(void) setpgid(0, shpgrp);
+X#endif
+X#ifdef FIOCLEX
+X		    (void) ioctl(dcopy(f, FSHTTY), FIOCLEX, NULL);
+X#else				/* FIOCLEX */
+X		    (void) dcopy(f, FSHTTY);
+X#endif				/* FIOCLEX */
+X		}
+X		else
+X		    tpgrp = -1;
+X	    }
+X	    if (tpgrp == -1) {
+X	notty:
+X		xprintf("Warning: no access to tty (%s).\n", strerror(errno));
+X		xprintf("Thus no job control in this shell.\n");
+X		/*
+X		 * Fix from:Sakari Jalovaara <sja@sirius.hut.fi> if we don't
+X		 * have access to tty, disable editing too
+X		 */
+X		if (adrof(STRedit))
+X		    unsetv(STRedit);
+X		editing = 0;
+X	    }
+X#else	/* BSDJOBS */		/* don't have job control, so frotz it */
+X	    tpgrp = -1;
+X#endif				/* BSDJOBS */
+X	}
+X    }
+X    if ((setintr == 0) && (parintr == SIG_DFL))
+X	setintr = 1;
+X
+X/*
+X * SVR4 doesn't send a SIGCHLD when a child is stopped or continued if the
+X * handler is installed with signal(2) or sigset(2).  sigaction(2) must
+X * be used instead.
+X *
+X * David Dawes (dawes@physics.su.oz.au) Sept 1991
+X */
+X
+X#if SVID > 3
+X    {
+X	struct sigaction act;
+X        act.sa_handler=pchild;
+X	sigemptyset(&(act.sa_mask)); /* Don't block any extra sigs when the
+X				      * handler is called
+X				      */
+X        act.sa_flags=0;	           /* want behaviour of sigset() without
+X                                    * SA_NOCLDSTOP
+X				    */
+X        sigaction(SIGCHLD,&act,(struct sigaction *)NULL);
+X    }
+X#else /* SVID <= 3 */
+X    (void) sigset(SIGCHLD, pchild);	/* while signals not ready */
+X#endif /* SVID <= 3 */
+X
+X
+X    if (intty && !arginp) 	
+X	(void) ed_Setup(editing);/* Get the tty state, and set defaults */
+X				 /* Only alter the tty state if editing */
+X    
+X    /*
+X     * Set an exit here in case of an interrupt or error reading the shell
+X     * start-up scripts.
+X     */
+X    reenter = setexit();	/* PWP */
+X    haderr = 0;			/* In case second time through */
+X    if (!fast && reenter == 0) {
+X	/* Will have value(STRhome) here because set fast if don't */
+X	{
+X	    int     osetintr = setintr;
+X	    sigret_t (*oparintr)() = parintr;
+X
+X#ifdef BSDSIGS
+X	    sigmask_t omask = sigblock(sigmask(SIGINT));
+X#else
+X	    sighold(SIGINT);
+X#endif
+X	    setintr = 0;
+X	    parintr = SIG_IGN;	/* onintr in /etc/ files has no effect */
+X#ifdef _PATH_DOTCSHRC
+X	    (void) srcfile(_PATH_DOTCSHRC, 0, 0);
+X#endif
+X	    if (!arginp && !onelflg && !havhash)
+X		dohash(NULL,NULL);
+X#ifdef _PATH_DOTLOGIN
+X	    if (loginsh)
+X		(void) srcfile(_PATH_DOTLOGIN, 0, 0);
+X#endif
+X#ifdef BSDSIGS
+X	    (void) sigsetmask(omask);
+X#else
+X	    (void) sigrelse(SIGINT);
+X#endif
+X	    setintr = osetintr;
+X	    parintr = oparintr;
+X	}
+X#ifdef LOGINFIRST
+X	if (loginsh)
+X	    (void) srccat(value(STRhome), STRsldotlogin);
+X#endif
+X	/* upward compat. */
+X	if (!srccat(value(STRhome), STRsldottcshrc))
+X	    (void) srccat(value(STRhome), STRsldotcshrc);
+X
+X	if (!fast && !arginp && !onelflg && !havhash)
+X	    dohash(NULL,NULL);
+X	/*
+X	 * Source history before .login so that it is available in .login
+X	 */
+X	if ((cp = value(STRhistfile)) != STRNULL)
+X	    loadhist[2] = cp;
+X	dosource(loadhist, NULL);
+X#ifndef LOGINFIRST
+X	if (loginsh)
+X	    (void) srccat(value(STRhome), STRsldotlogin);
+X#endif
+X#ifdef CSHDIRS
+X	/*
+X	 * if dflag then source ~/.cshdirs, but if fast ALWAYS skip the dirs
+X	 * restoring. (dflag used to get non-login shells to source the save
+X	 * dirs file). Of course, ~/.cshdirs must exist. -strike
+X	 */
+X	{
+X	    extern int bequiet;	/* make dirs shut up */
+X	    Char    cshd[BUFSIZE];
+X	    struct stat st;
+X
+X	    (void) Strcpy(cshd, value(STRhome));
+X	    (void) Strcat(cshd, STRsldtdirs);
+X	    if (!stat(short2str(cshd), &st) &&
+X		(dflag || loginsh) && !fast) {
+X		bequiet = 1;
+X		dosource(loaddirs, NULL);
+X		bequiet = 0;
+X	    }
+X	}
+X#endif
+X    }
+X    /* Initing AFTER .cshrc is the Right Way */
+X    if (intty && !arginp) {	/* PWP setup stuff */
+X	ed_Init();		/* init the new line editor */
+X#ifdef SIG_WINDOW
+X	check_window_size(1);	/* mung environment */
+X#endif				/* SIG_WINDOW */
+X    }
+X
+X    /*
+X     * Now are ready for the -v and -x flags
+X     */
+X    if (nverbose)
+X	setNS(STRverbose);
+X    if (nexececho)
+X	setNS(STRecho);
+X    /*
+X     * All the rest of the world is inside this call. The argument to process
+X     * indicates whether it should catch "error unwinds".  Thus if we are a
+X     * interactive shell our call here will never return by being blown past on
+X     * an error.
+X     */
+X    process(setintr);
+X
+X    /*
+X     * Mop-up.
+X     */
+X    if (intty) {
+X	if (loginsh) {
+X	    xprintf("logout\n");
+X	    (void) close(SHIN);
+X	    child = 1;
+X#ifdef TESLA
+X	    do_logout = 1;
+X#endif				/* TESLA */
+X	    goodbye(NULL, NULL);
+X	}
+X	else {
+X	    xprintf("exit\n");
+X	}
+X    }
+X#ifdef CSHDIRS
+X    /*
+X     * save the directory stack -strike
+X     */
+X    recdirs();
+X#endif
+X    rechist();
+X    exitstat();
+X    return (0);
+X}
+X
+void
+untty()
+X{
+X#ifdef BSDJOBS
+X    if (tpgrp > 0) {
+X	(void) setpgid(0, opgrp);
+X	(void) tcsetpgrp(FSHTTY, opgrp);
+X	(void) resetdisc(FSHTTY);
+X    }
+X#endif				/* BSDJOBS */
+X}
+X
+void
+importpath(cp)
+X    Char   *cp;
+X{
+X    register int i = 0;
+X    register Char *dp;
+X    register Char **pv;
+X    int     c;
+X
+X    for (dp = cp; *dp; dp++)
+X	if (*dp == ':')
+X	    i++;
+X    /*
+X     * i+2 where i is the number of colons in the path. There are i+1
+X     * directories in the path plus we need room for a zero terminator.
+X     */
+X    pv = (Char **) xcalloc((size_t) (i + 2), sizeof(Char *));
+X    dp = cp;
+X    i = 0;
+X    if (*dp)
+X	for (;;) {
+X	    if ((c = *dp) == ':' || c == 0) {
+X		*dp = 0;
+X		pv[i++] = Strsave(*cp ? cp : STRdot);
+X		if (c) {
+X		    cp = dp + 1;
+X		    *dp = ':';
+X		}
+X		else
+X		    break;
+X	    }
+X	    dp++;
+X	}
+X    pv[i] = 0;
+X    set1(STRpath, pv, &shvhed);
+X}
+X
+X/*
+X * Source to the file which is the catenation of the argument names.
+X */
+static int
+srccat(cp, dp)
+X    Char   *cp, *dp;
+X{
+X    if (cp[0] == '/' && cp[1] == '\0') 
+X	return srcfile(short2str(dp), mflag ? 0 : 1, 0);
+X    else {
+X	register Char *ep = Strspl(cp, dp);
+X	char   *ptr = short2str(ep);
+X
+X	xfree((ptr_t) ep);
+X	return srcfile(ptr, mflag ? 0 : 1, 0);
+X    }
+X}
+X
+X/*
+X * Source to a file putting the file descriptor in a safe place (> 2).
+X */
+static int
+srcfile(f, onlyown, flag)
+X    char   *f;
+X    bool    onlyown, flag;
+X{
+X    register int unit;
+X
+X    if ((unit = open(f, O_RDONLY)) == -1) 
+X	return 0;
+X    unit = dmove(unit, -1);
+X
+X#ifdef FIOCLEX
+X    (void) ioctl(unit, FIOCLEX, NULL);
+X#endif
+X    srcunit(unit, onlyown, flag);
+X    return 1;
+X}
+X
+X/*
+X * Source to a unit.  If onlyown it must be our file or our group or
+X * we don't chance it.	This occurs on ".cshrc"s and the like.
+X */
+int     insource;
+static void
+srcunit(unit, onlyown, hflg)
+X    register int unit;
+X    bool    onlyown, hflg;
+X{
+X    /*
+X     * PWP: this is arranged like this so that an optimizing compiler won't go
+X     * and put things like oSHIN in a register that longjmp() restores.  The
+X     * problem is that on my Sun 3/50, gcc will put oSHIN in a register.  That
+X     * would be OK, but setjmp() saves ALL of the registers and longjmp()
+X     * restores ALL of them, thus if you do a setjmp(), set oSHIN to something
+X     * (like SHIN), then do a longjmp(), the value of oSHIN will magically
+X     * become -1 again.
+X     * 
+X     * Perhaps setjmp() should only save the stack pointer, frame pointer, and
+X     * program counter...
+X     */
+X
+X    /* We have to push down a lot of state here */
+X    /* All this could go into a structure */
+X    int     oSHIN = -1, oldintty = intty, oinsource = insource;
+X    struct whyle *oldwhyl = whyles;
+X    Char   *ogointr = gointr, *oarginp = arginp;
+X    Char   *oevalp = evalp, **oevalvec = evalvec;
+X    int     oonelflg = onelflg;
+X    bool    oenterhist = enterhist;
+X    char    OHIST = HIST;
+X    bool    otell = cantell;
+X    struct Bin saveB;
+X#ifdef BSDSIGS
+X    volatile sigmask_t omask = (sigmask_t) 0;
+X#endif
+X    jmp_buf oldexit;
+X
+X    /* The (few) real local variables */
+X    int     my_reenter;
+X
+X    if (unit < 0)
+X	return;
+X    if (didfds)
+X	donefds();
+X    if (onlyown) {
+X	struct stat stb;
+X
+X	if (fstat(unit, &stb) < 0
+X	/* || (stb.st_uid != uid && stb.st_gid != gid) */
+X	    ) {
+X	    (void) close(unit);
+X	    return;
+X	}
+X    }
+X
+X    /*
+X     * There is a critical section here while we are pushing down the input
+X     * stream since we have stuff in different structures. If we weren't
+X     * careful an interrupt could corrupt SHIN's Bin structure and kill the
+X     * shell.
+X     * 
+X     * We could avoid the critical region by grouping all the stuff in a single
+X     * structure and pointing at it to move it all at once.  This is less
+X     * efficient globally on many variable references however.
+X     */
+X    insource = 1;
+X    getexit(oldexit);
+X
+X    if (setintr)
+X#ifdef BSDSIGS
+X	omask = sigblock(sigmask(SIGINT));
+X#else
+X	(void) sighold(SIGINT);
+X#endif
+X    /*
+X     * Bugfix for running out of memory by: Jak Kirman
+X     * <jak%cs.brown.edu@RELAY.CS.NET>.  Solution: pay attention to what
+X     * setexit() is returning because my_reenter _may_ be in a register, and
+X     * thus restored to 0 on a longjump(). (PWP: insert flames about
+X     * compiler-dependant code here) PWP: THANKS LOTS !!!
+X     */
+X    /* Setup the new values of the state stuff saved above */
+X    copy((char *) &(saveB), (char *) &B, sizeof(B));
+X    fbuf = NULL;
+X    fseekp = feobp = fblocks = 0;
+X    oSHIN = SHIN, SHIN = unit, arginp = 0, onelflg = 0;
+X    intty = isatty(SHIN), whyles = 0, gointr = 0;
+X    evalvec = 0;
+X    evalp = 0;
+X    enterhist = hflg;
+X    if (enterhist)
+X	HIST = '\0';
+X
+X    /*
+X     * Now if we are allowing commands to be interrupted, we let ourselves be
+X     * interrupted.
+X     */
+X    if (setintr)
+X#ifdef BSDSIGS
+X	(void) sigsetmask(omask);
+X#else
+X	(void) sigrelse(SIGINT);
+X#endif
+X    settell();
+X
+X/* PWP: think of this as like a LISP (unwind-protect ...) */
+X/* thanks to Diana Smetters for pointing out how this _should_ be written */
+X#ifdef cray
+X    my_reenter = 1;		/* assume non-zero return val */
+X    if (setexit() == 0) {
+X	my_reenter = 0;		/* Oh well, we were wrong */
+X#else
+X    if ((my_reenter = setexit()) == 0) {
+X#endif
+X	process(0);		/* 0 -> blow away on errors */
+X    }
+X
+X    if (setintr)
+X#ifdef BSDSIGS
+X	(void) sigsetmask(omask);
+X#else
+X	(void) sigrelse(SIGINT);
+X#endif
+X    if (oSHIN >= 0) {
+X	register int i;
+X
+X	/* We made it to the new state... free up its storage */
+X	/* This code could get run twice but xfree doesn't care */
+X	for (i = 0; i < fblocks; i++)
+X	    xfree((ptr_t) fbuf[i]);
+X	xfree((ptr_t) fbuf);
+X
+X	/* Reset input arena */
+X	copy((char *) &B, (char *) &(saveB), sizeof(B));
+X
+X	(void) close(SHIN), SHIN = oSHIN;
+X	arginp = oarginp, onelflg = oonelflg;
+X	evalp = oevalp, evalvec = oevalvec;
+X	intty = oldintty, whyles = oldwhyl, gointr = ogointr;
+X	if (enterhist)
+X	    HIST = OHIST;
+X	enterhist = oenterhist;
+X	cantell = otell;
+X    }
+X
+X    resexit(oldexit);
+X    /*
+X     * If process reset() (effectively an unwind) then we must also unwind.
+X     */
+X    if (my_reenter)
+X	stderror(ERR_SILENT);
+X    insource = oinsource;
+X}
+X
+void
+rechist()
+X{
+X    Char    buf[BUFSIZE], *hfile;
+X    int     fp, ftmp, oldidfds;
+X
+X    if (!fast) {
+X	if (value(STRsavehist)[0] == '\0')
+X	    return;
+X	if ((hfile = value(STRhistfile)) == STRNULL) {
+X	    hfile = Strcpy(buf, value(STRhome));
+X	    (void) Strcat(buf, STRsldthist);
+X	}
+X	fp = creat(short2str(hfile), 0600);
+X	if (fp == -1) 
+X	    return;
+X	oldidfds = didfds;
+X	didfds = 0;
+X	ftmp = SHOUT;
+X	SHOUT = fp;
+X	(void) Strcpy(buf, value(STRsavehist));
+X	dumphist[2] = buf;
+X	dohist(dumphist, NULL);
+X	(void) close(fp);
+X	SHOUT = ftmp;
+X	didfds = oldidfds;
+X    }
+X}
+X
+X/*ARGSUSED*/
+void
+goodbye(v, c)
+X    Char **v;
+X    struct command *c;
+X{
+X    rechist();
+X
+X#ifdef CSHDIRS
+X    recdirs();
+X#endif
+X
+X    if (loginsh) {
+X	(void) signal(SIGQUIT, SIG_IGN);
+X	(void) sigset(SIGINT, SIG_IGN);
+X	(void) signal(SIGTERM, SIG_IGN);
+X	setintr = 0;		/* No interrupts after "logout" */
+X	if (!(adrof(STRlogout)))
+X	    set(STRlogout, STRnormal);
+X#ifdef _PATH_DOTLOGOUT
+X	(void) srcfile(_PATH_DOTLOGOUT, 0, 0);
+X#endif
+X	if (adrof(STRhome))
+X	    (void) srccat(value(STRhome), STRsldtlogout);
+X#ifdef TESLA
+X	do_logout = 1;
+X#endif				/* TESLA */
+X    }
+X    exitstat();
+X}
+X
+void
+exitstat()
+X{
+X    register Char *cp;
+X    register int i;
+X#ifdef PROF
+X    monitor(0);
+X#endif
+X    /*
+X     * Note that if STATUS is corrupted (i.e. getn bombs) then error will exit
+X     * directly because we poke child here. Otherwise we might continue
+X     * unwarrantedly (sic).
+X     */
+X    child = 1;
+X
+X    /* 
+X     * PWP: do this step-by-step because we might get a bus error if
+X     * status isn't set, so we call getn(NULL).
+X     */
+X    cp = value(STRstatus);
+X
+X    if (!cp)
+X	i = 13;
+X    else
+X	i = getn(cp);
+X
+X    xexit(i);
+X}
+X
+X/*
+X * in the event of a HUP we want to save the history
+X */
+static  sigret_t
+phup(snum)
+int snum;
+X{
+X#ifdef UNRELSIGS
+X    if (snum)
+X	(void) sigset(snum, SIG_IGN);
+X#endif /* UNRELSIGS */
+X    rechist();
+X#ifdef CSHDIRS
+X    /*
+X     * save the directory stack on HUP - strike
+X     */
+X    recdirs();
+X#endif
+X    xexit(snum);
+X#ifndef SIGVOID
+X    return (snum);
+X#endif
+X}
+X
+Char   *jobargv[2] = {STRjobs, 0};
+X
+X/*
+X * Catch an interrupt, e.g. during lexical input.
+X * If we are an interactive shell, we reset the interrupt catch
+X * immediately.  In any case we drain the shell output,
+X * and finally go through the normal error mechanism, which
+X * gets a chance to make the shell go away.
+X */
+int     just_signaled;		/* bugfix by Michael Bloom (mg@ttidca.TTI.COM) */
+X
+X#ifdef SIGVOID
+X/*ARGSUSED*/
+X#endif
+sigret_t
+pintr(snum)
+int snum;
+X{
+X#ifdef UNRELSIGS
+X    if (snum)
+X	(void) sigset(snum, pintr);
+X#endif /* UNRELSIGS */
+X    just_signaled = 1;
+X    pintr1(1);
+X#ifndef SIGVOID
+X    return (snum);
+X#endif
+X}
+X
+void
+pintr1(wantnl)
+X    bool    wantnl;
+X{
+X    register Char **v;
+X#ifdef BSDSIGS
+X    sigmask_t omask;
+X#endif
+X
+X#ifdef BSDSIGS
+X    omask = sigblock((sigmask_t) 0);
+X#endif
+X    if (setintr) {
+X#ifdef BSDSIGS
+X	(void) sigsetmask(omask & ~sigmask(SIGINT));
+X#else
+X	(void) sigrelse(SIGINT);
+X#endif
+X	if (pjobs) {
+X	    pjobs = 0;
+X	    xprintf("\n");
+X	    dojobs(jobargv, NULL);
+X	    stderror(ERR_NAME | ERR_INTR);
+X	}
+X    }
+X    /* JV - Make sure we shut off inputl */
+X    {
+X	extern Char GettingInput;
+X
+X	(void) Cookedmode();
+X	GettingInput = 0;
+X    }
+X#ifdef BSDSIGS
+X    (void) sigsetmask(omask & ~sigmask(SIGCHLD));
+X#else
+X    if (setintr)
+X	(void) sighold(SIGINT);
+X    (void) sigrelse(SIGCHLD);
+X#endif
+X    draino();
+X    (void) endpwent();
+X
+X    /*
+X     * If we have an active "onintr" then we search for the label. Note that if
+X     * one does "onintr -" then we shan't be interruptible so we needn't worry
+X     * about that here.
+X     */
+X    if (gointr) {
+X	gotolab(gointr);
+X	timflg = 0;
+X	if (v = pargv)
+X	    pargv = 0, blkfree(v);
+X	if (v = gargv)
+X	    gargv = 0, blkfree(v);
+X	reset();
+X    }
+X    else if (intty && wantnl) {
+X	/* xprintf("\n"); *//* Some like this, others don't */
+X	(void) putraw('\r');
+X	(void) putraw('\n');
+X    }
+X    stderror(ERR_SILENT);
+X}
+X
+X/*
+X * Process is the main driving routine for the shell.
+X * It runs all command processing, except for those within { ... }
+X * in expressions (which is run by a routine evalav in sh.exp.c which
+X * is a stripped down process), and `...` evaluation which is run
+X * also by a subset of this code in sh.glob.c in the routine backeval.
+X *
+X * The code here is a little strange because part of it is interruptible
+X * and hence freeing of structures appears to occur when none is necessary
+X * if this is ignored.
+X *
+X * Note that if catch is not set then we will unwind on any error.
+X * If an end-of-file occurs, we return.
+X */
+struct command *savet = NULL;
+void
+process(catch)
+X    bool    catch;
+X{
+X    extern char Expand;
+X    jmp_buf osetexit;
+X    /* PWP: This might get nuked my longjmp so don't make it a register var */
+X    struct command *t = savet;
+X
+X    savet = NULL;
+X    getexit(osetexit);
+X    for (;;) {
+X
+X	pendjob();
+X	paraml.next = paraml.prev = &paraml;
+X	paraml.word = STRNULL;
+X	(void) setexit();
+X	justpr = enterhist;	/* execute if not entering history */
+X
+X	/*
+X	 * Interruptible during interactive reads
+X	 */
+X	if (setintr)
+X#ifdef BSDSIGS
+X	    (void) sigsetmask(sigblock((sigmask_t) 0) & ~sigmask(SIGINT));
+X#else
+X	    (void) sigrelse(SIGINT);
+X#endif
+X
+X
+X	/*
+X	 * For the sake of reset()
+X	 */
+X	freelex(&paraml);
+X	if (savet)
+X	    freesyn(savet), savet = NULL;
+X
+X	if (haderr) {
+X	    if (!catch) {
+X		/* unwind */
+X		doneinp = 0;
+X		savet = t;
+X		resexit(osetexit);
+X		reset();
+X	    }
+X	    haderr = 0;
+X	    /*
+X	     * Every error is eventually caught here or the shell dies.  It is
+X	     * at this point that we clean up any left-over open files, by
+X	     * closing all but a fixed number of pre-defined files.  Thus
+X	     * routines don't have to worry about leaving files open due to
+X	     * deeper errors... they will get closed here.
+X	     */
+X	    closem();
+X	    continue;
+X	}
+X	if (doneinp) {
+X	    doneinp = 0;
+X	    break;
+X	}
+X	if (chkstop)
+X	    chkstop--;
+X	if (neednote)
+X	    pnote();
+X	if (intty && prompt && evalvec == 0) {
+X	    mailchk();
+X	    /*
+X	     * Watch for logins/logouts. Next is scheduled commands stored
+X	     * previously using "sched." Then execute periodic commands.
+X	     * Following that, the prompt precmd is run.
+X	     */
+X	    watch_login();
+X	    sched_run();
+X	    period_cmd();
+X	    precmd();
+X	    /*
+X	     * If we are at the end of the input buffer then we are going to
+X	     * read fresh stuff. Otherwise, we are rereading input and don't
+X	     * need or want to prompt.
+X	     */
+X	    if (fseekp == feobp && aret == F_SEEK)
+X		printprompt(0, NULL);
+X	    flush();
+X	    setalarm(1);
+X	}
+X	if (seterr) {
+X	    xfree((ptr_t) seterr);
+X	    seterr = NULL;
+X	}
+X
+X	/*
+X	 * Echo not only on VERBOSE, but also with history expansion. If there
+X	 * is a lexical error then we forego history echo.
+X	 */
+X	if ((lex(&paraml) && !seterr && intty && !tellwhat && !Expand) ||
+X	    adrof(STRverbose)) {
+X	    haderr = 1;
+X	    prlex(&paraml);
+X	    haderr = 0;
+X	}
+X	(void) alarm(0);	/* Autologout OFF */
+X
+X	/*
+X	 * The parser may lose space if interrupted.
+X	 */
+X	if (setintr)
+X#ifdef BSDSIGS
+X	    (void) sigblock(sigmask(SIGINT));
+X#else
+X	    (void) sighold(SIGINT);
+X#endif
+X
+X	/*
+X	 * Save input text on the history list if reading in old history, or it
+X	 * is from the terminal at the top level and not in a loop.
+X	 * 
+X	 * PWP: entry of items in the history list while in a while loop is done
+X	 * elsewhere...
+X	 */
+X	if (enterhist || (catch && intty && !whyles && !tellwhat))
+X	    savehist(&paraml);
+X
+X	if (Expand && seterr)
+X	    Expand = 0;
+X
+X	/*
+X	 * Print lexical error messages, except when sourcing history lists.
+X	 */
+X	if (!enterhist && seterr)
+X	    stderror(ERR_OLD);
+X
+X	/*
+X	 * If had a history command :p modifier then this is as far as we
+X	 * should go
+X	 */
+X	if (justpr)
+X	    reset();
+X
+X	/*
+X	 * If had a tellwhat from twenex() then do
+X	 */
+X	if (tellwhat) {
+X	    tellmewhat(&paraml);
+X	    reset();
+X	}
+X
+X	alias(&paraml);
+X
+X#ifdef BSDJOBS
+X	/*
+X	 * If we are interactive, try to continue jobs that we have stopped
+X	 */
+X	if (prompt)
+X	    continue_jobs(&paraml);
+X#endif				/* BSDJOBS */
+X
+X	/*
+X	 * Check to see if the user typed "rm * .o" or something
+X	 */
+X	if (prompt)
+X	    rmstar(&paraml);
+X	/*
+X	 * Parse the words of the input into a parse tree.
+X	 */
+X	savet = syntax(paraml.next, &paraml, 0);
+X	if (seterr)
+X	    stderror(ERR_OLD);
+X
+X	/*
+X	 * Execute the parse tree From: Michael Schroeder
+X	 * <mlschroe@immd4.informatik.uni-erlangen.de> was execute(t, tpgrp);
+X	 */
+X	execute(savet, (tpgrp > 0 ? tpgrp : -1), NULL, NULL);
+X
+X	/*
+X	 * Made it!
+X	 */
+X	freelex(&paraml);
+X	freesyn(savet), savet = NULL;
+X#ifdef SIG_WINDOW
+X	if (catch && intty && !whyles && !tellwhat)
+X	    window_change(0);	/* for window systems */
+X#endif				/* SIG_WINDOW */
+X    }
+X    savet = t;
+X    resexit(osetexit);
+X}
+X
+X/*ARGSUSED*/
+void
+dosource(t, c)
+X    register Char **t;
+X    struct command *c;
+X{
+X    register Char *f;
+X    bool    hflg = 0;
+X    char    buf[BUFSIZE];
+X
+X    t++;
+X    if (*t && eq(*t, STRmh)) {
+X	if (*++t == NULL)
+X	    stderror(ERR_NAME | ERR_HFLAG);
+X	hflg++;
+X    }
+X    f = globone(*t, G_ERROR);
+X    (void) strcpy(buf, short2str(f));
+X    xfree((ptr_t) f);
+X    if ((!srcfile(buf, 0, hflg)) && (!hflg))
+X	stderror(ERR_SYSTEM, buf, strerror(errno));
+X}
+X
+X/*
+X * Check for mail.
+X * If we are a login shell, then we don't want to tell
+X * about any mail file unless its been modified
+X * after the time we started.
+X * This prevents us from telling the user things he already
+X * knows, since the login program insists on saying
+X * "You have mail."
+X */
+static void
+mailchk()
+X{
+X    register struct varent *v;
+X    register Char **vp;
+X    time_t  t;
+X    int     intvl, cnt;
+X    struct stat stb;
+X    bool    new;
+X
+X    v = adrof(STRmail);
+X    if (v == 0)
+X	return;
+X    (void) time(&t);
+X    vp = v->vec;
+X    cnt = blklen(vp);
+X    intvl = (cnt && number(*vp)) ? (--cnt, getn(*vp++)) : MAILINTVL;
+X    if (intvl < 1)
+X	intvl = 1;
+X    if (chktim + intvl > t)
+X	return;
+X    for (; *vp; vp++) {
+X	if (stat(short2str(*vp), &stb) < 0)
+X	    continue;
+X#if defined(BSDTIMES) || defined(_SEQUENT_)
+X	new = stb.st_mtime > time0.tv_sec;
+X#else
+X	new = stb.st_mtime > time0;
+X#endif
+X	if (stb.st_size == 0 || stb.st_atime > stb.st_mtime ||
+X	    (stb.st_atime <= chktim && stb.st_mtime <= chktim) ||
+X	    (loginsh && !new))
+X	    continue;
+X	if (cnt == 1)
+X	    xprintf("You have %smail.\n", new ? "new " : "");
+X	else
+X	    xprintf("%s in %s.\n", new ? "New mail" : "Mail",
+X		    short2str(*vp));
+X    }
+X    chktim = t;
+X}
+X
+X/*
+X * Extract a home directory from the password file
+X * The argument points to a buffer where the name of the
+X * user whose home directory is sought is currently.
+X * We write the home directory of the user back there.
+X */
+int
+gethdir(home)
+X    Char   *home;
+X{
+X    Char   *h;
+X
+X    /*
+X     * Is it us?
+X     */
+X    if (*home == '\0') {
+X	if (h = value(STRhome)) {
+X	    (void) Strcpy(home, h);
+X	    return 0;
+X	}
+X	else
+X	    return 1;
+X    }
+X
+X    /*
+X     * Look in the cache
+X     */
+X    if ((h = gettilde(home)) == NULL)
+X	return 1;
+X    else {
+X	(void) Strcpy(home, h);
+X	return 0;
+X    }
+X}
+X
+X/*
+X * Move the initial descriptors to their eventual
+X * resting places, closing all other units.
+X */
+void
+initdesc()
+X{
+X
+X    didfds = 0;			/* 0, 1, 2 aren't set up */
+X#ifdef FIOCLEX
+X    (void) ioctl(SHIN = dcopy(0, FSHIN), FIOCLEX, NULL);
+X    (void) ioctl(SHOUT = dcopy(1, FSHOUT), FIOCLEX, NULL);
+X    (void) ioctl(SHDIAG = dcopy(2, FSHDIAG), FIOCLEX, NULL);
+X    (void) ioctl(OLDSTD = dcopy(SHIN, FOLDSTD), FIOCLEX, NULL);
+X#else
+X    didcch = 0;			/* Havent closed for child */
+X    SHIN = dcopy(0, FSHIN);
+X    SHOUT = dcopy(1, FSHOUT);
+X    isoutatty = isatty(SHOUT);
+X    SHDIAG = dcopy(2, FSHDIAG);
+X    isdiagatty = isatty(SHDIAG);
+X    OLDSTD = dcopy(SHIN, FOLDSTD);
+X#endif
+X    closem();
+X}
+X
+X
+void
+X#ifdef PROF
+done(i)
+X#else
+xexit(i)
+X#endif
+X    int     i;
+X{
+X#ifdef TESLA
+X    if (loginsh && do_logout) {
+X	/* this is to send hangup signal to the develcon */
+X	/* we toggle DTR. clear dtr - sleep 1 - set dtr */
+X	/* ioctl will return ENOTTY for pty's but we ignore it 	 */
+X	/* exitstat will run after disconnect */
+X	/* we sleep for 2 seconds to let things happen in */
+X	/* .logout and rechist() */
+X#ifdef TIOCCDTR
+X	(void) sleep(2);
+X	(void) ioctl(FSHTTY, TIOCCDTR, NULL);
+X	(void) sleep(1);
+X	(void) ioctl(FSHTTY, TIOCSDTR, NULL);
+X#endif				/* TIOCCDTR */
+X    }
+X#endif				/* TESLA */
+X
+X    untty();
+X    _exit(i);
+X}
+X
+static Char **
+defaultpath()
+X{
+X    char   *ptr;
+X    Char  **blk, **blkp;
+X    struct stat stb;
+X
+X    blkp = blk = (Char **) xmalloc((size_t) sizeof(Char *) * 10);
+X
+X#ifndef DOTLAST
+X    *blkp++ = Strsave(STRdot);
+X#endif
+X
+X#define DIRAPPEND(a)  \
+X	if (stat(ptr = a, &stb) == 0 && S_ISDIR(stb.st_mode)) \
+X		*blkp++ = SAVE(ptr)
+X
+X#ifdef _PATH_LOCAL
+X    DIRAPPEND(_PATH_LOCAL);
+X#endif
+X
+X#ifdef _PATH_USRUCB
+X    DIRAPPEND(_PATH_USRUCB);
+X#endif
+X
+X#ifdef _PATH_USRBSD
+X    DIRAPPEND(_PATH_USRBSD);
+X#endif
+X
+X#ifdef _PATH_BIN
+X    DIRAPPEND(_PATH_BIN);
+X#endif
+X
+X#ifdef _PATH_USRBIN
+X    DIRAPPEND(_PATH_USRBIN);
+X#endif
+X
+X#undef DIRAPPEND
+X
+X#ifdef DOTLAST
+X    *blkp++ = Strsave(STRdot);
+X#endif
+X    *blkp = NULL;
+X    return (blk);
+X}
+END_OF_FILE
+if test 45105 -ne `wc -c <'sh.c'`; then
+    echo shar: \"'sh.c'\" unpacked with wrong size!
+fi
+# end of 'sh.c'
+fi
+echo shar: End of archive 15 \(of 18\).
+cp /dev/null ark15isdone
+MISSING=""
+for I in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 ; do
+    if test ! -f ark${I}isdone ; then
+	MISSING="${MISSING} ${I}"
+    fi
+done
+if test "${MISSING}" = "" ; then
+    echo You have unpacked all 18 archives.
+    rm -f ark[1-9]isdone ark[1-9][0-9]isdone
+else
+    echo You still need to unpack the following archives:
+    echo "        " ${MISSING}
+fi
+##  End of shell archive.
+exit 0

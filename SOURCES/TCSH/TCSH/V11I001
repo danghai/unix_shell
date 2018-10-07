@@ -1,0 +1,1604 @@
+Path: uunet!rs
+From: rs@uunet.UU.NET (Rich Salz)
+Newsgroups: comp.sources.unix
+Subject: v11i001:  New version of T-shell, Part01/06
+Message-ID: <859@uunet.UU.NET>
+Date: 11 Aug 87 23:51:04 GMT
+Organization: UUNET Communications Services, Arlington, VA
+Lines: 1594
+Approved: rs@uunet.UU.NET
+
+Submitted-by: Paul Placeway <pyramid!osu-eddie!paul>
+Posting-number: Volume 11, Issue 1
+Archive-name: tcsh/Part01
+
+After promising this about forever, here it is: tcsh!  It slices, it dices,
+it makes julienne fries... 8-)
+
+[  I've noticed problems when used on a Sun through a serial line.
+   Also, don't try making the patches to the 4.3BSD sources. --r$  ]
+
+Tcsh is a set of changes to the standard c-shell, which add an
+Emacs-style command line editor (totally re-written, not a scrap of
+the '85 version) that handles up to 1k of input (automatically
+wrapping lines), command and file name completion, command and file
+name spelling correction, and a bunch of other (creeping) features...
+
+# This is a shell archive.  Remove anything before this line
+# then unpack it by saving it in a file and typing "sh file"
+# (Files unpacked will be owned by you and have default permissions).
+# This archive contains the following files:
+#	./sh.nfunc.c
+#	./Makefile.new
+#	./tcsh.1
+#	./README
+#
+if `test ! -s ./sh.nfunc.c`
+then
+echo "writing ./sh.nfunc.c"
+sed 's/^x//' > ./sh.nfunc.c << '\Rogue\Monster\'
+x/* static	char *sccsid = "@(#)sh.nfunc.c 1.0 84/01/31"; */
+x
+x#include "sh.h"
+x#include "ed.h"
+x#include "ed.fcns.h"			/* for the function names */
+x#define MAKE_TWENEX
+x#include "tw.h"
+x
+x#include <sys/ioctl.h>
+x
+xstatic int parsekey();
+xstatic char *unparsekey();
+x
+x/*
+x * Tops-C shell
+x */
+x
+xint
+xdobind(v)
+xregister char **v;
+x{
+x    register int c;
+x    register struct KeyFuncs *fp;
+x    register int i, prev;
+x    register int isfound;
+x				/* assume at this point that i'm given 2 or 3
+x				   args - 'bind', the f-name, and the key;
+x				   or 'bind' key to print the func for that
+x				   key. */
+x
+x    if (v[1] && v[2] && v[3]) {
+x	printf ("usage: bind [KEY | COMMAND KEY | \"emacs\" | \"vi\"]\n");
+x	return;
+x    }
+x    if (v[1] && v[2]) {		/* if bind KEY FUNCTION */
+x        for (fp = FuncNames; fp->name; fp++) {
+x	    if (strcmp(v[1], fp->name) == 0) { /* if this key */
+x		if ((c = parsekey(v[2])) == -1)
+x		    return;
+x		CcKeyMap[c] = fp->func;	/* bind the key */
+x	        return;
+x	    }
+x        }
+x        bferr ("I don't know that function");
+x    } else if (v[1]) {
+x	if ((strcmp (v[1], "defaults") == 0) ||
+x	    (strcmp (v[1], "emacs") == 0) ||
+x	    (strcmp (v[1], "gnumacs") == 0)) {
+x		/* reset keys to default */
+x	    for (i=0; i<256; i++) { /* assign all the keys to Emacs binding */
+x		CcKeyMap[i] = CcEmacsMap[i];
+x	    }
+x#ifdef VI_MODE
+x	} else if (strcmp (v[1], "vi") == 0) {
+x	    for (i=0; i<256; i++) { /* assign all the keys to Vi binding */
+x		CcKeyMap[i] = CcViMap[i];
+x	    }
+x#endif
+x	} else {		/* want to know what this key does */
+x	    if ((c = parsekey(v[1])) == -1)
+x		return;
+x	    pkeys(c, c);
+x	}
+x    } else {			/* list all the bindings */
+x	prev = 0;
+x	for (i = 0; i < 256; i++) {
+x	    if (CcKeyMap[prev] == CcKeyMap[i])
+x		continue;
+x	    pkeys(prev, i-1);
+x	    prev = i;
+x	}
+x	pkeys(prev, i-1);
+x    }
+x}
+x
+xpkeys(first, last)
+xregister int first, last;
+x{
+x    register struct KeyFuncs *fp;
+x    char buf[8];
+x
+x    if (CcKeyMap[first] == F_UNASSIGNED)
+x	return;
+x    for (fp = FuncNames; fp->name; fp++) {
+x	if (fp->func == CcKeyMap[first]) {
+x	    if (first == last) {
+x		printf (" %s\t\t%s\n", unparsekey(first), fp->name);
+x	    } else {
+x		strcpy (buf, unparsekey(first));
+x		printf (" %s..%s\t\t%s\n", buf, unparsekey(last), fp->name);
+x	    }
+x	    return;
+x	}
+x    }
+x    printf ("BUG!!! %s isn't bound to anything.\n", unparsekey(first));
+x    printf ("CcKeyMap[%d] == %d\n", first, CcKeyMap[first]);
+x}
+x
+x
+xchar *
+xsprlex(buf, sp0)
+xstruct wordent *sp0;
+xchar *buf;
+x{
+x    register struct wordent *sp = sp0->next;
+x    register char *s, *d;
+x
+x    buf[0] = '\0';
+x    d = buf;
+x
+x    for (;;) {
+x	for (s = sp->word; *s; s++)
+x	    *d++ = (*s & 0177);
+x        sp = sp->next;
+x        if (sp == sp0)
+x            break;
+x	*d++ = ' ';
+x    }
+x    *d = '\0';
+x    return(buf);
+x}
+x
+xdonhist(av)
+xchar **av;
+x{
+x    char buf[512];
+x    struct Hist *hp;
+x
+x    for (hp = Histlist.Hnext; hp != 0; hp = hp->Hnext) {
+x        sprlex (buf, &hp->Hlex);
+x        printf ("hist: %s\n", buf);
+x    }
+x}
+x
+xstatic char *
+xunparsekey (c)			/* 'c' -> "c", '^C' -> "^" + "C" */
+xregister char c;
+x{
+x    register char *cp;
+x    static char tmp[8];
+x    
+x    cp = tmp;
+x    if (c & 0200) {		/* if meta */
+x	*cp++ = 'M';
+x	*cp++ = '-';
+x	c &= 0177;
+x    }
+x    if (c > ' ' && c <= '~') {	/* ASCII only */
+x	*cp++ = c;
+x	*cp = '\0';
+x	return (tmp);
+x    } else if (c == ' ') {
+x	strcpy (cp, "Spc");
+x	return (tmp);
+x    } else if (c == '\n') {
+x	strcpy (cp, "Lfd");
+x	return (tmp);
+x    } else if (c == '\r') {
+x	strcpy (cp, "Ret");
+x	return (tmp);
+x    } else if (c == '\t') {
+x	strcpy (cp, "Tab");
+x	return (tmp);
+x    } else if (c == '\033') {
+x	strcpy (cp, "Esc");
+x	return (tmp);
+x    } else if (c == '\177') {
+x	strcpy (cp, "Del");
+x	return (tmp);
+x    } else {
+x	*cp++ = '^';
+x	if (c == '\177') {
+x	    *cp++ = '?';
+x	}
+x	else {
+x	    *cp++ = '@' + (c & 037);
+x	}
+x	*cp = '\0';
+x	return (tmp);
+x    }
+x}
+x
+xstatic int
+xparsekey(s)
+xregister char *s;
+x{
+x    register int c, meta, control;
+x
+x    if (s == (char *)0) return -1;
+x    if (*s == 0) return -1;
+x
+x    if (s[0] == '0' && s[1] == 'x') { /* if 0xn, then assume number */
+x	c = 0;
+x	for (s+=2; *s; s++) {	/* convert to octal; skip the first 0 */
+x	    c *= 16;
+x	    if (!isxdigit(*s)) {
+x		printf ("bad key specification -- malformed hex number\n");
+x		return -1;	/* error */
+x	    }
+x	    if (isdigit(*s))
+x		c += *s - '0';
+x	    else if (*s >= 'a' && *s <= 'f')
+x		c += *s - 'a' + 0xA;
+x	    else if (*s >= 'F' && *s <= 'F')
+x		c += *s - 'A' + 0xA;
+x	}
+x    } else if (s[0] == '0' && isdigit(s[1])) { /* if 0n, then assume number */
+x	c = 0;
+x	for (s++; *s; s++) {	/* convert to octal; skip the first 0 */
+x	    if (!isdigit(*s) || *s == '8' || *s == '9') {
+x		printf ("bad key specification -- malformed octal number\n");
+x		return -1;	/* error */
+x	    }
+x	    c = (c*8) + *s - '0';
+x	}
+x    } else if (isdigit(s[0]) && isdigit(s[1])) { /* decimal number */
+x	c = 0;
+x	for (; *s; s++) {	/* convert to octal; skip the first 0 */
+x	    if (!isdigit(*s)) {
+x		printf ("bad key specification -- malformed decimal number\n");
+x		return -1;	/* error */
+x	    }
+x	    c = (c*10) + *s - '0';
+x	}
+x    } else {
+x	meta = 0;
+x	control = 0;
+x	if ((*s == 'm' || *s == 'M') && s[1] == '-') { /* meta */
+x	    meta++;
+x	    s += 2;
+x	}
+x	if (*s == '^') {
+x	    control++;
+x	    s++;
+x	} else if ((*s == 'c' || *s == 'C') && s[1] == '-') { /* control */
+x	    control++;
+x	    s += 2;
+x	}
+x	if (s[1] != 0) {	/* if symbolic name */
+x	    if (strcmp(s, "space") == 0)
+x		c = ' ';
+x	    else if (strcmp(s, "return") == 0)
+x		c = '\r';
+x	    else if (strcmp(s, "newline") == 0)
+x		c = '\n';
+x	    else if (strcmp(s, "linefeed") == 0)
+x		c = '\n';
+x	    else if (strcmp(s, "tab") == 0)
+x		c = '\t';
+x	    else if (strcmp(s, "escape") == 0)
+x		c = '\033';
+x	    else if (strcmp(s, "backspace") == 0)
+x		c = '\b';
+x	    else if (strcmp(s, "delete") == 0)
+x		c = '\177';
+x	    else {
+x		printf ("bad key specification -- unknown name \"%s\"\n", s);
+x		return -1;	/* error */
+x	    }
+x	} else
+x	    c = *s;		/* just a single char */
+x
+x	if (control) {
+x	    if (islower(c))
+x		c = toupper(c);
+x	    else if (c == ' ')
+x		c = '@';
+x	    if (c == '?')
+x		c = 0177;
+x	    else
+x		c &= 037;
+x	}
+x	if (meta)
+x	    c |= 0200;
+x    }
+x    return (c & 0377);
+x}
+x
+xitoa(n, s)			/* convert n to characters in s */
+xint n;
+xchar *s;
+x{
+x    int i, sign;
+x    
+x    if ((sign = n) < 0) 	/* record sign */
+x	n = -n;
+x    i = 0;
+x    do {
+x	s[i++] = n % 10 + '0';
+x    } while ((n /= 10) > 0);
+x    if (sign < 0)
+x	s[i++] = '-';
+x    s[i] = '\0';
+x    Reverse(s);
+x}
+x
+xReverse(s)
+xchar *s;
+x{
+x	int c, i, j;
+x
+x	for (i=0, j = strlen(s)-1; i < j; i++, j--) {
+x		c = s[i];
+x		s[i] = s[j];
+x		s[j] = c;
+x	}
+x}
+x
+xget_tw_comm_list()		/* stolen form sh.exec.c dohash() */
+x{
+x	struct stat stb;
+x	DIR *dirp;
+x	register struct direct *dp;
+x	struct varent *v = adrof("path");
+x	char **pv;
+x
+x	tw_clear_comm_list();
+x	if (v == 0)
+x		return;
+x	for (pv = v->vec; *pv; pv++) {
+x		if (pv[0][0] != '/')
+x			continue;
+x		dirp = opendir(*pv);
+x		if (dirp == NULL)
+x			continue;
+x		if (fstat(dirp->dd_fd, &stb) < 0 || !isdir(stb)) {
+x			closedir(dirp);
+x			continue;
+x		}
+x		while ((dp = readdir(dirp)) != NULL) {
+x			if (dp->d_ino == 0)
+x				continue;
+x			tw_add_comm_name (dp->d_name);
+x		}
+x		closedir(dirp);
+x	}
+x}
+x
+xdolist(v)
+xregister char **v;
+x{
+x    register int f, k;
+x    char buf[257];
+x    struct stat statb;
+x    
+x    if (setintr)
+x	sigrelse(SIGINT);
+x
+x    if (*++v == NULL) {
+x	t_search("", (char *)0, LIST, 0, 0);
+x	return;
+x    }
+x    gflag = 0; rscan(v, tglob);
+x    if (gflag) {
+x	v = glob(v);
+x	if (v == 0)
+x	    bferr("No match");
+x    } else
+x	scan(v, trim);
+x    k = 0;
+x    if (*(v+1))
+x	f = 1;
+x    else
+x	f = 0;
+x    do {
+x	if (stat (*v, &statb) >= 0 && (statb.st_mode & S_IFDIR)) {
+x	    if (k) putchar('\n');
+x	    if (f) printf("%s:\n", *v);
+x	    strcpy(buf, *v++);
+x	    strcat(buf, "/");
+x	    t_search(buf, (char *)0, LIST, 0, 0);
+x	} else
+x	    t_search(*v++, (char *)0, LIST, 0, 0);
+x	k = 1;
+x    } while (*v);
+x    if (setintr)
+x	sighold(SIGINT);
+x    if (gargv)
+x	blkfree(gargv), gargv = 0;
+x
+x}
+\Rogue\Monster\
+else
+  echo "will not over write ./sh.nfunc.c"
+fi
+if [ `wc -c ./sh.nfunc.c | awk '{printf $1}'` -ne 7829 ]
+then
+echo `wc -c ./sh.nfunc.c | awk '{print "Got " $1 ", Expected " 7829}'`
+fi
+if `test ! -s ./Makefile.new`
+then
+echo "writing ./Makefile.new"
+sed 's/^x//' > ./Makefile.new << '\Rogue\Monster\'
+x#
+x#	Makefile	4.3	6/11/83
+x#
+x# C Shell with process control; VM/UNIX VAX Makefile
+x# Bill Joy UC Berkeley; Jim Kulp IIASA, Austria
+x#
+x# With an input editor, command completion, etc. and ported to all sorts of
+x# things; Paul Placeway, CIS Dept., Ohio State University
+x#
+x
+x############### Compilation  Flags ######################
+x## for vanila 4.2 (real BSD, Pyramid, Sun, Encore, etc.), use:
+xCFLAGS= -O -DTELL -DVMUNIX -DVFORK -DBSDJOBS -USVID -UOREO
+x
+x## for Apple Unix (oreo) use:
+x#CFLAGS= -O -DTELL -DVMUNIX -UVFORK -DBSDJOBS -DSVID -DOREO -DSHELLPATH=/usr/local/bin
+x
+x## for vanila Sys V, use: (NOT READY YET!!)
+x#CFLAGS= -O -DTELL -DVMUNIX -UVFORK -UBSDJOBS -DSVID -UOREO
+x
+x
+xED=	-ed
+xAS=	-as
+xRM=	-rm
+xCXREF=	/usr/ucb/cxref
+xVGRIND=	csh /usr/ucb/vgrind
+xCTAGS=	/usr/ucb/ctags
+xLIBES= -ltermcap
+xSCCS=	/usr/local/sccs
+xPARALLEL=8				# Make the multi-max run fast.
+x##DESTDIR=/u/paul/bin.$$HOSTTYPE
+xDESTDIR=/bin
+xDESTMAN=/usr/man/man1
+x
+x# (pprintf.o is portable printf, doesn't use doprnt.)
+xPRINT=pwprintf.o
+x
+x# on some machines, the alloc.c works.  On others, it dosn't.  Besides, 
+x# nmalloc is much faster...
+xALLOC=nmalloc.o
+x
+xSHOBJS=	sh.o sh.dir.o sh.dol.o sh.err.o sh.exec.o \
+x	sh.exp.o sh.func.o sh.glob.o sh.hist.o sh.init.o sh.lex.o sh.misc.o \
+x	sh.parse.o sh.print.o sh.proc.o sh.sem.o sh.set.o sh.sig.o sh.time.o
+x
+xTWOBJS=	tw.help.o tw.init.o tw.parse.o tw.spell.o
+x
+xEDOBJS=	ed.chared.o ed.refresh.o ed.screen.o ed.init.o ed.inputl.o ed.defns.o \
+x	sh.nfunc.o
+x
+xOBJS= ${SHOBJS} ${TWOBJS} ${EDOBJS} ${ALLOC} ${PRINT} ## strings.o
+x
+x# Don't do any special massaging of C files for sharing of strings!!
+x# it causes wierd segmentation faults on some systems.
+x
+xtcsh: ${OBJS}
+x	rm -f tcsh core
+x	cc ${CFLAGS} ${OBJS} -o tcsh ${LIBES}
+x
+xtcsh.ps: tcsh.1
+x	rm -f tcsh.ps
+x	-ptroff -man tcsh.1 > tcsh.ps
+x
+x${SHOBJS}: sh.h sh.local.h
+x
+x${TWOBJS}: sh.h sh.local.h tw.h
+x
+x${EDOBJS}: ed.h ed.fcns.h tw.h sh.h sh.local.h
+x
+xed.fcns.h: ed.defns.c
+x	rm -f ed.fcns.h TMP
+x	echo '/* Do not edit this file, make creates it. */' > ed.fcns.h
+x	egrep F_ ed.defns.c > TMP
+x	egrep '^#define' TMP >> ed.fcns.h
+x	rm -f TMP
+x
+xcsh.prof: ${OBJS} sh.prof.o sh.local.h mcrt0.o
+x	rm -f csh.prof
+x	ld -X mcrt0.o ${OBJS} -o csh.prof ${LIBES} -lc
+x
+xsh.o.prof:
+x	cp sh.c sh.prof.c
+x	cc -c ${CFLAGS} -DPROF sh.prof.c
+x
+x.DEFAULT:
+x	${SCCS} get $<
+x
+xlint:
+x	lint ${CFLAGS} sh*.c
+x
+xprint:
+x	@pr READ_ME
+x	@pr makefile makefile.*
+x	@(size -l a.out; size *.o) | pr -h SIZES
+x	@${CXREF} sh*.c | pr -h XREF
+x	@ls -l | pr 
+x	@pr sh*.h [a-rt-z]*.h sh*.c alloc.c
+x
+xvprint:
+x	@pr -l84 READ_ME TODO
+x	@pr -l84 makefile makefile.*
+x	@(size -l a.out; size *.o) | pr -l84 -h SIZES
+x	@${CXREF} sh*.c | pr -l84 -h XREF
+x	@ls -l | pr -l84
+x	@${CXREF} sh*.c | pr -l84 -h XREF
+x	@pr -l84 sh*.h [a-rt-z]*.h sh*.c alloc.c
+x
+xvgrind:
+x	@cp /dev/null index
+x	@for i in *.h; do vgrind -t -h "C Shell" $$i >/crp/bill/csh/$$i.t; done
+x	@for i in *.c; do vgrind -t -h "C Shell" $$i >/crp/bill/csh/$$i.t; done
+x	@vgrind -t -x -h Index index >/crp/bill/csh/index.t
+x
+xinstall: tcsh sh.local.h
+x	@echo installing in ${DESTDIR}/tcsh
+x	rm -f ${DESTDIR}/tcsh
+x	cp tcsh ${DESTDIR}/tcsh
+x	cp tcsh.1 ${DESTMAN}
+x
+xclean:
+x	${RM} -f a.out strings x.c xs.c tcsh _MAKE_LOG core
+x	${RM} -f *~ #*
+x	${RM} -f *.o sh.prof.c ed.fcns.h
+x
+xtags:	/tmp
+x	${CTAGS} sh*.c
+\Rogue\Monster\
+else
+  echo "will not over write ./Makefile.new"
+fi
+if [ `wc -c ./Makefile.new | awk '{printf $1}'` -ne 3209 ]
+then
+echo `wc -c ./Makefile.new | awk '{print "Got " $1 ", Expected " 3209}'`
+fi
+if `test ! -s ./tcsh.1`
+then
+echo "writing ./tcsh.1"
+sed 's/^x//' > ./tcsh.1 << '\Rogue\Monster\'
+x.TH TCSH 1 Ohio-State
+x.SH NAME
+xtcsh \- C shell with file name completion and command line editing
+x.SH SYNOPSIS
+x/bin/tcsh
+x.SH DESCRIPTION
+x.I Tcsh
+xis an enhanced version of the Berkeley UNIX C shell
+x.I csh (1).
+xIt behaves exactly like the C shell,
+xexcept for the added utilities of:
+x.PP
+x.in +6
+x.ti -4
+x1)  Command line editing using Emacs-style commands.
+x.sp
+x.ti -4
+x2)  Visual step up/down through the history list.
+x.sp
+x.ti -4
+x3)  Terminal mode sanity checking and resetting.
+x.sp
+x.ti -4
+x4)  Interactive command, file name and user name completion.
+x.sp
+x.ti -4
+x5)  File/directory/user list in the middle of a typed command.
+x.sp
+x.ti -4
+x6)  Spelling correction of command, file, and user names.
+x.sp
+x.ti -4
+x7)  Lookup of command documentation in the middle of a typed command.
+x.sp
+x.ti -4
+x8)  History saved between logouts.
+x.sp
+x.ti -4
+x9)  Automatic logout after long periods of idle time.
+x.sp
+x.ti -4
+x10) Automatic execution of a single command prior to printing each prompt.
+x.sp
+x.ti -4
+x11) Automatic periodic command execution.
+x.sp
+x.ti -4
+x12) A new syntax for the prompt, and the ability to set the prompt for
+x"while" and "for" loops.
+x.sp
+x.ti -4
+x13) Time stamps in the history list.
+x.sp
+x.ti -4
+x14) An addition to the syntax of filenames to access entries in the
+xdirectory stack.
+x.sp
+x.ti -4
+x15) The ability to watch for logins and logouts by user or terminal
+xon the machine.
+x.sp
+x.ti -4
+x16) A scheduled event list, which specifies commands which are to be
+xexecuted at given times.
+x.sp
+x.ti -4
+x17) A new builtin that does a subset of
+x.I ls(1).
+x.sp
+x.ti -4
+x18) An addition to the file expression syntax for a character not
+xin a set of characters.
+x.sp
+x.ti -4
+x19) New automatically initialized environment variables \fIHOST\fR and
+x\fIHOSTTYPE\fR.
+x.in -6
+x.PP
+xFor a description of standard C-shell features, see the
+x.I csh
+xmanual page.
+x.PP
+x.SH "1. COMMAND LINE EDITING"
+xCommands that the user types in may be edited using the same control
+xcharacters that Gnu Emacs uses.
+x.I Tcsh
+xallows this by setting the terminal to `CBREAK' mode and reading the input
+xone character at a time.
+xThe following is a list of which control characters do what.
+x.PP
+x.sp
+x.in +6
+x.nf
+xKEY    	COMMAND
+x---    	-------
+x^@   	set-mark-command
+x^A      	beginning-of-line
+x^B      	backward-char
+x^C      	tty-sigintr
+x^D      	delete-char-or-list
+x^E      	end-of-line
+x^F      	forward-char
+x^G      	keyboard-quit
+x^H      	backward-delete-char
+xTab     	complete-word
+xLfd     	newline
+x^K      	kill-line
+x^L      	clear-screen
+xRet     	newline
+x^N      	down-history
+x^O      	tty-flush-output
+x^P      	up-history
+x^Q      	tty-stop-output
+x^R      	redisplay
+x^S      	tty-start-output
+x^T      	transpose-chars
+x^U      	universal-argument
+x^V      	quoted-insert
+x^W      	kill-region
+x^X      	exchange-point-and-mark
+x^Y      	yank
+x^Z      	tty-sigtsusp
+xEsc     	prefix-meta
+x^\\      	tty-sigquit
+x^]     	tty-dsusp
+xSpc../  	self-insert-command
+x0..9    	digit
+x:..~    	self-insert-command
+xDel     	backward-delete-char
+xM-^D    	list-choices
+xM-^H    	backward-delete-word
+xM-Tab   	complete-word
+xM-^L    	clear-screen
+xM-Esc   	complete-word
+xM-$     	spell-word
+xM-0..M-9	digit-argument
+xM-?     	which-command
+xM-B     	backward-word
+xM-D     	delete-word
+xM-F     	forward-word
+xM-H    	run-help
+xM-S    	spell-word
+xM-W     	copy-region-as-kill
+xM-b     	backward-word
+xM-d     	delete-word
+xM-f     	forward-word
+xM-h     	run-help
+xM-s     	spell-word
+xM-w     	copy-region-as-kill
+xM-Del	backward-delete-word
+x.in -6
+x.fi
+x.PP
+xThere is a new shell command, 
+x.I bind,
+xthat allows the user to redefine what any key does.
+xIf given two arguments 
+x.I bind
+xbinds the function (first argument) to the given key (second argument).
+xThe key may be either the direct character or a caret-<letter> combination,
+xwhich is converted to control-<letter>.
+xIf given one argument
+x.I bind
+xtakes the argument as the name for a key and tells what that key does.
+xIf given no arguments
+x.I bind
+xtells what all of the keys do.
+xIf you give bind the single argument of 'defaults', it resets each key to its
+xdefault value (see the above list).
+x.PP
+x.SH "2. VISUAL HISTORY"
+xThe keys ^P and ^N are used to step up and down the history list.  If
+xthe user has typed in the following:
+x.sp
+x.nf
+x	> ls
+x	foo	bar
+x	> echo mumble
+x	mumble
+x	>
+x.fi
+x.sp
+xthen enters
+x.I ^P,
+xthe shell will place "echo mumble" into the editing buffer, and will
+xput the cursor at the end of the line.  If another
+x.I ^P
+xis entered, then the editing line will change to "ls".  More
+x.I ^P s
+xwill make the bell ring, since there are no more lines in the history.
+x.I ^N
+xworks the same way, except it steps down (forward in time).
+x.PP
+xAn easy way to re-do a command is to type
+x.I ^P
+xfollowed by
+x.I Return.
+xAlso, pieces of previous commands can be assembled to make a new
+xcommand.  The commands that work on regions are especially useful for this.
+x.PP
+x.I ^P
+xand
+x.I ^N
+xactually only copy commands from out of the history into the edit
+xbuffer; thus the user may step back into the history and then edit
+xthings, but those changes do not effect what is actually in
+x.I tcsh's
+xhistory.
+x.PP
+x.SH "3. TTY MODE SANITY"
+xAs part of the editor,
+x.I tcsh
+xdoes a check and reset of the terminal mode bits.  If the speed has
+xbeen changed, then
+x.I tcsh
+xwill change to using that speed.
+x.I tcsh
+xwill also obey changes in the padding needed by the tty.
+xSome changes to the command keys will be obeyed, however if a command key
+xis unset,
+x.I tcsh
+xwill reset it to what it was.  Also, the shell will automatically turn off
+xRAW and CBREAK modes, and will turn on the tty driver's output processing.
+x.PP
+x.SH "4. WORD COMPLETION"
+xIn typing commands,
+xit is no longer necessary to type a complete name,
+xonly a unique abbreviation is necessary.
+xWhen you type a TAB to
+x.I tcsh
+xit will complete the name for you, echoing the full name on the
+xterminal (and entering it into the edit buffer).  If the prefix you
+xtyped matches no name, the terminal bell is rung.  The name may
+xbe partially completed if the prefix matches several longer names.  If
+xthis is the case, the name is extended up to the point of ambiguity,
+xand the bell is rung.  This works for file names, command names,
+xand the (csh) ~ user name convention.
+x.PP
+x.I Example
+x.PP
+xAssume the current directory contained the files:
+x.sp
+x.nf
+x	DSC    	bin    	cmd    	lib    	memos
+x	DSC.NEW	chaos  	cmtest 	mail   	netnews
+x	bench  	class  	dev    	mbox   	new
+x.fi
+x.sp
+xThe command:
+x.sp
+x	> gnumacs ch[TAB]
+x.sp
+xwould cause 
+x.I tcsh
+xto complete the command with the file name chaos.  If instead, the
+xuser had typed:
+x.sp
+x	> gnumacs D[TAB]
+x.sp
+x.I tcsh
+xwould have extended the name to DSC and rung the terminal bell, 
+xindicating partial completion.
+x.PP
+xFile name completion works equally well when other directories are addressed.
+xAdditionally, 
+x.I tcsh 
+xunderstands the C shell tilde (~) convention for home directories.
+xThus,
+x.sp
+x	> cd ~speech/data/fr[TAB]
+x.sp
+xdoes what one might expect.  This may also be used to expand login names only.
+xThus,
+x.sp
+x	> cd ~sy[TAB]
+x.sp
+xexpands to
+x.sp
+x	> cd ~synthesis
+x.sp
+x.PP
+xCommand names may also be completed, for example,
+x.sp
+x	> gnum[TAB]
+x.sp
+xwill expand to "gnumacs" (assuming that there are no other commands
+xthat begin with "gnum").
+x.PP
+xCompletion also works when the cursor is in the middle of the line,
+xrather than just the end.  All of the text after the cursor will be
+xsaved, the completion will work (possibly adding to the current name),
+xand then the saved text will be restored in place, after the cursor.
+x.PP
+x.SH "5. LISTING OF POSSIBLE NAMES"
+xAt any point in typing a command, you may request "what names are
+xavailable".  Thus, when you have typed, perhaps:
+x.sp
+x	> cd ~speech/data/fritz/
+x.sp
+xyou may wish to know what files or subdirectories exist (in
+x~speech/data/fritz), without, of course, aborting the command you are
+xtyping.  Typing the character Control-D (^D), will list the names
+x(files, in this case) available.  The files are listed in multicolumn
+xformat, sorted column-wise.  Directories are indicated with a trailing
+x`/', executable files with a `*', symbolic links with a '@', sockets
+xwith a '=', and FIFOs (named pipes) with a '<'.  Once
+xprinted, the command is re-echoed for you to complete.
+x.PP
+xAdditionally, one may want to know which files match a prefix.
+xIf the user had typed:
+x.sp
+x	> cd ~speech/data/fr[^D]
+x.sp
+xall files and subdirectories whose prefix was
+x``fr'' would be printed.  Notice that the example before was simply
+xa degenerate case of this with a null trailing file name. 
+x(The null string is a prefix of all strings.)
+xNotice also, that
+xa trailing slash is required to pass to a new directory for 
+xboth file name completion and listing.
+x.PP
+xThe degenerate
+x.sp
+x	> ~[^D]
+x.sp
+xwill print a full list of login names on the current system.
+x.PP
+xThe behavior of the completion can be changed by setting the shell variable
+x.I recexact.
+xThis makes an exact command be expanded rather than just ringing the bell.
+xFor example, assume the current directory has two subdirectories
+xcalled foo and food, then with
+x.I recexact
+xset the following could be done:
+x.sp
+x	> cd fo[TAB]
+x.br
+xto ...
+x.br
+x	> cd foo[TAB]
+x.br
+xto ...
+x.br
+x	> cd foo/
+x.sp
+xrather than beeping on the second TAB.
+x.PP
+x.SH "Command Name Recognition"
+xCommand name recognition and completion
+xworks in the same manner as file name recognition
+xand completion above.
+xThe current value of the environment variable
+x.I PATH
+xis used
+xin searching for the command.
+xFor example
+x.sp
+x	> newa[TAB]
+x.sp
+xmight expand to
+x.sp
+x	> newaliases
+x.sp
+xAlso,
+x.sp
+x	> new[^D]
+x.sp
+xwould list all commands (along PATH) that begin with "new".
+x.PP
+xNote that Control-D has three different effects on
+x.I tcsh.
+xOn an empty line (one that contains nothing, not even spaces),
+x.I ^D
+xsends an EOF to
+x.I tcsh
+xjust as it does for normal programs.  When the cursor is in the middle
+xof a line of text,
+x.I ^D
+xdeletes the character
+xthat the cursor is under.  Finally, a
+x.I ^D
+xat the end of a line of text lists the available names at that point.
+xTo get a list of available names when the cursor is in the middle of a
+xline (or on an empty line), a Meta-Control-D should be typed (Escape
+xfollowed by Control-D).
+x.PP
+x.SH "6. SPELLING CORRECTION"
+xIf while typing a command, the user mistypes or misspells a file name,
+xuser name, or command name,
+x.I tcsh
+xcan correct the spelling.  When correcting a file name, each part of
+xthe path is individually checked and corrected.  The key that invokes
+xthe corrector is Meta-$ (Escape Dollar-sign).  For example, suppose that
+xthe user has typed:
+x.sp
+x	> cd /uxr/spol/news[ESC $]
+x.sp
+x.I Tcsh
+xwill check the path for spelling, correct the mistakes, and redraw the
+xline as
+x.sp
+x	> cd /usr/spool/news
+x.sp
+xleaving the cursor at the end of the line.  This, like the other
+xcommands that effect names, works for command names and user names
+xalso.
+x.PP
+x.SH "7. DOCUMENTATION LOOKUP"
+xThe editor function
+x.I "run-help"
+x(Meta-h) prints a help file on the current command (using the same
+xdefinition of current as the completion routines use).  This help file
+xis found by searching the path list HPATH for files of the form
+xfoo.help, foo.1, foo.8, or foo.6 in that order (assuming that the
+xcurrent command is foo).  The file is just printed, not paged in any
+xway.  This is because
+x.I run-help
+xis meant to be used to look up short help files,
+xnot manual pages (although it can do manual pages also).
+x.PP
+x.SH "8. HISTORY SAVING"
+x.I Tcsh
+xwill save the history list between login sessions.  It does this by
+xwriting the current list to the file "~/.history" on logout, and
+xreading it in on login.  For example, placing the line
+x.sp
+x	set history=25 savehist=20
+x.sp
+xtells csh to save the last 25 commands on the history list, and to
+xsave the last 20 of them between logins.  The "savehist" variable may
+xbe set up to the size of history, although it is an error to have
+x.I savehist
+xlarger than
+x.I history.
+x.PP
+x.SH "9. AUTOMATIC LOGOUT"
+xThe automatic logout time is controlled by the variable
+x.I autologout,
+xthe value of which is the number of minutes of inactivity will be
+xallowed before automatically logging the user out.  When that many
+xminutes have been reached, the shell prints "autologout" and dies
+x(without executing ~/.logout).  The default for tcsh is to set
+x.I autologout
+xfor 60 minutes on login shells, and when the user is root.  To disable
+xautologout (for instance in a window system), unset the shell variable
+x.I autologout.
+x.PP
+x.SH "10. EXECUTION OF A COMMAND PRIOR TO EACH PROMPT"
+x.I Tcsh
+xsupports a special alias,
+x.I precmd,
+xwhich if set holds a command that will be executed before printing
+xeach prompt.  For example, if the user has done
+x.sp
+x	> alias precmd date
+x.sp
+xthen the program
+x.I date
+xwill be run just before the shell prompts for each command.  There are
+xno limitations on what precmd can be set to do, although discretion
+xshould be used.
+x.PP
+x.SH "11. PERIODIC COMMAND EXECUTION"
+x.I Tcsh
+xis now capable of providing periodic command execution
+xthrough the use of the shell variable
+x.I tperiod
+xand the alias
+x.I periodic.
+xWhen these items are set, the alias
+x.I periodic
+xwill be executed every
+x.I tperiod
+xminutes.
+xThis provides a convenient means for checking on common but
+xinfrequent changes, such as new messages.
+xExample:
+x.nf
+x.sp
+x	> set tperiod = 30
+x	> alias periodic checknews
+x.sp
+x.fi
+xThis will cause the \fIchecknews(1)\fR program to be run every 30 minutes.
+xHaving the alias
+x.I periodic
+xset but with an unset
+x.I tperiod
+x(or a value of 0 for
+x.I tperiod)
+xwill cause
+x.I periodic
+xto degenerate to another form of
+x.I precmd.
+x.PP
+x.SH "12. NEW PROMPT FORMAT"
+xThe format for the
+x.I prompt
+xshell variable has been changed to include many new things, such as
+xthe current time of day, current working directory, etc..  The new
+xformat uses "%<char>" to signal an expansion, much like
+x.I printf(3S).
+xThe available sequences are:
+x.nf
+x.sp
+x     %d or %/	Current working directory.
+x     %c or %.	Trailing component of cwd.
+x     %h or %!	Current history event number.
+x     %M		The full machine hostname
+x     %m		The hostname up to the first "."
+x     %S (%s)	Start (stop) standout mode.
+x     %t or %@	Current time-of-day, in 12 hour, am/pm format.
+x     %%		A single %.
+x.sp
+x.fi
+xThe sequences for standout are often used to indicate that this is an
+xenabled (running as root) shell.  Note that a single "!" no longer
+xprints the current history number.  "%!" should be used instead.
+xAn example:
+x.nf
+x.sp
+x	> set prompt="%m [%h] %S[%@]%s [%/] you rang? "
+x	tut [37] \fI[2:54pm]\fR [/usr/accts/sys] you rang? _
+x.sp
+x.fi
+xIn addition, there is a new variable,
+x.I prompt2,
+xwhich is used to prompt for the body of while and for loops (wherever
+xnormal
+x.I csh
+xprompts with a question mark).  The default for
+x.I prompt2
+xis "\\? ": a (quoted) question mark followed by a space.
+x.PP
+x.SH "13. TIME-STAMPED HISTORY LIST"
+xThe history list in this csh now has a time-of-day stamp attached to
+xeach history list event.
+xThis time stamp is printed whenever the history command is executed.
+xThis allows the user to keep track of when the various events occurred.
+xThe time stamps are not maintained on the saved history list (also
+xavailable in \fItcsh\fR); thus, on logging back in, all the saved history
+xevents will be recorded with the login time as their time stamp.
+x.PP
+x.SH "14. DIRECTORY STACK ELEMENT ACCESS"
+x.I Tcsh
+xwill now allow the user to access all elements in the directory stack directly.
+xThe syntax "=<digit>" is recognized by tcsh
+xas indicating a particular directory
+xin the stack.
+x(This works for the file/command name recognition as well.)
+xThis syntax is analogous to the ~ syntax for access to users' home
+xdirectories.
+xThe stack is viewed as zero-based, i.e., =0 is the same as $cwd, which is
+xthe same as ".".
+xAs a special case, the string "=-" is recognized as indicating the last
+xdirectory in the stack.
+xThus,
+x.nf
+x.sp
+x	> dirs
+x	/usr/net/bin /usr/spool/uucp /usr/accts/sys
+x	> echo =2
+x	/usr/accts/sys
+x	> ls -l =1/LOGFILE
+x	-rw-r--r-- 1 uucp	2594 Jan 19 09:09 /usr/spool/uucp/LOGFILE
+x	> echo =-/.cs*
+x	/usr/accts/sys/.cshrc
+x	> echo =4
+x	Not that many dir stack entries.
+x	>
+x.sp
+x.fi
+xTcsh will complain if you ask for a directory stack item
+xwhich does not exist.
+x.sp
+xIn the normal csh, saying "pushd +2" would rotate the entire stack
+xaround through 2 stack elements, placing the entry found there
+xat the top of the stack.
+xIf, however, the new shell variable
+x.I dextract
+xis set, then issuing "pushd +n" will cause the nth directory stack
+xelement to be extracted from its current position, which will then be
+xpushed onto the top of the stack.  Example:
+x.sp
+x.nf
+x	> dirs
+x	~ /usr/spool/uucp /usr/net/bin /sys/src
+x	> set dextract
+x	> pushd +2
+x	/usr/net/bin ~ /usr/spool/uucp /sys/src
+x	> unset dextract
+x	> pushd +2
+x	/usr/spool/uucp /sys/src /usr/net/bin ~
+x.fi
+x.PP
+x.SH "15. WATCHING FOR LOGINS AND LOGOUTS"
+x.I Tcsh
+xhas a mechanism so that the user can watch for login and logout
+xactivity of any user or terminal in the system.
+xThis is accomplished using the new special shell variable
+x.I watch,
+xwhich contains login/terminal name pairs to be checked for activity.
+xFor example:
+x.nf
+x.sp
+x	> set watch=(sys ttyjd root console)
+x.sp
+x.fi
+xThis setting will allow the user to check on when the user "sys" logs in on
+x/dev/ttyjd.  Similarly, it will inform the user of root's activity on the
+xconsole.  In order to be more general, the word "any" may be substituted for
+xeither a user's or a terminal's name, thus allowing
+x.nf
+x.sp
+x	> set watch=(brad any any ttyh0)
+x.sp
+x.fi
+xwhich will check for user "brad" logging in or out of the system on any
+xterminal, as well as anyone logging in to /dev/ttyh0.
+xNaturally, the completely general case
+x.nf
+x.sp
+x	> set watch=(any any)
+x.sp
+x.fi
+xallows the user to check on any and all login/logout activity in the
+xthe system.
+x.sp
+xBy default, the interval between checks of users on the system is
+x10 minutes;
+xthis can be changed by making the first element of
+x.I watch
+xa number of minutes which should be used instead, as in
+x.nf
+x.sp
+x	> set watch=(40 any any)
+x.sp
+x.fi
+xwhich will check for any users logging in or out every 40 minutes.
+x.sp
+xThere is also a new command,
+x.I log,
+xwhich is used to cause csh to inform the user of all users/terminals
+xaffected by
+x.I watch
+xwhether they have been announced before or not.
+xThis is useful if a user has been on for some time and cannot remember
+xif a particular person/terminal is online right now or not.
+x.I Log
+xwill reset all indication of previous announcement and give the user
+xthe login list all over again, as well as printing the current value
+xof
+x.I watch.
+x.PP
+xThe first time that
+x.I watch
+xis set at csh startup, all affected users and terminals will be
+xprinted as though those users/terminals had just logged on.
+xThis may appear to be a bug, but is generally considered a feature,
+xsince it allows the user to see who is on when he first logs in.
+x.PP
+x.SH "16. TIMED EVENT LIST"
+x.I Tcsh
+xnow supports a scheduled-event list through the use of the command
+x.I sched.
+xThis command gives the user a mechanism by which to arrange for other
+xcommands to be executed at given times.
+xAn event is added to the scheduled-event list by saying
+x.nf
+x.sp
+x	> sched [+]hh:mm <command>
+x.sp
+x.fi
+xas in
+x.nf
+x.sp
+x	> sched 11:00 echo It\\'s eleven o\\'clock.
+x.sp
+x.fi
+xThis will make an entry in the list at 11am for the echo command
+xto be run with the given arguments.
+xThe time may be specified in either absolute or relative time,
+xand absolute times may have a morning/afternoon specification as
+xwell, using "am" or "pm."
+xFor example,
+x.nf
+x.sp
+x	> sched +2:15 /usr/lib/uucp/uucico -r1 -sother
+x	> sched 5pm set prompt='[%h] It\\'s after 5; go home: >'
+x	> sched +3am echo This syntax doesn\\'t work.
+x	Relative time inconsistent with am/pm.
+x	>
+x.sp
+x.fi
+xNote that tcsh will complain if you try to make faulty
+xtime specifications.
+x.PP
+xPrinting the current time-event list is accomplished by giving the
+x.I sched
+xcommand with no arguments:
+x.nf
+x.sp
+x	> sched
+x	     1  Wed Apr  4 15:42  /usr/lib/uucp/uucico -r1 -sother
+x	     2  Wed Apr  4 17:00  set prompt=[%h] It's after 5; go home: >
+x	>
+x.sp
+x.fi
+xThere is also a mechanism by which the user can remove an item
+xfrom the list:
+x.nf
+x.sp
+x	> sched --3
+x	Usage for delete: sched -<item#>.
+x	> sched -3
+x	Not that many scheduled events.
+x	> sched -2
+x	> sched
+x	     1  Wed Apr  4 15:42  /usr/lib/uucp/uucico -r1 -sother
+x	>
+x.sp
+x.fi
+xAll commands specified on the scheduled-event list will be executed just
+xprior to printing the first prompt immediately following the time
+xwhen the command is to be run.
+xHence, it is possible to miss the exact time when the command is
+xto be run, but tcsh will definitely get around to all commands
+xwhich are overdue at its next prompt.
+xScheduled-event list items which come due while tcsh is waiting for
+xuser input will be executed immediately.
+xIn no case, however, will normal operation of already-running
+xcommands be interrupted so that a scheduled-event list element
+xmay be run.
+x.PP
+xThis mechanism is similar to, but not the same as, the at(1)
+xcommand on some Unix systems.
+xIts major disadvantage is that it does not necessarily run a
+xcommand at exactly the specified time (but only if another
+xcommand is already being run).
+xIts major advantage is that commands which run directly from the csh,
+xas sched commands are, have access to shell variables and other
+xstructures.
+xThis provides a mechanism for changing one's working environment
+xbased on the time of day.
+x.PP
+x.SH "17. BUILTIN FOR ls -F"
+xThere is a new builtin command called
+x.I ls-F
+xwhich does the same thing as the command "ls -aF".
+x.PP
+x.SH "18. CHAR IN RANGE SYNTAX CHANGE"
+xThe syntax for any character in a range (for example ".[a-z]*") has
+xbeen extended so as to conform with standard Unix regular expression
+xsyntax (see
+x.I ed(1)).
+xSpecifically, after an open bracket ("["), if the first character is a
+xcaret ("^") then the character matched will be any not in the range
+xspecified.  For example:
+x.sp
+x.nf
+x	> cd ~
+x	> echo .[a-z]*
+x	.cshrc .emacs .login .logout .menuwmrc
+x	> echo .[^.]*
+x	.Xdefaults .Xinit .cshrc .emacs .login .logout .menuwmrc
+x	>
+x.fi
+x.sp
+xNote that the second form includes .Xdefaults and .Xinit because 'X'
+x(and all the lower case letters) are outside of the range of a single '.'.
+x.PP
+x.SH "19. NEW ENVIRONMENT AND SHELL VARIABLES"
+xOn startup,
+x.I tcsh
+xnow automatically initializes the environment variable
+x.I HOST
+xto the name of the machine that it is running on.  It does this by
+xdoing a
+x.I gethostname(2)
+xsystem call, and setting
+x.I HOST
+xto the result.
+x.PP
+x.I Tcsh
+xalso initializes the environment variable
+x.I HOSTTYPE
+xto a symbolic name for the type of computer that it is running on.
+xThe current possible values are:
+x.in +6
+x.nf
+x.sp
+x\fImultimax\fR	an Encore Computer Corp. Multimax (32000 based)
+x\fImac2\fR		an Apple Computer Macintosh II
+x\fIpyramid\fR		a Pyramid Technology computer (of any flavor)
+x\fIsun2\fR		a Sun Microsystems series 2 workstation (68010 based)
+x\fIsun3\fR		a Sun Microsystems series 3 workstation (68020 based)
+x\fIsun\fR		a Sun workstation of neither of the above types
+x\fIvax\fR		a Digital Equipment Corp. Vax (of any flavor)
+x.fi
+x.sp
+x.in -6
+x(The names of the machines are usually trade marks of the
+xcorresponding companies.)  This is useful when sharing a single
+xphysical directory between several types of machines (running NFS, for
+xinstance).  For example, if the following is in
+x.I .login:
+x.sp
+x.in +3
+xset path = (~/bin.$HOSTTYPE /usr/ucb /bin /usr/bin /usr/games .)
+x.in -3
+x.sp
+xand the user has directories named "bin.\fImachine\fR" (where
+x.I machine
+xis a name from the above list), then the user can have the same
+xprograms compiled for different machines in the appropriate
+x"bin.\fImachine\fR" directories and
+x.I tcsh
+xwill run the binary for the correct machine.
+x.PP
+x.I Tcsh
+xalso initializes the shell variable
+x.I uid
+xto the value of the current real user ID.  This is useful for telling
+xwhat user the shell is running as.
+x.PP
+x.SH FYI
+xThis shell uses cbreak mode but takes typed-ahead characters anyway.
+xYou can still use
+x.I stty(1)
+xto set some of the modes of your terminal (but not bindings).
+x.PP
+xThis shell will restore your tty to a sane mode if it appears to
+xreturn from some command in raw, cbreak, or noecho mode.
+x.PP
+x.SH ENVIRONMENT
+xHPATH -- path to look for command documentation
+x.br
+xTERM -- used to tell how to handle the terminal
+x.PP
+x.SH "NEW SHELL VARIABLES"
+xautologout -- number of minutes of inactivity before automatic logout
+x.br
+xdextract -- extract a directory on pushd rather than rotating
+x.br
+xprompt -- the string to prompt with
+x.br
+xprompt2 -- the string to prompt for while and for loops with
+x.br
+xrecexact -- recognize exact matches even if they are ambiguous
+x.br
+xsavehist -- number of history items to save between login sessions
+x.br
+xterm -- the terminal type; see above
+x.br
+xtperiod -- periodic command wait period (in min.)
+x.br
+xuid -- the current real user ID
+x.br
+xversion -- the version ID stamp for this
+x.I tcsh
+x.br
+xwatch -- list of events to watch
+x.PP
+x.SH "NEW SPECIAL ALIASES"
+xperiodic -- the command to be run every \fItperiod\fR minutes
+x.br
+xprecmd -- the command to be run prior to printing each prompt
+x.PP
+x.SH "SEE ALSO"
+xcsh (1), chsh (1)
+x.SH BUGS
+xVI mode hasn't been implemented yet.
+x
+xThe screen update for lines longer than the screen width is very poor
+xif the terminal cannot move the cursor up (ie. terminal type "dumb").
+x
+xI am certain that there are bugs, but I haven't found any more.  Bugs
+xshould be sent to Paul Placeway (paul@tut.cis.ohio-state.edu,
+xpaul@ohio-state.edu, ...!cbosgd!osu-eddie!paul (soon
+x...!cbosgd!osu-cis!paul)).
+x.SH AUTHORS
+xKen Greer, HP Labs, 1981
+xWrote the command completion.
+x.sp
+xMike Ellis, Fairchild, 1983
+xAdded command name recognition/completion.
+x.sp
+xPaul Placeway, Ohio State CIS dept., 1983
+xAdded the command line editor.
+x.sp
+xRayan Zachariassen, University of Toronto, 1984
+xAdded the builtin
+x.I which
+xfeature to the editor, and the code for
+x.I "ls-F".
+xAlso numerous bug fixes, modifications, and performance enhancements.
+x.sp
+xChris Kingsley, Caltech.
+xWrote the fast storage allocator routines (nmalloc.c).
+x.sp
+xKarl Kleinpaste, CCI 1983-4
+xAdded special aliases, directory stack extraction stuff, login/logout watch,
+xand scheduled events.  Also came up with the idea of the new prompt format.
+x.sp
+xPaul Placeway, Ohio State CIS dept., 1987
+xRe-wrote the editor, cleaned up
+xother code, and added the prompt routines, added to the syntax for
+xfile name expressions, and sped up the shell some.
+x.SH "THANKS TO"
+xA special thanks to: Clayton Elwell, Karl Kleinpaste, Steve Romig,
+xDiana Smetters, Bob Sutterfield, Mark Verber, Elizabeth Zwicky, and
+xall the other people at Ohio State for suggestions and encouragement.
+x.sp
+xAlso, thanks to all the people on the net for putting up with,
+xreporting bugs in, and suggesting new additions to the old tcsh
+xeditor.
+\Rogue\Monster\
+else
+  echo "will not over write ./tcsh.1"
+fi
+if [ `wc -c ./tcsh.1 | awk '{printf $1}'` -ne 26547 ]
+then
+echo `wc -c ./tcsh.1 | awk '{print "Got " $1 ", Expected " 26547}'`
+fi
+if `test ! -s ./README`
+then
+echo "writing ./README"
+sed 's/^x//' > ./README << '\Rogue\Monster\'
+xHere (at long last) is the latest version of tcsh.  Tcsh is a version
+xof the Berkeley C-Shell, with the addition of: a command line editor,
+xcommand and file name completion, listing, etc.  and a bunch of small
+xadditions to the shell.
+x
+xTcsh runs on BSD 4.2 and 4.3 Unix, Sun Unix (tested on 3.0 and 3.2),
+xPyramid OS/X (in the bsd universe) (tested on 4.0), Encore UMAX 4.2,
+xApple A/UX (Oreo) and is probably portable to anything else that has
+xBerkeley job control and signals.  It does not yet run on vanilla
+xSystem V (that will take more effort).
+x
+xFeel free to use it.  These changes to csh may only be included in a
+xcommercial product if the inclusion or exclusion does not change the
+xpurchase price, level of support, etc.  Please respect the individual
+xauthors by giving credit where credit is due (in other words, don't
+xclaim that you wrote portions that you haven't, and don't delete the
+xnames of the authors from the source code or documentation).  Remember
+xalso that these changes may be redistributed, but the csh source code
+xstill falls under the Berkeley source code license (that's why I am
+xdistributing diffs).
+x
+xTo install tcsh:
+x
+x0) you will need a copy of the sources to 4.2 BSD csh, and Larry
+xWall's "patch" program.  Sources to the 4.3 csh should be good enough,
+xalthough some diffs may have to be applied by hand.
+x
+x1) Make a directory and COPY the sources to 4.2 BSD csh into it.  Make
+xsure that you have write permission to all of the files in the
+xdirectory.
+x
+x2) Delete the csh "Makefile".
+x
+x3) Copy all of the tcsh sources, documentation, diffs, "Makefile.new",
+xetc. into the directory with the 4.2 csh sources.
+x
+x4) Rename "Makefile.new" to "Makefile".
+x
+x5) Say "patch < DIFFS.1", then "patch < DIFFS.2".  Watch the output
+xvery carefully for any failed patches.  If any hunks fail, you will
+xhave to apply them by hand.
+x
+x6) If you are compiling this for a Macintosh II (running Apple Unix),
+xthen you will have to adjust the compilation flags in Makefile.
+x
+x7) If you are running something other than a Vax, Sun 2, Sun 3,
+xPyramid 90 or 98 series, or a Macintosh II, you will want to adjust
+xthe code in sh.c that determines the value of the "HOSTTYPE"
+xenvironment variable for your machine.  Look in sh.c for the string
+x"HOSTTYPE".
+x
+x8) you may want to adjust the DESTDIR and DESTMAN entries in the
+xMakefile.  These are the directories that tcsh, and the tcsh.1 man
+xentry will be placed in when you do a "make install".  If you decide
+xto install tcsh somewhere other than in /bin/tcsh, add
+x"-DSHELLPATH=/your/installation/directory" to the CFLAGS in Makefile.
+x
+x9) make
+x
+x10) Read the documentation while you are waiting.  The file tcsh.1 is
+xin standard [nt]roff -man format.
+x
+x11) Test tcsh to see that it has compiled correctly.  The history
+xcommand should give a time stamp on every entry.  Typing normal
+xcharacters should echo each exactly once.  Control-A should put the
+xcursor at the beginning of the input line, but after the prompt.
+x
+x12) Enjoy.
+x
+x13) PLEASE send any bug reports (and fixes), code for new features,
+xcomments, questions, etc. (even flames) to:
+x
+x	     -- Paul Placeway
+x		Department of Computer and Information Science
+x	SNail:	The Ohio State University
+x		2036 Neil Ave. Columbus OH USA 43210-1277
+x	ARPA:	paul@ohio-state.{arpa,csnet}
+x	(soon):	paul@tut.cis.ohio-state.edu
+x	UUCP:	...!cbosgd!osu-eddie!paul
+x	(soon):	...!cbosgd!osu-cis!paul
+\Rogue\Monster\
+else
+  echo "will not over write ./README"
+fi
+if [ `wc -c ./README | awk '{printf $1}'` -ne 3364 ]
+then
+echo `wc -c ./README | awk '{print "Got " $1 ", Expected " 3364}'`
+fi
+echo "Finished archive 1 of 6"
+# if you want to concatenate archives, remove anything after this line
+exit
+
+	     -- Paul Placeway
+		Department of Computer and Information Science
+	SNail:	The Ohio State University
+		2036 Neil Ave. Columbus OH USA 43210-1277
+	ARPA:	paul@ohio-state.{arpa,csnet}
+	(soon):	paul@tut.cis.ohio-state.edu
+	UUCP:	...!cbosgd!osu-eddie!paul
+	(soon): ...!cbosgd!osu-cis!paul
+
+-- 
+
+Rich $alz
+Cronus Project, BBN Labs			rsalz@bbn.com
+Moderator, comp.sources.unix			sources@uunet.uu.net

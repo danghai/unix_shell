@@ -1,0 +1,1723 @@
+From: how%milhow1@uunet.uu.net (Mike Howard)
+Newsgroups: comp.sources.unix
+Subject: v28i133: simple_menu-3.1 - a simple shell-level menu system, V3.1, Part09/09
+Date: 5 Oct 1994 01:21:25 -0700
+Organization: Vixie Enterprises
+Sender: vixie@vix.com
+Approved: vixie@gw.home.vix.com
+Message-ID: <36tnm5$uq@gw.home.vix.com>
+References: <1.781345221.914@gw.home.vix.com>
+
+Submitted-By: how%milhow1@uunet.uu.net (Mike Howard)
+Posting-Number: Volume 28, Issue 133
+Archive-Name: simple_menu-3.1/part09
+
+#! /bin/sh
+# This is a shell archive.  Remove anything before this line, then unpack
+# it by saving it into a file and typing "sh file".  To overwrite existing
+# files, type "sh file -c".  You can also feed this as standard input via
+# unshar, or by typing "sh <file", e.g..  If this archive is complete, you
+# will see the following message at the end:
+#		"End of archive 9 (of 9)."
+# Contents:  ./common_src/simple_menu.c
+# Wrapped by mike@clove2 on Wed Sep 28 06:55:59 1994
+PATH=/bin:/usr/bin:/usr/ucb ; export PATH
+if test -f './common_src/simple_menu.c' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'./common_src/simple_menu.c'\"
+else
+echo shar: Extracting \"'./common_src/simple_menu.c'\" \(38437 characters\)
+sed "s/^X//" >'./common_src/simple_menu.c' <<'END_OF_FILE'
+X/*
+X  $Id: simple_menu.c,v 3.4 1994/09/28 10:54:46 mike Exp $
+X  $Author: mike $
+X  $Date: 1994/09/28 10:54:46 $
+X  $Log: simple_menu.c,v $
+X * Revision 3.4  1994/09/28  10:54:46  mike
+X * bug in prt_prompt_string().
+X *
+X * Revision 3.3  1994/09/26  19:40:22  mike
+X * changed relative over-ride on menu definition file from './' to '.'
+X * prefix.
+X *
+X * Revision 3.2  1994/09/21  18:19:56  mike
+X * changed VOID to VOID_TYPE to avoid clash with def in SunOS curses
+X * added hooks for multi-page menus
+X *
+X * Revision 3.1  1994/09/20  13:46:50  mike
+X * implements ifdef, ifndef, if eq and if neq.
+X * implements privileged user via function call and real user id
+X *
+X * Revision 3.4  1994/01/30  12:46:33  mike
+X * cleaned up privileged_user() function so that is more efficient
+X * and looks a little less disgusting.
+X *
+X * Revision 3.3  1994/01/29  20:21:49  mike
+X * changed action of restricted to look at read user_id rather than a dumb
+X * environment variable.
+X *
+X * Revision 3.2  1994/01/27  20:36:00  mike
+X * added support for if-defined, if equal, if not-equal conditioning.
+X * cleaned up conditioning code a bit.
+X * added reasonable printing for conditioned items
+X *
+X * Revision 3.1  1993/11/17  21:04:27  mike
+X * corrected initialization bug in make_new_item().
+X * partitioned global variable initialization into two phases: non-from-file
+X * and from-file
+X *
+X * Revision 3.0  1993/11/10  20:29:46  mike
+X * revision 3.0
+X *
+X*/
+X
+Xstatic char *cpy_str =
+X  "Copyright (c), Mike Howard, 1990,1991, 1992 all rights reserved";
+X
+X/* 
+X  simple_menu - a script based menu program for encapsulating shell
+X  commands in a in simple to use and simple to maintain scripts
+X
+X  Copyright (C) 1990,1991, 1992  Mike Howard
+X
+X  This program is free software; you can redistribute it and/or modify
+X  it under the terms of the GNU General Public License as published by
+X  the Free Software Foundation; either version 2 of the License, or
+X  (at your option) any later version.
+X  
+X  This program is distributed in the hope that it will be useful,
+X  but WITHOUT ANY WARRANTY; without even the implied warranty of
+X  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+X  GNU General Public License for more details.
+X
+X  You should have received a copy of the GNU General Public License
+X  along with this program; if not, write to the Free Software
+X  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+X*/
+X
+X#define MAIN
+X#include <includes.h>
+X
+Xint
+Xmenu_main(argc, argv)
+Xint argc;
+Xchar **argv;
+X{
+X  init(argc, argv);
+X
+X  if (yyparse())
+X    fatal("Parse Error");
+X
+X  if (lex_errors || yacc_errors || check_menu())
+X    fatal("corrupt menu definition");
+X
+X  init_ev_vars();
+X
+X  if (debug_mode) {
+X    display_parsed_menus();
+X    simple_menu_exit(0);
+X  }
+X
+X  /* close all input - rely on terminal stuff to deal with all I/O */
+X  init_terminal();
+X
+X  push_menu(menu_list_head);
+X  do_menu();
+X
+X  /* not reached */
+X  simple_menu_exit(0);
+X}
+X
+XVOID_TYPE
+Xdisplay_parsed_menus()  
+X{
+X  struct menu *menu_ptr;
+X  struct item *i_ptr;
+X  struct ev_var *ev_ptr;
+X
+X  printf("\nResults of Parsing Menu definitions\n");
+X
+X  printf("shell path: '%s'\n", cmd_path);
+X  printf("asg-fmt: '%s'\n", asg_fmt);
+X  printf("null-value: '%s'\n", null_value);
+X
+X  if (environment_list) {
+X    for (ev_ptr=environment_list;ev_ptr;ev_ptr=ev_ptr->next) {
+X      switch (ev_ptr->flag) {
+X      case EV_FROM_FILE:
+X	printf("Env variable %s from File %s\n  default: '%s'\n",
+X	       ev_ptr->identifier, ev_ptr->file_name,
+X	       ev_ptr->deflt ? ev_ptr->deflt : "");
+X	break;
+X      case EV_FROM_ENV:
+X	printf("Env variable %s from environment\n  default: '%s'\n",
+X	       ev_ptr->identifier, ev_ptr->deflt ? ev_ptr->deflt : "");
+X	break;
+X      case EV_GLOBAL:
+X	printf("Env variable %s Menu Only\n  default: '%s'\n",
+X	       ev_ptr->identifier, ev_ptr->deflt ? ev_ptr->deflt : "");
+X	break;
+X      }
+X      printf("  value: '%s'\n", ev_ptr->value);
+X    }
+X  }
+X  else
+X    printf("No environment variables defined\n");
+X
+X  menu_ptr = menu_list_head;
+X  while (menu_ptr) {
+X    printf("\nMenu: %s\nPrompt:\n", menu_ptr->menu_name);
+X    prt_prompt_string(menu_ptr->menu_title, 0);
+X    printf("Options: %s %s %s %s %s %s %s\n",
+X	   (menu_ptr->flags&CLEAR_FLAG) ? "clear" : "",
+X	   (menu_ptr->flags&BOLD_FLAG) ? "bold" : "",
+X	   (menu_ptr->flags&ALWAYS_DISPLAY_FLAG) ? "always-display" : "",
+X	   (menu_ptr->flags&ONCE_FLAG) ? "once" : "",
+X	   (menu_ptr->flags&ALPHA_FLAG) ? "alpha" : "",
+X	   (menu_ptr->flags&WAIT_FLAG) ? "wait" : "",
+X	   (menu_ptr->flags&SCOPE_FLAG) ? "scope-variables" : "");
+X    if (menu_ptr->prelude)
+X      prt_item(menu_ptr->prelude, 0);
+X    for (selected_item=menu_ptr->item_head;selected_item;
+X	 selected_item = selected_item->next)
+X      prt_item(selected_item, 0);
+X    if (menu_ptr->epilogue)
+X      prt_item(menu_ptr->epilogue, 0);
+X    menu_ptr = menu_ptr->next;
+X  }
+X
+X  printf("\ndisplaying all menus\n");
+X  while (menu_list_head) {
+X    push_menu(menu_list_head);
+X    printf("\n================================================================\n");
+X    eval_prompt_string(active_menu->menu_title);
+X    for (i_ptr=active_menu->item_head;i_ptr;i_ptr=i_ptr->next)
+X      eval_prompt_string(i_ptr->prompt);
+X    display_menu();
+X    menu_list_head = menu_list_head->next;
+X  }
+X  simple_menu_exit(0);
+X}
+X
+Xstatic char *hlp[] = {
+X"Option     Function",
+X"-M path    menu path",
+X"-v         make command execution verbose (via set -xv)",
+X"-D         increment debug mode",
+X"-t num     set default timeout value to 'num' seconds [10]",
+X"-V         print version/patchlevel",
+X(char *)0};
+X
+Xstatic char *vers[] = {
+X"Miller/Howard Investments, Inc., hereby disclaims all copyright",
+X"interest in the program `simple_menu'  written by Mike Howard.",
+X"",
+X"Michael S. Howard, V.P., May 20, 1992",
+X(char *)0 };
+X
+XVOID_TYPE
+Xinit(argc, argv)
+Xint argc;
+Xchar **argv;
+X{
+X  int i;
+X  int c;
+X  extern char *optarg;
+X  extern int optind, opterr;
+X
+X  /* initializations */
+X  argcc = argc;
+X  argvv = argv;
+X  progname = argv[0];
+X  default_timeout = 10;
+X  in_fname = "stdin";
+X  cmd_path = "/bin/sh";
+X  asg_fmt = "$ID$=\"$VALUE$\"";
+X  null_value = "";
+X  display_menu_flag = 1;
+X
+X  while ((c = getopt(argc, argv, "hm:M:vDt:V")) != EOF) {
+X    switch (c) {
+X    case 'h':
+X      for (i=0;hlp[i];i++)
+X	printf("%s\n", hlp[i]);
+X      fatal((char *)0);
+X    case 'V':
+X      for (i=0;vers[i];i++)
+X	printf("%s\n", vers[i]);
+X      fatal((char *)0);
+X    case 'm':
+X      /* this option is for backward compatability.  I did not handle
+X	 menu file name specification correctly in the original version
+X	 and am too lazy to change everything I have done. It will come
+X	 out some day. */
+X      menu_fname = optarg;
+X      break;
+X    case 'M':
+X      menu_path = optarg;
+X      break;
+X    case 'v':
+X      verbose++;
+X      break;
+X    case 'D':
+X      debug_mode++;
+X      break;
+X    case 't':
+X      if ((default_timeout = atoi(optarg)) < 0)
+X	default_timeout = 0;
+X      break;
+X    case '?':
+X      fatal((char *)0);
+X    }
+X  }
+X
+X  {
+X    uid_t uid = getuid();
+X    struct passwd pwent;
+X
+X    pwent = *getpwuid(uid);
+X    strcpy(user_id = Malloc(strlen(pwent.pw_name) + 1), pwent.pw_name);
+X  }
+X
+X  if (!menu_fname)
+X    menu_fname = optind == argc ? MENU_FNAME : argv[optind];
+X  open_menu_file();
+X
+X  if (cmd_name = strrchr(cmd_path, '/'))
+X    cmd_name++;
+X  else
+X    cmd_name = cmd_path;
+X
+X  environment_list =
+X    make_new_ev_var(EV_GLOBAL, "USER_RESPONSE", (char *)0, (char *)0);
+X}
+X
+Xstruct prompt_string *
+Xmake_new_prompt_string(segment_type, fragment)
+Xint segment_type;
+Xchar *fragment;
+X{
+X  struct prompt_string *ps_ptr =
+X    (struct prompt_string *)Malloc(sizeof(struct prompt_string));
+X
+X  ps_ptr->next = (struct prompt_string *)0;
+X  ps_ptr->segment_type = segment_type;
+X  ps_ptr->concat_char = '\0';
+X  ps_ptr->value = (char *)0;
+X  ps_ptr->fragment = fragment;
+X
+X  return ps_ptr;
+X}
+X
+X/* pass this guy the head of a prompt_string list and it will update
+X   the 'value' pointer for the head of the list */
+XVOID_TYPE
+Xeval_prompt_string(ps_ptr)
+Xstruct prompt_string *ps_ptr;
+X{
+X  struct prompt_string *tmp_ptr;
+X  char *ret_string;
+X  char *cp;
+X  char *new_fragment;
+X  int room;
+X  int len;
+X  int tmp;
+X
+X  if (!ps_ptr)
+X    return;
+X
+X  Free(ps_ptr->value);
+X  ret_string = Malloc(256);
+X  room = 255;
+X  len = 0;
+X  *(cp = ret_string) = '\0';
+X  for (tmp_ptr=ps_ptr;tmp_ptr;tmp_ptr=tmp_ptr->next) {
+X    switch (tmp_ptr->segment_type) {
+X    case PROMPT_TEXT:
+X      new_fragment = tmp_ptr->fragment;
+X      break;
+X    case PROMPT_EV_VAR:
+X      new_fragment = find_ev_var_by_name(tmp_ptr->fragment)->value;
+X      break;
+X    }
+X    if (!new_fragment)
+X      continue;
+X    if ((tmp = strlen(new_fragment)) + 2 > room) {
+X      ret_string = Realloc(ret_string, len + (room = tmp) + 2);
+X      cp = ret_string + len;
+X    }
+X    if (len && tmp_ptr->concat_char) {
+X      *cp++ = tmp_ptr->concat_char;
+X      room--;
+X      len++;
+X    }
+X    memcpy(cp, new_fragment, tmp + 1);
+X    cp = ret_string + (len += tmp);
+X    room -= tmp;
+X  }
+X  ps_ptr->value = Realloc(ret_string, len + 1);
+X
+X  return;
+X}
+X
+Xstruct parm *
+Xmake_new_parm(flag, identifier, prompt, def_or_evname)
+X     int flag;
+X     char *identifier;
+X     struct prompt_string *prompt;
+X     char *def_or_evname;
+X{
+X  struct parm *parm_ptr = (struct parm *)Malloc(sizeof(struct parm));
+X
+X  parm_ptr->next = (struct parm *)0;
+X  parm_ptr->flag = flag;
+X  parm_ptr->prompt = prompt;
+X  parm_ptr->identifier = identifier;
+X  parm_ptr->value = "";
+X  switch (flag) {
+X  case PARM_NO_DEFAULT:
+X    parm_ptr->deflt = "";
+X    break;
+X  case PARM_STATIC_DEFAULT:
+X    parm_ptr->deflt = def_or_evname;
+X    break;
+X  case PARM_ENV_DEFAULT:
+X    parm_ptr->ev_name = def_or_evname;
+X    break;
+X  }
+X
+X  return parm_ptr;
+X}
+X
+Xstruct item *
+Xmake_new_item(prompt, command, parms, action)
+X     struct prompt_string *prompt;
+X     char *command;
+X     struct parm *parms;
+X     int action;
+X{
+X  struct item *item_ptr = (struct item *)Malloc(sizeof(struct item));
+X
+X  item_ptr->next = (struct item *)0;
+X  item_ptr->catagory = CATAGORY_ITEM;
+X  item_ptr->action = action;
+X  item_ptr->conditioning = CONDITION_NONE;
+X  item_ptr->item_idx = 0;
+X  item_ptr->prompt = prompt;
+X  item_ptr->command = command;
+X  item_ptr->conditioning_variable = (char *)0;
+X  item_ptr->conditioning_value = (char *)0;
+X  item_ptr->parms = parms;
+X
+X  return item_ptr;
+X}
+X
+Xstruct action_list *
+Xmake_new_action_list(item)
+X     struct item* item;
+X{
+X  struct action_list *action_list_ptr =
+X    (struct action_list *)Malloc(sizeof(struct action_list));
+X
+X  action_list_ptr->head = item;
+X  action_list_ptr->tail = item;
+X
+X  return action_list_ptr;
+X}
+X
+Xstruct action_list *
+Xadd_to_action_list(action_list, item)
+X     struct action_list* action_list;
+X     struct item* item;
+X{
+X  action_list->tail->next = item;
+X  action_list->tail = item;
+X
+X  return action_list;
+X}
+X
+Xstruct menu *
+Xmake_new_menu()
+X{
+X  struct menu *menu_ptr = (struct menu *)Malloc(sizeof(struct menu));
+X
+X  menu_ptr->next = (struct menu *)0;
+X  menu_ptr->menu_stack_ptr = (struct menu *)0;
+X  menu_ptr->item_head = (struct item *)0;
+X  menu_ptr->item_tail =  (struct item *)0;
+X  menu_ptr->prelude = (struct item *)0;
+X  menu_ptr->epilogue = (struct item *)0;
+X  menu_ptr->menu_name = "MAIN";
+X  menu_ptr->menu_title = (struct prompt_string *)0;
+X  menu_ptr->flags = 0;
+X  menu_ptr->item_head =
+X    menu_ptr->item_tail = (struct item *)0;
+X  menu_ptr->max_item = 0;
+X
+X  return menu_ptr;
+X}
+X
+Xstruct ev_var *
+Xmake_new_ev_var(flag, identifier, deflt, fname)
+X     int   flag;
+X     char *identifier;
+X     char *deflt;
+X     char *fname;
+X{
+X  struct ev_var *ev_ptr = (struct ev_var *)Malloc(sizeof(struct ev_var));
+X
+X  ev_ptr->next = (struct ev_var *)0;
+X  ev_ptr->stack = (struct ev_var *)0;
+X  ev_ptr->context = (struct menu *)0;
+X  ev_ptr->flag = flag;
+X  ev_ptr->identifier = identifier;
+X  ev_ptr->value = "";
+X  ev_ptr->deflt = deflt ? deflt : "";
+X  ev_ptr->file_name = fname ? fname : "";
+X
+X  return ev_ptr;
+X}
+X
+Xstruct ev_var_val *
+Xmake_new_ev_var_val(identifier, value, script, flag)
+Xchar *identifier;
+Xchar *value;
+Xchar *script;
+Xint flag;
+X{
+X  struct ev_var_val *evv_ptr =
+X    (struct ev_var_val *)Malloc(sizeof(struct ev_var_val));
+X
+X  evv_ptr->next = (struct ev_var_val *)0;
+X  evv_ptr->identifier = identifier;
+X  evv_ptr->value = value;
+X  evv_ptr->script = script;
+X  evv_ptr->flag = flag;
+X
+X  return evv_ptr;
+X}
+X
+Xchar *
+Xget_ev_val_from_file(ev_ptr, fname)
+Xstruct ev_var *ev_ptr;
+Xchar *fname;
+X{
+X  int c;
+X  int fd;
+X  int found_flag = 0;
+X  char *cp;
+X
+X  if ((fd = open(fname, O_RDONLY)) < 0) {
+X    fprintf(stderr, "from-file environment variable %s requests non-existant file %s\n",
+X	    ev_ptr->identifier, fname);
+X    /* copy default if this is the variables original file name */
+X
+X  }
+X  else {
+X    flush_char_input();
+X    while (1) {
+X      while (isspace(c = next_char(fd)))
+X	;
+X      if (!c)
+X	break;
+X      while (isalnum(c) || c == '_') {
+X	add_char(c);
+X	c = next_char(fd);
+X      }
+X      /* if no token on line, then skip to end of line */
+X      if (!(cp = take_saved_text())) {
+X	while ((c = next_char(fd)) && c != '\n')
+X	  ;
+X	continue;
+X      }
+X      /* if this matches the identifier, then find the value and assign it */
+X      if (cp[0] == ev_ptr->identifier[0] &&
+X	  !strcmp(cp, ev_ptr->identifier)) {
+X	Free(cp);
+X	while (c != '=' && c != '\n' && c)
+X	  c = next_char(fd);
+X	if (c == '\n' || c == '\0') {
+X	  cp = Malloc(1);
+X	  cp[0] = '\0';
+X	  break;
+X	}
+X	while ((c = next_char(fd)) && c != '\n')
+X	  add_char(c);
+X	strip_white_space();
+X	if (!(cp = take_saved_text())) {
+X	  strcpy(cp = Malloc(strlen(null_value) + 1), null_value);
+X	}
+X	found_flag++;
+X	break;
+X      }
+X      /* haven't found correct line, so flush rest of line */
+X      Free(cp);
+X      while ((c = next_char(fd)) && c != '\n')
+X	;
+X    }
+X    close(fd);
+X  }
+X  /* if we have not found a value, then return default, if this is the
+X     initialization, or previous value */
+X  if (!found_flag) {
+X    if (fname == ev_ptr->file_name)
+X      strcpy(cp = Malloc(strlen(ev_ptr->deflt) + 1), ev_ptr->deflt);
+X    else
+X      strcpy(cp = Malloc(strlen(ev_ptr->deflt) + 1), ev_ptr->value);
+X  }
+X
+X  return cp;
+X}
+X
+X#ifdef TEMP_SET_GLOBAL
+XVOID_TYPE
+Xpush_ev_vars(ev_val_list)
+Xstruct ev_var_val *ev_val_list;
+X{
+X  while (ev_val_list) {
+X    push_ev_var(ev_val_list);
+X    ev_val_list = ev_val_list->next;
+X  }
+X}
+X
+XVOID_TYPE
+Xpush_ev_var(evv_ptr)
+Xstruct ev_var_val *evv_ptr;
+X{
+X  struct ev_var *ev_ptr;
+X  struct ev_var *new_ev_ptr = (struct ev_var *)Malloc(sizeof(struct ev_var));
+X  struct ev_var *tmp_ptr;
+X
+X  ev_ptr = find_ev_var_by_name(evv_ptr->identifier);
+X
+X  *new_ev_ptr = *ev_ptr;
+X  new_ev_ptr->stack = ev_ptr;
+X  switch (evv_ptr->flag) {
+X  case EV_GLOBAL:
+X    strcpy(new_ev_ptr->value = Malloc(strlen(evv_ptr->value) + 1),
+X	   evv_ptr->value);
+X    break;
+X  case EV_FROM_FILE:
+X    new_ev_ptr->value = get_ev_val_from_file(ev_ptr, evv_ptr->value);
+X    break;
+X  case EV_FROM_SHELL:
+X    new_ev_ptr->value = output_of_shell(evv_ptr->script);
+X    break;
+X  case EV_FROM_USER:
+X    new_ev_ptr->value = get_variable_value(evv_ptr->value, ev_ptr->value);
+X    break;
+X  case EV_FROM_USER_VALIDATE:
+X    tmp_ptr = find_ev_var_by_name("USER_RESPONSE");
+X    tmp_ptr->value = get_variable_value(evv_ptr->value, ev_ptr->value);
+X    new_ev_ptr->value = output_of_shell(evv_ptr->script);
+X    Free(tmp_ptr->value);
+X    tmp_ptr->value = (char *)0;
+X    break;
+X  }
+X  new_ev_ptr->context = active_menu;
+X
+X  if ((tmp_ptr = environment_list) == ev_ptr) {
+X    environment_list = new_ev_ptr;
+X    return;
+X  }
+X  while (tmp_ptr->next != ev_ptr)
+X    tmp_ptr = tmp_ptr->next;
+X  tmp_ptr->next = new_ev_ptr;
+X
+X  return;
+X}
+X#endif /* TEMP_SET_GLOBAL */
+X
+XVOID_TYPE
+Xreset_ev_vars(ev_val_list)
+Xstruct ev_var_val *ev_val_list;
+X{
+X  VOID_TYPE reset_ev_var();
+X
+X  while (ev_val_list) {
+X    reset_ev_var(ev_val_list);
+X    ev_val_list = ev_val_list->next;
+X  }
+X}
+X
+XVOID_TYPE
+Xreset_ev_var(evv_ptr)
+Xstruct ev_var_val *evv_ptr;
+X{
+X  struct ev_var *ev_ptr;
+X  char *tmp;
+X
+X  ev_ptr = find_ev_var_by_name(evv_ptr->identifier);
+X  switch (evv_ptr->flag) {
+X  case EV_GLOBAL:
+X    if (evv_ptr->value)
+X      strcpy(tmp = Malloc(strlen(evv_ptr->value) + 1), evv_ptr->value);
+X    else
+X      tmp = (char *)0;
+X    break;
+X  case EV_FROM_FILE:
+X    tmp = get_ev_val_from_file(ev_ptr, evv_ptr->value);
+X    break;
+X  case EV_FROM_SHELL:
+X    tmp = output_of_shell(evv_ptr->script);
+X    break;
+X  case EV_FROM_USER:
+X    tmp = get_variable_value(evv_ptr->value, ev_ptr->value);
+X    break;
+X  case EV_FROM_USER_VALIDATE:
+X    {
+X      struct ev_var *tmp_ptr = find_ev_var_by_name("USER_RESPONSE");
+X
+X      tmp_ptr->value = get_variable_value(evv_ptr->value, ev_ptr->value);
+X      tmp = output_of_shell(evv_ptr->script);
+X      Free(tmp_ptr->value);
+X      tmp_ptr->value = (char *)0;
+X    }
+X    break;
+X  }
+X  Free(ev_ptr->value);
+X  ev_ptr->value = tmp;
+X}
+X
+XVOID_TYPE
+Xinit_ev_vars()
+X{
+X  struct ev_var *ev_ptr;
+X  int c;
+X  char *cp;
+X  char *getenv();
+X
+X  /* initialize everything EXCEPT from-shell variables */
+X  for (ev_ptr=environment_list;ev_ptr;ev_ptr=ev_ptr->next) {
+X    switch (ev_ptr->flag) {
+X    case EV_FROM_ENV:
+X      if (!(cp = getenv(ev_ptr->identifier)))
+X	cp = ev_ptr->deflt;
+X      strcpy(ev_ptr->value = Malloc(strlen(cp) + 1), cp);
+X      break;
+X    case EV_GLOBAL:
+X      strcpy(ev_ptr->value = Malloc(strlen(ev_ptr->deflt) + 1), ev_ptr->deflt);
+X      break;
+X    case EV_FROM_FILE:
+X      ev_ptr->value = get_ev_val_from_file(ev_ptr, ev_ptr->file_name);
+X      break;
+X    case EV_FROM_SHELL:
+X      break;
+X    }
+X  }
+X
+X  /* initialize from-shell variables */
+X  for (ev_ptr=environment_list;ev_ptr;ev_ptr=ev_ptr->next) {
+X    switch (ev_ptr->flag) {
+X    case EV_FROM_SHELL:
+X      ev_ptr->value = output_of_shell(ev_ptr->deflt);
+X      break;
+X    default:
+X      break;
+X    }
+X  }
+X}
+X
+XVOID_TYPE
+Xpush_environment()
+X{
+X  struct ev_var **prev_ev_pptr = &environment_list;
+X  struct ev_var *ev_ptr;
+X  struct ev_var *new_ev_ptr;
+X
+X  for (ev_ptr = environment_list;ev_ptr;ev_ptr = ev_ptr->next) {
+X    new_ev_ptr = (struct ev_var *)Malloc(sizeof(struct ev_var));
+X    *new_ev_ptr = *ev_ptr;
+X    new_ev_ptr->stack = ev_ptr;
+X    new_ev_ptr->context = active_menu;
+X    strcpy(new_ev_ptr->value = Malloc(strlen(ev_ptr->value) + 1),
+X	   ev_ptr->value);
+X    *prev_ev_pptr = new_ev_ptr;
+X    prev_ev_pptr = &new_ev_ptr;
+X  }
+X}
+X
+XVOID_TYPE
+Xpop_environment()
+X{
+X  struct ev_var **ev_pptr;
+X  struct ev_var *ev_ptr;
+X
+X  for (ev_pptr = &environment_list;*ev_pptr;ev_pptr = &(*ev_pptr)->next) {
+X    if ((*ev_pptr)->context == active_menu) {
+X      ev_ptr = *ev_pptr;
+X      Free(ev_ptr->value);
+X      *(ev_pptr) = ev_ptr->stack;
+X      Free((char *)ev_ptr);
+X    }
+X  }
+X}
+X
+Xstruct ev_var *
+Xfind_ev_var_by_name(name)
+Xchar *name;
+X{
+X  struct ev_var *ev_ptr = environment_list;
+X
+X  while (ev_ptr) {
+X    if (ev_ptr->identifier[0] == name[0] &&
+X	!strcmp(ev_ptr->identifier, name))
+X      return ev_ptr;
+X    ev_ptr = ev_ptr->next;
+X  }
+X
+X  return (struct ev_var *)0;
+X}
+X
+X/* parm stuff */
+X
+XVOID_TYPE
+Xinit_item_parm_defaults(i_ptr)
+Xstruct item *i_ptr;
+X{
+X  struct parm *p_ptr;
+X  struct ev_var *ev_ptr;
+X
+X  if (!i_ptr)
+X    return;
+X
+X  for (p_ptr=i_ptr->parms;p_ptr;p_ptr = p_ptr->next) {
+X    switch (p_ptr->flag) {
+X    case PARM_NO_DEFAULT:
+X      p_ptr->deflt = "";
+X      break;
+X    case PARM_STATIC_DEFAULT:
+X      break;
+X    case PARM_ENV_DEFAULT:
+X      ev_ptr = find_ev_var_by_name(p_ptr->ev_name);
+X      p_ptr->deflt = ev_ptr->value;
+X      break;
+X    }
+X  }
+X}
+X
+X/* privileged user check
+X   this routine compares the string 'user' against a list of white-space
+X   or comma separated user-id's.
+X   Returns 1 if user is in the list, else 0.
+X*/
+X
+Xint privileged_user(s)
+Xchar* s;
+X{
+X  int len = strlen(s) - strlen(user_id) + 1;
+X
+X  while (len-- > 0)
+X    {
+X      if (*s++ == user_id[0])
+X	{
+X	  char *ep = s + strlen(user_id) - 1;
+X	  if (strchr(" \t\n,:", *ep) && !strncmp(user_id, s - 1, strlen(user_id)))
+X	    return 1;
+X	}
+X    }
+X  return 0;
+X}
+X
+X/* menu manipulation routines/ */
+X
+XVOID_TYPE
+Xpush_menu(menu_ptr)
+X     struct menu *menu_ptr;
+X{
+X  menu_ptr->menu_stack_ptr = active_menu;
+X  active_menu = menu_ptr;
+X  display_menu_flag = 1;
+X  if (Scope_Flag)
+X    push_environment();
+X
+X  /* evaluate variables and strings for init_menu */
+X  eval_prompt_string(active_menu->menu_title);
+X  strncpy(active_menu->short_title, active_menu->menu_title->value, 10);
+X  active_menu->short_title[10] = '\0';
+X  {
+X    struct item* i_ptr;
+X    for (i_ptr=active_menu->item_head;i_ptr;i_ptr=i_ptr->next)
+X      eval_prompt_string(i_ptr->prompt);
+X  }
+X
+X  init_menu(active_menu);
+X}
+X
+Xint
+Xpop_menu()
+X{
+X  close_menu(active_menu);
+X  pop_environment();
+X  if (active_menu = active_menu->menu_stack_ptr) {
+X    display_menu_flag = Always_Display_Flag;
+X    return 0;
+X  }
+X
+X  return -1;
+X}
+X
+Xstruct menu *
+Xfind_menu(name)
+X     char *name;
+X{
+X  struct menu *menu_ptr = menu_list_head;
+X
+X  while (menu_ptr) {
+X    if (!strcmp(menu_ptr->menu_name, name))
+X      return menu_ptr;
+X    menu_ptr = menu_ptr->next;
+X  }
+X
+X  return (struct menu *)0;
+X}
+X
+Xint
+Xcheck_menu()
+X{
+X  struct menu *menu_ptr;
+X  struct item *item_ptr;
+X  int errorcount = 0;
+X
+X  for (menu_ptr=menu_list_head;menu_ptr;menu_ptr=menu_ptr->next) {
+X    /* a convenient place to set up the short menu */
+X    *(menu_ptr->short_title = Malloc(11)) = '\0';
+X
+X    menu_ptr->max_item = check_items(menu_ptr->item_head,
+X				     menu_ptr->menu_name, &errorcount);
+X    if (menu_ptr->max_item <= 0)
+X      {
+X	printf("Error: Menu %s contains NO menu items\n", menu_ptr->menu_name);
+X	errorcount++;
+X      }
+X  }
+X
+X  return errorcount;
+X}
+X
+Xint
+Xcheck_items(item_ptr, menu_name, errorcount_ptr)
+Xstruct item* item_ptr;
+Xchar* menu_name;
+Xint* errorcount_ptr;
+X{
+X  int item_idx = 0;
+X
+X  while (item_ptr) {
+X    switch (item_ptr->action) {
+X    case ITEM_SHELL:
+X    case ITEM_RESET_GLOBAL:
+X      item_ptr->item_idx = ++item_idx;
+X      break;
+X    case ITEM_ACTION:
+X      item_ptr->item_idx = ++item_idx;
+X      check_items(((struct action_list*)(item_ptr->command))->head,
+X		  menu_name, errorcount_ptr);
+X      break;
+X    case ITEM_SKIP:
+X      item_ptr->item_idx = -1;  /* so they can never be selected */
+X      break;
+X    case ITEM_MENU:
+X      if (!find_menu(item_ptr->command)) {
+X	printf("Error in menu %s - item calls for non existant menu %s\n",
+X	       menu_name, item_ptr->command);
+X	(*errorcount_ptr)++;
+X      }
+X      item_ptr->item_idx = ++item_idx;
+X      break;
+X    }
+X    item_ptr = item_ptr->next;
+X  }
+X
+X  return item_idx;
+X}
+X
+Xint
+Xdo_menu()
+X{
+X  int item_idx;
+X  struct item *i_ptr;
+X  int loops = 0;
+X
+X  do_prelude();
+X
+X again:
+X  setjmp(env);
+X  set_signals(SIGS_FOR_JMP);
+X
+X  while (1) {
+X    /* count loops and exit if this is a once only menu */
+X    if (loops++ && Once_Flag) {
+X      do_epilogue();
+X      if (pop_menu())
+X	simple_menu_exit(0);
+X      return 1;
+X    }
+X
+X    eval_prompt_string(active_menu->menu_title);
+X    strncpy(active_menu->short_title, active_menu->menu_title->value, 10);
+X    active_menu->short_title[10] = '\0';
+X    for (i_ptr=active_menu->item_head;i_ptr;i_ptr=i_ptr->next)
+X      eval_prompt_string(i_ptr->prompt);
+X    display_menu();
+X    switch (item_idx = get_user_rsp()) {
+X    case MENU_QUIT:
+X      do_epilogue();
+X      if (pop_menu())
+X	simple_menu_exit(0);
+X      return 0;
+X    case MENU_NOP:
+X      break;
+X    case MENU_EOINPUT:
+X      do_epilogue();
+X#ifdef NOSHORTCUTEXIT
+X      if (pop_menu())
+X	simple_menu_exit(0);
+X      close(0);
+X      open(tty_fname, O_RDWR);
+X      return 0;
+X#else  /* NOSHORTCUTEXIT */
+X      simple_menu_exit(0);
+X#endif  /* NOSHORTCUTEXIT */
+X      break;
+X    case MENU_REDISPLAY:
+X      display_menu_flag = 1;
+X      goto again;
+X    case MENU_NEXT_PAGE:
+X      display_menu_flag = 1;
+X      change_menu_page_next();
+X      break;
+X    case MENU_PREV_PAGE:
+X      display_menu_flag = 1;
+X      change_menu_page_previous();
+X      break;
+X    case MENU_ILLEGAL:
+X      {
+X	char buffer[80];
+X
+X	sprintf(buffer, "'%s' is not a legal response\n", user_rsp);
+X	display_msg(buffer);
+X	do_pause(0);
+X	undisplay_msg();
+X      }
+X      loops = 0;
+X      goto again;
+X    default:
+X      if (item_idx < 1 || item_idx > active_menu->max_item) {
+X	char buffer[80];
+X
+X	sprintf(buffer, "'%s' is not a legal response\n", user_rsp);
+X	display_msg(buffer);
+X	do_pause(0);
+X	undisplay_msg();
+X	loops = 0;
+X	goto again;
+X      }
+X
+X      selected_item = active_menu->item_head;
+X      while (item_idx != selected_item->item_idx)
+X	selected_item = selected_item->next;
+X
+X      do_item(selected_item, ITEM_MENU);
+X      break;
+X    }
+X  }
+X}
+X
+XVOID_TYPE
+Xdo_item(selected_item, item_parent)
+Xstruct item* selected_item;
+Xint item_parent;
+X{
+X  /* do not do item if conditioning variable exists and is defined */
+X  if (selected_item->conditioning != CONDITION_NONE)
+X    {
+X      char *cp =
+X	find_ev_var_by_name(selected_item->conditioning_variable)->value;
+X      switch (selected_item->conditioning)
+X	{
+X	case CONDITION_IFDEF:
+X	  if (!cp || strlen(cp) == 0)
+X	    return;
+X	  break;
+X	case CONDITION_IFNDEF:
+X	  if (cp && strlen(cp) > 0)
+X	    return;
+X	  break;
+X	case CONDITION_EQ:
+X	  if (cp && strcmp(cp, selected_item->conditioning_value))
+X	    return;
+X	  break;
+X	case CONDITION_NEQ:
+X	  if (cp && !strcmp(cp, selected_item->conditioning_value))
+X	    return;
+X	  break;
+X	}
+X    }
+X
+X  switch (selected_item->action) {
+X  case ITEM_SKIP:
+X    beep();
+X    break;
+X  case ITEM_MENU:
+X    push_menu(find_menu(selected_item->command));
+X    switch (item_parent)
+X      {
+X      case ITEM_MENU:
+X	if (do_menu())
+X	  do_pause(1);
+X	break;
+X      case ITEM_NONITEM:
+X      case ITEM_ACTION:
+X	do_menu();
+X	break;
+X      }
+X    break;
+X  case ITEM_SHELL:
+X    init_item_parm_defaults(selected_item);
+X    do_shell_script(selected_item);
+X    switch (item_parent)
+X      {
+X      case ITEM_MENU:
+X	do_pause(1);
+X	break;
+X      case ITEM_NONITEM:
+X      case ITEM_ACTION:
+X	break;
+X      }
+X    break;
+X  case ITEM_RESET_GLOBAL:
+X    reset_ev_vars((struct ev_var_val *)selected_item->parms);
+X    re_paginate_menu();
+X    break;
+X  case ITEM_ACTION:
+X    {
+X      struct item* item_ptr;
+X
+X      for (item_ptr=((struct action_list *)(selected_item->command))->head;
+X	   item_ptr;item_ptr=item_ptr->next)
+X	do_item(item_ptr, ITEM_ACTION);
+X    }
+X    do_pause(1);
+X    break;
+X  }
+X}
+X
+X/* invoke a shell script */
+X
+XVOID_TYPE
+Xdo_shell_script(selected_item)
+X     struct item *selected_item;
+X{
+X  pid_t pid;
+X  struct parm *p_ptr;
+X  struct ev_var *ev_ptr;
+X
+X  p_ptr = selected_item->parms;
+X
+X  while (p_ptr) {
+X    eval_prompt_string(p_ptr->prompt);
+X    p_ptr->value = get_variable_value(p_ptr->prompt->value, p_ptr->deflt);
+X    p_ptr = p_ptr->next;
+X  }
+X
+X  if (!(tmp_fname = tempnam((char *)0, (char *)0)))
+X    fatal("cannot create unique temp file name");
+X  set_signals(SIGS_FOR_CHILD);
+X  if ((tmp_file = fopen(tmp_fname, "w")) == NULL)
+X    fatal("cannot create temp file for shell");
+X  if (verbose)
+X    fprintf(tmp_file, "set -xv\n");
+X  for (ev_ptr=environment_list;ev_ptr;ev_ptr=ev_ptr->next)
+X    output_var_asg(tmp_file, ev_ptr->identifier, ev_ptr->value);
+X  for (p_ptr=selected_item->parms;p_ptr;
+X       p_ptr=p_ptr->next) {
+X    output_var_asg(tmp_file, p_ptr->identifier, p_ptr->value);
+X    Free(p_ptr->value);
+X    p_ptr->value = "";
+X  }
+X  fprintf(tmp_file, "%s\n", selected_item->command);
+X  fclose(tmp_file);
+X
+X  prepare_for_subshell();
+X  if ( !(pid = fork()) ) {
+X    /* reset signals so that DEL,... work correctly */
+X    reset_signals();
+X    dup(0);
+X    execl(cmd_path, cmd_name, tmp_fname, (char *)0);
+X    fatal("exec of command failed");
+X  }
+X
+X  wait_for_child(pid);
+X  return_from_subshell();
+X  unlink(tmp_fname);
+X  tmp_fname = (char *)0;
+X}
+X
+Xchar *
+Xoutput_of_shell(script)
+Xchar *script;
+X{
+X  pid_t pid;
+X  struct ev_var *ev_ptr;
+X  int pipe_fd[2];
+X  int c;
+X
+X  if (!(tmp_fname = tempnam((char *)0, (char *)0)))
+X    fatal("cannot create unique temp file name");
+X  set_signals(SIGS_FOR_CHILD);
+X  if ((tmp_file = fopen(tmp_fname, "w")) == NULL)
+X    fatal("cannot create temp file for shell");
+X  if (verbose)
+X    fprintf(tmp_file, "set -xv\n");
+X  for (ev_ptr=environment_list;ev_ptr;ev_ptr=ev_ptr->next)
+X    output_var_asg(tmp_file, ev_ptr->identifier, ev_ptr->value);
+X  fprintf(tmp_file, "%s\n", script);
+X  fclose(tmp_file);
+X
+X  prepare_for_subshell();
+X  close(2);  /* this stupididty forces pipe_fd[] to start avoid stderr */
+X  dup(1);
+X  pipe(pipe_fd);
+X  if ( !(pid = fork()) ) {
+X    /* reset signals so that DEL,... work correctly */
+X    reset_signals();
+X    close(1);
+X    dup(pipe_fd[1]);
+X    if (!verbose) {
+X      close(2);
+X      open("/dev/null", O_WRONLY);
+X    }
+X    close(0);
+X    close(pipe_fd[0]);
+X    close(pipe_fd[1]);
+X    execl(cmd_path, cmd_name, tmp_fname, (char *)0);
+X    fatal("exec of command failed");
+X  }
+X
+X  close(pipe_fd[1]);
+X  Free(take_saved_text());
+X  while (c = next_char(pipe_fd[0]))
+X    add_char(c);
+X  close(pipe_fd[0]);
+X  wait_for_child(pid);
+X  return_from_subshell();
+X  unlink(tmp_fname);
+X  tmp_fname = (char *)0;
+X  strip_white_space();
+X
+X  return take_saved_text();
+X}
+X
+XVOID_TYPE
+Xoutput_var_asg(file, identifier, value)
+XFILE *file;
+Xchar *identifier;
+Xchar *value;
+X{
+X  char *cp = asg_fmt;
+X  char c;
+X
+X  while (c = *cp++) {
+X    if (c == '$') {
+X      if (!strncmp(cp, "ID$", 3)) {
+X	fprintf(file, "%s", identifier);
+X	cp += 3;
+X	continue;
+X      }
+X      else if (!strncmp(cp, "VALUE$", 6)) {
+X	fprintf(file, "%s", value ? value : null_value);
+X	cp += 6;
+X	continue;
+X      }
+X    }
+X    putc(c, file);
+X  }
+X  putc('\n', file);
+X}
+X
+XVOID_TYPE
+Xdo_prelude()
+X{
+X  char *cp;
+X
+X  if (active_menu->prelude) {
+X    eval_prompt_string(active_menu->prelude->prompt);
+X    if ((cp = active_menu->prelude->prompt->value) && strlen(cp))
+X      display_msg(cp);
+X    do_item(active_menu->prelude, ITEM_NONITEM);
+X    undisplay_msg();
+X  }
+X}
+X
+XVOID_TYPE
+Xdo_epilogue()
+X{
+X  char *cp;
+X
+X  if (active_menu->epilogue) {
+X    eval_prompt_string(active_menu->epilogue->prompt);
+X    if ((cp = active_menu->epilogue->prompt->value) && strlen(cp))
+X      display_msg(cp);
+X    do_item(active_menu->epilogue, ITEM_NONITEM);
+X    undisplay_msg();
+X  }
+X}
+X
+XVOID_TYPE
+Xfatal(s)
+X     char *s;
+X{
+X  extern int errno;
+X  int lerrno = errno;   /* save errno */
+X  extern char *sys_errlist[];
+X
+X  fprintf(stdout, use_msg, progname, VERSION, PATCHLEVEL);
+X  if (s)
+X    fprintf(stdout, "%s\n", s);
+X
+X  if (lerrno) {
+X    fprintf(stdout, "fatal error '%s': line %d: %s\n", menu_fname,
+X	    line_number, sys_errlist[lerrno]);
+X  }
+X  simple_menu_exit(1);
+X}
+X
+XRETSIGTYPE
+Xtrapoid(sig)
+X     int sig;
+X{
+X  if (tmp_fname)
+X    unlink(tmp_fname);
+X
+X  simple_menu_exit(sig);
+X}
+X
+XRETSIGTYPE
+Xdo_longjmp(sig)
+X     int sig;
+X{
+X  longjmp(env, 0);
+X}
+X
+XVOID_TYPE
+Xwait_for_child(pid)
+X     pid_t pid;
+X{
+X  int wait_ret;
+X  int status;
+X  extern int errno;
+X
+X  while ((wait_ret = wait(&status)) != pid) {
+X    /* test to see if child is still there - if not, then return */
+X    if (kill(pid, 0) < 0)
+X      break;
+X  }
+X}
+X
+XVOID_TYPE
+Xset_signals(flag)
+X     int flag;
+X{
+X  switch (flag) {
+X  case SIGS_FOR_JMP:
+X    signal(SIGHUP, trapoid);
+X    signal(SIGINT, do_longjmp);
+X    signal(SIGQUIT, do_longjmp);
+X    signal(SIGTERM, trapoid);
+X    break;
+X  case SIGS_FOR_CHILD:
+X    signal(SIGHUP, trapoid);
+X    signal(SIGINT, SIG_IGN);
+X    signal(SIGQUIT, SIG_IGN);
+X    signal(SIGTERM, trapoid);
+X    break;
+X  }
+X}
+X
+XVOID_TYPE
+Xreset_signals()
+X{
+X  signal(SIGHUP, SIG_DFL);
+X  signal(SIGINT, SIG_DFL);
+X  signal(SIGQUIT, SIG_DFL);
+X  signal(SIGTERM, SIG_DFL);
+X  signal(SIGCLD, SIG_DFL);
+X}
+X
+Xint
+Xopen_menu_file()
+X{
+X  int menu_fd;
+X  char *getenv();
+X
+X  /* check to see if we are reading from stdin */
+X  if (!strcmp(menu_fname, "-"))
+X    return;
+X
+X  /* absolute paths and ./<file-name> paths over-ride path search */
+X  if (menu_fname[0] == '/' || !strncmp(menu_fname, ".", 1)) {
+X    if ((menu_fd = open(menu_fname, O_RDONLY)) < 0)
+X      fatal("cannot open menu file");
+X    close(0);
+X    dup(menu_fd);
+X    close(menu_fd);
+X    return;
+X  }
+X
+X  /* search for named menu along the menu path */
+X  if (menu_path || (menu_path = getenv("MENU_PATH"))) {
+X    search_menu_path(menu_path, menu_fname);
+X    return;
+X  }
+X
+X  /* build a default menu path */
+X  {
+X    char *home;
+X    char buf[256];
+X
+X    if (home = getenv("HOME"))
+X      sprintf(buf, "%s:%s" , home, DEFAULT_MENU_PATH);
+X    else
+X      strcpy(buf, DEFAULT_MENU_PATH);
+X    search_menu_path(buf, menu_fname);
+X    return;
+X  }
+X}
+X
+Xint
+Xsearch_menu_path(path, fname)
+X     char *path;
+X     char *fname;
+X{
+X  char *cp = path;
+X  int size = 256;
+X  int len;
+X  char *buf = Malloc(256);
+X  int menu_fd;
+X
+X  while (cp) {
+X    if (cp = strchr(path, ':'))
+X      *cp++ = '\0';
+X    if (size < (len = strlen(path) + strlen(fname) + 2)) {
+X      buf = Realloc(buf, len);
+X      size = len;
+X    }
+X      
+X    strcpy(buf, path);
+X    len = strlen(buf);
+X    if (buf[len-1] != '/')
+X      buf[len++] = '/';
+X    strcpy(buf + len, fname);
+X
+X    if ((menu_fd = open(buf, O_RDONLY)) >= 0) {
+X      Free(buf);
+X      close(0);
+X      dup(menu_fd);
+X      close(menu_fd);
+X      return;
+X    }
+X    path = cp;
+X  }
+X
+X  fatal("cannot open menu definition");
+X}
+X
+Xchar *
+XMalloc(size)
+X     unsigned size;
+X{
+X  char *malloc();
+X  char *cp = malloc(size);
+X
+X  if (!cp)
+X    fatal("out of memory in Malloc");
+X
+X  return cp;
+X}
+X
+Xchar *
+XRealloc(ptr, size)
+X     char *ptr;
+X     unsigned size;
+X{
+X  char *realloc();
+X  char *cp = realloc(ptr, size);
+X
+X  if (!cp)
+X    fatal("out of memory in Realloc");
+X
+X  return cp;
+X}
+X
+XVOID_TYPE
+XFree(ptr)
+X     char *ptr;
+X{
+X  if (ptr)
+X    free(ptr);
+X}
+X
+XVOID_TYPE
+Xyyerror(s)
+Xchar *s;
+X{
+X  printf("%s - around line %d\n", s, line_number);
+X}
+X
+X#define do_indent(x)  { int y=x;while (y-->0)putchar(' '); }
+X#define if_indent(x)  if (x)do_indent(2)
+X
+XVOID_TYPE
+Xprt_item(item_ptr, action_list_idx)
+X     struct item *item_ptr;
+X     int action_list_idx;
+X{
+X  struct parm *p_ptr;
+X  struct ev_var_val *evv_ptr;
+X
+X  switch (item_ptr->catagory)
+X    {
+X    case CATAGORY_PRELUDE:
+X      printf("\nMenu Prelude:\n");
+X      break;
+X    case CATAGORY_EPILOGUE:
+X      printf("\nMenu Epilogue:\n");
+X      break;
+X    case CATAGORY_ITEM:
+X      if (!action_list_idx)
+X	printf("\nMenu Item: %2d.\n", item_ptr->item_idx);
+X      else
+X	printf("\n  Action List Item %d\n", action_list_idx);
+X      break;
+X    default:
+X      printf("\nItem Not Catagorized\n");
+X    }
+X
+X
+X  switch (item_ptr->conditioning)
+X    {
+X    case CONDITION_NONE:
+X      break;
+X    case CONDITION_IFDEF:
+X      if_indent(action_list_idx);
+X      printf("This action is only performed if \"%s\" is Defined\n",
+X	     item_ptr->conditioning_variable);
+X      break;
+X    case CONDITION_IFNDEF:
+X      if_indent(action_list_idx);
+X      printf("This action is only performed if \"%s\" is Undefined\n",
+X	     item_ptr->conditioning_variable);
+X      break;
+X    case CONDITION_EQ:
+X      if_indent(action_list_idx);
+X      printf("This action is only performed if \"%s\" is Equal to:\n",
+X	     item_ptr->conditioning_variable);
+X      printf("'%s'\n", item_ptr->conditioning_value);
+X      break;
+X    case CONDITION_NEQ:
+X      if_indent(action_list_idx);
+X      printf("This action is only performed if \"%s\" is NOT Equal to:\n",
+X	     item_ptr->conditioning_variable);
+X      printf("'%s'\n", item_ptr->conditioning_value);
+X      break;
+X    }
+X  switch (item_ptr->action) {
+X  case ITEM_SKIP:
+X    if (item_ptr->prompt) {
+X      printf("Display in Bold:");
+X      prt_prompt_string(item_ptr->prompt, action_list_idx);
+X    }
+X    else
+X      printf("(skip one line)\n");
+X    break;
+X  case ITEM_MENU:
+X    if_indent(action_list_idx);
+X    printf("Menu: \"%s\" ", item_ptr->command);
+X    prt_prompt_string(item_ptr->prompt, 0);
+X    break;
+X  case ITEM_SHELL:
+X    if_indent(action_list_idx);
+X    printf("Shell: ");
+X    prt_prompt_string(item_ptr->prompt, 0);
+X    prt_command(item_ptr->command, action_list_idx);
+X    for (p_ptr=item_ptr->parms;p_ptr;
+X	 p_ptr = p_ptr->next) {
+X      switch (p_ptr->flag) {
+X      case PARM_NO_DEFAULT:
+X	prt_prompt_string(p_ptr->prompt, action_list_idx);
+X	if_indent(action_list_idx);
+X	printf("parm \"%s\"\n", p_ptr->identifier);
+X	break;
+X      case PARM_STATIC_DEFAULT:
+X	if_indent(action_list_idx);
+X	printf("parm \"%s\"='%s'\n", p_ptr->identifier, p_ptr->deflt);
+X	break;
+X      case PARM_ENV_DEFAULT:
+X	if_indent(action_list_idx);
+X	printf("parm \"%s\"='%s'\n", p_ptr->identifier, p_ptr->ev_name);
+X	break;
+X      }
+X      if_indent(action_list_idx);
+X      printf("prompt: ");
+X      prt_prompt_string(p_ptr->prompt, 0); /* fake out indentation */
+X    }
+X    break;
+X  case ITEM_RESET_GLOBAL:
+X    if_indent(action_list_idx);
+X    printf("Reset Global: ");
+X    prt_prompt_string(item_ptr->prompt, 0);
+X    for (evv_ptr=(struct ev_var_val *)item_ptr->parms;evv_ptr;
+X	 evv_ptr=evv_ptr->next)
+X      {
+X	if_indent(action_list_idx);
+X	prt_evv_ptr(evv_ptr, action_list_idx);
+X      }
+X    break;
+X  case ITEM_ACTION:
+X    if_indent(action_list_idx);
+X    printf("Action List: ");
+X    prt_prompt_string(item_ptr->prompt, 0);
+X    {
+X      struct item *itp = ((struct action_list *)(item_ptr->command))->head;
+X      int action_list_idx = 0;
+X      while (itp)
+X	{
+X	  prt_item(itp, ++action_list_idx);
+X	  itp = itp->next;
+X	}
+X    }
+X  }
+X}
+X
+XVOID_TYPE
+Xprt_prompt_string(p_ptr, action_list_idx)
+Xstruct prompt_string *p_ptr;
+Xint action_list_idx;
+X{
+X  if (!p_ptr)
+X    {
+X      putchar('\n');
+X      return;
+X    }
+X
+X  if_indent(action_list_idx);
+X  while (p_ptr) {
+X    switch (p_ptr->segment_type) {
+X    case PROMPT_TEXT:
+X      printf("'%s'", p_ptr->fragment);
+X      break;
+X    case PROMPT_EV_VAR:
+X      printf("\"%s\"", p_ptr->fragment);
+X      break;
+X    }
+X    if (p_ptr = p_ptr->next) {
+X      switch (p_ptr->concat_char) {
+X      case '\0':
+X	printf(" | ");
+X	break;
+X      case ' ':
+X	printf(" + ");
+X	break;
+X      case '\n':
+X	printf(" +n ");
+X	break;
+X      }
+X    }
+X  }
+X  putchar('\n');
+X}
+X
+Xprt_command(cmd, action_list_idx)
+Xchar *cmd;
+Xint action_list_idx;
+X{
+X  int indent;  /* this is not necessary the way the code is written.
+X		  it is a creaping feature because I may put in some
+X		  automatic pretty printing latter. */
+X
+X  if_indent(action_list_idx);
+X  printf("%%(\n");
+X  indent = action_list_idx ? 4 : 2;
+X  do_indent(indent);
+X  while (*cmd)
+X    {
+X      char c;
+X
+X      switch (c = *cmd++)
+X	{
+X	case '\n':
+X	  putchar(c);
+X	  do_indent(indent);
+X	  break;
+X	default:
+X	  putchar(c);
+X	  break;
+X	}
+X    }
+X  putchar('\n');
+X  if_indent(action_list_idx);
+X  printf("%%)\n");
+X}
+X
+XVOID_TYPE
+Xprt_evv_ptr(evv_ptr, action_list_idx)
+Xstruct ev_var_val *evv_ptr;
+Xint action_list_idx;
+X{
+X  if_indent(action_list_idx);
+X  switch (evv_ptr->flag) {
+X  case EV_GLOBAL:
+X    printf("\"%s\" = '%s'\n", evv_ptr->identifier, evv_ptr->value);
+X    break;
+X  case EV_FROM_SHELL:
+X    printf("\"%s\" output of %%( %s %%)\n", evv_ptr->identifier,
+X	   evv_ptr->script);
+X    break;
+X  case EV_FROM_FILE:
+X    printf("\"%s\" from file '%s'\n", evv_ptr->identifier, evv_ptr->value);
+X    break;
+X  case EV_FROM_USER:
+X    printf("\"%s\" from user - prompt: '%s'\n", evv_ptr->identifier,
+X	   evv_ptr->value);
+X    break;
+X  case EV_FROM_USER_VALIDATE:
+X    printf("\"%s\" from user - prompt: '%s'\n", evv_ptr->identifier,
+X	   evv_ptr->value);
+X    if_indent(action_list_idx);
+X    printf("validated through %%( %s %%)\n", evv_ptr->script);
+X    break;
+X  }
+X}
+X
+XVOID_TYPE
+Xsimple_menu_exit(code)
+X     int code;
+X{
+X  close_terminal();
+X
+X  exit(code);
+X}
+END_OF_FILE
+if test 38437 -ne `wc -c <'./common_src/simple_menu.c'`; then
+    echo shar: \"'./common_src/simple_menu.c'\" unpacked with wrong size!
+fi
+# end of './common_src/simple_menu.c'
+fi
+echo shar: End of archive 9 \(of 9\).
+cp /dev/null ark9isdone
+MISSING=""
+for I in 1 2 3 4 5 6 7 8 9 ; do
+    if test ! -f ark${I}isdone ; then
+	MISSING="${MISSING} ${I}"
+    fi
+done
+if test "${MISSING}" = "" ; then
+    echo You have unpacked all 9 archives.
+    rm -f ark[1-9]isdone ark[1-9][0-9]isdone
+else
+    echo You still need to unpack the following archives:
+    echo "        " ${MISSING}
+fi
+##  End of shell archive.
+exit 0
+

@@ -1,0 +1,1565 @@
+Path: ssbell!uunet!lll-winken!ames!mailrus!bbn!bbn.com!rsalz
+From: rsalz@uunet.uu.net (Rich Salz)
+Newsgroups: comp.sources.unix
+Subject: v17i098:  Gnu E?GREP (it's fast), Part01/05
+Message-ID: <1492@papaya.bbn.com>
+Date: 9 Feb 89 19:13:42 GMT
+Lines: 1556
+Approved: rsalz@uunet.UU.NET
+
+Submitted-by: Mike Haertel <mike@wheaties.ai.mit.edu>
+Posting-number: Volume 17, Issue 98
+Archive-name: gnugrep/part01
+
+[  This replaces BM, etc., and all the other Grep's that are floating
+   around the net, and gathering dust in archives.  Spread this around!
+   The "AUTHORS" section in the manual page is quite nice.  --r$  ]
+
+This is GNU e?grep version 1.2, hopefully the "fastest grep in the west."
+This new version now includes a manual page and a fix for NFS environments.
+
+Due to some control characters being present, line 121 of the file
+tests/spencer.tests may not extract properly.  It should look as
+follows, where ^A, ^B, and ^C represent characters \001, \002, and \003
+respectively: "0:a[^A-^C]?c:a^Bc"
+
+#! /bin/sh
+# This is a shell archive.  Remove anything before this line, then unpack
+# it by saving it into a file and typing "sh file".  To overwrite existing
+# files, type "sh file -c".  You can also feed this as standard input via
+# unshar, or by typing "sh <file", e.g..  If this archive is complete, you
+# will see the following message at the end:
+#		"End of shell archive."
+# Contents:  README Makefile tests tests/khadafy.lines
+#   tests/khadafy.regexp tests/regress.sh tests/scriptgen.awk
+#   tests/spencer.tests README.cray alloca.c grep.man getopt.c
+#
+PATH=/bin:/usr/bin:/usr/ucb ; export PATH
+if test -f 'README' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'README'\"
+else
+echo shar: Extracting \"'README'\" \(7427 characters\)
+sed "s/^X//" >'README' <<'END_OF_FILE'
+XThis README documents GNU e?grep version 1.2.
+X
+XChanges needed to the makefile under various perversions of Unix are
+Xdescribed therein.
+X
+XIf the type "char" is unsigned on your machine, you will have to fix
+Xthe definition of the macro SIGN_EXTEND_CHAR() in regex.c.  A reasonable
+Xdefinition might be:
+X	#define SIGN_EXTEND_CHAR(c) ((c)>(char)127?(c)-256:(c))
+X
+XGNU e?grep is provided "as is" with no warranty.  The exact terms
+Xunder which you may use and (re)distribute this program are detailed
+Xin a comment at the top of grep.c.
+X
+XGNU e?grep is based on a fast lazy-state deterministic matcher (about
+Xtwice as fast as stock Unix egrep) hybridized with a Boyer-Moore-Gosper
+Xsearch for a fixed string that eliminates impossible text from being
+Xconsidered by the full regexp matcher without necessarily having to
+Xlook at every character.  The result is typically many times faster
+Xthan Unix grep or egrep.  (Regular expressions containing backreferencing
+Xmay run more slowly, however.)
+X
+XGNU e?grep attempts, as closely as possible, to understand compatibly
+Xthe regexp syntaxes of the Unix programs it replaces.  The following table
+Xdetails the various special characters understood in both the grep and
+Xegrep incarnations:
+X
+X(grep)	(egrep)		(explanation)
+X  .	   .		matches any single character except newline
+X  \?	   ?		postfix operator; preceeding item is optional
+X  *	   *		postfix operator; preceeding item 0 or more times
+X  \+	   +		postfix operator; preceeding item 1 or more times
+X  \|	   |		infix operator; matches either argument
+X  ^	   ^		matches the empty string at the beginning of a line
+X  $	   $		matches the empty string at the end of a line
+X  \<	   \<		matches the empty string at the beginning of a word
+X  \>	   \>		matches the empty string at the end of a word
+X [chars] [chars]	match any character in the given class; if the
+X			first character after [ is ^, match any character
+X			not in the given class; a range of characters may
+X			be specified by <first>-<last>; for example, \W
+X			(below) is equivalent to the class [^A-Za-z0-9]
+X \( \)	  ( )		parentheses are used to override operator precedence
+X \<1-9>	  \<1-9>	\<n> matches a repeat of the text matched earlier
+X			in the regexp by the subexpression inside the
+X			nth opening parenthesis
+X  \	   \		any special character may be preceded by a backslash
+X			to match it literally
+X
+X(the following are for compatibility with GNU Emacs)
+X  \b	   \b		matches the empty string at the edge of a word
+X  \B	   \B		matches the empty string if not at the edge of a word
+X  \w	   \w		matches word-constituent characters (letters & digits)
+X  \W	   \W		matches characters that are not word-constituent
+X
+XOperator precedence is (highest to lowest) ?, *, and +, concatenation,
+Xand finally |.  All other constructs are syntactically identical to
+Xnormal characters.  For the truly interested, a comment in dfa.c describes
+Xthe exact grammar understood by the parser.
+X
+XGNU e?grep understands the following command line options:
+X	-A <num>	print <num> lines of context after every matching line
+X	-B <num>	print <num> lines of context before every matching line
+X	-C		print 2 lines of context on each side of every match
+X	-<num>		print <num> lines of context on each side
+X	-V		print the version number on stderr
+X	-b		print every match preceded by its byte offset
+X	-c		print a total count of matching lines only
+X	-e <expr>	search for <expr>; useful if <expr> begins with -
+X	-f <file>	take <expr> from the given <file>
+X	-h		don't display filenames on matches
+X	-i		ignore case difference when comparing strings
+X	-l		list files containing matches only
+X	-n		print each match preceded by its line number
+X	-s		run silently producing no output except error messages
+X	-v		print only lines that contain no matches for the <expr>
+X	-w		print only lines where the match is a complete word
+X	-x		print only lines where the match is a whole line
+X
+XThe options understood by GNU e?grep are meant to be (nearly) compatible
+Xwith both the BSD and System V versions of grep and egrep.
+X
+XThe following incompatibilities with other versions of grep exist:
+X	the context-dependent meaning of * is not quite the same (grep only)
+X	-b prints a byte offset instead of a block offset
+X	the \{m,n\} construct of System V grep is not implemented
+X
+XGNU e?grep has been thoroughly debugged and tested by several people
+Xover a period of several months; we think it's a reliable beast or we
+Xwouldn't distribute it.  If by some fluke of the universe you discover
+Xa bug, send a detailed description (including options, regular
+Xexpressions, and a copy of an input file that can reproduce it) to me,
+Xmike@wheaties.ai.mit.edu.
+X
+XGNU e?grep is brought to you by the efforts of several people:
+X
+X	Mike Haertel wrote the deterministic regexp code and the bulk
+X	of the program.
+X
+X	James A. Woods is responsible for the hybridized search strategy
+X	of using Boyer-Moore-Gosper fixed-string search as a filter
+X	before calling the general regexp matcher.
+X
+X	Arthur David Olson contributed code that finds fixed strings for
+X	the aforementioned BMG search for a large class of regexps.
+X
+X	Richard Stallman wrote the backtracking regexp matcher that is
+X	used for \<digit> backreferences, as well as the getopt that
+X	is provided for 4.2BSD sites.  The backtracking matcher was
+X	originally written for GNU Emacs.
+X
+X	D. A. Gwyn wrote the C alloca emulation that is provided so
+X	System V machines can run this program.  (Alloca is used only
+X	by RMS' backtracking matcher, and then only rarely, so there
+X	is no loss if your machine doesn't have a "real" alloca.)
+X
+X	Scott Anderson and Henry Spencer designed the regression tests
+X	used in the "regress" script.
+X
+X	Paul Placeway wrote the manual page, based on this README.
+X
+XIf you are interested in improving this program, you may wish to try
+Xany of the following:
+X
+X1.  Make backreferencing \<digit> faster.  Right now, backreferencing is
+X    handled by calling the Emacs backtracking matcher to verify the partial
+X    match.  This is slow; if the DFA routines could handle backreferencing
+X    themselves a speedup on the order of three to four times might occur
+X    in those cases where the backtracking matcher is called to verify nearly
+X    every line.  Also, some portability problems due to the inclusion of the
+X    emacs matcher would be solved because it could then be eliminated.
+X    Note that expressions with backreferencing are not true regular
+X    expressions, and thus are not equivalent to any DFA.  So this is hard.
+X
+X2.  There is a bug in the backtracking matcher, regex.c, such that the |
+X    operator is not properly commutative.  Let x and y be arbitrary
+X    regular expressions, and suppose both x and y have matches at
+X    some point in the target text.  Then the regexp x|y should select
+X    the longest of the two matches.  With the backtracking matcher, if the
+X    first match succeeds it does not even try the second, even though
+X    the second may be a longer match.  This is obviously of no concern
+X    for grep, which does not care exactly where or how long a match is,
+X    so long as it knows it is there.  On the other hand, the backtracking
+X    matcher is used in GNU AWK, wherein its behavior can only be considered
+X    a bug.
+X
+X3.  Handle POSIX style regexps.  I'm not sure if this could be called an
+X    improvement; some of the things on regexps in the POSIX draft I have
+X    seen are pretty sickening.  But it would be useful in the interests of
+X    conforming to the standard.
+END_OF_FILE
+if test 7427 -ne `wc -c <'README'`; then
+    echo shar: \"'README'\" unpacked with wrong size!
+fi
+# end of 'README'
+fi
+if test -f 'Makefile' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'Makefile'\"
+else
+echo shar: Extracting \"'Makefile'\" \(510 characters\)
+sed "s/^X//" >'Makefile' <<'END_OF_FILE'
+X#
+X# Makefile for GNU e?grep
+X#
+X
+X# Add -DUSG for System V.
+XCFLAGS = -O
+X
+X# You may add getopt.o if your C library lacks getopt(); note that
+X# 4.3BSD getopt() is said to be somewhat broken.
+X# Add alloca.o if your machine does not support alloca().
+XOBJS = grep.o dfa.o regex.o
+X
+Xall: regress
+X
+Xregress: grep
+X	cd tests; sh regress.sh
+X
+Xgrep: $(OBJS)
+X	$(CC) $(CFLAGS) -o grep $(OBJS)
+X	rm -f egrep
+X	ln grep egrep
+X
+Xclean:
+X	rm -f grep egrep *.o core tests/core tests/tmp.script
+X
+Xdfa.o grep.o: dfa.h
+Xgrep.o regex.o: regex.h
+END_OF_FILE
+if test 510 -ne `wc -c <'Makefile'`; then
+    echo shar: \"'Makefile'\" unpacked with wrong size!
+fi
+# end of 'Makefile'
+fi
+if test ! -d 'tests' ; then
+    echo shar: Creating directory \"'tests'\"
+    mkdir 'tests'
+fi
+if test -f 'tests/khadafy.lines' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'tests/khadafy.lines'\"
+else
+echo shar: Extracting \"'tests/khadafy.lines'\" \(728 characters\)
+sed "s/^X//" >'tests/khadafy.lines' <<'END_OF_FILE'
+X1)  Muammar Qaddafi
+X2)  Mo'ammar Gadhafi
+X3)  Muammar Kaddafi
+X4)  Muammar Qadhafi
+X5)  Moammar El Kadhafi
+X6)  Muammar Gadafi
+X7)  Mu'ammar al-Qadafi
+X8)  Moamer El Kazzafi
+X9)  Moamar al-Gaddafi
+X10) Mu'ammar Al Qathafi
+X11) Muammar Al Qathafi
+X12) Mo'ammar el-Gadhafi
+X13) Moamar El Kadhafi
+X14) Muammar al-Qadhafi
+X15) Mu'ammar al-Qadhdhafi
+X16) Mu'ammar Qadafi
+X17) Moamar Gaddafi
+X18) Mu'ammar Qadhdhafi
+X19) Muammar Khaddafi
+X20) Muammar al-Khaddafi
+X21) Mu'amar al-Kadafi
+X22) Muammar Ghaddafy
+X23) Muammar Ghadafi
+X24) Muammar Ghaddafi
+X25) Muamar Kaddafi
+X26) Muammar Quathafi
+X27) Muammar Gheddafi
+X28) Muamar Al-Kaddafi
+X29) Moammar Khadafy
+X30) Moammar Qudhafi
+X31) Mu'ammar al-Qaddafi
+X32) Mulazim Awwal Mu'ammar Muhammad Abu Minyar al-Qadhafi
+END_OF_FILE
+if test 728 -ne `wc -c <'tests/khadafy.lines'`; then
+    echo shar: \"'tests/khadafy.lines'\" unpacked with wrong size!
+fi
+# end of 'tests/khadafy.lines'
+fi
+if test -f 'tests/khadafy.regexp' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'tests/khadafy.regexp'\"
+else
+echo shar: Extracting \"'tests/khadafy.regexp'\" \(66 characters\)
+sed "s/^X//" >'tests/khadafy.regexp' <<'END_OF_FILE'
+XM[ou]'?am+[ae]r .*([AEae]l[- ])?[GKQ]h?[aeu]+([dtz][dhz]?)+af[iy]
+END_OF_FILE
+if test 66 -ne `wc -c <'tests/khadafy.regexp'`; then
+    echo shar: \"'tests/khadafy.regexp'\" unpacked with wrong size!
+fi
+# end of 'tests/khadafy.regexp'
+fi
+if test -f 'tests/regress.sh' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'tests/regress.sh'\"
+else
+echo shar: Extracting \"'tests/regress.sh'\" \(455 characters\)
+sed "s/^X//" >'tests/regress.sh' <<'END_OF_FILE'
+X#! /bin/sh -
+X
+Xfailures=0
+X
+X# The Khadafy test is brought to you by Scott Anderson . . .
+X../egrep -f khadafy.regexp khadafy.lines > khadafy.out
+Xif cmp khadafy.lines khadafy.out
+Xthen
+X	rm khadafy.out
+Xelse
+X	echo Khadafy test failed -- output left on khadafy.out
+X	failures=1
+Xfi
+X
+X# . . . and the following by Henry Spencer.
+X
+Xawk -F: -f scriptgen.awk spencer.tests > tmp.script
+X
+Xif sh tmp.script
+Xthen
+X	rm tmp.script
+X	exit $failures
+Xelse
+X	rm tmp.script
+X	exit 1
+Xfi
+END_OF_FILE
+if test 455 -ne `wc -c <'tests/regress.sh'`; then
+    echo shar: \"'tests/regress.sh'\" unpacked with wrong size!
+fi
+# end of 'tests/regress.sh'
+fi
+if test -f 'tests/scriptgen.awk' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'tests/scriptgen.awk'\"
+else
+echo shar: Extracting \"'tests/scriptgen.awk'\" \(274 characters\)
+sed "s/^X//" >'tests/scriptgen.awk' <<'END_OF_FILE'
+XBEGIN { print "failures=0"; }
+X!/^#/ && NF == 3 {
+X	print "echo '" $3 "' | ../egrep -e '" $2 "' > /dev/null 2>&1";
+X	print "if [ $? != " $1 " ]"
+X	print "then"
+X	printf "\techo Spencer test \\#%d failed\n", ++n
+X	print "\tfailures=1"
+X	print "fi"
+X}
+XEND { print "exit $failures"; }
+END_OF_FILE
+if test 274 -ne `wc -c <'tests/scriptgen.awk'`; then
+    echo shar: \"'tests/scriptgen.awk'\" unpacked with wrong size!
+fi
+# end of 'tests/scriptgen.awk'
+fi
+if test -f 'tests/spencer.tests' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'tests/spencer.tests'\"
+else
+echo shar: Extracting \"'tests/spencer.tests'\" \(1748 characters\)
+sed "s/^X//" >'tests/spencer.tests' <<'END_OF_FILE'
+X0:abc:abc
+X1:abc:xbc
+X1:abc:axc
+X1:abc:abx
+X0:abc:xabcy
+X0:abc:ababc
+X0:ab*c:abc
+X0:ab*bc:abc
+X0:ab*bc:abbc
+X0:ab*bc:abbbbc
+X0:ab+bc:abbc
+X1:ab+bc:abc
+X1:ab+bc:abq
+X0:ab+bc:abbbbc
+X0:ab?bc:abbc
+X0:ab?bc:abc
+X1:ab?bc:abbbbc
+X0:ab?c:abc
+X0:^abc$:abc
+X1:^abc$:abcc
+X0:^abc:abcc
+X1:^abc$:aabc
+X0:abc$:aabc
+X0:^:abc
+X0:$:abc
+X0:a.c:abc
+X0:a.c:axc
+X0:a.*c:axyzc
+X1:a.*c:axyzd
+X1:a[bc]d:abc
+X0:a[bc]d:abd
+X1:a[b-d]e:abd
+X0:a[b-d]e:ace
+X0:a[b-d]:aac
+X0:a[-b]:a-
+X2:a[b-]:a-
+X1:a[b-a]:-
+X2:a[]b:-
+X2:a[:-
+X0:a]:a]
+X0:a[]]b:a]b
+X0:a[^bc]d:aed
+X1:a[^bc]d:abd
+X0:a[^-b]c:adc
+X1:a[^-b]c:a-c
+X1:a[^]b]c:a]c
+X0:a[^]b]c:adc
+X0:ab|cd:abc
+X0:ab|cd:abcd
+X0:()ef:def
+X0:()*:-
+X1:*a:-
+X0:^*:-
+X0:$*:-
+X1:(*)b:-
+X1:$b:b
+X2:a\:-
+X0:a\(b:a(b
+X0:a\(*b:ab
+X0:a\(*b:a((b
+X1:a\x:a\x
+X2:abc):-
+X2:(abc:-
+X0:((a)):abc
+X0:(a)b(c):abc
+X0:a+b+c:aabbabc
+X0:a**:-
+X0:a*?:-
+X0:(a*)*:-
+X0:(a*)+:-
+X0:(a|)*:-
+X0:(a*|b)*:-
+X0:(a+|b)*:ab
+X0:(a+|b)+:ab
+X0:(a+|b)?:ab
+X0:[^ab]*:cde
+X0:(^)*:-
+X0:(ab|)*:-
+X2:)(:-
+X1:abc:
+X1:abc:
+X0:a*:
+X0:([abc])*d:abbbcd
+X0:([abc])*bcd:abcd
+X0:a|b|c|d|e:e
+X0:(a|b|c|d|e)f:ef
+X0:((a*|b))*:-
+X0:abcd*efg:abcdefg
+X0:ab*:xabyabbbz
+X0:ab*:xayabbbz
+X0:(ab|cd)e:abcde
+X0:[abhgefdc]ij:hij
+X1:^(ab|cd)e:abcde
+X0:(abc|)ef:abcdef
+X0:(a|b)c*d:abcd
+X0:(ab|ab*)bc:abc
+X0:a([bc]*)c*:abc
+X0:a([bc]*)(c*d):abcd
+X0:a([bc]+)(c*d):abcd
+X0:a([bc]*)(c+d):abcd
+X0:a[bcd]*dcdcde:adcdcde
+X1:a[bcd]+dcdcde:adcdcde
+X0:(ab|a)b*c:abc
+X0:((a)(b)c)(d):abcd
+X0:[A-Za-z_][A-Za-z0-9_]*:alpha
+X0:^a(bc+|b[eh])g|.h$:abh
+X0:(bc+d$|ef*g.|h?i(j|k)):effgz
+X0:(bc+d$|ef*g.|h?i(j|k)):ij
+X1:(bc+d$|ef*g.|h?i(j|k)):effg
+X1:(bc+d$|ef*g.|h?i(j|k)):bcdd
+X0:(bc+d$|ef*g.|h?i(j|k)):reffgz
+X1:((((((((((a)))))))))):-
+X0:(((((((((a))))))))):a
+X1:multiple words of text:uh-uh
+X0:multiple words:multiple words, yeah
+X0:(.*)c(.*):abcde
+X1:\((.*),:(.*)\)
+X1:[k]:ab
+X0:abcd:abcd
+X0:a(bc)d:abcd
+X0:a[-]?c:ac
+X0:(....).*\1:beriberi
+END_OF_FILE
+echo shar: 3 control characters may be missing from \"'tests/spencer.tests'\"
+if test 1748 -ne `wc -c <'tests/spencer.tests'`; then
+    echo shar: \"'tests/spencer.tests'\" unpacked with wrong size!
+fi
+# end of 'tests/spencer.tests'
+fi
+if test -f 'README.cray' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'README.cray'\"
+else
+echo shar: Extracting \"'README.cray'\" \(2730 characters\)
+sed "s/^X//" >'README.cray' <<'END_OF_FILE'
+X(Message inbox:135)
+XDate:    Mon, 17 Oct 88 16:53:33 PDT
+XTo:      mike@wheaties.ai.mit.edu
+Xcc:      darin%pioneer@eos.arc.nasa.gov, luzmoor@violet.berkeley.edu
+XFrom:    James A. Woods <jaw@eos.arc.nasa.gov>
+XSubject: README.cray for GNU e?grep
+X
+XI just sent this out to comp.unix.cray:
+X
+X-------------------------------------------------------------------
+XFrom: jaw@eos.UUCP (James A. Woods)
+XNewsgroups: comp.unix.cray
+XSubject: GNU e?grep on Cray machines
+XMessage-ID: <1750@eos.UUCP>
+XDate: 17 Oct 88 23:47:29 GMT
+XOrganization: NASA Ames Research Center, California
+XLines: 66
+X
+X# "What comes after silicon?  Oh, gallium arsenide, I'd guess.  And after 
+X   that, there's a thing called indium phosphide."
+X	-- Seymour Cray, Datamation interview, circa 1980
+X
+X     Now that most Cray software development is done on Crays themselves, 
+Xthanks to Unix, GNU e?grep should come in handy.  Of course, if you're
+Xscanning GENBANK for the Human Genome Project at 10 MB/second (the raw
+XX/MP Unix I/O rate), you really do need the speed.
+X
+X     Sample, from one of the Ames Cray 2 machines:
+X
+X	stokes> time ./egrep astrian web2		# GNU egrep
+X	alabastrian
+X	Lancastrian
+X	Zoroastrian
+X	Zoroastrianism
+X	0.5980u 0.0772s 0:01 35%
+X	stokes> time /usr/bin/egrep astrian web2	# ATT egrep
+X	alabastrian
+X	Lancastrian
+X	Zoroastrian
+X	Zoroastrianism
+X	7.6765u 0.1373s 0:15 49%
+X
+X(web2 is a 2.4 MB wordlist, standard on BSD Unix.)
+X
+X     To bring up GNU E?GREP, ftp Mike Haertel's version 1.1 package from
+X'prep.ai.mit.edu' or 'ames.arc.nasa.gov'.  Mention -DUSG in the Makefile,
+Xand specify 
+X
+X	#define SIGN_EXTEND_CHAR(c) ((c)>(char)127?(c)-256:(c))
+X
+Xin regex.c. [Cray characters, like MIPS chars, are unsigned, but the
+Xcompiler won't allow ... #define SIGN_EXTEND_CHAR(c) ((signed char) (c))]
+X	
+X     However, at least on the Cray 2, there's a compiler bug involving the
+Xincrement operator in complex expressions, which requires the following
+Xmodification (also in regex.c):
+X
+Xchange
+X        m->elems[m->nelem++].constraint |= s2->elems[j++].constraint;
+Xto
+X        m->elems[m->nelem].constraint |= s2->elems[j].constraint;
+X        m->nelem++;
+X        j++;
+X
+XThanks go to Darin Okuyama of NASA ARC for providing this workaround.
+X
+X-- James A. Woods (ames!jaw)
+X   NASA Ames Research Center
+X
+XP.S.  
+XThough Crays are not at their best pushing bytes, the timing difference
+Xis even more exaggerated with heavier regexpr processing, to wit:
+X
+X	time ./egrep -i 'as.*Trian' web2
+X	...
+X	0.7677u 0.0769s 0:01 44%
+Xvs.
+X	time /usr/bin/egrep -i 'as.*Trian' web2
+X	...
+X	16.1327u 0.1379s 0:32 49%
+X
+Xwhich is a mite unfair given a known System 5 egrep -i gaffe.  You get
+Xextra credit for vectorizing the inner loop of the Boyer/Moore/Gosper
+Xcode, though changing all chars to ints might help also.
+END_OF_FILE
+if test 2730 -ne `wc -c <'README.cray'`; then
+    echo shar: \"'README.cray'\" unpacked with wrong size!
+fi
+# end of 'README.cray'
+fi
+if test -f 'alloca.c' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'alloca.c'\"
+else
+echo shar: Extracting \"'alloca.c'\" \(5090 characters\)
+sed "s/^X//" >'alloca.c' <<'END_OF_FILE'
+X/*
+X	alloca -- (mostly) portable public-domain implementation -- D A Gwyn
+X
+X	This implementation of the PWB library alloca() function,
+X	which is used to allocate space off the run-time stack so
+X	that it is automatically reclaimed upon procedure exit, 
+X	was inspired by discussions with J. Q. Johnson of Cornell.
+X
+X	It should work under any C implementation that uses an
+X	actual procedure stack (as opposed to a linked list of
+X	frames).  There are some preprocessor constants that can
+X	be defined when compiling for your specific system, for
+X	improved efficiency; however, the defaults should be okay.
+X
+X	The general concept of this implementation is to keep
+X	track of all alloca()-allocated blocks, and reclaim any
+X	that are found to be deeper in the stack than the current
+X	invocation.  This heuristic does not reclaim storage as
+X	soon as it becomes invalid, but it will do so eventually.
+X
+X	As a special case, alloca(0) reclaims storage without
+X	allocating any.  It is a good idea to use alloca(0) in
+X	your main control loop, etc. to force garbage collection.
+X*/
+X#ifndef lint
+Xstatic char	SCCSid[] = "@(#)alloca.c	1.1";	/* for the "what" utility */
+X#endif
+X
+X#ifdef emacs
+X#include "config.h"
+X#ifdef static
+X/* actually, only want this if static is defined as ""
+X   -- this is for usg, in which emacs must undefine static
+X   in order to make unexec workable
+X   */
+X#ifndef STACK_DIRECTION
+Xyou
+Xlose
+X-- must know STACK_DIRECTION at compile-time
+X#endif /* STACK_DIRECTION undefined */
+X#endif static
+X#endif emacs
+X
+X#ifdef X3J11
+Xtypedef void	*pointer;		/* generic pointer type */
+X#else
+Xtypedef char	*pointer;		/* generic pointer type */
+X#endif
+X
+X#define	NULL	0			/* null pointer constant */
+X
+Xextern void	free();
+Xextern pointer	malloc();
+X
+X/*
+X	Define STACK_DIRECTION if you know the direction of stack
+X	growth for your system; otherwise it will be automatically
+X	deduced at run-time.
+X
+X	STACK_DIRECTION > 0 => grows toward higher addresses
+X	STACK_DIRECTION < 0 => grows toward lower addresses
+X	STACK_DIRECTION = 0 => direction of growth unknown
+X*/
+X
+X#ifndef STACK_DIRECTION
+X#define	STACK_DIRECTION	0		/* direction unknown */
+X#endif
+X
+X#if STACK_DIRECTION != 0
+X
+X#define	STACK_DIR	STACK_DIRECTION	/* known at compile-time */
+X
+X#else	/* STACK_DIRECTION == 0; need run-time code */
+X
+Xstatic int	stack_dir;		/* 1 or -1 once known */
+X#define	STACK_DIR	stack_dir
+X
+Xstatic void
+Xfind_stack_direction (/* void */)
+X{
+X  static char	*addr = NULL;	/* address of first
+X				   `dummy', once known */
+X  auto char	dummy;		/* to get stack address */
+X
+X  if (addr == NULL)
+X    {				/* initial entry */
+X      addr = &dummy;
+X
+X      find_stack_direction ();	/* recurse once */
+X    }
+X  else				/* second entry */
+X    if (&dummy > addr)
+X      stack_dir = 1;		/* stack grew upward */
+X    else
+X      stack_dir = -1;		/* stack grew downward */
+X}
+X
+X#endif	/* STACK_DIRECTION == 0 */
+X
+X/*
+X	An "alloca header" is used to:
+X	(a) chain together all alloca()ed blocks;
+X	(b) keep track of stack depth.
+X
+X	It is very important that sizeof(header) agree with malloc()
+X	alignment chunk size.  The following default should work okay.
+X*/
+X
+X#ifndef	ALIGN_SIZE
+X#define	ALIGN_SIZE	sizeof(double)
+X#endif
+X
+Xtypedef union hdr
+X{
+X  char	align[ALIGN_SIZE];	/* to force sizeof(header) */
+X  struct
+X    {
+X      union hdr *next;		/* for chaining headers */
+X      char *deep;		/* for stack depth measure */
+X    } h;
+X} header;
+X
+X/*
+X	alloca( size ) returns a pointer to at least `size' bytes of
+X	storage which will be automatically reclaimed upon exit from
+X	the procedure that called alloca().  Originally, this space
+X	was supposed to be taken from the current stack frame of the
+X	caller, but that method cannot be made to work for some
+X	implementations of C, for example under Gould's UTX/32.
+X*/
+X
+Xstatic header *last_alloca_header = NULL; /* -> last alloca header */
+X
+Xpointer
+Xalloca (size)			/* returns pointer to storage */
+X     unsigned	size;		/* # bytes to allocate */
+X{
+X  auto char	probe;		/* probes stack depth: */
+X  register char	*depth = &probe;
+X
+X#if STACK_DIRECTION == 0
+X  if (STACK_DIR == 0)		/* unknown growth direction */
+X    find_stack_direction ();
+X#endif
+X
+X				/* Reclaim garbage, defined as all alloca()ed storage that
+X				   was allocated from deeper in the stack than currently. */
+X
+X  {
+X    register header	*hp;	/* traverses linked list */
+X
+X    for (hp = last_alloca_header; hp != NULL;)
+X      if (STACK_DIR > 0 && hp->h.deep > depth
+X	  || STACK_DIR < 0 && hp->h.deep < depth)
+X	{
+X	  register header	*np = hp->h.next;
+X
+X	  free ((pointer) hp);	/* collect garbage */
+X
+X	  hp = np;		/* -> next header */
+X	}
+X      else
+X	break;			/* rest are not deeper */
+X
+X    last_alloca_header = hp;	/* -> last valid storage */
+X  }
+X
+X  if (size == 0)
+X    return NULL;		/* no allocation required */
+X
+X  /* Allocate combined header + user data storage. */
+X
+X  {
+X    register pointer	new = malloc (sizeof (header) + size);
+X    /* address of header */
+X
+X    ((header *)new)->h.next = last_alloca_header;
+X    ((header *)new)->h.deep = depth;
+X
+X    last_alloca_header = (header *)new;
+X
+X    /* User storage begins just after header. */
+X
+X    return (pointer)((char *)new + sizeof(header));
+X  }
+X}
+END_OF_FILE
+if test 5090 -ne `wc -c <'alloca.c'`; then
+    echo shar: \"'alloca.c'\" unpacked with wrong size!
+fi
+# end of 'alloca.c'
+fi
+if test -f 'grep.man' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'grep.man'\"
+else
+echo shar: Extracting \"'grep.man'\" \(6853 characters\)
+sed "s/^X//" >'grep.man' <<'END_OF_FILE'
+X.TH GREP 1 "1988 December 13" "GNU Project"
+X.UC 4
+X.SH NAME
+Xgrep, egrep \- print lines matching a regular expression
+X.SH SYNOPSIS
+X.B grep
+X[
+X.B \-CVbchilnsvwx
+X]
+X[
+X.B \-\c
+X.I num
+X]
+X[
+X.B \-AB
+X.I num
+X]
+X[ [
+X.B \-e
+X]
+X.I expr
+X|
+X.B \-f
+X.I file
+X] [
+X.I "files ..."
+X]
+X.SH DESCRIPTION
+X.I Grep
+Xsearches the files listed in the arguments (or standard
+Xinput if no files are given) for all lines that contain a match for
+Xthe given
+X.IR expr .
+XIf any lines match, they are printed.
+X.PP
+XAlso, if any matches were found,
+X.I grep
+Xwill exit with a status of 0, but if no matches were found it will exit
+Xwith a status of 1.  This is useful for building shell scripts that
+Xuse
+X.I grep
+Xas a condition for, for example, the
+X.I if
+Xstatement.
+X.PP
+XWhen invoked as
+X.I egrep
+Xthe syntax of the
+X.I expr
+Xis slightly different; See below.
+X.br
+X.SH "REGULAR EXPRESSIONS"
+X.RS 2.5i
+X.ta 1i; 2i
+X.sp
+X.ti -2.0i
+X(grep)	(egrep)		(explanation)
+X.sp
+X.ti -2.0i
+X\fIc\fP	\fIc\fP	a single (non-meta) character matches itself.
+X.sp
+X.ti -2.0i
+X\&.	.	matches any single character except newline.
+X.sp
+X.ti -2.0i
+X\\?	?	postfix operator; preceeding item is optional.
+X.sp
+X.ti -2.0i
+X\(**	\(**	postfix operator; preceeding item 0 or
+Xmore times.
+X.sp
+X.ti -2.0i
+X\\+	+	postfix operator; preceeding item 1 or
+Xmore times.
+X.sp
+X.ti -2.0i
+X\\|	|	infix operator; matches either
+Xargument.
+X.sp
+X.ti -2.0i
+X^	^	matches the empty string at the beginning of a line.
+X.sp
+X.ti -2.0i
+X$	$	matches the empty string at the end of a line.
+X.sp
+X.ti -2.0i
+X\\<	\\<	matches the empty string at the beginning of a word.
+X.sp
+X.ti -2.0i
+X\\>	\\>	matches the empty string at the end of a word.
+X.sp
+X.ti -2.0i
+X[\fIchars\fP]	[\fIchars\fP]	match any character in the given class; if the
+Xfirst character after [ is ^, match any character
+Xnot in the given class; a range of characters may
+Xbe specified by \fIfirst\-last\fP; for example, \\W
+X(below) is equivalent to the class [^A\-Za\-z0\-9]
+X.sp
+X.ti -2.0i
+X\\( \\)	( )	parentheses are used to override operator precedence.
+X.sp
+X.ti -2.0i
+X\\\fIdigit\fP	\\\fIdigit\fP	\\\fIn\fP matches a repeat of the text
+Xmatched earlier in the regexp by the subexpression inside the nth
+Xopening parenthesis.
+X.sp
+X.ti -2.0i
+X\\	\\	any special character may be preceded
+Xby a backslash to match it literally.
+X.sp
+X.ti -2.0i
+X(the following are for compatibility with GNU Emacs)
+X.sp
+X.ti -2.0i
+X\\b	\\b	matches the empty string at the edge of a word.
+X.sp
+X.ti -2.0i
+X\\B	\\B	matches the empty string if not at the edge of a word.
+X.sp
+X.ti -2.0i
+X\\w	\\w	matches word-constituent characters (letters & digits).
+X.sp
+X.ti -2.0i
+X\\W	\\W	matches characters that are not word-constituent.
+X.RE
+X.PP
+XOperator precedence is (highest to lowest) ?, \(**, and +, concatenation,
+Xand finally |.  All other constructs are syntactically identical to
+Xnormal characters.  For the truly interested, the file dfa.c describes
+X(and implements) the exact grammar understood by the parser.
+X.SH OPTIONS
+X.TP
+X.BI \-A " num"
+Xprint <num> lines of context after every matching line
+X.TP
+X.BI \-B " num"
+Xprint
+X.I num
+Xlines of context before every matching line
+X.TP
+X.B \-C
+Xprint 2 lines of context on each side of every match
+X.TP
+X.BI \- num
+Xprint
+X.I num
+Xlines of context on each side of every match
+X.TP
+X.B \-V
+Xprint the version number on the diagnostic output
+X.TP
+X.B \-b
+Xprint every match preceded by its byte offset
+X.TP
+X.B \-c
+Xprint a total count of matching lines only
+X.TP
+X.BI \-e " expr"
+Xsearch for
+X.IR expr ;
+Xuseful if
+X.I expr
+Xbegins with \-
+X.TP
+X.BI \-f " file"
+Xsearch for the expression contained in
+X.I file
+X.TP
+X.B \-h
+Xdon't display filenames on matches
+X.TP
+X.B \-i
+Xignore case difference when comparing strings
+X.TP
+X.B \-l
+Xlist files containing matches only
+X.TP
+X.B \-n
+Xprint each match preceded by its line number
+X.TP
+X.B \-s
+Xrun silently producing no output except error messages
+X.TP
+X.B \-v
+Xprint only lines that contain no matches for the <expr>
+X.TP
+X.B \-w
+Xprint only lines where the match is a complete word
+X.TP
+X.B \-x
+Xprint only lines where the match is a whole line
+X.SH "SEE ALSO"
+Xemacs(1), ed(1), sh(1),
+X.I "GNU Emacs Manual"
+X.SH INCOMPATIBILITIES
+XThe following incompatibilities with UNIX
+X.I grep
+Xexist:
+X.PP
+X.RS 0.5i
+XThe context-dependent meaning of \(** is not quite the same (grep only).
+X.PP
+X.B \-b
+Xprints a byte offset instead of a block offset.
+X.PP
+XThe {\fIm,n\fP} construct of System V grep is not implemented.
+X.PP
+X.SH BUGS
+XGNU \fIe?grep\fP has been thoroughly debugged and tested by several people
+Xover a period of several months; we think it's a reliable beast or we
+Xwouldn't distribute it.  If by some fluke of the universe you discover
+Xa bug, send a detailed description (including options, regular
+Xexpressions, and a copy of an input file that can reproduce it) to me,
+Xmike@wheaties.ai.mit.edu.
+X.PP
+XThere is also a newsgroup, gnu.utils.bug, for reporting FSF utility
+Xprograms' bugs and fixes; but before reporting something as a bug,
+Xplease try to be sure that it really is a bug, not a misunderstanding
+Xor a deliberate feature.  Also, include the version number of the
+Xutility program you are running in \fIevery\fR bug report that you
+Xsend in.  Please do not send anything but bug reports to this
+Xnewsgroup.
+X.PP
+X.SH AVAILABILITY
+X.PP
+XGNU
+X.I grep
+Xis free; anyone may redistribute copies of 
+X.I grep
+Xto
+Xanyone under the terms stated in the 
+XGNU General Public License,
+Xa copy of which may be found in each copy of 
+X.IR "GNU Emacs" .
+XSee also the comment at the beginning of the source code file grep.c.
+X.PP
+XCopies of GNU
+X.I grep
+Xmay sometimes be received packaged with distributions of Unix systems,
+Xbut it is never included in the scope of any license covering those
+Xsystems.  Such inclusion violates the terms on which distribution
+Xis permitted.  In fact, the primary purpose of the General Public
+XLicense is to prohibit anyone from attaching any other restrictions
+Xto redistribution of any of the Free Software Foundation programs.
+X.SH AUTHORS
+XMike Haertel wrote the deterministic regexp code and the bulk
+Xof the program.
+X.PP
+XJames A. Woods is responsible for the hybridized search strategy
+Xof using Boyer-Moore-Gosper fixed-string search as a filter
+Xbefore calling the general regexp matcher.
+X.PP
+XArthur David Olson contributed code that finds fixed strings for
+Xthe aforementioned BMG search for a large class of regexps.
+X.PP
+XRichard Stallman wrote the backtracking regexp matcher that is
+Xused for \\fIdigit\fP backreferences, as well as the getopt that
+Xis provided for 4.2BSD sites.  The backtracking matcher was
+Xoriginally written for GNU Emacs.
+X.PP
+XD. A. Gwyn wrote the C alloca emulation that is provided so
+XSystem V machines can run this program.  (Alloca is used only
+Xby RMS' backtracking matcher, and then only rarely, so there
+Xis no loss if your machine doesn't have a "real" alloca.)
+X.PP
+XScott Anderson and Henry Spencer designed the regression tests
+Xused in the "regress" script.
+X.PP
+XPaul Placeway wrote the original version of this manual page.
+END_OF_FILE
+if test 6853 -ne `wc -c <'grep.man'`; then
+    echo shar: \"'grep.man'\" unpacked with wrong size!
+fi
+# end of 'grep.man'
+fi
+if test -f 'getopt.c' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'getopt.c'\"
+else
+echo shar: Extracting \"'getopt.c'\" \(16596 characters\)
+sed "s/^X//" >'getopt.c' <<'END_OF_FILE'
+X/* Getopt for GNU.
+X   Copyright (C) 1987 Free Software Foundation, Inc.
+X
+X		       NO WARRANTY
+X
+X  BECAUSE THIS PROGRAM IS LICENSED FREE OF CHARGE, WE PROVIDE ABSOLUTELY
+XNO WARRANTY, TO THE EXTENT PERMITTED BY APPLICABLE STATE LAW.  EXCEPT
+XWHEN OTHERWISE STATED IN WRITING, FREE SOFTWARE FOUNDATION, INC,
+XRICHARD M. STALLMAN AND/OR OTHER PARTIES PROVIDE THIS PROGRAM "AS IS"
+XWITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
+XBUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND
+XFITNESS FOR A PARTICULAR PURPOSE.  THE ENTIRE RISK AS TO THE QUALITY
+XAND PERFORMANCE OF THE PROGRAM IS WITH YOU.  SHOULD THE PROGRAM PROVE
+XDEFECTIVE, YOU ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR
+XCORRECTION.
+X
+X IN NO EVENT UNLESS REQUIRED BY APPLICABLE LAW WILL RICHARD M.
+XSTALLMAN, THE FREE SOFTWARE FOUNDATION, INC., AND/OR ANY OTHER PARTY
+XWHO MAY MODIFY AND REDISTRIBUTE THIS PROGRAM AS PERMITTED BELOW, BE
+XLIABLE TO YOU FOR DAMAGES, INCLUDING ANY LOST PROFITS, LOST MONIES, OR
+XOTHER SPECIAL, INCIDENTAL OR CONSEQUENTIAL DAMAGES ARISING OUT OF THE
+XUSE OR INABILITY TO USE (INCLUDING BUT NOT LIMITED TO LOSS OF DATA OR
+XDATA BEING RENDERED INACCURATE OR LOSSES SUSTAINED BY THIRD PARTIES OR
+XA FAILURE OF THE PROGRAM TO OPERATE WITH ANY OTHER PROGRAMS) THIS
+XPROGRAM, EVEN IF YOU HAVE BEEN ADVISED OF THE POSSIBILITY OF SUCH
+XDAMAGES, OR FOR ANY CLAIM BY ANY OTHER PARTY.
+X
+X		GENERAL PUBLIC LICENSE TO COPY
+X
+X  1. You may copy and distribute verbatim copies of this source file
+Xas you receive it, in any medium, provided that you conspicuously and
+Xappropriately publish on each copy a valid copyright notice "Copyright
+X (C) 1987 Free Software Foundation, Inc."; and include following the
+Xcopyright notice a verbatim copy of the above disclaimer of warranty
+Xand of this License.  You may charge a distribution fee for the
+Xphysical act of transferring a copy.
+X
+X  2. You may modify your copy or copies of this source file or
+Xany portion of it, and copy and distribute such modifications under
+Xthe terms of Paragraph 1 above, provided that you also do the following:
+X
+X    a) cause the modified files to carry prominent notices stating
+X    that you changed the files and the date of any change; and
+X
+X    b) cause the whole of any work that you distribute or publish,
+X    that in whole or in part contains or is a derivative of this
+X    program or any part thereof, to be licensed at no charge to all
+X    third parties on terms identical to those contained in this
+X    License Agreement (except that you may choose to grant more
+X    extensive warranty protection to third parties, at your option).
+X
+X    c) You may charge a distribution fee for the physical act of
+X    transferring a copy, and you may at your option offer warranty
+X    protection in exchange for a fee.
+X
+X  3. You may copy and distribute this program or any portion of it in
+Xcompiled, executable or object code form under the terms of Paragraphs
+X1 and 2 above provided that you do the following:
+X
+X    a) cause each such copy to be accompanied by the
+X    corresponding machine-readable source code, which must
+X    be distributed under the terms of Paragraphs 1 and 2 above; or,
+X
+X    b) cause each such copy to be accompanied by a
+X    written offer, with no time limit, to give any third party
+X    free (except for a nominal shipping charge) a machine readable
+X    copy of the corresponding source code, to be distributed
+X    under the terms of Paragraphs 1 and 2 above; or,
+X
+X    c) in the case of a recipient of this program in compiled, executable
+X    or object code form (without the corresponding source code) you
+X    shall cause copies you distribute to be accompanied by a copy
+X    of the written offer of source code which you received along
+X    with the copy you received.
+X
+X  4. You may not copy, sublicense, distribute or transfer this program
+Xexcept as expressly provided under this License Agreement.  Any attempt
+Xotherwise to copy, sublicense, distribute or transfer this program is void and
+Xyour rights to use the program under this License agreement shall be
+Xautomatically terminated.  However, parties who have received computer
+Xsoftware programs from you with this License Agreement will not have
+Xtheir licenses terminated so long as such parties remain in full compliance.
+X
+X  5. If you wish to incorporate parts of this program into other free
+Xprograms whose distribution conditions are different, write to the Free
+XSoftware Foundation at 675 Mass Ave, Cambridge, MA 02139.  We have not yet
+Xworked out a simple rule that can be stated here, but we will often permit
+Xthis.  We will be guided by the two goals of preserving the free status of
+Xall derivatives of our free software and of promoting the sharing and reuse of
+Xsoftware.
+X
+X
+XIn other words, you are welcome to use, share and improve this program.
+XYou are forbidden to forbid anyone else to use, share and improve
+Xwhat you give them.   Help stamp out software-hoarding!  */
+X
+X/* This version of `getopt' appears to the caller like standard Unix `getopt'
+X   but it behaves differently for the user, since it allows the user
+X   to intersperse the options with the other arguments.
+X
+X   As `getopt' works, it permutes the elements of `argv' so that,
+X   when it is done, all the options precede everything else.  Thus
+X   all application programs are extended to handle flexible argument order.
+X
+X   Setting the environment variable _POSIX_OPTION_ORDER disables permutation.
+X   Then the behavior is completely standard.
+X
+X   GNU application programs can use a third alternative mode in which
+X   they can distinguish the relative order of options and other arguments.  */
+X
+X#include <stdio.h>
+X
+X#ifdef sparc
+X#include <alloca.h>
+X#endif
+X#ifdef USG
+X#define bcopy(s, d, l) memcpy((d), (s), (l))
+X#endif
+X
+X/* For communication from `getopt' to the caller.
+X   When `getopt' finds an option that takes an argument,
+X   the argument value is returned here.
+X   Also, when `ordering' is RETURN_IN_ORDER,
+X   each non-option ARGV-element is returned here.  */
+X
+Xchar *optarg = 0;
+X
+X/* Index in ARGV of the next element to be scanned.
+X   This is used for communication to and from the caller
+X   and for communication between successive calls to `getopt'.
+X
+X   On entry to `getopt', zero means this is the first call; initialize.
+X
+X   When `getopt' returns EOF, this is the index of the first of the
+X   non-option elements that the caller should itself scan.
+X
+X   Otherwise, `optind' communicates from one call to the next
+X   how much of ARGV has been scanned so far.  */
+X
+Xint optind = 0;
+X
+X/* The next char to be scanned in the option-element
+X   in which the last option character we returned was found.
+X   This allows us to pick up the scan where we left off.
+X
+X   If this is zero, or a null string, it means resume the scan
+X   by advancing to the next ARGV-element.  */
+X
+Xstatic char *nextchar;
+X
+X/* Callers store zero here to inhibit the error message
+X   for unrecognized options.  */
+X
+Xint opterr = 1;
+X
+X/* Describe how to deal with options that follow non-option ARGV-elements.
+X
+X   UNSPECIFIED means the caller did not specify anything;
+X   the default is then REQUIRE_ORDER if the environment variable
+X   _OPTIONS_FIRST is defined, PERMUTE otherwise.
+X
+X   REQUIRE_ORDER means don't recognize them as options.
+X   Stop option processing when the first non-option is seen.
+X   This is what Unix does.
+X
+X   PERMUTE is the default.  We permute the contents of `argv' as we scan,
+X   so that eventually all the options are at the end.  This allows options
+X   to be given in any order, even with programs that were not written to
+X   expect this.
+X
+X   RETURN_IN_ORDER is an option available to programs that were written
+X   to expect options and other ARGV-elements in any order and that care about
+X   the ordering of the two.  We describe each non-option ARGV-element
+X   as if it were the argument of an option with character code zero.
+X   Using `-' as the first character of the list of option characters
+X   requests this mode of operation.
+X
+X   The special argument `--' forces an end of option-scanning regardless
+X   of the value of `ordering'.  In the case of RETURN_IN_ORDER, only
+X   `--' can cause `getopt' to return EOF with `optind' != ARGC.  */
+X
+Xstatic enum { REQUIRE_ORDER, PERMUTE, RETURN_IN_ORDER } ordering;
+X
+X/* Handle permutation of arguments.  */
+X
+X/* Describe the part of ARGV that contains non-options that have
+X   been skipped.  `first_nonopt' is the index in ARGV of the first of them;
+X   `last_nonopt' is the index after the last of them.  */
+X
+Xstatic int first_nonopt;
+Xstatic int last_nonopt;
+X
+X/* Exchange two adjacent subsequences of ARGV.
+X   One subsequence is elements [first_nonopt,last_nonopt)
+X    which contains all the non-options that have been skipped so far.
+X   The other is elements [last_nonopt,optind), which contains all
+X    the options processed since those non-options were skipped.
+X
+X   `first_nonopt' and `last_nonopt' are relocated so that they describe
+X    the new indices of the non-options in ARGV after they are moved.  */
+X
+Xstatic void
+Xexchange (argv)
+X     char **argv;
+X{
+X  int nonopts_size
+X    = (last_nonopt - first_nonopt) * sizeof (char *);
+X  char **temp = (char **) alloca (nonopts_size);
+X
+X  /* Interchange the two blocks of data in argv.  */
+X
+X  bcopy (&argv[first_nonopt], temp, nonopts_size);
+X  bcopy (&argv[last_nonopt], &argv[first_nonopt],
+X	 (optind - last_nonopt) * sizeof (char *));
+X  bcopy (temp, &argv[first_nonopt + optind - last_nonopt],
+X	 nonopts_size);
+X
+X  /* Update records for the slots the non-options now occupy.  */
+X
+X  first_nonopt += (optind - last_nonopt);
+X  last_nonopt = optind;
+X}
+X
+X/* Scan elements of ARGV (whose length is ARGC) for option characters
+X   given in OPTSTRING.
+X
+X   If an element of ARGV starts with '-', and is not exactly "-" or "--",
+X   then it is an option element.  The characters of this element
+X   (aside from the initial '-') are option characters.  If `getopt'
+X   is called repeatedly, it returns successively each of theoption characters
+X   from each of the option elements.
+X
+X   If `getopt' finds another option character, it returns that character,
+X   updating `optind' and `nextchar' so that the next call to `getopt' can
+X   resume the scan with the following option character or ARGV-element.
+X
+X   If there are no more option characters, `getopt' returns `EOF'.
+X   Then `optind' is the index in ARGV of the first ARGV-element
+X   that is not an option.  (The ARGV-elements have been permuted
+X   so that those that are not options now come last.)
+X
+X   OPTSTRING is a string containing the legitimate option characters.
+X   A colon in OPTSTRING means that the previous character is an option
+X   that wants an argument.  The argument is taken from the rest of the
+X   current ARGV-element, or from the following ARGV-element,
+X   and returned in `optarg'.
+X
+X   If an option character is seen that is not listed in OPTSTRING,
+X   return '?' after printing an error message.  If you set `opterr' to
+X   zero, the error message is suppressed but we still return '?'.
+X
+X   If a char in OPTSTRING is followed by a colon, that means it wants an arg,
+X   so the following text in the same ARGV-element, or the text of the following
+X   ARGV-element, is returned in `optarg.  Two colons mean an option that
+X   wants an optional arg; if there is text in the current ARGV-element,
+X   it is returned in `optarg'.
+X
+X   If OPTSTRING starts with `-', it requests a different method of handling the
+X   non-option ARGV-elements.  See the comments about RETURN_IN_ORDER, above.  */
+X
+Xint
+Xgetopt (argc, argv, optstring)
+X     int argc;
+X     char **argv;
+X     char *optstring;
+X{
+X  /* Initialize the internal data when the first call is made.
+X     Start processing options with ARGV-element 1 (since ARGV-element 0
+X     is the program name); the sequence of previously skipped
+X     non-option ARGV-elements is empty.  */
+X
+X  if (optind == 0)
+X    {
+X      first_nonopt = last_nonopt = optind = 1;
+X
+X      nextchar = 0;
+X
+X      /* Determine how to handle the ordering of options and nonoptions.  */
+X
+X      if (optstring[0] == '-')
+X	ordering = RETURN_IN_ORDER;
+X      else if (getenv ("_POSIX_OPTION_ORDER") != 0)
+X	ordering = REQUIRE_ORDER;
+X      else
+X	ordering = PERMUTE;
+X    }
+X
+X  if (nextchar == 0 || *nextchar == 0)
+X    {
+X      if (ordering == PERMUTE)
+X	{
+X	  /* If we have just processed some options following some non-options,
+X	     exchange them so that the options come first.  */
+X
+X	  if (first_nonopt != last_nonopt && last_nonopt != optind)
+X	    exchange (argv);
+X	  else if (last_nonopt != optind)
+X	    first_nonopt = optind;
+X
+X	  /* Now skip any additional non-options
+X	     and extend the range of non-options previously skipped.  */
+X
+X	  while (optind < argc
+X		 && (argv[optind][0] != '-'
+X		     || argv[optind][1] == 0))
+X	    optind++;
+X	  last_nonopt = optind;
+X	}
+X
+X      /* Special ARGV-element `--' means premature end of options.
+X	 Skip it like a null option,
+X	 then exchange with previous non-options as if it were an option,
+X	 then skip everything else like a non-option.  */
+X
+X      if (optind != argc && !strcmp (argv[optind], "--"))
+X	{
+X	  optind++;
+X
+X	  if (first_nonopt != last_nonopt && last_nonopt != optind)
+X	    exchange (argv);
+X	  else if (first_nonopt == last_nonopt)
+X	    first_nonopt = optind;
+X	  last_nonopt = argc;
+X
+X	  optind = argc;
+X	}
+X
+X      /* If we have done all the ARGV-elements, stop the scan
+X	 and back over any non-options that we skipped and permuted.  */
+X
+X      if (optind == argc)
+X	{
+X	  /* Set the next-arg-index to point at the non-options
+X	     that we previously skipped, so the caller will digest them.  */
+X	  if (first_nonopt != last_nonopt)
+X	    optind = first_nonopt;
+X	  return EOF;
+X	}
+X	 
+X      /* If we have come to a non-option and did not permute it,
+X	 either stop the scan or describe it to the caller and pass it by.  */
+X
+X      if (argv[optind][0] != '-' || argv[optind][1] == 0)
+X	{
+X	  if (ordering == REQUIRE_ORDER)
+X	    return EOF;
+X	  optarg = argv[optind++];
+X	  return 0;
+X	}
+X
+X      /* We have found another option-ARGV-element.
+X	 Start decoding its characters.  */
+X
+X      nextchar = argv[optind] + 1;
+X    }
+X
+X  /* Look at and handle the next option-character.  */
+X
+X  {
+X    char c = *nextchar++;
+X    char *temp = (char *) index (optstring, c);
+X
+X    /* Increment `optind' when we start to process its last character.  */
+X    if (*nextchar == 0)
+X      optind++;
+X
+X    if (temp == 0 || c == ':')
+X      {
+X	if (opterr != 0)
+X	  {
+X	    if (c < 040 || c >= 0177)
+X	      fprintf (stderr, "%s: unrecognized option, character code 0%o\n",
+X		       argv[0], c);
+X	    else
+X	      fprintf (stderr, "%s: unrecognized option `-%c'\n",
+X		       argv[0], c);
+X	  }
+X	return '?';
+X      }
+X    if (temp[1] == ':')
+X      {
+X	if (temp[2] == ':')
+X	  {
+X	    /* This is an option that accepts an argument optionally.  */
+X	    if (*nextchar != 0)
+X	      {
+X	        optarg = nextchar;
+X		optind++;
+X	      }
+X	    else
+X	      optarg = 0;
+X	    nextchar = 0;
+X	  }
+X	else
+X	  {
+X	    /* This is an option that requires an argument.  */
+X	    if (*nextchar != 0)
+X	      {
+X		optarg = nextchar;
+X		/* If we end this ARGV-element by taking the rest as an arg,
+X		   we must advance to the next element now.  */
+X		optind++;
+X	      }
+X	    else if (optind == argc)
+X	      {
+X		if (opterr != 0)
+X		  fprintf (stderr, "%s: no argument for `-%c' option\n",
+X			   argv[0], c);
+X		optarg = 0;
+X	      }
+X	    else
+X	      /* We already incremented `optind' once;
+X		 increment it again when taking next ARGV-elt as argument.  */
+X	      optarg = argv[optind++];
+X	    nextchar = 0;
+X	  }
+X      }
+X    return c;
+X  }
+X}
+X
+X#ifdef TEST
+X
+X/* Compile with -DTEST to make an executable for use in testing
+X   the above definition of `getopt'.  */
+X
+Xint
+Xmain (argc, argv)
+X     int argc;
+X     char **argv;
+X{
+X  char c;
+X  int digit_optind = 0;
+X
+X  while (1)
+X    {
+X      int this_option_optind = optind;
+X      if ((c = getopt (argc, argv, "abc:d:0123456789")) == EOF)
+X	break;
+X
+X      switch (c)
+X	{
+X	case '0':
+X	case '1':
+X	case '2':
+X	case '3':
+X	case '4':
+X	case '5':
+X	case '6':
+X	case '7':
+X	case '8':
+X	case '9':
+X	  if (digit_optind != 0 && digit_optind != this_option_optind)
+X	    printf ("digits occur in two different argv-elements.\n");
+X	  digit_optind = this_option_optind;
+X	  printf ("option %c\n", c);
+X	  break;
+X
+X	case 'a':
+X	  printf ("option a\n");
+X	  break;
+X
+X	case 'b':
+X	  printf ("option b\n");
+X	  break;
+X
+X	case 'c':
+X	  printf ("option c with value `%s'\n", optarg);
+X	  break;
+X
+X	case '?':
+X	  break;
+X
+X	default:
+X	  printf ("?? getopt returned character code 0%o ??\n", c);
+X	}
+X    }
+X
+X  if (optind < argc)
+X    {
+X      printf ("non-option ARGV-elements: ");
+X      while (optind < argc)
+X	printf ("%s ", argv[optind++]);
+X      printf ("\n");
+X    }
+X
+X  return 0;
+X}
+X
+X#endif /* TEST */
+END_OF_FILE
+if test 16596 -ne `wc -c <'getopt.c'`; then
+    echo shar: \"'getopt.c'\" unpacked with wrong size!
+fi
+# end of 'getopt.c'
+fi
+echo shar: End of shell archive.
+exit 0
+
+-- 
+Please send comp.sources.unix-related mail to rsalz@uunet.uu.net.

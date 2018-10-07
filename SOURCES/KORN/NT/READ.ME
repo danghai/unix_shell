@@ -1,0 +1,99 @@
+                                                    (steveh) 02/21/93
+
+The NT Shell - ntsh.exe (say: 'Nietzsche')
+
+----------------------------------------------------------------------
+
+OBJECTIVE:
+
+    To ease the burden of going from a cryptic, money losing
+    operating system that we have loved since college to a
+    cryptic, money-making operating system that we have hated
+    since college. Please note the money-making part.
+
+    ntsh.exe, as it exists right now is is little more than a
+    command interpreter. You will quickly find some missing
+    pieces such as filename expansion and pipes, but i think
+    you will like it more than cmd.exe. Garage software is
+    meant to be living, growing software and I would like to
+    see ntsh mature into a robust win32 application.
+
+
+REALITIES:
+
+    I wrote ntsh last weekend and it is not finished. If I get
+    enough positive response, I will try add at lease one major
+    feature or utility a week. If you encounter troubles with
+    ntsh or any related utilities, try to work through them or
+    drop me an e-mail note if you can't figure it out. Just keep
+    one thing in mind whenever you are using my programs:
+
+        "The price is right".
+
+
+DOES:
+
+    + ls.exe --
+        dir is a cmd.exe builtin which does'nt do us much
+        good for ntsh. this was my first attempt at win32 routines
+        and is very rough (try passing it the -l option to see
+        what i mean).
+
+        Unfortunatly, cmd.exe has alot of builtin commands that
+        make replacing it a much larger job than it seems. These
+        utilities are easy to write and I can keep posting them
+        if I get any response.
+
+
+    + '$' variables --
+        Ntsh will evaluate dollar values given on the command line.
+        It also supports the standard shell builtins such as
+        echo, export and set. Please note that ntsh will follow
+        a bourne/korn shell function set, variable assignments
+        will be in the following conventions:
+
+            blah="this is cool!"
+            export blah
+
+        will export 'blah' with the value "this is cool!". sorry
+        csh users.
+
+        NOTE: Ntsh is case sensitive, you may recieve some wierness
+        regarding this (on my machine, PATH is really Path; i don't
+        know why).
+
+    + Navigation:
+        Ntsh will accept forward slashes as directory tokens. Ntsh
+        will also evaluate any drive letters you pass it on the
+        fly while changing the directory. October beta NT cmd.exe
+        will not allow this. Ntsh will also accept brain-dammaged
+        keys (back slashes) in directory specifications:
+
+            cd d:\users/default\work/lib
+
+
+TODO's:
+
+    - Statement -- follow Korn shell guidelines closely.
+
+    + File and directory wildcard expansion.
+    + Fix ls (mainly interested in permission settings??).
+    + Write chmod (should be a easy once I figured out ls).
+    + Multiple command support (leading into shell scripting).
+    + Add redirection and pipes.
+    + Ability to read/execute shell scripts.
+    + Finish cp (almost made it out for this rel. found major bug).
+    + Mkdir/rmdir programs.
+    + Pwd.
+    + The rest of the stuff I forgot.
+
+If I am missing anything, or my priorities are off please drop
+me a note at ...!uunet!4gen!steveh. Please report any non-obvious
+bugs and let me know what you think. I am going to be doing this
+stuff anyway and people are finding it valuable; i might as well
+give it away.
+
+I'll do the shell, someone else do vi...
+
+
+Steven T. Henderson

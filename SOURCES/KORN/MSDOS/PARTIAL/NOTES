@@ -1,0 +1,259 @@
+RELEASE 2.3	June 10th 1994		RELEASE 2.3	June 10th 1994
+
+Version 2.3 Release Notes:
+
+Release 2.3 has a few bugs fixed, already, and some new functionality.
+
+Changes Functionality:
+
+230 Beta Release
+
+    1.	Fix bug in select code with put the wrong value in ${name}.
+
+    2.  Fix bug read command which stopped prompt from being displayed. 
+
+    3.  Changing EDITOR or VISUAL should update line edit mode.
+
+    4.  Fix bug with semicolon after a [[..]] on if construct.
+
+    5.  Fix bug in exec >{filename} which returns incorrect value.
+
+    6.  Add PATHEXTS functionality to allow a function to be invoked based
+	on a file extension.
+
+    7.  Fix bug in Here Documents so that the list is correctly released.
+
+    8.  Fix bug in . program which causes re-direction to be lost.
+
+    9.  Fix \a in VI edit mode so that it generates \a and not a.
+
+   10.  Fix WATCOM C library so that stat on . in the root works correctly.
+
+   11.  Enable extended keyboards in non-DESQview mode
+
+   12.  Fix signal bug on v command in VI editing mode.
+
+   13.  Get SHELL set up correctly for MSDOS & OS/2.
+
+   14.  Debug EMACS editing mode.
+
+231 Beta Release
+
+   15.  Fix bug in stdargv code which does not handle quotes and escaped
+        quotes correctly (actually fixed in 230, but not reported as fixed).
+
+   16.  Allow environment variable ETCPROFILE to specify the location on
+        the /etc/profile script.
+   
+   17.  Fix TurboC 2.0 build
+
+   18.  Fix bug in mail string handling
+
+   19.  Fix bug in use of command line which falls to quote wildcards if
+        UNIX mode is defined.
+
+   20.  Temporary fix for TAB character in EMACS editing mode.
+
+232 Beta Release
+
+   21.  Fix two segement violations - file name completion (wrong include
+        files on development system); and very long paths.
+
+   22.  Started on NT port (5 versions!).  See Note 7 below
+
+   23.  Allow enable/disable of pipes as ttys (for EMACS under OS/2 and
+        presumably NT) via PipeTTY option in sh.ini or SH_ALLOWTTYPIPES in
+	the environment (either one set, enables pipes as ttys).
+
+   24.  Fix cursor so it shows insert mode for VI and EMACS.
+
+233 Beta Release
+
+   25.  Improve other O/S program detection and reporting.
+
+   26.  Allow specification of startup directory and environment variables
+        on command line.
+
+   27.  Allow DOS and OS/2 versions to auto-start Windows for Windows
+        programs.  This could be a real problem since detecting DOS only
+	programs can be difficult.
+
+   28.  Provide -t option to whence to tell user the program type.
+
+   29.  Add ignoretype attribute to extended line file to allow user to
+        tell DOS version to ignore the results of the executable file header
+        examination.  Some DOS programs have bad headers which make them
+	look like OS/2 programs.
+
+   30.  The shell tries to detect the underlying OS (Windows, OS/2 or NT).
+        We detect Windows using int 0x2f.  OS/2 from the OS version.  No way
+	of detected Win NT yet.  So add 'set -o os2' and 'set -o winnt' as a
+	temporary fix.
+
+234 Beta Release
+
+   31.  Fix bug in the checking of executable headers.  Some OS/2 with .com
+        extensions are actually .exe files.  So check for exe header, then
+	.com extension.
+
+   32.  Revisited #23.  Changed this to be a option in the ${EXTENDED_LINE}
+        file.  I think this only applies to EMACS on OS/2, set up the entry
+	for emacs in this file to include the option 'pipetty'.  For
+	example:
+
+	    emacs = pipetty
+
+   33.  Add option (quotewild) in the ${EXTENDED_LINE} to specify if wild
+        cards in parameters should be double quoted.  The default is not to.
+
+   34.  Fix bug in the sh.ini keycodes to EMACS function keys mapping.
+
+   35.  Fix bug in set -o 'option' which caused the loss of the editing
+   	mode.
+
+   36.  Fix bug in EMACS filename completion so that ignorecase is honoured.
+
+   37.  Fix bug in re-tracking of tracked aliases.
+
+   38.  Fix bug in SECONDS variable handling.
+
+   40.  Fix bug in array number expansion (like it didn't get done).
+
+   41.  Bring forward EMACS initialisation so that Bind will work in the
+	profiles.
+
+   42.  Fix bug in tracked aliases which resulted in \s in the file name instead
+	of /s.
+
+   43.  Allow non-function keys in sh.ini to be bound for emacs editing.
+
+   44.  Add some new options to the start command to allow some addition
+        parameters to be specified:
+
+	   -h|H inherit current or start up environment
+	   -b background
+	   -x related session
+	   -O [pm|dos] change the default parameters the shell uses to
+	   	       start a PM or DOS program
+	   -O [pm|dos] -D display the parameters the shell uses to start
+	   		  a PM or DOS program
+
+  45.  Fix some bugs in displaying functions.
+
+  46.  Fix syntax of while ... do ... done.
+
+  47.  Add catching of co-processes invokation and stop it at the moment.
+
+  48.  Update manual pages for everything except PATHEXTS
+
+  49.  Fix bug in starting Windows programs (and Windows) under DOS.
+
+  50.  Use STARTWINP to define how to start a windows app when running
+       under Windows.
+
+  51.  Fix bug in cd with CDPATH.  cd to . and .. should always go to the
+       current or parent directory, irrespective of the CDPATH value.
+
+  52.  EMX OS/2 port done
+
+  53.  Fix bug in reporting of 'program not found'
+
+235 Beta Release
+
+  54.  Fix bug setting variables read-only - like it won't let you.
+
+  55.  Fix bug in (( ... )), does not work.  Forgot to set string is inside
+       Double quotes.  Its still not quite right, but it works.  Try it in
+       a function and list the function to see a problem.
+
+  56.  Implement set -o which was missing.
+
+  57.  Fix bug in [[ ]] in functions.
+
+  58.  EMX DOS port started.
+
+  59.  Fix bug in Mail checking functionality.
+
+  60.  Fix bug in EMACS history search.
+
+  61.  Changed console detection for MSDOS.  Add check that /dev/con is the
+       console.  Otherwise, treate the stdin as a device. 
+
+  62.  Changes exec handling in MSDOS 16bit.  Now do a spawn and exit so
+       that all memory is available to the new process, in stead of having
+       a 2K Memory Control Block down memory allocated to the shell.
+    
+  63.  In a script, if #!program cannot be found, strip the path and try
+       that.
+
+  64.  Variables exported in a function, lose their export status on
+       completion of that function.
+
+Missing POSIX Shell functionality:
+
+    I've looked at three different version of ksh (under AIX, HP UX and ICL's
+    DN/X) and each one has something slightly different.  In general, I believe
+    the following functionality is missing from the shell, some of which can not
+    be implemented under either MSDOS or OS/2.
+
+    1.  Filename generation currently matches the Bourne and not the Korn shell
+
+    Missing, not supportable.
+
+    1.  The ulimit command - no MSDOS or OS/2 equivalent
+    2.  The bg and fg commands are not implemented - no equivalent
+	functionality.
+    3.  The set -p (disable $HOME/.profile processing) has not been implemented.
+    4.  The ~ at the start of a word only supports the $HOME, $PWD or $OLDPWD
+        substitutions.  There's no /etc/passwd.
+    5.  TMOUT is not implemented, what's functionality under MSDOS or OS/2 I
+	ask?
+    6.  jobs under MSDOS - HA!
+    7.  Co-processes.  Again, really difficult to implement under MSDOS
+        and OS/2 (I think).
+
+The following enhancements/bugs remain outstanding:
+
+    1.  Interrupting a swap at the wrong time may cause the shell to hang.
+	I've not been able to track this down.  I think it may be some funny
+	interaction with Quaterdesk's QEMM memory manager, since it does
+	not happen with any other memory manager.
+
+    2.  Under IBM's OS/2 C Set/2, the umask API does not work correctly.
+	umask (0) returns an error, when it should return the current
+	value.
+    
+    3.  Under WATCOM and OS/2, the DosQProcStatus API causes a core dump,
+	so the jobs function is disabled in versions built with WATCOM.
+	WATCOM have been informed - no response.  Use ps.exe instead.
+	The shell fex's ps.exe so if you use jobs, stick ps.exe in your
+	path.
+    
+    4.  Under OS/2 in 16-bit mode, the DosStartSession API causes the
+	system to died with dependent sessions.  Sessions are always
+	independent.  IBM (UK) have been informed - no response.  Microsoft
+	haven't.
+
+    5.  I've built and run the Borland Turbo C version, but not really done
+	extensive testing on it.  The main development and release compiler
+	remains Microsoft C5.1 (for MSDOS), C6.0 (for OS/2) NT SDK (for NT)
+	and WATCOM for the 32-bit versions.
+
+    6.  I've built and tested the OS/2 2.2 32-bit version using IBM C Set/2,
+	and extensively tested using that version.  However, I am no longer
+	in a position to build using this compiler.  Release 2.2 and later
+	have not been fully tested for the IBM C Set/2 OS/2 32-bit version.
+
+    7.  Windows NT.  I've run the 16-bit DOS version on NT.  The 32-bit
+	DOS version does not work.  A real NT version is 99% there -
+	jobs do not appear to work - WaitForSingleObject and cwait fail.
+	Any ideas?
+
+    8.  For a number of reasons, the EMX version cannot be used on DOS
+	(dup2 does not work reliably, spawn does not handle non-EMX apps).
+
+Thanks are due to all the people on the Internet who comment on, tested, put
+up with me, and generally 'bash'ed the shell about for their comments, fixes,
+tolerance etc. in testing release 2.3
+
+Ian Stewartson.

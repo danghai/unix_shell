@@ -1,0 +1,2611 @@
+From: Steve Baker (ice@judy.indstate.edu)
+Newsgroups: comp.sources.unix
+Subject: v26i168: ssh - Steve's SHell (a small csh-like shell), V1.7, Part02/04
+Date: 15 Apr 1993 22:51:50 -0700
+Approved: paul@vix.com
+Message-ID: <1qlhhm$kuq@gw.home.vix.com>
+
+Submitted-By: Steve Baker (ice@judy.indstate.edu)
+Posting-Number: Volume 26, Issue 168
+Archive-Name: ssh-1.7/part02
+
+#! /bin/sh
+# This is a shell archive.  Remove anything before this line, then unpack
+# it by saving it into a file and typing "sh file".  To overwrite existing
+# files, type "sh file -c".  You can also feed this as standard input via
+# unshar, or by typing "sh <file", e.g..  If this archive is complete, you
+# will see the following message at the end:
+#		"End of archive 2 (of 4)."
+# Contents:  eval.c exe.c vars.c
+# Wrapped by vixie@gw.home.vix.com on Thu Apr 15 22:49:01 1993
+PATH=/bin:/usr/bin:/usr/ucb ; export PATH
+if test -f 'eval.c' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'eval.c'\"
+else
+echo shar: Extracting \"'eval.c'\" \(13497 characters\)
+sed "s/^X//" >'eval.c' <<'END_OF_FILE'
+X/* $Copyright:	$
+X * Copyright (c) 1991,1992,1993 by Steve Baker
+X * All rights reserved
+X *  
+X * This software is provided as is without any express or implied
+X * warranties, including, without limitation, the implied warranties
+X * of merchantability and fitness for a particular purpose.
+X */
+X#include "shell.h"
+X
+X#define T_EOL		0
+X#define T_OR		1
+X#define T_AND		2
+X
+X#define T_NOT		3
+X
+X#define T_EQ		5
+X#define T_NE		6
+X#define T_GE		7
+X#define T_GT		8
+X#define T_LE		9
+X#define T_LT		10
+X#define T_TEQ		11
+X#define T_TNE		12
+X
+X#define T_STR		15
+X#define T_NUM		16
+X#define T_SVAR		17
+X#define T_NVAR		18
+X
+X#define T_OP		20
+X#define T_CP		21
+X#define T_PLUS		25
+X#define T_MINUS		26
+X#define T_DIV		27
+X#define T_MUL		28
+X#define T_MOD		29
+X
+X#define T_PP		30
+X#define T_MM		31
+X#define T_LAND		32
+X#define T_LOR		33
+X#define T_TILD		34
+X
+X#define T_EXSIST	35
+X#define T_READ		36
+X#define T_WRITE		37
+X#define T_EXECUTE	38
+X#define T_OWNER		39
+X#define T_ZERO		40
+X#define T_PLAIN		41
+X#define T_DIR		42
+X#define T_SIZE		43
+X#define T_USER		44
+X#define T_GROUP		45
+X#define T_PROT		46
+X#define T_MODE		47
+X
+X#define T_SHL		50
+X#define T_SHR		51
+X#define T_XOR		52
+X
+X#define T_ERR		55
+X
+struct tlist {
+X  union _v {
+X    char *str;
+X    long num;
+X    struct _setvar *var;
+X  } v;
+X  short vp;
+X  char tok;
+X} *tlst;
+static char *exp;
+static long num, lp;
+static short vp;
+static char *str;
+struct _setvar *_set, *getvalidset();
+extern int err;
+X
+long expr(), eval(), doconditionals(), domath();
+long domuldiv(), dounary(), doprimary();
+char *getvalidenv();
+X
+long expr(wrd)
+char *wrd;
+X{
+X  int nt,tp,tok;
+X  long res;
+X  struct tlist *tsav;
+X  char *sav;
+X
+X/* hack to save previous value of exp and tlst to make expr() re-intrant */
+X  sav = exp;
+X  tsav = tlst;
+X  exp = wrd;
+X  err = tp = 0;
+X  tlst = (struct tlist *)calloc(nt=5,sizeof(struct tlist));
+X
+X  while(tok = get_next(exp)) {
+X    if (tp == nt) tlst = (struct tlist *)realloc(tlst,sizeof(struct tlist) * (nt+=5));
+X    tlst[tp].tok = tok;
+X    switch(tok) {
+X      case T_STR:
+X	tlst[tp].v.str = str;
+X	break;
+X      case T_NUM:
+X	tlst[tp].v.num = num;
+X	break;
+X      case T_SVAR:
+X	tlst[tp].vp = vp;
+X      case T_NVAR:
+X	tlst[tp].v.var = _set;
+X	break;
+X    }
+X    tp++;
+X  }
+X  if (tp == nt) tlst = (struct tlist *)realloc(tlst,sizeof(struct tlist) * ++nt);
+X  tlst[tp].tok = T_EOL;
+X  lp = 0;
+X  res = eval();
+X  if (!err && tlst[lp].tok == T_CP) error(3);
+X  else if (!err && tlst[lp].tok != T_EOL) error(1);
+X  for(tp=0;tlst[tp].tok;tp++)
+X    if (tlst[tp].tok == T_STR) free(tlst[tp].v.str);
+X  free(tlst);
+X  exp = sav;
+X  tlst = tsav;
+X  return err? 0 : res;
+X}
+X
+long eval()
+X{
+X  int res,res2;
+X
+X  res = doconditionals();
+X  if (err) return 0;
+X
+X  switch(tlst[lp++].tok) {
+X    case T_OR:
+X      res2 = eval();
+X      res = res || res2;
+X      break;
+X    case T_AND:
+X      res2 = eval();
+X      res = res && res2;
+X      break;
+X    case T_EOL:
+X      lp--;
+X      return res;
+X    case T_CP:
+X      lp--;
+X      return res;
+X    default:
+X      error(2);
+X      break;
+X  }
+X  return res;
+X}
+X
+long doconditionals()
+X{
+X  int ans;
+X
+X  if (tlst[lp].tok == T_STR || tlst[lp].tok == T_SVAR) return dostrcmp();
+X  ans = domath();
+X  if (err) return 0;
+X
+X  switch(tlst[lp++].tok) {
+X    case T_EQ:
+X      ans = ans == doconditionals();
+X      break;
+X    case T_NE:
+X      ans = ans != doconditionals();
+X      break;
+X    case T_GE:
+X      ans = ans >= doconditionals();
+X      break;
+X    case T_LE:
+X      ans = ans <= doconditionals();
+X      break;
+X    case T_GT:
+X      ans = ans > doconditionals();
+X      break;
+X    case T_LT:
+X      ans = ans < doconditionals();
+X      break;
+X    default:
+X      lp--;
+X      return ans;
+X  }
+X  return ans;
+X}
+X
+long domath()
+X{
+X  int res;
+X
+X  res = domuldiv();
+X  if (err) return 0;
+X
+X  switch(tlst[lp++].tok) {
+X    case T_PLUS:
+X      res += domath();
+X      break;
+X    case T_MINUS:
+X      res -= domath();
+X      break;
+X    case T_LAND:
+X      res &= domath();
+X      break;
+X    case T_LOR:
+X      res |= domath();
+X      break;
+X    case T_SHL:
+X      res <<= domath();
+X      break;
+X    case T_SHR:
+X      res >>= domath();
+X      break;
+X    case T_XOR:
+X      res ^= domath();
+X      break;
+X    default:
+X      lp--;
+X      return res;
+X  }
+X  return res;
+X}
+X
+long domuldiv()
+X{
+X  int res;
+X
+X  res = dounary();
+X  if (err) return 0;
+X
+X  switch(tlst[lp++].tok) {
+X    case T_MUL:
+X      res *= domuldiv();
+X      break;
+X    case T_DIV:
+X      res /= domuldiv();
+X      break;
+X    case T_MOD:
+X      res %= domuldiv();
+X      break;
+X    default:
+X      lp--;
+X      return res;
+X  }
+X  return res;
+X}
+X
+long dounary()
+X{
+X  int res, tok;
+X  char *fil = NULL;
+X  struct stat buf;
+X
+X  if (err) return 0;
+X  tok = tlst[lp++].tok;
+X  if (tok >= T_EXSIST && tok <= T_MODE) {
+X    if (tlst[lp].tok == T_STR) {
+X      fil = tlst[lp++].v.str;
+X    } else if (tlst[lp].tok == T_SVAR) {
+X      fil = tlst[lp].v.var->sv.wrd[tlst[lp].vp];
+X      lp++;
+X    } else {
+X      error(7);
+X      return 0;
+X    }
+X    if ((tok >= T_OWNER) && (stat(fil,&buf) < 0)) fil = NULL;
+X  }
+X
+X  switch(tok) {
+X    case T_MINUS:
+X      res = -dounary();
+X      break;
+X    case T_NOT:
+X      res = !dounary();
+X      break;
+X    case T_TILD:
+X      res = ~dounary();
+X      break;
+X    case T_PLUS:
+X      res = dounary();
+X      break;
+X    case T_MM:
+X    case T_PP:
+X      if (tlst[lp].tok != T_NVAR) {
+X        error(8);
+X	break;
+X      }
+X      if (!tlst[lp-1].v.var->protect) {
+X        if (tok == T_PP) tlst[lp].v.var->sv.val++;
+X        else tlst[lp].v.var->sv.val--;
+X      }
+X      res = dounary();
+X      break;
+X    case T_EXSIST:
+X      if (!fil) return res = 0;
+X      res = access(fil,F_OK)? 0 : 1;
+X      break;
+X    case T_READ:
+X      if (!fil) return res = 0;
+X      res = access(fil,R_OK)? 0 : 1;
+X      break;
+X    case T_WRITE:
+X      if (!fil) return res = 0;
+X      res = access(fil,W_OK)? 0 : 1;
+X      break;
+X    case T_EXECUTE:
+X      if (!fil) return res = 0;
+X      res = access(fil,X_OK)? 0 : 1;
+X      break;
+X    case T_OWNER:
+X      if (!fil) return res = 0;
+X      res = (buf.st_uid == getuid()? 1 : 0);
+X      break;
+X    case T_ZERO:
+X      if (!fil) return res = 0;
+X      res = (buf.st_size == 0? 1 : 0);
+X      break;
+X    case T_SIZE:
+X      if (!fil) return res = 0;
+X      res = buf.st_size;
+X      break;
+X    case T_PLAIN:
+X      if (!fil) return res = 0;
+X      res = (buf.st_mode & S_IFMT) == S_IFREG? 1 : 0;
+X      break;
+X    case T_DIR:
+X      if (!fil) return res = 0;
+X      res = (buf.st_mode & S_IFMT) == S_IFDIR? 1 : 0;
+X      break;
+X    case T_USER:
+X      if (!fil) return res = -1;
+X      res = buf.st_uid;
+X      break;
+X    case T_GROUP:
+X      if (!fil) return res = -1;
+X      res = buf.st_gid;
+X      break;
+X    case T_PROT:
+X      if (!fil) return res = 0;
+X      res = buf.st_mode & 0777;
+X      break;
+X    case T_MODE:
+X      if (!fil) return res = 0;
+X      res = buf.st_mode;
+X      break;
+X    default:
+X      lp--;
+X      res = doprimary();
+X  }
+X  return res;
+X}
+X
+long doprimary()
+X{
+X  long res;
+X  int tok;
+X
+X  if (tlst[lp++].tok == T_OP) {
+X    res = eval();
+X    if (tlst[lp].tok != T_CP) error(3);
+X    lp++;
+X    return res;
+X  }
+X  switch(tlst[--lp].tok) {
+X    case T_NUM:
+X      return tlst[lp++].v.num;
+X    case T_NVAR:
+X      res = tlst[lp++].v.var->sv.val;
+X      tok = tlst[lp].tok;
+X      if (tok == T_PP || tok == T_MM) {
+X        if (!tlst[lp-1].v.var->protect) {
+X	  if (tok == T_PP) tlst[lp-1].v.var->sv.val++;
+X	  else tlst[lp-1].v.var->sv.val--;
+X	}
+X        lp++;
+X      }
+X      return res;
+X    case T_SVAR:
+X    case T_STR:
+X      error(4);
+X      break;
+X    case T_EOL:
+X      error(5);
+X      break;
+X    case T_ERR:
+X      error(6);
+X      break;
+X    default:
+X      error(7);
+X      break;
+X  }
+X  return 0;
+X}
+X
+dostrcmp()
+X{
+X  int ans,tok;
+X  char *s, *s2;
+X
+X  if (tlst[lp].tok == T_STR) s = tlst[lp++].v.str;
+X  else {
+X    s = tlst[lp].v.var->sv.wrd[tlst[lp].vp];
+X    lp++;
+X  }
+X
+X  tok = tlst[lp++].tok;
+X  if (tok < T_EQ || tok > T_TNE) return 1;
+X  if (tlst[lp].tok != T_STR && tlst[lp].tok != T_SVAR) {
+X    error(7);
+X    return 0;
+X  }
+X  if (tlst[lp].tok == T_STR) s2 = tlst[lp++].v.str;
+X  else {
+X    s2 = tlst[lp].v.var->sv.wrd[tlst[lp].vp];
+X    lp++;
+X  }
+X  switch(tok) {
+X    case T_TEQ:
+X      ans = patmatch(s,s2);
+X      break;
+X    case T_TNE:
+X      ans = !patmatch(s,s2);
+X      break;
+X    case T_EQ:
+X      ans = !strcmp(s,s2);
+X      break;
+X    case T_NE:
+X      ans = strcmp(s,s2);
+X      break;
+X    case T_GE:
+X      ans = strcmp(s,s2) >= 0;
+X      break;
+X    case T_LE:
+X      ans = strcmp(s,s2) <= 0;
+X      break;
+X    case T_GT:
+X      ans = strcmp(s,s2) > 0;
+X      break;
+X    case T_LT:
+X      ans = strcmp(s,s2) < 0;
+X      break;
+X  }
+X  return ans;
+X}
+X
+X
+error(n)
+int n;
+X{
+X  switch(n) {
+X    case 1:
+X    case 2:
+X      fprintf(stderr,"End of expression expected.\n");
+X      break;
+X    case 3:
+X      fprintf(stderr,"Mismatched parentheses.\n");
+X      break;
+X    case 4:
+X      fprintf(stderr,"String found when numeric expected.\n");
+X      break;
+X    case 5:
+X      fprintf(stderr,"Unexpected end of expression.\n");
+X      break;
+X    case 6:
+X      fprintf(stderr,"Illegal character.\n");
+X      break;
+X    case 7:
+X      fprintf(stderr,"String literal expected.\n");
+X      break;
+X    case 8:
+X      fprintf(stderr,"Variable expected for ++ or --.\n");
+X      break;
+X  }
+X  err = 1;
+X}
+X
+X
+get_next()
+X{
+X  int i,pos;
+X  char *s, *t, c;
+X  static char numbuf[33];
+X
+X  while(isspace(*exp)) exp++;
+X  switch(*exp++) {
+X    case '+':
+X      if (*exp == '+') {
+X        exp++;
+X	return T_PP;
+X      }
+X      return T_PLUS;
+X    case '-':
+X      switch(*exp++) {
+X	case 'e':
+X	  return T_EXSIST;
+X	case 'r':
+X	  return T_READ;
+X	case 'w':
+X	  return T_WRITE;
+X	case 'x':
+X	  return T_EXECUTE;
+X	case 'o':
+X	  return T_OWNER;
+X	case 'z':
+X	  return T_ZERO;
+X	case 'f':
+X	  return T_PLAIN;
+X	case 'd':
+X	  return T_DIR;
+X	case 's':
+X	  return T_SIZE;
+X	case 'u':
+X	  return T_USER;
+X	case 'g':
+X	  return T_GROUP;
+X	case 'p':
+X	  return T_PROT;
+X	case 'm':
+X	  return T_MODE;
+X	case '-':
+X	  return T_MM;
+X      }
+X      exp--;
+X      return T_MINUS;
+X    case '/':
+X      return T_DIV;
+X    case '*':
+X      return T_MUL;
+X    case '%':
+X      return T_MOD;
+X    case '|':
+X      if (*exp != '|') return T_LOR;
+X      exp++;
+X      return T_OR;
+X    case '&':
+X      if (*exp != '&') return T_LAND;
+X      exp++;
+X      return T_AND;
+X    case '^':
+X      return T_XOR;
+X    case '~':
+X      return T_TILD;
+X    case '<':
+X      if (*exp == '<') {
+X	exp++;
+X	return T_SHL;
+X      }
+X      if (*exp == '=') {
+X	exp++;
+X	return T_LE;
+X      }
+X      return T_LT;
+X    case '>':
+X      if (*exp == '>') {
+X	exp++;
+X	return T_SHR;
+X      }
+X      if (*exp == '=') {
+X	exp++;
+X	return T_GE;
+X      }
+X      return T_GT;
+X    case '=':
+X      if (*exp == '~') {
+X        exp++;
+X	return T_TEQ;
+X      }
+X      if (*exp++ != '=') return T_ERR;
+X      return T_EQ;
+X    case '!':
+X      if (*exp == '=') {
+X        exp++;
+X	return T_NE;
+X      }
+X      if (*exp == '~') {
+X	exp++;
+X	return T_TNE;
+X      }
+X      return T_NOT;
+X    case 0:
+X      return T_EOL;
+X    case '(':
+X      return T_OP;
+X    case ')':
+X      return T_CP;
+X    case '$':
+X      if (*exp == '$') {
+X	exp++;
+X	if (*exp == '?') {
+X	  exp++;
+X	  s = getvalidenv(&exp,&pos);
+X	  if (s) {
+X	    num = 1;
+X	    free(s);
+X	  } else num = 0;
+X	  return T_NUM;
+X	}
+X	if (*exp == '#') {
+X	  exp++;
+X	  s = getvalidenv(&exp,&pos);
+X	  if (s) {
+X	    if (pos < 0) {
+X	      for(num=1,i=0;s[i];i++) if (s[i] == ':') num++;
+X	    } else num = strlen(s);
+X	    free(s);
+X	  } else num = 0;
+X	  return T_NUM;
+X	}
+X	s = getvalidenv(&exp,&pos);
+X	str = s;
+X	return T_STR;
+X      }
+X      if (*exp == '?') {
+X        exp++;
+X	if (getvalidset(&exp,&pos)) num = 1;
+X	else num = 0;
+X	return T_NUM;
+X      }
+X      if (*exp == '#') {
+X	exp++;
+X	if (_set = getvalidset(&exp,&pos)) {
+X	  if (pos < 0) num = _set->nwrds;
+X	  else num = strlen(_set->sv.wrd[pos]);
+X	} else num = 0;
+X	return T_NUM;
+X      }
+X      if (!(_set = getvalidset(&exp,&pos))) return T_ERR;
+X      if (_set->type != T_STRING) return T_NVAR;
+X      vp = pos < 0? 0 : pos;
+X      return T_SVAR;
+X      break;
+X    case '\'':
+X    case '"':
+X      c = *(exp-1);
+X      s = exp;
+X      while(*exp && *exp != c) {
+X        if (*exp == '\\') exp++;
+X	exp++;
+X      }
+X      t = (char *)malloc((exp-s)+1);
+X      for(i=0;s < exp;i++) t[i] = *s++;
+X      t[i] = 0;
+X      str = t;
+X      if (*exp == c) exp++;
+X      return T_STR;
+X    default:
+X      exp--;
+X      i = num = 0;
+X      if (isdigit(*exp)) {
+X	if (*exp == '0') {
+X	  exp++;
+X	  switch(*exp++) {
+X	    case 'x':
+X	    case 'X':
+X	      while((isdigit(*exp) || (*exp >= 'a' && *exp <= 'f') || (*exp >= 'A' && *exp <= 'F')) && i < 8)
+X		numbuf[i++] = *exp++;
+X	      if (!i || i > 8) return T_ERR;
+X	      numbuf[i] = 0;
+X	      for(i=0;numbuf[i];i++) {
+X		num <<= 4;
+X		num |= (isdigit(numbuf[i]) ? numbuf[i]-'0' : (islower(numbuf[i]) ? (numbuf[i] - 'a') + 10 : (numbuf[i] - 'A') + 10));
+X	      }
+X	      return T_NUM;
+X	      break;
+X	    case 'b':
+X	    case 'B':
+X	      while((*exp == '1' || *exp == '0') && i < 32) numbuf[i++] = *exp++;
+X	      if (!i || i > 32) return T_ERR;
+X	      numbuf[i] = 0;
+X	      for(i=0;numbuf[i];i++) {
+X		num <<= 1;
+X		if (numbuf[i] == '1') num |= 1;
+X	      }
+X	      return T_NUM;
+X	      break;
+X	    default:
+X	      exp--;
+X	      while(*exp >= '0' && *exp < '8' && i < 10) numbuf[i++] = *exp++;
+X	      if (!i) return T_NUM;
+X	      if (i > 10) return T_ERR;
+X	      numbuf[i] = 0;
+X	      for (i=0;numbuf[i];i++) {
+X		num <<= 3;
+X		num |= numbuf[i] - '0';
+X	      }
+X	      return T_NUM;
+X	      break;
+X	  }
+X	}
+X        while(isdigit(*exp) && i < 11) numbuf[i++] = *exp++;
+X	if (i > 11) return T_ERR;
+X	numbuf[i] = 0;
+X	num = atoi(numbuf);
+X	return T_NUM;
+X      }
+X      s = exp;
+X      while(*exp && !isspace(*exp)) exp++;
+X      str = t = (char *)malloc((exp-s)+1);
+X      for(i=0;s<exp;i++) t[i] = *s++;
+X      t[i] = 0;
+X      return T_STR;
+X  }
+X  /*NOTREACHED*/
+X}
+END_OF_FILE
+if test 13497 -ne `wc -c <'eval.c'`; then
+    echo shar: \"'eval.c'\" unpacked with wrong size!
+fi
+# end of 'eval.c'
+fi
+if test -f 'exe.c' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'exe.c'\"
+else
+echo shar: Extracting \"'exe.c'\" \(23142 characters\)
+sed "s/^X//" >'exe.c' <<'END_OF_FILE'
+X/* $Copyright:	$
+X * Copyright (c) 1991,1992,1993 by Steve Baker
+X * All rights reserved
+X *  
+X * This software is provided as is without any express or implied
+X * warranties, including, without limitation, the implied warranties
+X * of merchantability and fitness for a particular purpose.
+X */
+X
+X#include <errno.h>
+X#include <pwd.h>
+X#include "shell.h"
+X
+enum {
+X  T_WORD = 1, T_INPUT, T_OUTPUT, T_APP_OUTPUT, T_ERROR, T_APP_ERROR, T_BOTH,
+X  T_APP_BOTH, T_BAR, T_BAR_ERROR, T_BAR_BOTH, T_AMP, T_NOTTY, T_EOL,
+X  T_PINPUT, T_POUTPUT, T_PERROR, T_PBOTH, T_APINPUT, T_APP_POUTPUT,
+X  T_APP_PERROR, T_APP_PBOTH, T_AND, T_OR, T_SEMICOLON
+X};
+X
+X#define FDFLAG		-2
+X
+X/* ought to make a hash for this: */
+struct Token {
+X  char tok[5];
+X  char val;
+X} tokens[] = {
+X  "&", T_AMP,
+X  "&!", T_NOTTY,
+X  "&&", T_AND,
+X  ";", T_SEMICOLON,
+X  "<", T_INPUT,
+X  "<%", T_PINPUT,
+X  "<<%", T_APINPUT,
+X  ">", T_OUTPUT,
+X  ">!", T_ERROR,
+X  ">!%", T_PERROR,
+X  ">%", T_POUTPUT,
+X  ">&", T_BOTH,
+X  ">&%", T_PBOTH,
+X  ">>", T_APP_OUTPUT,
+X  ">>!", T_APP_ERROR,
+X  ">>!%", T_APP_PERROR,
+X  ">>%", T_APP_POUTPUT,
+X  ">>&", T_APP_BOTH,
+X  ">>&%", T_APP_PBOTH,
+X  "|", T_BAR,
+X  "|!", T_BAR_ERROR,
+X  "|&", T_BAR_BOTH,
+X  "||", T_OR
+X};
+X
+X#define N_TOKENS	22
+X
+int ptr, lvl;
+char **wrds;
+X
+extern char buf[1025],path[1025];
+extern char **PATH, _loginshell, _inpipe, _echo;
+extern char _nofork, _noclobber, _nohup, _nobgnull;
+extern int max_ent, errno, _pgrp, _status, _failat;
+extern unsigned long SIGMASK;
+extern struct proc_tab *proc;
+extern struct _FILES FILES[MAX_FILES];
+X
+char *getnext();
+void check_children(), *malloc();
+X
+X/*
+X * Setup all the pointers and global variables for the getnext() routine
+X * and call check which will parse and send the resulting commands to
+X * invoke().
+X */
+XEXEC(cmd)
+char **cmd;
+X{
+X  int pid;
+X
+X  if (!cmd[0]) return 0;
+X  wrds = cmd;
+X  lvl = ptr = 0;
+X  if (check(&pid,FALSE,NULL) < 0) _status = 1;
+X  pwait();
+X  return pid;
+X}
+X
+X/*
+X * This here is a recursive routine to evaluate the above defined tokens
+X * and to finally invoke the executor to execute the command (execute is
+X * the right word for it alright).  This routine traverses a pipe to the
+X * last command in the pipe and starts invoking the commands in revearse
+X * order, right to left.  Pipe descriptors are magically kept track of and
+X * cleaned up.  This routine also sets up file redirections for redirect
+X * and sh_redirect (for builtins) and removes all the tokens (and redirected
+X * file names) from the command line. Any remaining ;'s are parsed here as
+X * well as `&&' and `||'.
+X */
+check(wpid,imapipe,piped)
+char imapipe;
+int *wpid, *piped;
+X{
+X  int token, tok, pid;
+X  int i= 0, in = 0, out = 1, err = 2, pd[2];
+X  char **tmp = NULL, *word = NULL, *inf = NULL, *outf = NULL, *errf = NULL;
+X  char f, bg = FALSE, outa = FALSE, erra = FALSE;
+X
+X  tmp = (char **)calloc(5,sizeof(char *));
+X  while(1) {
+X    word = getnext(&token);
+X    switch(token) {
+X      case T_WORD:
+X	tmp[i++] = word;
+X	if (!(i % 5)) tmp = (char **)realloc(tmp,sizeof(char *) * (i+5));
+X	tmp[i] = NULL;
+X	continue;
+X      case T_INPUT:
+X      case T_PINPUT:
+X      case T_APINPUT:
+X	if (imapipe) {
+X	  free_stuff(tmp,in,inf,out,outf,err,errf);
+X	  fprintf(stderr,"Ambigous redirection.\n");
+X	  return -1;
+X	}
+X	if (in != 0) {
+X	  free_stuff(tmp,in,inf,out,outf,err,errf);
+X	  fprintf(stderr,"Extra < or <%.\n");
+X	  return -1;
+X	}
+X	inf = getnext(&tok);
+X	if (tok != T_WORD) {
+X	  free_stuff(tmp,in,inf,out,outf,err,errf);
+X	  fprintf(stderr,"Invalid input redirection.\n");
+X	  return -1;
+X	}
+X	if (token != T_INPUT) {
+X	  if ((in = makepipe(inf,0,(token==T_APINPUT))) < 0) {
+X	    free_stuff(tmp,in,inf,out,outf,err,errf);
+X	    return -1;
+X	  }
+X	} else in = FDFLAG;
+X	continue;
+X      case T_OUTPUT:
+X      case T_POUTPUT:
+X      case T_APP_OUTPUT:
+X      case T_APP_POUTPUT:
+X	if (out != 1) {
+X	  free_stuff(tmp,in,inf,out,outf,err,errf);
+X	  fprintf(stderr,"Extra >, >> or >%.\n");
+X	  return -1;
+X	}
+X	outf = getnext(&tok);
+X	if (tok != T_WORD) {
+X	  free_stuff(tmp,in,inf,out,outf,err,errf);
+X	  fprintf(stderr,"Invalid output redirection\n");
+X	  return -1;
+X	}
+X	if (token == T_POUTPUT || token == T_APP_POUTPUT) {
+X	  if ((out = makepipe(outf,1,token==T_APP_POUTPUT)) < 0) {
+X	    free_stuff(tmp,in,inf,out,outf,err,errf);
+X	    return -1;
+X	  }
+X	} else out = FDFLAG;
+X	outa = (token == T_APP_OUTPUT);
+X	if (_noclobber && out == FDFLAG) {
+X	  f = access(outf,F_OK);
+X	  if (outa) {
+X	    if (f) {
+X	      free_stuff(tmp,in,inf,out,outf,err,errf);
+X	      fprintf(stderr,"Output redirection would create a new file.\n");
+X	      return -1;
+X	    }
+X	  } else {
+X	    if (!f) {
+X	      free_stuff(tmp,in,inf,out,outf,err,errf);
+X	      fprintf(stderr,"Output redirection would overwrite file.\n");
+X	      return -1;
+X	    }
+X	  }
+X	}
+X	continue;
+X      case T_ERROR:
+X      case T_PERROR:
+X      case T_APP_ERROR:
+X      case T_APP_PERROR:
+X	if (err != 2) {
+X	  free_stuff(tmp,in,inf,out,outf,err,errf);
+X	  fprintf(stderr,"extra >!, >!% or >>!\n");
+X	  return -1;
+X	}
+X	errf = getnext(&tok);
+X	if (tok != T_WORD) {
+X	  free_stuff(tmp,in,inf,out,outf,err,errf);
+X	  fprintf(stderr,"invalid output redirection\n");
+X	  return -1;
+X	}
+X	if (token == T_PERROR || token == T_APP_PERROR) {
+X	  if ((err = makepipe(errf,2,token==T_APP_PERROR)) < 0) {
+X	    free_stuff(tmp,in,inf,out,outf,err,errf);
+X	    return -1;
+X	  }
+X	} else err = FDFLAG;
+X	erra = (token == T_APP_ERROR);
+X	if (_noclobber && err == FDFLAG) {
+X	  f = access(errf,F_OK);
+X	  if (erra) {
+X	    if (f) {
+X	      free_stuff(tmp,in,inf,out,outf,err,errf);
+X	      fprintf(stderr,"output redirection would create a new file.\n");
+X	      return -1;
+X	    }
+X	  } else {
+X	    if (!f) {
+X	      free_stuff(tmp,in,inf,out,outf,err,errf);
+X	      fprintf(stderr,"output redirection would overwrite file.\n");
+X	      return -1;
+X	    }
+X	  }
+X	}
+X	continue;
+X      case T_BOTH:
+X      case T_PBOTH:
+X      case T_APP_BOTH:
+X      case T_APP_PBOTH:
+X	if (out != 1) {
+X	  free_stuff(tmp,in,inf,out,outf,err,errf);
+X	  fprintf(stderr,"extra >, >% or >>\n");
+X	  return -1;
+X	}
+X	if (err != 2) {
+X	  free_stuff(tmp,in,inf,out,outf,err,errf);
+X	  fprintf(stderr,"extra >!, >!% or >>!\n");
+X	  return -1;
+X	}
+X	outf = getnext(&tok);
+X	if (tok != T_WORD) {
+X	  free_stuff(tmp,in,inf,out,outf,err,errf);
+X	  fprintf(stderr,"invalid output redirection\n");
+X	  return -1;
+X	}
+X	if (token == T_PBOTH || token == T_APP_PBOTH) {
+X	  if ((err = out = makepipe(outf,3,token==T_APP_PBOTH)) < 0) {
+X	    free_stuff(tmp,in,inf,out,outf,err,errf);
+X	    return -1;
+X	  }
+X	} else err = out = FDFLAG;
+X	errf = outf;
+X	erra = outa = (token == T_APP_BOTH);
+X	if (_noclobber && out == FDFLAG) {
+X	  f = access(outf,F_OK);
+X	  if (outa) {
+X	    if (f) {
+X	      free_stuff(tmp,in,inf,out,outf,err,errf);
+X	      fprintf(stderr,"output redirection would create a new file.\n");
+X	      return -1;
+X	    }
+X	  } else {
+X	    if (!f) {
+X	      free_stuff(tmp,in,inf,out,outf,err,errf);
+X	      fprintf(stderr,"output redirection would overwrite file.\n");
+X	      return -1;
+X	    }
+X	  }
+X	}
+X	continue;
+X      case T_BAR:
+X      case T_BAR_ERROR:
+X      case T_BAR_BOTH:
+X      case T_AMP:
+X      case T_NOTTY:
+X      case T_EOL:
+X	tmp[i] = NULL;
+X	if (token == T_BAR) {
+X	  if (out != 1) {
+X	    free_stuff(tmp,in,inf,out,outf,err,errf);
+X	    fprintf(stderr,">, >% or >> conflicts with |\n");
+X	    return -1;
+X	  }
+X	  if ((bg = check(wpid,TRUE,&out)) < 0) return bg;
+X	}
+X	if (token == T_BAR_ERROR) {
+X	  if (err != 2) {
+X	    free_stuff(tmp,in,inf,out,outf,err,errf);
+X	    fprintf(stderr,">!, >!% or >>! conflicts with |!\n");
+X	    return -1;
+X	  }
+X	  if ((bg = check(wpid,TRUE,&err)) < 0) return bg;
+X	}
+X	if (token == T_BAR_BOTH) {
+X	  if (out != 1) {
+X	    free_stuff(tmp,in,inf,out,outf,err,errf);
+X	    fprintf(stderr,">, >% or >> conflicts with |&\n");
+X	    return -1;
+X	  }
+X	  if (err != 2) {
+X	    free_stuff(tmp,in,inf,out,outf,err,errf);
+X	    fprintf(stderr,">!, >!% or >>! conflicts with |&\n");
+X	    return -1;
+X	  }
+X	  if ((bg = check(wpid,TRUE,&out)) < 0) return bg;
+X	  err = out;
+X	}
+X	if (imapipe) {
+X	  if (pipe(pd) < 0) {
+X	    free_stuff(tmp,in,inf,out,outf,err,errf);
+X	    fprintf(stderr,"error creating pipe.\n");
+X	    return -1;
+X	  }
+X	  *piped = pd[1];
+X	  in = pd[0];
+X	}
+X	if (token == T_AMP) bg = 1;
+X	if (token == T_NOTTY) bg = 2;
+X	if ((pid = invoke(tmp,in,inf,out,outf,outa,err,errf,erra,bg)) < 0) _status = 1;
+X	*wpid = pid;
+X	free_stuff(tmp,in,inf,out,outf,err,errf);
+X	return bg;
+X      case T_AND:
+X      case T_OR:
+X      case T_SEMICOLON:
+X	tmp[i] = NULL;
+X	if ((pid = invoke(tmp,in,inf,out,outf,outa,err,errf,erra,bg)) < 0) _status = 1;
+X	*wpid = pid;
+X	free_stuff(tmp,in,inf,out,outf,err,errf);
+X	pwait();
+X	if (token == T_OR && !_status) return 0;
+X	if (token == T_AND && _status) return 0;
+X	if (token == T_SEMICOLON && badstat(_status)) return 0;
+X	tmp = (char **)calloc(5,sizeof(char *));
+X	i = 0;
+X	break;
+X    }
+X  }
+X}
+X
+X/* Self explanitory. Used in the above routine */
+free_stuff(tmp,in,inf,out,outf,err,errf)
+char **tmp, *inf, *outf, *errf;
+BYTE in, out, err;
+X{
+X  int i;
+X
+X  if (tmp) {
+X    for(i=0;tmp[i];i++) free(tmp[i]);
+X    free(tmp);
+X  }
+X  if (inf) free(inf);
+X  if (outf) free(outf);
+X  if (errf) free(errf);
+X  if (in > 0) close(in);
+X  if (out > 1) close(out);
+X  if (err > 2) close(err);
+X}
+X
+X/*
+X * Returns a valid file descritor or will make a pipe file descriptor
+X * if necessary.  Normally if it is determined that we are dealing with
+X * a pipe, we delete the reference that we are going to use from the
+X * FILES information (whether it be the input or output side), unless
+X * app is true (therefore a appended pipe reference).
+X */
+makepipe(name,d,app)
+char *name, d, app;
+X{
+X  BYTE i, pd;
+X  int p[2];
+X
+X  for(i=0;i<MAX_FILES;i++)
+X    if (FILES[i].name && !strcmp(FILES[i].name,name)) break;
+X
+X  if (i == MAX_FILES) {
+X    for(i=0;i<MAX_FILES;i++)
+X      if (!FILES[i].name) break;
+X    if (i == MAX_FILES) {
+X      fprintf(stderr,"File descriptor table full.\n");
+X      return -1;
+X    }
+X
+X    FILES[i].name = SCOPY(name);
+X    FILES[i].file = SCOPY("<PIPE>");
+X    FILES[i].pread = FILES[i].pwrite = FALSE;
+X    FILES[i].ispipe = FILES[i].read = FILES[i].write = TRUE;
+X    pipe(p);
+X    FILES[i].pipe = p[0];
+X    FILES[i].desc = p[1];
+X    fcntl(p[0],F_SETFD,1);
+X    fcntl(p[1],F_SETFD,1);
+X  }
+X  if (FILES[i].ispipe) {
+X    if (!d) {
+X      if (FILES[i].read) {
+X	if (FILES[i].write) {
+X	  pd = FILES[i].pipe;
+X	  if (!app) FILES[i].pipe = FILES[i].read = 0;
+X	} else {
+X	  pd = FILES[i].desc;
+X	  if (!app) {
+X	    free(FILES[i].name);
+X	    free(FILES[i].file);
+X	    FILES[i].name = NULL;
+X	  }
+X	}
+X      } else {
+X        fprintf(stderr,"Could not open descriptor %s for reading.\n",name);
+X	return -1;
+X      }
+X    } else {
+X      if (FILES[i].write) {
+X	pd = FILES[i].desc;
+X	if (!app) {
+X	  if (FILES[i].read) {
+X	    FILES[i].desc = FILES[i].pipe;
+X	    FILES[i].pipe = FILES[i].write = 0;
+X	  } else {
+X	    free(FILES[i].name);
+X	    free(FILES[i].file);
+X	    FILES[i].name = NULL;
+X	  }
+X	}
+X      } else {
+X        fprintf(stderr,"Could not open descriptor %s for writing.\n",name);
+X	return -1;
+X      }
+X    }
+X    return pd;
+X  }
+X  if (d) FILES[i].pwrite = 1;
+X  else FILES[i].pread = 1;
+X  return FILES[i].desc;
+X}
+X
+X/*
+X * This gets the next token or word.  Try not to malloc anything until
+X * we're sure we've got to.  Slightly recursive with respect to ()'s.
+X * We remove the outer parens only, made recursive so something like:
+X * secho ()()()() is handled correctly (all parens removed) and
+X * secho (()()()()) removes only the outer parens.
+X */
+char *getnext(tok)
+int *tok;
+X{
+X  char *wrd = NULL, st, end, n, m;
+X
+X  if (wrds[ptr] == NULL) {
+X    *tok = T_EOL;
+X    return NULL;
+X  }
+X
+X  if (wrds[ptr][0] == '(' && !wrds[ptr][1]) {
+X    if (!lvl++) {
+X      ptr++;
+X      return getnext(tok);
+X    }
+X  }
+X
+X  if (lvl && wrds[ptr][0] == ')' && !wrds[ptr][1]) {
+X    if (!--lvl) {
+X      ptr++;
+X      return getnext(tok);
+X    }
+X  }
+X
+X  if (!lvl) {
+X    st = 0;
+X    end = N_TOKENS;
+X    while(st <= end) {
+X      m = (st+end)/2;
+X      if (!(n = strcmp(tokens[m].tok,wrds[ptr]))) {
+X	ptr++;
+X	*tok = tokens[m].val;
+X	return NULL;
+X      } else if (n < 0) st = m+1;
+X      else end = m-1;
+X    }
+X  }
+X  
+X/*
+X * if it wasn't for this part here, we wouldn't need to malloc for check()
+X * at all...
+X */
+X  if (!lvl && (wrds[ptr][0] == '"' || wrds[ptr][0] == '\'')) {
+X    wrd = SCOPY(wrds[ptr]+1);
+X    wrd[strlen(wrd)-1] = 0;
+X  } else wrd = SCOPY(wrds[ptr]);
+X  ptr++;
+X  *tok = T_WORD;
+X  return wrd;
+X}
+X
+X/*
+X * This is where we actually open up the files for the redirection.
+X * Background jobs with no files to read or write try to get redirected to
+X * /dev/null.
+X *
+X * This routine is called from the child process before the exec.
+X */
+redirect(in,inf,out,outf,outa,err,errf,erra,bg)
+int in,out,err;
+char *inf,*outf,*errf;
+char outa,erra,bg;
+X{
+X  int i,flags;
+X
+X  if (in == 0 && bg && !_nobgnull) {
+X    if (inf) free(inf);
+X    inf = SCOPY(NULL_DEV);
+X    in = FDFLAG;
+X  }
+X  if (in != 0) {
+X    close(0);
+X    if (in > 0) fcntl(in,F_DUPFD,0);
+X    else if (open(inf,O_RDONLY) == -1) {
+X      fprintf(stderr,"can't open %s for input\n",inf);
+X      return -1;
+X    }
+X  }
+X  if (out == 1 && bg && !_nobgnull) {
+X    if (outf) free(outf);
+X    outf = SCOPY(NULL_DEV);
+X    out = FDFLAG;
+X  }
+X  if (err == 2 && bg && !_nobgnull) {
+X    if (errf) free(errf);
+X    if (!strcmp(outf,NULL_DEV)) errf = outf;
+X    else errf = SCOPY(NULL_DEV);
+X    err = FDFLAG;
+X  }
+X  if (out != 1) {
+X    close(1);
+X    if (out > 1) fcntl(out,F_DUPFD,1);
+X    else {
+X      flags = O_WRONLY | O_CREAT | (outa? O_APPEND : O_TRUNC);
+X      if (open(outf,flags,0666) == -1) {
+X	fprintf(stderr,"can't open %s for output\n",outf);
+X	return -1;
+X      }
+X    }
+X  }
+X  if (err != 2) {
+X    close(2);
+X    if (err > 2) fcntl(err,F_DUPFD,2);
+X    else {
+X      if (errf == outf) dup(1);
+X      else {
+X	flags = O_WRONLY | O_CREAT | (erra? O_APPEND : O_TRUNC);
+X	if (open(errf,flags,0666) == -1) {
+X	  fprintf(stderr,"can't open %s for output\n",errf);
+X	  return -1;
+X	}
+X      }
+X    }
+X  }
+X  for(i=3;i<20;i++) close(i);
+X  if (inf) free(inf);
+X  if (outf) free(outf);
+X  if (errf && errf != outf) free(errf);
+X  return 0;
+X}
+X
+X/*
+X * Finally, this is where we get to do our fork and exec the command.
+X * Not very pretty, but it works.
+X */ 
+invoke(arg,in,inf,out,outf,outa,err,errf,erra,bg)
+char **arg,*inf,*outf,*errf;
+int in,out,err;
+char outa,erra,bg;
+X{
+X  unsigned long mask;
+X  int pid,i,j = 0,ent;
+X  struct stat lbuf;
+X  static WORD lpid = 0;
+X
+X  if (_echo) {
+X    for(i=0;arg[i];i++) {
+X      if (i > 0) putchar(' ');
+X      fputs(arg[i],stdout);
+X    }
+X    putchar('\n');
+X  }
+X
+X/* check for built-ins */
+X  if (parse_arg(arg,in,inf,out,outf,outa,err,errf,erra,bg) == SHELL_COMMAND) return 0;
+X
+X/*
+X * Evaluate paths here.  This is where we run through our PATH var and prepend
+X * paths to the command until we find where the command is and run it, if we
+X * don't find our command, we'll fall through and see if it's a directory in
+X * our current working directory.  If we have no PATH var then we'll at least
+X * try our current working dir.  Also, if the command already has path info
+X * in it, we'll leave it alone, assuming the user knows what he's doing.
+X *
+X * A hash table like csh has might be nice, but since most commands are
+X * stored in only a few directories, for most people it might be a waste
+X * of code and memory to do.
+X */
+X  if (index(arg[0],'/')) {
+X    if (arg[0][0] != '/') sprintf(path,"./%s",arg[0]);
+X    else strcpy(path,arg[0]);
+X    if ((access(path,F_OK)) == 0)	/* I imagine this is not needed */
+X      if (stat(path,&lbuf) > -1)	/* just use this */
+X	if ((lbuf.st_mode & S_IFMT) == S_IFREG) j = 1;
+X  } else {
+X    for(i=0;PATH[i];i++) {
+X      sprintf(path,"%s/%s",PATH[i],arg[0]);
+X      if ((access(path,F_OK)) == 0)
+X	if (stat(path,&lbuf) > -1)
+X	  if ((lbuf.st_mode & S_IFMT) == S_IFREG) { j = 1; break; }
+X    }
+X  }
+X/*
+X * Check if the command is a directory or not.  Only checked when we couldn't
+X * find anything worth running in our path list. 
+X */
+X  if (j == 0) {
+X    if (arg[1] == NULL && stat(arg[0],&lbuf) > -1) {
+X      if (((lbuf.st_mode & S_IFMT) == S_IFDIR) || ((lbuf.st_mode & S_IFMT) == S_IFLNK)) {
+X	auto_cd(arg[0]);
+X	return 0;
+X      }
+X    }
+X    fprintf(stderr,"%s: command not found.\n",arg[0]);
+X    return -1;
+X  }
+X/* Check to see if we can actually run it! */
+X  if (access(path,X_OK)) {
+X    fprintf(stderr,"%s: permission denied.\n",arg[0]);
+X    return -1;
+X  }
+X
+X/*
+X * Here we go.  Probably ought to try and use vfork, but I'm not too worried
+X * about it.  Probably be better to keep it fork for portibility anyway.
+X */
+X  mask = sigblock(sigmask(SIGCHLD));
+X
+X  if (_nofork) pid = 0;
+X  else pid = fork();
+X
+X  if (pid) {
+X    if (pid < 0) {
+X      if (errno == EAGAIN) {
+X	fprintf(stderr,"%s: can't fork - process limit exceeded!\n",arg[0]);
+X      } else fprintf(stderr,"%s: out of memory!\n",arg[0]);
+X      _status = 2;
+X      sigsetmask(mask);
+X      return pid;
+X    }
+X/*
+X * What a mess! Have to do this here so we keep track of lpid.
+X * Ought to be some way to syncronize processes so that the parent gives
+X * out the control terminal, before the child can exec.  Perhaps some kind
+X * of semaphore locking mechanism?
+X */
+X    if (in > 0 && out < 2 && err < 3) lpid = pid;
+X    else if (in < 1 && out < 2 && err < 3) lpid = 0;
+X
+X/* make our process table entry. */
+X    ent = get_proc_ent();
+X    proc[ent].pid = pid;
+X    proc[ent].bg = bg;
+X    proc[ent].cmd = (char *)strcpy(malloc(strlen(arg[0])+1),arg[0]);
+X    proc[ent].pipe = lpid;
+X
+X    if (!bg && lpid) proc[ent].pgrp = lpid;
+X    else if (!bg) proc[ent].pgrp = pid;
+X    else proc[ent].pgrp = _pgrp;
+X    proc[ent].status = STAT_RUNNING;
+X
+X/*
+X * Dangerous, since a bg'ed process could gain control of the terminal
+X * before we write this.  But if that happens we're screwed anyway
+X * when it comes time to read from the terminal.
+X */
+X    if (bg == 1 && (!lpid || lpid == pid))
+X      if (in > 0 || out > 1 || err > 2) printf(" [%d] (%d) %s\n",ent,pid,arg[0]);
+X      else printf(" [%d] %d\n",ent,pid);
+X
+X    sigsetmask(mask);
+X    return pid;
+X  } else {
+X    if (bg == 2) {	/* Void tty association if spawned w/ &! */
+X      close(0); close(1); close(2);
+X      if (fork()) exit(0);
+X      setpgrp(0,0);
+X      if ((i=open("/dev/tty",O_RDWR)) < 0) exit(1);
+X      ioctl(i,TIOCNOTTY,0);
+X      close(i);
+X      if (fork()) exit(0);
+X      if (fork()) exit(0);
+X    }
+X
+X    pid = getpid();
+X    if (in > 0 && out < 2 && err < 3) lpid = pid;
+X    else if (in < 1 && out < 2 && err < 3) lpid = 0;
+X
+X/*
+X * Gain control of the terminal if need be. Since there is no way to
+X * adaquately perform process syncronization, it must be done here.
+X * There has got to be a better way to do this... For crying out loud!
+X */
+X    signal(SIGTSTP,SIG_IGN);	/* Hokey signal ignore hack to keep  */
+X    signal(SIGTTIN,SIG_IGN);	/* child from stopping when it tries */
+X    signal(SIGTTOU,SIG_IGN);	/* to get control of the terminal.   */
+X
+X    if (!bg && lpid) setpgrp(pid,lpid);
+X    else if (!bg) setpgrp(pid,pid);
+X    if (!bg && (lpid == 0 || pid == lpid) && !_inpipe) tcsetpgrp(TTY,pid);
+X
+X/*
+X * Redirect stuff if we can (otherwise exit), then turn signals back to
+X * their default and ignore SIGHUP for background processes.
+X * Then try to exec the command.
+X */
+X    if (redirect(in,inf,out,outf,outa,err,errf,erra,bg) < 0) exit(1);
+X
+X    for(i=1;i<32;i++) signal(i,SIG_DFL);
+X    sigsetmask(0);
+X    if (bg || _nohup) sigblock(sigmask(SIGHUP));
+X
+X    execv(path,arg);
+X    switch(errno) {
+X      case ENOENT:
+X	fprintf(stderr,"%s: nonexsistent path!\n",path);
+X	exit(1);
+X      case ENOTDIR:
+X	fprintf(stderr,"%s: bad path!\n",path);
+X	exit(1);
+X      case EACCES:
+X	fprintf(stderr,"exec: I can't run that!\n");
+X	exit(1);
+X      case ENOEXEC:
+X	auto_source((out > 1 || err > 2),path,arg);
+X	exit(0);
+X      case ENOMEM:
+X	fprintf(stderr,"%s: memory limit exceeded.\n",arg[0]);
+X	exit(1);
+X      case E2BIG:
+X	fprintf(stderr,"%s: argument list exceeded 10K.\n",arg[0]);
+X	exit(1);
+X      case EFAULT:
+X      case EIO:
+X      case ETXTBSY:
+X	fprintf(stderr,"%s: unrecoverable error while execing.\n",arg[0]);
+X	exit(1);
+X      default:
+X	fprintf(stderr,"%s: cannot execute.\n",arg[0]);
+X    }
+X    exit(1);
+X  }
+X  /*NOTREACHED*/
+X}
+X
+X/*
+X * Pwait here waits until all jobs that have been spawned but are not in the
+X * background or stopped, to complete.
+X */
+pwait()
+X{
+X  unsigned long mask;
+X  int i,flag;
+X
+X  mask = sigblock(sigmask(SIGCHLD));
+X  do {
+X    flag = FALSE;
+X    for(i=0;i<max_ent;i++)
+X      if (proc[i].pid && !proc[i].bg && !proc[i].status) {
+X	sigpause(mask);
+X	flag = TRUE;
+X	break;
+X      }
+X  } while(flag);
+X  sigsetmask(mask);
+X}
+X
+X/*
+X * Redirection for builtins.  Looks a lot like the real thing, except no
+X * duping required.
+X */
+sh_redirect(in,inf,out,outf,outa,err,errf,erra,bg)
+int *in,*out,*err;
+char *inf,*outf,*errf;
+char outa,erra,bg;
+X{
+X  int flags;
+X
+X  if (*in == 0 && bg && !_nobgnull) {
+X    inf = SCOPY(NULL_DEV);
+X    *in = FDFLAG;
+X  }
+X  if (*in < 0) {
+X    if ((*in = open(inf,O_RDONLY)) == -1) {
+X      fprintf(stderr,"Can't open %s for input.\n",inf);
+X      return -1;
+X    }
+X  }
+X  if (*out == 1 && bg && !_nobgnull) {
+X    outf = SCOPY(NULL_DEV);
+X    *out = FDFLAG;
+X  }
+X  if (*err == 2 && bg && !_nobgnull) {
+X    if (!strcmp(inf,NULL_DEV)) errf = outf;
+X    else errf = SCOPY(NULL_DEV);
+X    *err = FDFLAG;
+X  }
+X  if (*out < 1) {
+X    flags = O_WRONLY | O_CREAT | (outa? O_APPEND : O_TRUNC);
+X    if ((*out = open(outf,flags,0666)) == -1) {
+X      fprintf(stderr,"Can't open %s for output.\n",outf);
+X      return -1;
+X    }
+X  }
+X  if (*err < 2) {
+X    if (outf == errf) *err = *out;
+X    else {
+X      flags = O_WRONLY | O_CREAT | (erra? O_APPEND : O_TRUNC);
+X      if ((*err = open(errf,flags,0666)) == -1) {
+X	fprintf(stderr,"Can't open %s for output.\n",errf);
+X	return -1;
+X      }
+X    }
+X  }
+X  return 0;
+X}
+X
+X/*
+X * Routine that's called when we couldn't find a file to run, but we did
+X * find a directory we might be able to cd into.
+X */
+auto_cd(dir)
+char *dir;
+X{
+X  if (chdir(dir) == -1) {
+X    if (errno == ELOOP)
+X      printf("too many symbolic links.\n");
+X    else
+X      printf("%s: Permission denied.\n",dir);
+X  } else {
+X    getwd(path);
+X    makeset("cwd",path);
+X  }
+X}
+X
+X/*
+X * Source here is kinda dumb, takes anything and chews it up.  Need someway
+X * to keep it from sourcing things it shouldn't... Like say, object files
+X * and binary data files.
+X *
+X * If we're in a pipe, we'll need to remember that we're in a pipe so
+X * the shell won't try to take control of the terminal after a command in
+X * the source script completes.
+X */
+auto_source(inpipe,file,arg)
+char *file, **arg;
+X{
+X  int i;
+X  struct _setvar *v;
+X
+X  _inpipe = inpipe;
+X  _pgrp = getpgrp(0);
+X  _loginshell = FALSE;
+X  for(i=0;i<32;i++) signal(i,SIG_IGN);
+X  signal(SIGSTOP,SIG_DFL);
+X  signal(SIGTSTP,SIG_DFL);
+X  signal(SIGINT,SIG_DFL);
+X
+X  if (!_nohup) signal(SIGHUP,SIG_DFL);
+X
+X/*
+X * cleanup old process table because we don't want to wait for processes the
+X * other shell is tending to, otherwise we'll be waiting on them forever.
+X */
+X  for(i=0;i<max_ent;i++)
+X    if (proc[i].pid) {
+X      if (proc[i].cmd) free(proc[i].cmd);
+X      proc[i].pid = 0;
+X    }
+X  signal(SIGCHLD,check_children);
+X
+X  v = (struct _setvar *)makeset("argv","");
+X  v->sv.wrd = arg;
+X  for(i=0;arg[i];i++);
+X  v->nwrds = i;
+X  makenvar("argc",i);
+X  if (source(file) < 0) exit(1);
+X  exit(0);
+X}
+X
+X#ifndef BSD4
+tcsetpgrp(fd,ppid)
+int fd, ppid;
+X{
+X  return ioctl(fd,TIOCSPGRP,&ppid);
+X}
+X
+tcgetpgrp(fd)
+int fd;
+X{
+X  int pgrp;
+X  ioctl(fd,TIOCGPGRP,&pgrp);
+X  return pgrp;
+X}
+X#endif
+END_OF_FILE
+if test 23142 -ne `wc -c <'exe.c'`; then
+    echo shar: \"'exe.c'\" unpacked with wrong size!
+fi
+# end of 'exe.c'
+fi
+if test -f 'vars.c' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'vars.c'\"
+else
+echo shar: Extracting \"'vars.c'\" \(20910 characters\)
+sed "s/^X//" >'vars.c' <<'END_OF_FILE'
+X/* $Copyright:	$
+X * Copyright (c) 1991,1992,1993 by Steve Baker
+X * All rights reserved
+X *  
+X * This software is provided as is without any express or implied
+X * warranties, including, without limitation, the implied warranties
+X * of merchantability and fitness for a particular purpose.
+X */
+X#include "shell.h"
+X
+char *malloc(), *strcpy();
+char numbuf[10];
+extern struct _setvar *sets[37];
+extern char **PATH, **_mbox, newmail, *_home, **_mailnotice, **_homedirs, **_cdpath;
+extern char _insert, *_prompt, *_statline, **history, _noassigns, *_term[11];
+extern char _echo, _verbose, _glob, _notypeahead, _nonomatch, _noclobber;
+extern int _maxhist, curhist, _joblimit, _failat, _mailchkint, _statint;
+extern char _nodots, _restricted, _nohup, _nobgnull, buf[1025], path[1025];
+extern struct timeval *_timeout, timeout;
+extern int a,b,c,d;
+X
+char **evalw(), *getvalidenv(), *string(), *UPPER();
+struct _setvar *getvalidset(), *getset(), *find_var(), *add_var();
+X
+enum {
+X  VAR_CDPATH, VAR_CWD, VAR_ECHO, VAR_FAILAT, VAR_HISTORY, VAR_HOME,
+X  VAR_HOMEDIRS, VAR_INSERT, VAR_JOBLIMIT, VAR_MAIL, VAR_MAILCHKINT,
+X  VAR_MAILNOTICE, VAR_NOBGNULL, VAR_NOCLOBBER, VAR_NOGLOB, VAR_NONOMATCH,
+X  VAR_NOTYPEAHEAD, VAR_PATH, VAR_PROMPT, VAR_STATINT, VAR_STATLINE, VAR_TERM,
+X  VAR_TIMEOUT, VAR_USER, VAR_VERBOSE, VAR_NOASSIGNS, VAR_RESTRICTED,
+X  VAR_NODOTS, VAR_NOHUP
+X};
+X
+X#define hash(x)	(isalpha(x)? (x & 31) + 10 : isdigit(x)? x - '0' : x == '_' ? 10 : -1)
+X
+X/*
+X *  Parse our shell vars here...
+X */
+X
+char ***parse_shellvars(arg)
+char ***arg;
+X{
+X  int i;
+X  char **evalvars();
+X
+X  for(i=0;arg[i];i++)
+X    arg[i] = evalvars(arg[i]);
+X
+X  return arg;
+X}
+X
+char **evalvars(w)
+char **w;
+X{
+X  char **tmp, **etmp;
+X  int i,j,nst,nt,wrd;
+X
+X  tmp = (char **)calloc(nt=5,sizeof(char *));
+X
+X  wrd = nst = 0;
+X  for(i=0;w[i];i++) {
+X    if (w[i][0] == '(' && !w[i][1]) nst++;
+X    if (w[i][0] == ')' && !w[i][1]) nst -= (nst?1:0);
+X
+X    if (nst) {
+X      if (wrd == nt) tmp = (char **)realloc(tmp,sizeof(char *) * (nt+=5));
+X      tmp[wrd++] = w[i];
+X    } else {
+X      etmp = evalw(w[i]);
+X      for(j=0;etmp[j];j++) {
+X	if (wrd == nt) tmp = (char **)realloc(tmp,sizeof(char *) * (nt+=5));
+X	tmp[wrd++] = etmp[j];
+X      }
+X      if (w[i] != etmp[0]) free(w[i]);
+X      free(etmp);
+X    }
+X  }
+X  if (wrd == nt) tmp = (char **)realloc(tmp,sizeof(char *) * (++nt));
+X  tmp[wrd] = NULL;
+X  free(w);
+X  return tmp;
+X}
+X
+X/*
+X	String/Numeric vars: $		Environment vars: $$
+X	var  var[x]  ?var  ?var[x]  #var  #var[x]
+X	{var}  {var[x]}  ?{var}  ?{var[x]}  #{var}  #{var[x]}
+X*/
+X
+char **evalw(wrd)
+char *wrd;
+X{
+X  struct _setvar *SET;
+X  char **etmp, **tmp, *w;
+X  int i,j,z,nt,bp,tp,pos;
+X
+X  tp = pos = bp = 0;
+X
+X  tmp = (char **)calloc(nt = 2,sizeof(char *));
+X  if (*wrd == '\'' || !index(wrd,'$')) {
+X    tmp[0] = wrd;
+X    tmp[1] = NULL;
+X    return tmp;
+X  }
+X  while(*wrd) {
+X    switch(*wrd++) {
+X      case '$':
+X	if (*wrd == '$') {
+X	  if (*++wrd == '?') {
+X	    ++wrd;
+X	    w = getvalidenv(&wrd,&pos);
+X	    if (w) buf[bp++] = '1';
+X	    else buf[bp++] = '0';
+X	    free(w);
+X	    break;
+X	  }
+X	  if (*wrd == '#') {
+X	    wrd++;
+X	    i = 0;
+X	    w = getvalidenv(&wrd,&pos);
+X	    if (w) {
+X	      if (pos < 0) {
+X		for(i=1,j=0;w[j];j++) if (w[j] == ':') i++;
+X	      } else i = strlen(w);
+X	    }
+X	    sprintf(path,"%d",i);
+X	    for(i=0;path[i];i++) buf[bp++] = path[i];
+X	    break;
+X	  }
+X	  w = getvalidenv(&wrd,&pos);
+X	  while (*w) buf[bp++] = *w++;
+X	  free(w);
+X	  break;
+X	}
+X	if (*wrd == '<') {
+X	  wrd++;
+X	  fgets(path,1024,stdin);
+X	  for(i=0;path[i] != '\n';i++) buf[bp++] = path[i];
+X	  break;
+X	}
+X	if (*wrd == '?') {
+X	  wrd++;
+X	  if (SET = getvalidset(&wrd,&pos)) buf[bp++] = SET->type + '1';
+X	  else buf[bp++] = '0';
+X	  break;
+X	}
+X	if (*wrd == '#') {
+X	  wrd++;
+X	  if (SET = getvalidset(&wrd,&pos)) {
+X	    if (pos < 0) i = SET->nwrds;
+X	    else i = strlen(SET->sv.wrd[pos]);
+X	  } else i = 0;
+X	  sprintf(path,"%d",i);
+X	  for(i=0;path[i];i++) buf[bp++] = path[i];
+X	  break;
+X	}
+X	SET = getvalidset(&wrd,&pos);
+X	if (!SET) break;
+X	if (SET->type == T_INTEGER) {
+X	  sprintf(numbuf,"%d",SET->sv.val);
+X	  for(i=0;numbuf[i];i++) buf[bp++] = numbuf[i];
+X	} else if (SET->type == T_STRING && pos < 0) {
+X	  buf[bp] = 0;
+X	  w = (char *)strcpy((char *)malloc(bp+1),buf);
+X	  etmp = evalw(wrd);
+X	  for(i=0;SET->sv.wrd[i];i++) {
+X	    for(z=0;etmp[z];z++) {
+X	      if (tp == nt) tmp = (char **)realloc(tmp,sizeof(char *) * (nt+=5));
+X	      tmp[tp] = (char *)malloc(strlen(SET->sv.wrd[i])+bp+strlen(etmp[z])+2);
+X	      sprintf(tmp[tp++],"%s%s%s",w,SET->sv.wrd[i],etmp[z]);
+X	    }
+X	  }
+X	  free_list(etmp);
+X	  free(w);
+X	  if (tp == nt) tmp = (char **)realloc(tmp,sizeof(char *) * (nt+=1));
+X	  tmp[tp] = NULL;
+X	  return tmp;
+X	} else if (SET->type == T_STRING) {
+X	  for(j=0;SET->sv.wrd[pos][j];j++) buf[bp++] = SET->sv.wrd[pos][j];
+X	}
+X	break;
+X      case '\\':
+X	buf[bp++] = *wrd++;
+X	break;
+X      default:
+X	buf[bp++] = *(wrd-1);
+X	break;
+X    }
+X  }
+X  buf[bp] = 0;
+X  if (tp >= (nt-1)) tmp = (char **)realloc(tmp,sizeof(char *) * (nt+=2));
+X  tmp[tp++] = (char *)strcpy((char *)malloc(bp+1),buf);
+X  tmp[tp] = NULL;
+X  return tmp;
+X}
+X
+struct _setvar *getvalidset(wrd,pos)
+char **wrd;
+int *pos;
+X{
+X  struct _setvar *SET;
+X
+X  if (**wrd == '{') {
+X    (*wrd)++;
+X    SET = getset(wrd,pos);
+X    if (**wrd == '}') (*wrd)++;
+X  } else SET = getset(wrd,pos);
+X  return SET;
+X}
+X
+char *getvalidenv(wrd,p)
+char **wrd;
+int *p;
+X{
+X  int bp = 0, pos;
+X  char brac = FALSE;
+X  char *s,*env,nest;
+X
+X  *p = -1;
+X  if (**wrd == '{') {
+X    brac = TRUE;
+X    (*wrd)++;
+X  }
+X  while(isalnum(**wrd) || **wrd == '_') path[bp++] = *(*wrd)++;
+X  path[bp] = 0;
+X  env = (char *)getenv(path);
+X  if (**wrd == '[') {
+X    nest = 0;
+X    (*wrd)++;
+X    if (!env) {
+X      while(**wrd && **wrd != ']') {
+X	if (**wrd == '[') nest++;
+X        (*wrd)++;
+X	if (nest && **wrd == ']') {
+X	  nest--;
+X	  (*wrd)++;
+X	}
+X      }
+X      if (**wrd) (*wrd)++;
+X      if (brac) {
+X        while(**wrd && **wrd != '}') (*wrd)++;
+X	if (**wrd) (*wrd)++;
+X      }
+X    } else {
+X      for(bp = 0; **wrd && **wrd != ']';) path[bp++] = *(*wrd)++;
+X      path[bp] = 0;
+X      if (**wrd) (*wrd)++;
+X      if (brac) {
+X        while(**wrd && **wrd != '}') (*wrd)++;
+X	if (**wrd) (*wrd)++;
+X      }
+X      *p = pos = expr(path);
+X      for(bp=0;bp<pos;bp++) {
+X        env = (char *)index(env,':');
+X	if (!env) return NULL;
+X	env++;
+X      }
+X      bp = 0;
+X      while(*env && *env != ':') path[bp++] = *env++;
+X      path[bp] = 0;
+X      env = (char*)malloc(bp+1);
+X      strcpy(env,path);
+X    }
+X    return env;
+X  }
+X  if (!env) return NULL;
+X  s = (char *)malloc(strlen(env)+1);
+X  strcpy(s,env);
+X  return s;
+X}
+X
+struct _setvar *getset(pat,pos)
+char **pat;
+int *pos;
+X{
+X  int i=0;
+X  char buf[81],bp=0;
+X  struct _setvar *SET;
+X
+X  *pos = -1;
+X
+X  while((isalpha(**pat) || isdigit(**pat) || **pat == '_') && bp < 80)
+X    buf[bp++] = *(*pat)++;
+X  buf[bp] = 0;
+X
+X  if ((SET = find_var(buf)) == NULL) return NULL;
+X  if (SET->type != T_STRING) return SET;
+X  if (**pat == '[') {
+X    (*pat)++;
+X    if (!SET) {
+X      while(**pat && **pat != ']') (*pat)++;
+X      if (**pat) (*pat)++;
+X    } else {
+X      i = 0;
+X      while(**pat && **pat != ']') path[i++] = *(*pat)++;
+X      path[i] = 0;
+X      if (!**pat) return NULL;
+X      if (**pat) (*pat)++;
+X      *pos = expr(path);
+X      if (*pos < 0 || (SET->nwrds-1 < *pos)) {
+X	*pos = -2;
+X	return NULL;
+X      }
+X    }
+X  }
+X  return SET;
+X}
+X
+SET(n,arg,in,out,err)
+int n;
+char **arg;
+XFILE *in,*out,*err;
+X{
+X  static char *signs[] = {
+X    "=","+=","-=","*=","/=","%=","&=","|=","<<=",">>=","^=","++","--",0
+X  };
+X  union setval st;
+X  struct _setvar *s;
+X  char *t, *tmp;
+X
+X  if (n == 1) {
+X    for(a=0;a<37;a++) {
+X      s = sets[a];
+X      while(s) {
+X        fprt(out,s->var);
+X	fputc('\t',out);
+X	if (s->type == T_STRING) {
+X	  fprt(out,t = (char *)string(s->sv.wrd));
+X	  free(t);
+X	} else if (s->type == T_INTEGER) fprintf(out,"%d",s->sv.val);
+X	fputc('\n',out);
+X	s = s->nxt;
+X      }
+X    }
+X    return 0;
+X  }
+X  for(c=0;signs[c];c++) if (!strcmp(arg[2],signs[c])) break;
+X  if (arg[2] && !signs[c]) {
+X    fprintf(err,"%s: missing assignment operator. '=' expected.\n",arg[0]);
+X    return 1;
+X  }
+X  if (strlen(arg[1]) > 80) {
+X    fprintf(err,"set: variable name too long.\n");
+X    return 1;
+X  }
+X  t = strcpy(malloc(strlen(arg[1])+1),arg[1]);
+X  if (n == 2) {
+X    a = T_NULL;
+X    st.val = 0;
+X    if (!(s = add_var(t,st,a,0))) return 0;
+X    check_and_export(s);
+X    return 0;
+X  }
+X  if (strcmp("set",arg[0])) {
+X    a = T_INTEGER;
+X    if (c < 11) {
+X      tmp = (char *)grab(arg,3,NULL,&b);
+X      st.val = expr(tmp);
+X    } else tmp = NULL;
+X    if (c > 0 && (s = find_var(t))) {
+X      if (s->type != T_INTEGER) s->sv.val = 0;
+X      switch (c) {
+X        case 1:
+X	  st.val += s->sv.val;
+X	  break;
+X	case 2:
+X	  st.val = s->sv.val - st.val;
+X	  break;
+X	case 3:
+X	  st.val *= s->sv.val;
+X	  break;
+X	case 4:
+X	  st.val = s->sv.val / st.val;
+X	  break;
+X	case 5:
+X	  st.val = s->sv.val % st.val;
+X	  break;
+X	case 6:
+X	  st.val = s->sv.val & st.val;
+X	  break;
+X	case 7:
+X	  st.val = s->sv.val | st.val;
+X	  break;
+X	case 8:
+X	  st.val = s->sv.val << st.val;
+X	  break;
+X	case 9:
+X	  st.val = s->sv.val >> st.val;
+X	  break;
+X	case 10:
+X	  st.val = s->sv.val ^ st.val;
+X	  break;
+X	case 11:
+X	  st.val = s->sv.val+1;
+X	  break;
+X	case 12:
+X	  st.val = s->sv.val-1;
+X	  break;
+X      }
+X    }
+X    if (tmp) free(tmp);
+X  } else {
+X    if (c > 1) {
+X      fprintf(stderr,"set: invalid assignment operator: '%s'.\n",signs[c]);
+X      return 1;
+X    }
+X    if (n <= 3) {
+X      fprintf(stderr,"set: assignment expected.\n");
+X      return 1;
+X    }
+X    a = 0;
+X    if (c && (s = find_var(t))) {
+X      st.wrd = (char **)calloc((n-2)+s->nwrds,sizeof(char *));
+X      for(b=0;s->sv.wrd[b];b++)
+X	st.wrd[a++] = strcpy(malloc(strlen(s->sv.wrd[b])+1),s->sv.wrd[b]);
+X    } else st.wrd = (char **)calloc(n - 2,sizeof(char *));
+X    for(b=3;arg[b];b++) st.wrd[a++] = strcpy(malloc(strlen(arg[b])+1),arg[b]);
+X    st.wrd[a] = NULL;
+X    a = T_STRING;
+X  }
+X  if (!(s = add_var(t,st,a,0))) return 0;
+X  check_and_export(s);
+X  return 0;
+X}
+X
+X struct _vars {
+X   char *name, val;
+X } vars[] = {
+X  "cdpath",VAR_CDPATH,
+X  "cwd", VAR_CWD,
+X  "echo",VAR_ECHO,
+X  "failat",VAR_FAILAT,
+X  "history",VAR_HISTORY,
+X  "home",VAR_HOME,
+X  "homedirs",VAR_HOMEDIRS,
+X  "insert",VAR_INSERT,
+X  "joblimit",VAR_JOBLIMIT,
+X  "mail",VAR_MAIL,
+X  "mailchkint",VAR_MAILCHKINT,
+X  "mailnotice",VAR_MAILNOTICE,
+X  "noassigns",VAR_NOASSIGNS,
+X  "nobgnull", VAR_NOBGNULL,
+X  "noclobber",VAR_NOCLOBBER,
+X  "nodots",VAR_NODOTS,
+X  "noglob",VAR_NOGLOB,
+X  "nohup",VAR_NOHUP,
+X  "nonomatch",VAR_NONOMATCH,
+X  "notypeahead",VAR_NOTYPEAHEAD,
+X  "path",VAR_PATH,
+X  "prompt",VAR_PROMPT,
+X  "restricted",VAR_RESTRICTED,
+X  "statint",VAR_STATINT,
+X  "statline",VAR_STATLINE,
+X  "term",VAR_TERM,
+X  "timeout",VAR_TIMEOUT,
+X  "user",VAR_USER,
+X  "verbose",VAR_VERBOSE
+X};
+X#define NVARS	28
+X
+check_and_export(v)
+struct _setvar *v;
+X{
+X  int tmp;
+X  char s=0, e=NVARS, m=NVARS/2;
+X
+X  while(s <= e) {
+X    if (!(d = strcmp(v->var,vars[m].name))) break;
+X    if (d < 0) e = m - 1;
+X    else s = m + 1;
+X    m = (s+e)/2;
+X  }
+X  if (d) return;
+X  switch(vars[m].val) {
+X    case VAR_CDPATH:
+X      if (v->type != T_STRING) return;
+X      _cdpath = v->sv.wrd;
+X      return;
+X    case VAR_CWD:
+X      if (v->type != T_STRING) return;
+X      export(v);
+X      return;
+X    case VAR_ECHO:
+X      _echo = TRUE;
+X      return;
+X    case VAR_FAILAT:
+X      if (v->type != T_INTEGER) return;
+X      _failat = (int)(v->sv.val? v->sv.val : 1);
+X      return;
+X    case VAR_HISTORY:
+X      if (v->type != T_INTEGER) return;
+X      _maxhist = tmp = (int)(v->sv.val);
+X      if (tmp < curhist) for(d=tmp;d<curhist;d++) free(history[d]);
+X      history = (char **)realloc(history,sizeof(char *)*(tmp?tmp+1:2));
+X      if (curhist > tmp) curhist = tmp;
+X      return;
+X    case VAR_HOME:
+X      if (v->type != T_STRING) return;
+X      export(v);
+X      if (_home) free(_home);
+X      _home = string(v->sv.wrd);
+X      return;
+X    case VAR_HOMEDIRS:
+X      if (v->type != T_STRING) return;
+X      _homedirs = v->sv.wrd;
+X      return;
+X    case VAR_INSERT:
+X      _insert = TRUE;
+X      return;
+X    case VAR_JOBLIMIT:
+X      if (v->type != T_INTEGER) return;
+X      _joblimit = (int)(v->sv.val);
+X      return;
+X    case VAR_MAIL:
+X      if (v->type != T_STRING) return;
+X      export(v);
+X      _mbox = v->sv.wrd;
+X      newmail = TRUE;
+X      check_mail(TRUE);
+X      return;
+X    case VAR_MAILCHKINT:
+X      if (v->type != T_INTEGER) return;
+X      _mailchkint = (int)(v->sv.val);
+X      return;
+X    case VAR_MAILNOTICE:
+X      if (v->type != T_STRING) return;
+X      _mailnotice = v->sv.wrd;
+X      return;
+X    case VAR_NOASSIGNS:
+X      _noassigns = TRUE;
+X      return;
+X    case VAR_NOBGNULL:
+X      _nobgnull = TRUE;
+X      return;
+X    case VAR_NOCLOBBER:
+X      _noclobber = TRUE;
+X      return;
+X    case VAR_NODOTS:
+X      _nodots = TRUE;
+X      return;
+X    case VAR_NOHUP:
+X      _nohup = TRUE;
+X      return;
+X    case VAR_NOGLOB:
+X      _glob = FALSE;
+X      return;
+X    case VAR_NONOMATCH:
+X      _nonomatch = TRUE;
+X      return;
+X    case VAR_NOTYPEAHEAD:
+X      _notypeahead = TRUE;
+X      return;
+X    case VAR_PATH:
+X      if (v->type != T_STRING) return;
+X      PATH = v->sv.wrd;
+X      export(v);
+X      return;
+X    case VAR_PROMPT:
+X      if (v->type != T_STRING) return;
+X      if (_prompt) free(_prompt);
+X      _prompt = string(v->sv.wrd);
+X      return;
+X    case VAR_RESTRICTED:
+X      v->protect = TRUE;
+X      _restricted = TRUE;
+X      break;
+X    case VAR_STATINT:
+X      if (v->type != T_INTEGER) return;
+X      _statint = (int)(v->sv.val);
+X      return;
+X    case VAR_STATLINE:
+X      if (v->type != T_STRING) return;
+X      if (_statline) free(_statline);
+X      _statline = string(v->sv.wrd);
+X      return;
+X    case VAR_TIMEOUT:
+X      if (v->type != T_INTEGER) return;
+X      if (v->sv.val < 1) _timeout = NULL;
+X      else {
+X        timeout.tv_sec = v->sv.val;
+X	_timeout = &timeout;
+X      }
+X      return;
+X    case VAR_TERM:
+X      if (v->type != T_STRING) return;
+X      export(v);
+X      if (v->sv.wrd[0]) set_term(v->sv.wrd[0]);
+X      return;
+X    case VAR_USER:
+X      if (v->type != T_STRING) return;
+X      export(v);
+X      return;
+X    case VAR_VERBOSE:
+X      _verbose = TRUE;
+X      return;
+X  }
+X}
+X
+export(v)
+struct _setvar *v;
+X{
+X  char *name = UPPER(v->var),*val;
+X  int len=0;
+X
+X  for(d=0;v->sv.wrd[d];d++) len += strlen(v->sv.wrd[d])+1;
+X  val = (char *)malloc(len);
+X  strcpy(val,v->sv.wrd[0]);
+X  for(d=1;v->sv.wrd[d];d++) {
+X    strcat(val,":");
+X    strcat(val,v->sv.wrd[d]);
+X  }
+X  setenv(name,val,1);
+X  free(name);
+X  free(val);
+X}
+X
+UNSET(n,arg,in,out,err)
+int n;
+char **arg;
+XFILE *in,*out,*err;
+X{
+X  if (n == 1) return 0;
+X  for(a=1;arg[a];a++)
+X    if (remove_var(arg[a])) unexport(arg[a]);
+X    else {
+X      fprintf(err,"unset: no such variable: %s\n",arg[a]);
+X      return -1;
+X    }
+X  return 0;
+X}
+X
+unexport(v)
+char *v;
+X{
+X  char s=0, e=NVARS, m=NVARS/2;
+X
+X  while(s <= e) {
+X    if (!(b = strcmp(v,vars[m].name))) break;
+X    if (b < 0) e = m - 1;
+X    else s = m + 1;
+X    m = (s+e)/2;
+X  }
+X  if (b) return;
+X  switch(vars[m].val) {
+X    case VAR_CDPATH:
+X      _cdpath = NULL;
+X      return;
+X    case VAR_ECHO:
+X      _echo = FALSE;
+X      return;
+X    case VAR_FAILAT:
+X      _failat = 1;
+X      return;
+X    case VAR_HISTORY:
+X      _maxhist = c = 1;
+X      if (c < curhist) for(b=c;b<curhist;b++) free(history[b]);
+X      history = (char **)realloc(history,sizeof(char *)*2);
+X      if (curhist > c) curhist = c;
+X      return;
+X    case VAR_HOME:
+X      free(_home);
+X      _home = NULL;
+X      return;
+X    case VAR_HOMEDIRS:
+X      _homedirs = NULL;
+X      return;
+X    case VAR_INSERT:
+X      _insert = FALSE;
+X      return;
+X    case VAR_JOBLIMIT:
+X      _joblimit = -1;
+X      return;
+X    case VAR_MAIL:
+X      _mbox = NULL;
+X      return;
+X    case VAR_MAILCHKINT:
+X      _mailchkint = 60;
+X      return;
+X    case VAR_MAILNOTICE:
+X      _mailnotice = NULL;
+X      return;
+X    case VAR_NOASSIGNS:
+X      _noassigns = FALSE;
+X      return;
+X    case VAR_NOBGNULL:
+X      _nobgnull = FALSE;
+X      return;
+X    case VAR_NOCLOBBER:
+X      _noclobber = FALSE;
+X      return;
+X    case VAR_NODOTS:
+X      _nodots = FALSE;
+X      return;
+X    case VAR_NOGLOB:
+X      _glob = TRUE;
+X      return;
+X    case VAR_NOHUP:
+X      _nohup = FALSE;
+X      return;
+X    case VAR_NONOMATCH:
+X      _nonomatch = FALSE;
+X      return;
+X    case VAR_NOTYPEAHEAD:
+X      _notypeahead = FALSE;
+X      return;
+X    case VAR_PATH:
+X      PATH = (char **) malloc(sizeof(char *) * 2);
+X      PATH[0] = ".";
+X      PATH[1] = 0;
+X      return;
+X    case VAR_PROMPT:
+X      free(_prompt);
+X      _prompt = "";
+X      return;
+X    case VAR_STATINT:
+X      _statint = 30;
+X      return;
+X    case VAR_STATLINE:
+X      printf("%s%s%s",_term[TS],_term[CE],_term[FS]);
+X      free(_statline);
+X      _statline = NULL;
+X      return;
+X    case VAR_TIMEOUT:
+X      _timeout = NULL;
+X      return;
+X    case VAR_VERBOSE:
+X      _verbose = FALSE;
+X      return;
+X  }
+X}
+X
+X/* shift <nshifts> <var> [<var> ... <var>] - shifts words to the left.*/
+SHIFT(n,arg,ferr)
+int n;
+char **arg;
+XFILE *ferr;
+X{
+X  struct _setvar *S;
+X  int i, j, ns;
+X
+X  if (n < 3) {
+X    fprintf(ferr,"shift: not enough arguments!\n");
+X    return 1;
+X  }
+X  if ((ns = atoi(arg[1])) <= 0) {
+X    fprintf(ferr,"shift: shift specifier should be greater than zero.\n");
+X    return 1;
+X  }
+X  for(i=2;i<n;i++) {
+X    if ((S = find_var(arg[i])) == NULL) {
+X      fprintf(ferr,"shift: variable '%s' not defined.\n",arg[i]);
+X      continue;
+X    }
+X    if (S->type) {
+X      fprintf(ferr,"shift: variable '%s' not a string type.\n",arg[i]);
+X      continue;
+X    }
+X    if (S->protect) {
+X      fprintf(ferr,"shift: variable '%s' is protected and not changed.\n",arg[i]);
+X      continue;
+X    }
+X    if (S->nwrds <= ns) {
+X      fprintf(ferr,"shift: too many words would be shifted for variable '%s'.\n",arg[i]);
+X      continue;
+X    }
+X    for(j=0;j<ns;j++) free(S->sv.wrd[j]);
+X    for(j=ns;j<=S->nwrds;j++) S->sv.wrd[j-ns] = S->sv.wrd[j];
+X    S->nwrds -= ns;
+X    S->sv.wrd = (char **)realloc(S->sv.wrd,sizeof(char **) * (S->nwrds+1));
+X  }
+X  return 0;
+X}
+X
+struct _setvar *find_var(pat)
+char *pat;
+X{
+X  int i, hv = hash(*pat);
+X  struct _setvar *p = sets[hv];
+X
+X  while (p) {
+X    if (!(i = strcmp(pat,p->var))) return p;
+X    if (i < 0) return NULL;
+X    p = p->nxt;
+X  }
+X  return NULL;
+X}
+X
+struct _setvar *add_var(var,stuff,type,pro)
+char *var;
+union setval stuff;
+BYTE type,pro;
+X{
+X  int i, hv = hash(*var);
+X  struct _setvar *p = sets[hv], *s = p, *t = (struct _setvar *)malloc(sizeof(struct _setvar));
+X
+X  while (p) {
+X    if (!(i = strcmp(var,p->var))) {
+X      if (p->protect) {
+X	if (type == T_STRING) free_list(stuff.wrd);
+X	return NULL;
+X      }
+X      if (p->type == T_STRING) free_list(p->sv.wrd);
+X      p->sv = stuff;
+X      p->type = type;
+X      if (type == T_STRING) {
+X        for(i=0;stuff.wrd[i];i++);
+X	p->nwrds = i;
+X      }
+X      return p;
+X    }
+X    if (i < 0) break;
+X    s = p;
+X    p = p->nxt;
+X  }
+X  t->var = (char *)strcpy((char *)malloc(strlen(var)+1),var);
+X  t->type = type;
+X  t->nwrds = 0;
+X  t->protect = pro?1:0;
+X  switch(type) {
+X    case T_STRING:
+X      t->sv.wrd = stuff.wrd;
+X      for(i=0;stuff.wrd[i];i++);
+X      t->nwrds = i;
+X      break;
+X    case T_INTEGER:
+X      t->sv.val = stuff.val;
+X      break;
+X    case T_NULL:
+X      t->sv.val = 0;
+X      break;
+X  }
+X  t->nxt = p;
+X  if (p == sets[hv] && s == sets[hv]) sets[hv] = t;
+X  else s->nxt = t;
+X  return t;
+X}
+X
+remove_var(var)
+char *var;
+X{
+X  int i, hv = hash(*var);
+X  struct _setvar *p = sets[hv], *s = p;
+X
+X  while (p) {
+X    if (!(i = strcmp(var,p->var))) {
+X      if (p->protect) return TRUE;
+X      if (p == sets[hv]) sets[hv] = p->nxt;
+X      else s->nxt = p->nxt;
+X      free(p->var);
+X      if (p->type == T_STRING) free_list(p->sv.wrd);
+X      free(p);
+X      return TRUE;
+X    }
+X    if (i < 0) break;
+X    s = p;
+X    p = p->nxt;
+X  }
+X  return FALSE;
+X}
+X
+struct _setvar *makenvar(var,num)
+char *var;
+long num;
+X{
+X  union setval st;
+X  struct _setvar *s;
+X
+X  st.val = num;
+X  if (!(s = add_var(var,st,T_INTEGER,0))) return NULL;
+X  check_and_export(s);
+X  return s;
+X}
+X
+struct _setvar *makenull(var)
+char *var;
+X{
+X  union setval st;
+X  struct _setvar *s;
+X
+X  st.val = 0;
+X  if (!(s = add_var(var,st,T_NULL,0))) return NULL;
+X  check_and_export(s);
+X  return s;
+X}
+X
+struct _setvar *makeset(var,wrd)
+char *var, *wrd;
+X{
+X  union setval st;
+X  struct _setvar *s;
+X
+X  st.wrd = (char **)calloc(2,sizeof(char *));
+X  st.wrd[0] = strcpy(malloc(strlen(wrd)+1),wrd);
+X  st.wrd[1] = NULL;
+X  if (!(s = add_var(var,st,T_STRING,0))) return NULL;
+X  check_and_export(s);
+X  return s;
+X}
+X
+struct _setvar *makewset(var,wrd)
+char *var, *wrd;
+X{
+X  union setval st;
+X  struct _setvar *s;
+X  int i,j,k, n = 5,p = 0;
+X
+X  st.wrd = (char **)calloc(n,sizeof(char *));
+X  i = 0;
+X  while(buf[i] == ' ' || buf[i] == '\t') i++;
+X  j = i;
+X  while(1) {
+X    if (buf[i] == ' ' || buf[i] == '\t' || !buf[i]) {
+X      if (!buf[i] && (i-j) == 0) break;
+X      if (p == (n-1)) st.wrd = (char **)realloc(st.wrd,(n+=2) * sizeof(char *));
+X      st.wrd[p] = (char *)malloc((i-j)+1);
+X      for(k=j;k<i;k++) st.wrd[p][k-j] = buf[k];
+X      st.wrd[p++][k-j] = 0;
+X      if (!buf[i]) break;
+X      while(buf[i] == ' ' || buf[i] == '\t') i++;
+X      j = i;
+X    } else i++;
+X  }
+X  st.wrd[p] = NULL;
+X  if (!(s = add_var(var,st,T_STRING,0))) return NULL;
+X  check_and_export(s);
+X  return s;
+X}
+END_OF_FILE
+if test 20910 -ne `wc -c <'vars.c'`; then
+    echo shar: \"'vars.c'\" unpacked with wrong size!
+fi
+# end of 'vars.c'
+fi
+echo shar: End of archive 2 \(of 4\).
+cp /dev/null ark2isdone
+MISSING=""
+for I in 1 2 3 4 ; do
+    if test ! -f ark${I}isdone ; then
+	MISSING="${MISSING} ${I}"
+    fi
+done
+if test "${MISSING}" = "" ; then
+    echo You have unpacked all 4 archives.
+    rm -f ark[1-9]isdone
+else
+    echo You still need to unpack the following archives:
+    echo "        " ${MISSING}
+fi
+##  End of shell archive.
+exit 0

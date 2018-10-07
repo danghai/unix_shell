@@ -1,0 +1,8 @@
+#!/bin/csh -f
+# The greetings script
+# This script greets a user whose name is typed in at the command line.
+	
+echo $0 to you $1 $2 $3	
+echo Welcome to this day 'date | awk '{print $1, $2, $3}''  
+echo Hope you have a nice day, $argv[1]\!
+echo Good-bye $argv[1] $argv[2] $argv[3] 

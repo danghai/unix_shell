@@ -1,0 +1,1070 @@
+Subject:  v21i028:  String function to do sed(1)/tr(1) manipulations, Part01/03
+Newsgroups: comp.sources.unix
+Approved: rsalz@uunet.UU.NET
+X-Checksum-Snefru: 2996bd1c 3a2bfb34 9ce711a4 292ee33f
+
+Submitted-by: Terry Jones <terry@pcsbst.pcs.com>
+Posting-number: Volume 21, Issue 28
+Archive-name: strsed/part01
+
+Strsed is another string function.  It does regular expression search and
+replace (including tr(1)-like transliteration) in the style of the
+ed/edit/ex text editors.
+
+Here are a few examples:
+    strsed(s, "s/fred/joe/", 0)		Change "fred" to "joe"
+    strsed(s, "g/fred/joe/", 0)		Change ALL "fred" to "joe"
+    strsed(s, "g/a//", 0)		Delete all a's
+    strsed(s, "s/fred.*/{a-z}{A-Z}/", 0)
+		Change fred and what follows to upper case
+    int range[2];
+    strsed(s, "/[0-9]*/", range)
+		Search for a number in s; indices of the matched portion are
+		returned in range[0] & range[1].
+
+It is general enough to be able to emulate most of the usual more
+complicated string functions (including strchr, strrchr, strpbrk, strspn,
+strcspn and strtok), and can perform complicated string manipulations that
+are otherwise a major headache.
+
+The GNU regex package is needed for linking. The necessary source files
+are regex.c and regex.h which were included in the GNU 18.55 (and 18.54)
+emacs distribution.  Both are expected to be in the current directory when
+you type 'make'.
+
+#!/bin/sh
+# shar:	Shell Archiver  (v1.22)
+#	Packed Thursday March,  8. 1990, 20:45:41  MEZ by terry
+#	from directory /user1/terry/s/regex
+#
+# This is part 1 of a multipart archive                                    
+# do not concatenate these parts, unpack them in order with /bin/sh        
+#
+#	Run the following text with /bin/sh to create:
+#	  README
+#	  strsed.3c
+#	  strsed.c
+#	  Makefile
+#	  check1.c
+#	  check2.c
+#	  examples1
+#	  examples2
+#	  MANIFEST
+#
+if test -r s2_seq_.tmp
+then echo "Must unpack archives in sequence!"
+     next=`cat s2_seq_.tmp`; echo "Please unpack part $next next"
+     exit 1; fi
+echo "x - extracting README (Text)"
+sed 's/^X//' << 'SHAR_EOF' > README &&
+X
+XREADME for strsed
+X
+XStrsed is another string function. It does regular expression search
+Xand replace (including tr(1)-like transliteration) in the style of the
+Xed/edit/ex text editors.
+X
+XHere are a few examples:
+X
+X  (change "fred" to "joe")        strsed(s, "s/fred/joe/", 0);
+X  
+X  (change all "fred"s to "joe")   strsed(s, "g/fred/joe/", 0);
+X  
+X  (delete all a's)                strsed(s, "g/a//", 0);
+X  
+X  (change fred and what follows
+X   to upper case)                 strsed(s, "s/fred.*/{a-z}{A-Z}/", 0);
+X
+X  (strip repeated letters
+X   in the ranges a-z and 0-9)     strsed(s, "g/\([a-z0-9]\)\1+/\1/", 0);
+X
+X  (search for a number in s)      int range[2];
+X                                  strsed(s, "/[0-9]*/", range);
+X                                  /* indices of the matched portion are
+X                                     returned in range[0] & range[1] */
+X
+X
+Xand there's more...  See the man page in 'strsed.3c' for details.  
+X
+XIt is general enough to be able to emulate most of the usual more
+Xcomplicated string functions (including strchr, strrchr, strpbrk,
+Xstrspn, strcspn and strtok), and can perform complicated string
+Xmanipulations that are otherwise a major headache.
+X
+XThe GNU regex package is needed for linking. The necessary source
+Xfiles are regex.c and regex.h which were included in the GNU 18.55
+X(and 18.54) emacs distribution.  Both are expected to be in the
+Xcurrent directory when you type 'make'.
+X
+XStrsed is distributed with no conditions or guarantees attached. 
+XBear in mind however that the GNU license applies to the regex
+Xsources.
+X
+XThis was developed in a (basically) System V environment using gcc
+X(1.37), but there should be no problem at all in compiling it on BSD
+Xor elsewhere - everything is very standard.
+X
+XTo compile, copy or link the GNU regex.{c,h} files into the current
+Xdirectory and type 'make'. If you do not have gcc then change the
+XMakefile to use cc. Some compilers (NOT gcc) (notably MIPS' cc) have
+Xbeen known to have problems compiling regex.c into something that will
+Xrun without coredumping.
+X
+XThis will produce 'strsed.o'. As well as this, two checking programs
+Xwill be compiled and example files will be run. If all is well you
+Xwill get the two messages:
+X
+X  Substitution and transliteration tests passed successfully.
+X  Searching tests passed successfully.
+X
+XIndicating that things are OK.
+X
+X
+X
+XHave fun...
+X
+XTerry Jones 
+X(terry@pcsbst.pcs.com or ...!{pyramid,unido}!pcsbst!distel!terry)
+X
+XPCS Computer Systeme GmbH
+XPfalzer-Wald-Str 36
+X8000 Munchen 90
+XWest Germany       49-89-68004288
+SHAR_EOF
+chmod 0644 README || echo "restore of README fails"
+set `wc -c README`;Sum=$1
+if test "$Sum" != "2531"
+then echo original size 2531, current size $Sum;fi
+echo "x - extracting strsed.3c (Text)"
+sed 's/^X//' << 'SHAR_EOF' > strsed.3c &&
+X.\"
+X.\" $Header: /user1/terry/s/regex/RCS/strsed.3c,v 1.3 90/03/07 15:48:59 terry Exp Locker: terry $
+X.\"
+X.\"
+X.\" $Log:	strsed.3c,v $
+X.\\" Revision 1.3  90/03/07  15:48:59  terry
+X.\\" Lots of little things. 
+X.\\" 
+X.\\" Revision 1.2  90/03/06  22:48:00  terry
+X.\\" Changed the bit about the 3rd arg - which is now necessary.
+X.\\" 
+X.\\" Revision 1.1  90/01/18  20:03:54  terry
+X.\\" Initial revision
+X.\\" 
+X.\"
+X.TH STRSED 3C
+X.SH NAME
+Xstrsed \- ed(1)/tr(1)\-like substitute and replace function.
+X.SH SYNOPSIS
+X\fBchar *strsed(string, command, 0)
+X.br
+Xchar *string;
+X.br
+Xchar *command;\fR
+X.br
+X.sp
+Xor
+X.sp
+X\fBchar *strsed(string, command, range)
+X.br
+Xchar *string;
+X.br
+Xchar *command;
+X.br
+Xint range[2];\fR
+X.SH DESCRIPTION
+X.B Strsed 
+Xis a regular expression pattern match and replace
+Xfunction that also combines 
+X.B tr(1)
+Xlike transliteration. The GNU regex package is used 
+Xfor the regular expression matching.
+X.PP
+X.B Strsed
+Xcan be used to provide the
+Xfunctionality of most of the other more "complicated"
+Xstring functions (e.g. 
+X.BR strchr ,
+X.BR strrchr ,
+X.BR strpbrk ,
+X.BR strspn ,
+X.BR strcspn ,
+Xand
+X.BR strtok ),
+Xalthough less efficiently
+Xin each case, due to its generality.
+X.B Strsed
+Xis a very powerful and general function that can be used
+Xto carry out complicated string manipulations such as 
+Xthose that are possible in text editors.
+X.SH USAGE
+X.I String
+Xshould be a null\-terminated character string.
+XA copy is made and will be operated on according to the 
+Xsearch and replace instructions contained in 
+X.IR command .
+XUnless an error occurs (see ERRORS), the passed character strings
+X.I string 
+Xand
+X.I command
+Xare 
+X.I never
+Xcorrupted, and the string that is returned may always 
+Xbe passed to 
+X.B free()
+Xsince its space is obtained from 
+X.BR malloc() .
+X.PP
+XBoth 
+X.I string
+Xand 
+X.I command
+Xmay contain the following C\-like escape sequences:
+X.sp
+X    \eb      Backspace.
+X.br
+X    \ef      Formfeed.
+X.br
+X    \en      Newline.
+X.br
+X    \er      Carriage Return.
+X.br
+X    \es      Space.
+X.br
+X    \et      Horizontal Tab.
+X.br
+X    \ev      Vertical Tab.
+X.br
+X    \ez      Used to remove ambiguity if necessary.
+X.br
+X    \e0\-9    A reference to a register.
+X.br
+X             (except for \e0 in a regular expression.)
+X.br
+X    \e0x3d   The character whose value is 3d hexadecimal.
+X.br
+X    \e0X3d   The character whose value is 3d hexadecimal.
+X.br
+X    \e040    The character whose value is 40 octal.
+X.br
+X    \e32     The character whose value is 32 decimal.
+X.sp
+XThe NUL (0) character cannot be specified. 
+XA '\e' followed by one to three digits can be interpreted in
+Xseveral ways. If one or two hex digits are preceeded by 
+Xan 'x' or an 'X',
+Xthey will be taken as specifying a character in hexadecimal.
+XIf there are exactly three
+Xoctal digits and the first is in the range '0' to '3'
+Xthen they are taken as specifying a character in octal. 
+XOtherwise a single digit
+Xis taken to be a register reference and two or three digits
+Xare interpreted as specifying a character in decimal.
+X\ez can be used to 
+Xavoid problems with ambiguity. For instance,
+X.B \e007
+Xwill be interpreted by
+X.B strsed
+Xas octal 007. To specify the contents of register zero (\e0) 
+Xfollowed by the two characters "07", use 
+X.BR \e0\ez07 .
+XThe \ez makes it clear what is meant (acting like a punctuation mark)
+Xand is otherwise ignored.
+X.PP
+XStrsed allows 
+X.B ed(1) 
+Xlike regular expressions and substitutions
+Xon 
+X.IR string .
+XThe search and replace command is specified by
+X.IR command .
+XThe format of
+X.I command
+Xis either 
+X.sp
+X\fB/search_pattern/replacement/\fR
+X.br
+Xor
+X.br
+X\fBg/search_pattern/replacement/\fR
+X.PP
+XIn the first form, the search and replace is performed once on
+Xthe string, and in the second, the replacement is done globally
+X(i.e. for every occurrence of the search pattern in 
+X.IR string .).
+XA leading 
+X"s" in the above is silently ignored. This allows for a syntax
+Xmore like that of 
+X.BR ed(1) . 
+Xe.g. 
+X.I s/e/x/ 
+Xis the same as 
+X.IR /e/x/ .
+X.PP
+XIf 
+X.I replacement
+Xis empty, then the matched text will
+Xbe replaced by nothing \- i.e. deleted.
+X.PP
+X.I Search_pattern
+Xis a full regular expression
+X(see 
+X.BR ed(1) ), 
+Xincluding register
+Xspecifications (i.e. \fB\e( ... \e)\fR) and register references, 
+X(e.g. \fB\e2\fR)
+Xbut not the \fB{m,n}\fR 
+Xrepetition feature of 
+X.BR ed(1) .
+X.PP
+X.I Replacement
+Xconsists of ordinary characters and/or register references 
+X(e.g. \fB\e1\fR or \fB\e2\fR.) \fB\e0\fR means the entire matched 
+Xtext. In addition, a
+Xregister reference may be immediately followed by a 
+Xtransliteration request, of the form 
+X.br
+X\fB{char\-list\-1}{char\-list\-2}\fR.
+X.br
+XThe characters from 
+X.I char\-list\-1
+Xwill be transliterated into the corresponding ones from 
+X.I char\-list\-2 
+Xin the same manner as
+X.BR tr(1) . 
+XIf the register reference before a transliteration 
+Xrequest is omitted, it defaults to \fB\e0\fR.
+XWithin a transliteration request, the characters
+X"}" and "\-" are metacharacters and must be escaped with
+Xa leading \e if you want them to be interpreted literally.
+XCharacter ranges such as a\-z are expanded in the same
+Xfashion as 
+X.BR tr(1) .
+XIf 
+X.I char\-list\-2
+Xis shorter than 
+X.I char\-list\-1
+Xthen 
+X.I char\-list\-2
+Xis padded to be the same length as
+X.I char\-list\-1
+Xby repeating its last character as many times as are needed.
+XFor example, the transliteration request
+X.br
+X.B {a\-z}{X}
+X.br
+Xwill transliterate all lower case letters into an 'X'.
+XCharacter ranges may be increasing or decreasing.
+X.PP
+XUnusual character ranges (such as 
+X.BR a\-f\-0\-\e0x2d\-c )
+Xare interpreted as running from their first character
+Xto their last (so the above would be treated as 
+X.BR a\-c ).
+XNote that it is
+X.B not
+Xpossible (in this release) to specify the complement of a 
+Xcharacter range in a transliteration request. However, this 
+Xcan be done in the
+X.I search_pattern
+Xby commencing a character class with a "^" in the normal
+Xregular expression fashion.
+X.PP
+XThe highest register that can be referenced is \fB\e9\fR.
+X.SH EXAMPLES
+XHere are some example
+X.I command
+Xstrings that might be given to 
+X.BR strsed .
+X.sp
+X\fB/a/A/\fR                    # Change the first 'a' into an 'A'
+X.br
+X\fBg/a/A/\fR                   # Change every 'a' into an 'A'
+X.br
+X\fBg/://\fR                     # Delete every ':'
+X.br
+X\fBg/jack/jill/\fR             # Change every 'jack' to a 'jill'
+X.br
+X\fB/[^\es\et]/X/\fR              # Change the first non\-whitespace character into an 'X'.
+X.sp
+XSome more advanced examples...
+X.sp
+X\fB/\e([\es\et]*\e)\e([^\es\et]*\e)/\e1\e2{a\-z}{A\-Z}/\fR
+X.sp
+XThis converts the first non\-whitespace word to upper case,
+Xpreserving any initial whitespace.
+XIt catches the first run of spaces and TABs into register
+Xone \e([\es\et]*\e), and then the following run of non\-white
+Xcharacters into register two \e([^\es\et]*\e). The replacement,
+X\e1\e2{a\-z}{A\-Z} specifies register 1 (the whitespace) followed
+Xby the contents of register 2 transliterated into uppercase.
+XThis would produce 
+X.br
+X"   SPOTTED pinto bean" 
+X.br
+Xif called on the string 
+X.br
+X"   spotted pinto bean".
+X.sp
+X\fBg/\e([a\-z]\e)\e1+/\e1/\fR
+X.sp
+XThis is a very useful example and performs the same function
+Xas tr \-s. That is, it squeezes runs of identical characters
+X(in the range a to z) down to a single instance of that 
+Xcharacter. So "beeee good" becomes "be god". The "+" is the
+Xregular expression notation meaning "one or more".
+X.sp
+X\fBg/\e([\et\es]*\e)\e(.\e)\e([^\et\es]*\e)/\e1\e2{a\-z}{A\-Z}\e3/\fR
+X.sp
+XThis example capitalises the first letter of each word in the string,
+Xand preserves all whitespace. It catches three things,
+X.br
+X1) the initial whitespace         \e([\et\es]*\e)  in register 1
+X.br
+X2) the next letter                \e(.\e)        in register 2
+X.br
+X3) the following nonwhite letters \e([^\et\es]*\e) in register 3
+X.br
+Xand then prints them out as they were found, with the only
+Xdifference being the uppercase conversion of the contents of
+Xregister 2. Given the string
+X.br
+X"  this is a line  " 
+X.br
+Xthis command would
+Xreturn 
+X.br
+X"  This Is A Line  ".
+X.br
+XIf the initial 'g' was not present in the command, then the capitalisation
+Xwould only be done to the first word in the string. 
+XIt is important to understand this difference well.
+X.SH SEARCHING ONLY
+X.B Strsed 
+Xmay be used to search for a regular expression in a
+Xstring, but perform no action. The portion of the string
+Xthat matched will be returned in the third argument
+X.IR range .
+XIn this case 
+X.I command
+Xshould be of the form 
+X.IR /pattern/ .
+XOn return, 
+X.I range[0] 
+Xwill contain an index into the original
+Xstring to indicate where the match began, and 
+X.I range[1] 
+Xwill index the first character after the end of the match. For
+Xexample, after the call 
+X.sp
+Xstrsed("two big macs please", "/b.*c/", range);
+X.sp
+X.I range[0] 
+Xwill contain 4 and 
+X.I range[1]
+Xwill contain 11.
+XIf not match is found, both elements of
+X.I range
+Xwill contain \-1.
+X.SH ERRORS
+XIf 
+X.B strsed 
+Xdetects any error it returns NULL. This can happen if the
+Xsyntax of 
+X.I command
+Xis incorrect, if the regular expression in 
+X.I command
+Xis incorrect, if space cannot be obtained from
+X.BR malloc ,
+Xor for other similar reasons. Note that it is 
+X.B not
+Xan error if the empty string is returned.
+X.SH "COMPILING AND LINKING STRSED"
+X.B Strsed
+Xshould be compiled with the \-O and \-c options of your C compiler.
+XIt has no main() function. When you come to link, you use strsed.o 
+Xand regex.o from the GNU 18.55 (or 18.54) emacs distribution.
+X.SH "OBSCURE NOTE ON REGULAR EXPRESSIONS"
+XIt is possible (but not too likely) that the regular expression 
+Xlanguage that is recognised may differ
+Xslightly from installation to installation. This is because the 
+XGNU regular expression package may compiled with different settings
+Xfor recognition of meta-characters. So on one machine, the character
+X"|" might be taken as being the OR operator, whilst somewhere else
+Xyou need to give "\e|" \- or vice-versa. This could be a pain in the
+Xneck, but there's not alot that can be done about it. If you 
+X.I really 
+Xneed
+Xto know the difference in a portable way, look in regex.h to see
+Xwhat things are defined and then act accordingly when constructing 
+Xcommands for 
+X.BR strsed . 
+X.SH AUTHOR
+XTerry Jones
+X.br
+XPCS Computer Systeme GmbH
+X.br
+XPfaelzer\-Wald\-Str 36
+X.br
+X8000 Muenchen 90
+X.br
+XWest Germany       49\-89\-68004288
+X.sp
+Xterry@distel.pcs.com  or ...!{pyramid,unido}!pcsbst!distel!terry
+X.sp
+XJanuary 8th, 1990.
+X.SH ACKNOWLEDGEMENTS
+XMany thanks to Jordan K. (mother) Hubbard for discussions, bugfinding,
+Xhandholding, forcing me to use emacs and torrents of (usually) uncalled\-for abuse.
+X.SH SEE ALSO
+X.I ed(1), tr(1)
+SHAR_EOF
+chmod 0644 strsed.3c || echo "restore of strsed.3c fails"
+set `wc -c strsed.3c`;Sum=$1
+if test "$Sum" != "10496"
+then echo original size 10496, current size $Sum;fi
+echo "x - extracting strsed.c (Text)"
+sed 's/^X//' << 'SHAR_EOF' > strsed.c &&
+X#ifndef lint
+Xstatic char *rcsid = "$Header: /user1/terry/s/regex/RCS/strsed.c,v 1.17 90/03/08 20:44:32 terry Exp Locker: terry $";
+X#endif lint
+X
+X/*
+X * Strsed.c
+X *
+X *     ed(1)/tr(1)-like search, replace, transliterate. See the
+X *     manpage for details.
+X *
+X * Usage:
+X *
+X *        strsed(string, pattern, 0);
+X *        char *string;
+X *        char *pattern;
+X * or
+X *        strsed(string, pattern, range);
+X *        char *string;
+X *        char *pattern;
+X *        int  range[2];
+X *
+X *
+X * Terry Jones    
+X * terry@distel.pcs.com
+X * ...!{pyramid,unido}!pcsbst!distel!terry
+X *
+X * PCS Computer Systeme GmbH
+X * Pfaelzer-Wald-Str 36
+X * 8000 Muenchen 90
+X * West Germany       49-89-68004288
+X *
+X * January 8th, 1990.
+X *
+X */
+X
+X/*
+X * $Log:	strsed.c,v $
+X * Revision 1.17  90/03/08  20:44:32  terry
+X * Final cleanup.
+X * 
+X * Revision 1.16  90/03/07  15:46:35  terry
+X * Changed backslash_eliminate to only malloc on 
+X * REPLACEMENT type. Added ".*" optimisation so that
+X * the regex functions are never called.
+X * 
+X * Revision 1.15  90/03/06  22:27:49  terry
+X * Removed varargs stuff since the 3rd argument is now 
+X * compulsory. Cleaned up. A few comments even.
+X * 
+X * Revision 1.14  90/03/06  21:50:28  terry
+X * Touched up memory stuff. Added mem_find(). Changed
+X * buf_sz and buf_inc to be a reasonable refelection
+X * of the length of the input.
+X * 
+X * Revision 1.13  90/03/06  20:22:48  terry
+X * Major rearrangements. Added mem(), mem_init(), mem_save(),
+X * mem_free() to handle memory in a vastly improved fashion.
+X * Calls to malloc are minimised as far as possible.
+X * 
+X * Revision 1.12  90/03/06  13:23:33  terry
+X * Made map static.
+X * 
+X * Revision 1.11  90/01/10  15:51:12  terry
+X * checked in with -k by terry at 90.01.18.20.03.08.
+X * 
+X * Revision 1.11  90/01/10  15:51:12  terry
+X * *** empty log message ***
+X * 
+X * Revision 1.10  90/01/10  12:48:40  terry
+X * Fixed handling of perverted character ranges in nextch().
+X * a-f-c now means a-c.
+X * 
+X * Revision 1.9  90/01/10  12:03:48  terry
+X * Pounded on space allocation, added more_space,
+X * remove free() in build_map, tested tiny buffer sizes etc.
+X * 
+X * Revision 1.8  90/01/09  18:15:12  terry
+X * added backslash elimination to str.
+X * altered backslash_elimantion to take one of three types
+X * REGEX, NORMAL or REPLACEMENT depending on the
+X * elimination desired. Changed interpretation of \ 
+X * followed by a single digit to be that character if the
+X * type of elimination is NORMAL. i.e. \4 = ^D.
+X * 
+X * Revision 1.7  90/01/09  17:05:05  terry
+X * Frozen version for release to comp.sources.unix
+X * 
+X * Revision 1.6  90/01/09  16:47:54  terry
+X * Altered pure searching return values to be -1
+X * 
+X * Revision 1.5  90/01/09  14:54:34  terry
+X * *** empty log message ***
+X * 
+X * Revision 1.4  90/01/09  14:51:04  terry
+X * removed #include <stdio> silliness.
+X * 
+X * Revision 1.2  90/01/09  10:48:22  terry
+X * Fixed handling of } and - metacharacters inside
+X * transliteration request strings in backslash_eliminate().
+X * 
+X * Revision 1.1  90/01/08  17:41:35  terry
+X * Initial revision
+X * 
+X *
+X */
+X
+X#include <ctype.h>
+X#include <string.h>
+X#include <malloc.h>
+X#include "regex.h"
+X
+X#define BYTEWIDTH     8
+X#define REGEX         0
+X#define REPLACEMENT   1
+X#define NORMAL        2
+X
+X/*
+X * And this is supposed to make freeing easier. It's a little hard to
+X * keep track of what can and cannot be freed in what follows, so I
+X * ignore it and every time a malloc is done for one of the things
+X * below (and these are the only ones possible) we free if need be and
+X * then alloc some more if it can't be avoided. No-one (who is going 
+X * to free) needs to call malloc then. And no-one need call free. 
+X * Wonderful in theory...
+X */
+X
+X#define MEM_STR       0
+X#define MEM_PAT       1
+X#define MEM_FROM      2
+X#define MEM_TO        3
+X#define MEM_NEWSTR    4
+X#define MEM_MAP       5
+X#define MEM_MAP_SAVE  6
+X
+X#define MEM_SLOTS     7
+X
+X/*
+X * This calls mem_free(), which free()s all the allocated storage EXCEPT
+X * for the piece whose address is 'n'. If something goes wrong below
+X * we call RETURN(0) and if we want to return some address we call RETURN
+X * with the address to be returned.
+X */
+X
+X#define RETURN(n)     \
+X    mem_free(n);      \
+X    return (char *)n;
+X
+Xstatic struct {
+X    char *s;
+X    int size;
+X    int used;
+X} mem_slots[MEM_SLOTS];
+X
+X
+X#define more_space(need)                                                   \
+X    if (need && space != -1){                                              \
+X        if (space - (need) < 0){                                           \
+X            buf_sz += buf_inc + (need) - space;                            \
+X            if (!(new_str = (char *)realloc(new_str, (unsigned)buf_sz))){  \
+X                RETURN(0);                                                 \
+X            }                                                              \
+X	    mem_slots[MEM_NEWSTR].s = new_str;                             \
+X	    mem_slots[MEM_NEWSTR].size = buf_sz;                           \
+X            space = buf_inc;                                               \
+X        }                                                                  \
+X        else{                                                              \
+X            space -= need;                                                 \
+X        }                                                                  \
+X    }
+X
+X
+Xchar *
+Xstrsed(string, pattern, range)
+Xregister char *string;
+Xregister char *pattern;
+Xint *range;
+X{
+X    extern char *re_compile_pattern();
+X    extern int re_search();
+X
+X    static char *backslash_eliminate();
+X    static char *mem();
+X    static void mem_init();
+X    static void mem_free();
+X    
+X    char *from;
+X    char *new_str;
+X    char *pat;
+X    char *str;
+X    char *tmp;
+X    char *to;
+X    static char map[1 << BYTEWIDTH];
+X    int buf_sz;
+X    int buf_inc;
+X    int global = 0;
+X    int match;
+X    int new_pos = 0;
+X    int search_only = 0;
+X    int seenbs = 0;
+X    int space;
+X    int match_all = 0;
+X    register int str_len;
+X    static int first_time = 1;
+X    static struct re_pattern_buffer re_comp_buf;
+X    struct re_registers regs;
+X
+X    if (!string || !pattern){
+X        RETURN(0);
+X    }
+X    
+X    /*
+X     * If this is the first time we've been called, clear the memory slots.
+X     */
+X    if (first_time){
+X	mem_init();
+X    }
+X
+X    /*
+X     * Take our own copies of the string and pattern since we promised
+X     * in the man page not to hurt the originals.
+X     */
+X    str = mem(MEM_STR, strlen(string) + 1);
+X    str[0] = '\0';
+X    strcat(str, string);
+X    pat = mem(MEM_PAT, strlen(pattern) + 1);
+X    pat[0] = '\0';
+X    strcat(pat, pattern);
+X
+X    /*
+X     * If escape sequences are not already removed elsewhere, remove
+X     * them from the string. If you don't know what you're doing here
+X     * or are in any doubt, don't define ESCAPED_STRING.
+X     */
+X#ifndef ESCAPED_STRING
+X    if (!(str = backslash_eliminate(str, NORMAL, MEM_STR))){
+X        RETURN(0);
+X    }
+X#endif
+X
+X    str_len = strlen(str);
+X    
+X    /*
+X     * Set up the size of our buffer (in which we build the
+X     * newstring, and the size by which we increment it when
+X     * (and if) the need arises. There shouldn't be too much
+X     * growth in the average case. Of course some people will
+X     * go and do things like 
+X     *
+X     * strsed(string, "s/.*$/\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0")
+X     *
+X     * and they will be somewhat penalised. Oh well.
+X     *
+X     */
+X
+X    buf_sz = str_len < 8 ? 16 : str_len << 1;
+X    buf_inc = buf_sz;
+X
+X    /*
+X     * Get the action. 
+X     * s = substitue and g = global.
+X     * anything else is invalid.
+X     *
+X     */
+X    while (*pat && *pat != '/'){
+X        switch (*pat){
+X            case 'g':{
+X                global = 1;
+X                break;
+X            }
+X            case 's':{
+X                break;
+X            }
+X            default:{
+X                RETURN(0);
+X            }
+X        }
+X        pat++;
+X    }
+X
+X    if (!*pat){
+X        RETURN(0);
+X    }
+X
+X    pat++;
+X
+X    /*
+X     * Now split 'pat' into its two components. These are delimited (or
+X     * should be) by (unquoted) '/'. The first we point to with 'from' 
+X     * and the second with 'to'. 
+X     *
+X     * Someone should write a function to make this sort of thing trivial...
+X     *
+X     */
+X    
+X    from = to = pat;
+X
+X    while (*to){
+X        if (seenbs){
+X            seenbs = 0;
+X        }
+X        else{
+X            if (*to == '\\'){
+X                seenbs = 1;
+X            }
+X            else if (*to == '/'){
+X                break;
+X            }
+X        }
+X        to++;
+X    }
+X
+X    if (!*to){
+X        RETURN(0);
+X    }
+X
+X    *to++ = '\0';
+X
+X    if (*to){
+X        tmp = to + strlen(to) - 1;
+X
+X        /*
+X         * Back up to the last non-whitespace char in 'to'
+X         *
+X         */
+X
+X        while (*tmp == ' ' || *tmp == '\t'){
+X            tmp--;
+X        }
+X
+X        /*
+X         * Make sure that, if there was a character,
+X         * that it was a / and wasn't preceded by \.
+X         *
+X        */
+X
+X        if (*tmp && !(*tmp = '/' && *(tmp - 1) != '\\')){
+X            RETURN(0);
+X        }
+X
+X        *tmp = '\0';
+X    }
+X    else{
+X        /*
+X	 * Search only.
+X         * It doesn't make sense to say
+X         *
+X         * strsed(string, "g/abc/", range)
+X         *
+X         * because we are only searching and returning the 
+X         * matched indexes. So turn off global (in case it's on)
+X	 * so that we will return just the first instance.
+X	 *
+X	 * If no range has been given either, then there's no
+X	 * point in going on.
+X         *
+X         */
+X	
+X	if (!range){
+X	    RETURN(0);
+X	}
+X	
+X        global = 0;
+X        search_only = 1;
+X    }
+X
+X    /*
+X     * Eliminate backslashes and character ranges etc.
+X     *
+X     */
+X
+X    if (!(from = backslash_eliminate(from, REGEX, MEM_FROM)) || 
+X        !(to = backslash_eliminate(to, REPLACEMENT, MEM_TO))){
+X        RETURN(0);
+X    }
+X    
+X    /*
+X     * If the first char of 'to' is '\0' then we are deleting or 
+X     * searching only. We don't have to worry about space since 
+X     * the transformed string will be less than or equal in length
+X     * to the original. We just overwrite.
+X     * We set space = -1 so that later on we can avoid worrying
+X     * about overflow etc.
+X     *
+X     * Otherwise, we are doing a substitution. Here we have to
+X     * worry about space because the replacement may be larger
+X     * than the original. malloc some room and if we overflow it 
+X     * later we will realloc. slows things down if the new string
+X     * turns out to be too much bigger. oh well.
+X     *
+X     */
+X    
+X    if (*to){
+X        if (!(new_str = mem(MEM_NEWSTR, buf_sz + 1))){
+X            RETURN(0);
+X        }
+X        space = buf_sz;
+X    }
+X    else{
+X        new_str = str;
+X        space = -1;
+X    }
+X
+X    /*
+X     * Do things to get ready for the regex functions.
+X     * Don't do anything though if the regex in 'from' is ".*"
+X     * We handle that below. (Just a special case optimisation).
+X     *
+X     */
+X
+X    if (from[0] == '.' && from[1] == '*' && from[2] == '\0'){
+X	register int i; 
+X	match_all = 1;
+X	/*
+X	 * For safety's sake, clear out the register values.
+X	 * There might be a register reference in the replacement. 
+X	 * There will be nothing in the register (since the search
+X	 * pattern was ".*"). Since we aren't calling the regex 
+X	 * stuff we can't rely on it to set these to -1.
+X	 */
+X	for (i = 0; i < RE_NREGS; i++){
+X	    regs.start[i] = -1;
+X	}
+X    }
+X    else{
+X	if (first_time){
+X	    if (!(re_comp_buf.buffer = (char *)malloc((unsigned)200))){
+X		RETURN(0);
+X	    }
+X	    
+X	    re_comp_buf.allocated = 200;
+X	    
+X	    if (!(re_comp_buf.fastmap = (char *)malloc((unsigned)1 << BYTEWIDTH))){
+X		RETURN(0);
+X	    }
+X	    
+X	    first_time = 0;
+X	}
+X	
+X	re_comp_buf.translate = 0;
+X	re_comp_buf.used = 0;
+X
+X	/*
+X	 * Compile the r.e. 
+X	 *
+X	 */
+X	if (re_compile_pattern(from, strlen(from), &re_comp_buf)){
+X	    RETURN(0);
+X	}
+X    }
+X    
+X
+X    /*
+X     * Now get on with the matching/replacing etc.
+X     *
+X     */
+X
+X    do {
+X	if (match_all){
+X	    /* Fake a match instead of calling re_search(). */
+X	    match = 1;
+X	    regs.start[0] = 0;
+X	    regs.end[0] = str_len;
+X	}
+X	else{
+X	    match = re_search(&re_comp_buf, str, str_len, 0, str_len, &regs);
+X	}
+X
+X        if (search_only){
+X            /*
+X             * Show what happened and return.
+X             *
+X             */
+X	    
+X	    range[0] = match == -1 ? -1 : regs.start[0];
+X	    range[1] = match == -1 ? -1 : regs.end[0];
+X            RETURN(str);
+X        }
+X
+X        if (match != -1){
+X
+X            /*
+X             * Copy that portion that was not matched. It will
+X             * be unchanged in the output string.
+X             *
+X             */
+X            more_space(regs.start[0]);
+X            strncpy(new_str + new_pos, str, regs.start[0]);
+X            new_pos += regs.start[0];
+X
+X            /*
+X             * Put in the replacement text (if any).
+X             * We substitute the contents of 'to', watching for register
+X             * references.
+X             */
+X
+X            tmp = to;
+X            while (*tmp){
+X                if (*tmp == '\\' && isdigit(*(tmp + 1))){
+X
+X                    /* A register reference. */
+X
+X                    register int reg = *(tmp + 1) - '0';
+X                    int translit = 0;
+X                    int need = regs.end[reg] - regs.start[reg];
+X
+X                    /*
+X                     * Check for a transliteration request.
+X                     *
+X                     */
+X		    if (*(tmp + 2) == '{'){
+X			/* A transliteration table. Build the map. */
+X			static char *build_map();
+X			if (!(tmp = build_map(tmp + 2, map))){
+X			    RETURN(0);
+X			}
+X			translit = 1;
+X		    }
+X		    else{
+X			tmp += 2;
+X			translit = 0;
+X		    }
+X
+X		    more_space(need);
+X		    
+X		    /*
+X		     * Copy in the register contents (if it matched), transliterating if need be.
+X		     *
+X		     */
+X                    if (regs.start[reg] != -1){
+X			register int i;
+X                        for (i = regs.start[reg]; i < regs.end[reg]; i++){
+X                            new_str[new_pos++] = translit ? map[str[i]] : str[i];
+X                        }
+X                    }
+X                }
+X                else{
+X                    /* A plain character, put it in. */
+SHAR_EOF
+echo "End of part 1"
+echo "File strsed.c is continued in part 2"
+echo "2" > s2_seq_.tmp
+exit 0
+

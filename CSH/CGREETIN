@@ -1,0 +1,6 @@
+#/bin/csh  -f
+# The greetings script
+
+echo -n  "What is your name?"     
+set name = $<   
+echo Greetings  to you, $name. 

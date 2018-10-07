@@ -1,0 +1,213 @@
+1.32->1.33 Bug fix release 5/12/96
+     1) Fix: LI on load= line in WIN.INI -> dir split bar not positioned
+             properly
+     2) Fix: Non-ASCII file on command line -> splash dialog won't go 
+             away
+     3) Fix: Two <ALT><F><A> menu accelerators
+     4) Fix: Better error recovery on switch to empty floppy, audio CD
+     5) Fix: Double click max'ed file window system menu did not close
+             the window
+     6) Fix: If a file search was started on a disk that was not in the
+             search disk list, the disk not in the list was searched
+     7) Fix: Certain regular expressions in-op from search dialog
+     8) Fix: Could not turn off auto-title lock in Options/File Types
+     9) Fix: reg expr with wildcards could erroneously match string
+             shorter than the expression
+     10)Fix: File/Save As on selected text in a view window
+     11)Fix: Print selected lines did not print the last line
+     12)Fix: File/Save of 0 byte file gave erroneous error msg
+     13)Fix: Options/File Types dialog allows removal of a special type
+     *) Chg: Vertical scroll thumb more indicative of file position
+     *) Chg: Dir list now more FileManger-like: double click collapses
+             dir, single or double click creates sub-dir list
+     *) Chg: regular expression "[set]*" matches 0 or more occurances of
+             the set
+     *) Chg: Use common printer dialogs
+     *) New: Print page range
+     *) New: Print icon prints without dialogs
+     *) New: Print selected files from dir window
+     *) New: Printer setup saved in INI file
+     *) New: Options/File Types extentions can contain regular expression
+     *) New: Options/File Types allows more type definitions (less
+             limited by memory)
+     *) New: Net connect/disconnect drives (Win 3.1 or newer and supported
+             network required), disk name shown in dir window
+     *) New: "edit" toolbar button now closes edit win, opens view win
+             for the same file
+     *) New: Window/Tile Horizontal menu choice (Win 3.1 or newer rqd)
+     *) New: Automatic save of setting option
+     *) New: 32-bit version released
+
+1.31->1.32 Bug fix release
+     1) Fix: certain "copy" operations could GPF
+     2) Fix: a file search started while focused on a dir window would
+             ignore the "start dir" specification and use the dir that
+             the dir window was displaying
+
+1.31->1.31a bug fix release 3/26/93
+     1) Fix: Messed up the key for 'copy' in 1.31 chg. Fixed it.
+
+1.30->1.31 bug fix release 3/21/93
+     1) Fix: HP PCL printouts (& others?) would continue printing "forever"
+     2) Fix: Command line file/dir specification didn't always work
+     3) Chg: Now uses the Win 3.1 standard keys for copy and cut.
+
+1.23->1.30 Feature Upgrade 1/31/93
+     1) New: File Open window supports file masks separated by
+             semicolons, e.g. *.doc;*.txt shows both file types
+             in the list box
+     2) New: Sort files by size in the file open dialog
+     3) New: Win 3.1 File Manager drag & drop support
+     4) New: File|New command opens an empty edit window
+     5) New: Find/Replace in edit windows
+     6) New: Search for files using size & date filters
+     7) New: Automatically 'title lock' specified lines at the top of
+             a view window based on the file extension
+     8) New: Can now limit file searches to the current "limb" of
+             the directory tree
+     9) New: Search dialog provides the same file masks that the
+             file open window does
+    10) New: File|Save As in the view or search list window saves 
+             selected text into a new file
+    11) New: Can choose Printer fonts when printing with Win 3.1
+    12) New: Can copy selected search list results to the Clipboard
+    13) New: Edit|Copy button added to the icon bar
+    14) New: If options/window position changed, prompts for saving new
+             settings at exit
+    15) New: 'Window' menu file names indicate the type of the window; view,
+             edit, directory, search list.
+    16) New: "Sum" button on dir window adds file sizes for entire dir tree
+    17) Chg: 'Next Window' icon on button bar restores the window from an 
+             icon if it was minimized
+    18) Chg: File Open window now looks more like Win 3.1 File Manager
+    19) Chg: Uses the Win 3.1 font and file save common dialogs
+             if available
+    20) Chg: Button bar find box keeps the input focus until the mouse
+             is clicked on another window
+    21) Chg: Hidden files/directories sort alphabetically (used to sort 
+             first since they were capitalized)
+    22) Chg: Print dialog shows the destination port
+    23) Chg/Fix: File Open Tile Windows option is more consistent
+    24) Chg/Fix: File list box now handles more files, gives message if 
+                 overflow
+    25) Fix: File Search used to stop after hitting a hidden dir
+    26) Fix: Didn't always save/use new font setting in LI.INI file
+    27) Fix: Go End could UAE/GPF on corrupted text files
+
+
+1.22->1.23 Bug fix release 7/12/92
+     *) Fix: Print a blank line in the LI editor printed 2 garbage
+             characters.
+     *) Fix: On exit from LI, if 'Cancel' was selected for a modified
+             edit window, program kept asking to save the file.
+
+1.21->1.22 Bug fix release 3/25/92
+     1) Fix: UAE on search list window overflow (err introduced in
+             version 1.21 horiz scroll bar change).
+
+1.20->1.21 Bug fix release 3/24/92
+     1) Fix: tab stop gets messed up when there are no open file
+             windows & View:Tabs menu is activated and also 
+             Options:File Types is used for the first time ever. 
+             Tab stop of 0 caused divide by zero program crash.
+     2) Fix: can't launch a program that has a directory in its 
+             path that has a '.' in it, for example 
+             C:\LANMAN.DOS\PROG.EXE would not launch.
+     3) Chg: saves view, edit and search list fonts separately in
+             LI.INI so the default font can be different for each
+             window type
+     4) Chg: horizontal scroll bar added to search list window
+     5) Chg: if the Edit:Edit menu choice or button is selected
+             while viewing a file, the resultant edit window will
+             have the caret placed on the line that was at the top
+             of the view window.
+
+1.12a->1.20 Feature upgrade 2/23/92
+     1) File masks added to Open dialog
+     2) Drop down list of opened files added to open dialog
+     3) Font size creation capability
+     4) Title lock
+     5) OEM text type added to clipboard copy from a view window
+     6) BlockSize parameter added to LI.INI to allow viewing of
+        even bigger files if memory allows (default is approx 15Mb files)
+     7) add select by character (line select in view window still 
+        available by clicking in the left margin)
+     8) When LI launched through association & LI is already running,
+        add the associated file to the opened files
+     9) If the launched file associates to LI but is being launched
+        by LI, launch the default editor instead
+    10) 128 column VGA fixed font included with LI
+    11) add File:Search - list of matching files/matching lines
+    12) add edit capability for small text files (similar to Notepad)
+    13) add regular expression searches (file names and file contents)
+    14) add button bar
+    15) vertical scroll bar moveable in view windows
+    16) sort by extent/date/none in open dialog
+    17) click on status: line #, page indicator, bit 7 strip indicator;
+        executes goto line, page up/down, strip toggle
+    18) view parameters optionally set by file extent
+    19) if .INI files are edited, activation (de-caching) of the changes
+        is optional (only implemented if running Windows 3.0)
+     *) chg: file closed while not accessing
+     *) chg: turns on hourglass cursor when multiple files deleted from
+             the File:Open dialog
+     *) fix: >64K clipboard copy
+     *) fix: long printout header/footer followed by short printout
+             header/footer
+     *) fix: header/footer should now fit in the printable area on
+             a postscript printer
+     *) fix: F1 now activates help on a grayed menu item too
+     *) fix: try to get a dir of a floppy with a file spec of other 
+             than "*.*" & there are no matching files on the floppy 
+             => LI got confused
+     *) fix: UAE on Goto Line when the line was distant from the current
+             line.
+     *) fix: occasional UAE when holding the up-arrow key down until the
+             top of the file is reached
+     *) fix: don't allow a dithered color from the LI.INI file to be 
+             the background
+
+
+1.12->1.12a Bug fix release 8/30/91
+     1) Fix: UAE on find string in large file consisting entirely of
+             very short lines.
+
+
+1.11->1.12 Bug fix release 8/11/91
+     1) Fix: UAE on large directory tree
+     2) Fix: find strings near internal buffer boundries not found
+     3) Fix: same printer type on more than one port not recognized
+     4) Fix: start a file search from a dir that has subdirs but no files 
+             => fails to search
+     5) Fix: file windows tiled, leave LI & edit & save one of the files that 
+             LI is not focused on, return to LI => infinite loop updating 
+             the changed file's window
+     *) Chg: Save bit 7 strip status in LI.INI; carry current setting
+             to next opened file
+
+
+1.10->1.11 Bug fix release 6/28/91
+     1) Fix: UAE on very small file viewed and a large file has never
+             been viewed & then a dialog box is opened & closed
+     2) Fix: certain combinations of OR'ed find strings not found
+     3) Fix: UAE upon View:Font if no "TERMINAL" font resident
+     *) Chg: More size choices on vector fonts
+
+
+1.00->1.10 Feature upgrade 6/8/91
+     1) Directory trees
+     2) File launch
+     3) Enhanced printout support
+     4) Delete directory & its contents
+     5) Right mouse button gives pointer statistics
+     6) More user configurability for: file delete confirmation; hidden  
+        & system file display; automatic File:Open dialog box
+     6) LI.WRI documentation file included
+     7) Erase & Launch options added on file find match
+     *) Fix: print header/footer error checks (now won't mess up when
+        mis-used)
+
+
+
+
+

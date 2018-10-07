@@ -1,0 +1,1517 @@
+Path: uunet!rs
+From: rs@uunet.UU.NET (Rich Salz)
+Newsgroups: comp.sources.unix
+Subject: v11i002:  New version of T-shell, Part02/06
+Message-ID: <860@uunet.UU.NET>
+Date: 11 Aug 87 23:51:32 GMT
+Organization: UUNET Communications Services, Arlington, VA
+Lines: 1507
+Approved: rs@uunet.UU.NET
+
+Submitted-by: Paul Placeway <pyramid!osu-eddie!paul>
+Posting-number: Volume 11, Issue 2
+Archive-name: tcsh/Part02
+
+# This is a shell archive.  Remove anything before this line
+# then unpack it by saving it in a file and typing "sh file"
+# (Files unpacked will be owned by you and have default permissions).
+# This archive contains the following files:
+#	./ed.init.c
+#	./ed.inputl.c
+#	./ed.defns.c
+#
+if `test ! -s ./ed.init.c`
+then
+echo "writing ./ed.init.c"
+sed 's/^x//' > ./ed.init.c << '\Rogue\Monster\'
+x#ifndef lint
+xstatic char *RCSid = "$Header: ed.init.c,v 1.2 86/01/06 21:39:48 paul Exp $";
+x#endif
+x
+x#include "sh.h"
+x#define EXTERN /*intern*/
+x#include "ed.h"
+x#include "ed.fcns.h"
+x
+x#define InputMode	CBREAK
+x
+x/* ed.init.c -- init routines for the line editor */
+x
+xwindow_change()			/* set a flag to say that the window changed */
+x{
+x    if (GettingInput) {
+x	ClearLines();
+x	ClearDisp();
+x	MoveToLine(0);		/* to the real beggining */
+x	MoveToChar(0);
+x	ChangeSize();		/* then get the new size */
+x	Refresh();
+x    } else {
+x	ChangeSize();
+x    }
+x}
+x
+x/* LPASS8 is new in 4.3, and makes cbreak mode provide all 8 bits.  */
+x#ifndef LPASS8
+x#define LPASS8 0		/* we don't have it.  Too bad!! */
+x#endif
+x
+x#ifndef CTRL
+x#define	CTRL(c)	('c'&037)
+x#endif
+x
+xed_Init()
+x{
+x    static int havesetup = 0;
+x    ResetInLine();		/* reset the input pointers */
+x    LastKill = KillBuf;		/* no kill buffer */
+x
+x    CheckMaps();		/* do a little error checking on key maps */
+x
+x    if (!havesetup) {		/* if we have never been called */
+x	ed_InitMaps();
+x	Hist_num = 0;
+x
+x#ifdef SVID
+x	ioctl (SHIN, TCGETA, &nio);
+x	xio = nio;
+x
+x	if ((nio.c_oflag & TAB3) == TAB3) { /* then no tabs */
+x	    T_Tabs = 0;
+x	} else {
+x	    T_Tabs = 1;
+x	}
+x
+x	nio.c_iflag &= ~(INLCR | IGNCR);
+x	nio.c_iflag |= (ISTRIP | ICRNL);
+x	/* nio.c_oflag &= NOTHING TO TURN OFF */
+x	nio.c_oflag |= (OPOST | ONLCR | ONLRET);
+x	/* don't muck with c_cflag */
+x	nio.c_lflag &= ~(NOFLSH);
+x	nio.c_lflag |= (ISIG | ICANON | ECHO | ECHOE | ECHOK | ECHONL);
+x	nio.c_cc[VINTR] = CTRL(c);
+x	nio.c_cc[VQUIT] = CTRL(\\);
+x	nio.c_cc[VERASE] = '\177';
+x	nio.c_cc[VKILL] = CTRL(u);
+x	nio.c_cc[VEOF] = CTRL(d);
+x	nio.c_cc[VEOL] = 0;
+x	nio.c_cc[VEOL2] = 0;
+x# ifndef OREO
+x	nio.c_cc[VSWTCH] = CTRL(z);
+x# else OREO
+x	nio.c_cc[VSWTCH] = 0;
+x
+x	ioctl(SHIN, TIOCGLTC, &nlc);
+x	xlc = nlc;
+x
+x	nlc.t_suspc = CTRL(z);	/* stop process signal	*/
+x	nlc.t_dsuspc = CTRL(y);	/* delayed stop process signal	*/
+x	nlc.t_rprntc = CTRL(r);	/* reprint line */
+x	nlc.t_flushc = CTRL(o);	/* flush output (toggles) */
+x	nlc.t_werasc = CTRL(w);	/* word erase */
+x	nlc.t_lnextc = CTRL(v);	/* literal next character */
+x
+x#  ifdef SIGWINCH
+x	sigset(SIGWINCH, window_change); /* for window systems */
+x#  endif
+x# endif OREO
+x#else SVID
+x	ioctl(SHIN, TIOCGETP, &nb);	/* normal setup */
+x	xb = nb;			/* new setup */
+x	ioctl(SHIN, TIOCGETC, &ntc);
+x	xtc = ntc;
+x	ioctl(SHIN, TIOCGETD, &nli);
+x	xl = nli;
+x	ioctl(SHIN, TIOCGLTC, &nlc);
+x	xlc = nlc;
+x	ioctl(SHIN, TIOCLGET, &nlb);
+x	xlb = nlb;
+x
+x	if ((xb.sg_flags & XTABS) == XTABS) { /* check for no tabs mode */
+x	    T_Tabs = 0;
+x	} else {
+x	    T_Tabs = 1;
+x	}
+x
+x	if (T_Tabs) {		/* order of &= and |= is important to XTABS */
+x	    nb.sg_flags &= ~(CBREAK | RAW | LCASE | XTABS | VTDELAY | ALLDELAY);
+x	    nb.sg_flags |= (ECHO | CRMOD | ANYP);
+x	} else {
+x	    nb.sg_flags &= ~(CBREAK | RAW | LCASE | VTDELAY | ALLDELAY);
+x	    nb.sg_flags |= (ECHO | CRMOD | XTABS | ANYP);
+x	}
+x	nlb &= ~(LPRTERA | LLITOUT | LPASS8); /* never pass meta to cmds */
+x	nlb |= (LCRTBS | LCRTERA | LCRTKIL);
+x
+x	nb.sg_erase = '\177';	/* del prev. char == DEL */
+x	nb.sg_kill = CTRL(u);	/* special case of del region */
+x
+x	ntc.t_intrc = CTRL(c);	/* SIGINTR */
+x	ntc.t_quitc = CTRL(\\);	/* SIGQUIT */
+x	ntc.t_startc = CTRL(q);	/* start output */
+x	ntc.t_stopc = CTRL(s);	/* stop output	*/
+x	ntc.t_eofc = CTRL(d);	/* no eof char during input... */
+x	ntc.t_brkc = -1;	/* input delimiter (like nl) */
+x
+x	nlc.t_suspc = CTRL(z);	/* stop process signal	*/
+x	nlc.t_dsuspc = CTRL(y);	/* delayed stop process signal	*/
+x	nlc.t_rprntc = CTRL(r);	/* reprint line */
+x	nlc.t_flushc = CTRL(o);	/* flush output (toggles) */
+x	nlc.t_werasc = CTRL(w);	/* word erase */
+x	nlc.t_lnextc = CTRL(v);	/* literal next character */
+x
+x# ifdef SIGWINCH
+x	sigset(SIGWINCH, window_change); /* for window systems */
+x# endif
+x#endif SVID
+x    }
+x
+x    /* if we have been called before, our TERM has changed, so get new
+x       termcaps and try again */
+x
+x    GetTermCaps();	/* does the obvious, but gets term type each time */
+x
+x#ifdef SVID
+x    if (T_HasMeta) {		/* if I have a meta key */
+x	xio.c_iflag &= ~(IGNCR | ISTRIP);
+x	xio.c_iflag |= (INLCR | ICRNL);
+x    } else {
+x	xio.c_iflag &= ~(IGNCR);
+x	xio.c_iflag |= (INLCR | ISTRIP | ICRNL);
+x    }
+x    /* xio.c_oflag &= ~(); */
+x    xio.c_oflag |= (OPOST | ONLCR | ONLRET);
+x    xio.c_lflag &= ~(NOFLSH | ICANON | ECHO | ECHOE | ECHOK | ECHONL);
+x    xio.c_lflag |= (ISIG);
+x    xio.c_cc[VINTR] = CTRL(c);
+x    xio.c_cc[VQUIT] = CTRL(\\);
+x    xio.c_cc[VERASE] = '\177';
+x    xio.c_cc[VKILL] = CTRL(u);
+x    xio.c_cc[VEOL2] = 0;
+x
+x    xio.c_cc[VMIN] = 1;	/* one char at a time input */
+x    xio.c_cc[VTIME] = 0;	/* don't time out */
+x
+x# ifdef OREO
+x    xlc.t_suspc = CTRL(z);	/* stop process signal	*/
+x    xlc.t_dsuspc = -1;		/* delayed stop process signal	*/
+x    xlc.t_rprntc = -1;		/* reprint line */
+x    xlc.t_flushc = CTRL(o);	/* flush output */
+x    xlc.t_werasc = -1;		/* word erase */
+x    xlc.t_lnextc = -1;		/* literal next character */
+x# endif OREO
+x#else SVID
+x    if (xl != NTTYDISC) {	/* this will flush type-ahead, so don't if */
+x				/* it can be avoided. */
+x	xl = NTTYDISC;		/* new tty driver */
+x	ioctl(SHIN, TIOCSETD, &xl); /* set line DISC. FIRST */
+x    }
+x
+x    if (T_Tabs) {		/* order of &= and |= is important to XTABS */
+x	xb.sg_flags &= ~(RAW | ECHO | LCASE | XTABS | VTDELAY | ALLDELAY);
+x	xb.sg_flags |= (CBREAK | CRMOD | ANYP);
+x    } else {
+x	xb.sg_flags &= ~(RAW | ECHO | LCASE | VTDELAY | ALLDELAY);
+x	xb.sg_flags |= (CBREAK | CRMOD | ANYP | XTABS);
+x    }
+x
+x    xb.sg_erase = '\177';	/* del prev. char == DEL */
+x    xb.sg_kill = CTRL(w);	/* special case of del region */
+x
+x    xtc.t_intrc = CTRL(c);	/* SIGINTR */
+x    xtc.t_quitc = CTRL(\\);	/* SIGQUIT */
+x    xtc.t_startc = CTRL(q);	/* start output */
+x    xtc.t_stopc = CTRL(s);	/* stop output	*/
+x    xtc.t_eofc = -1;		/* no eof char during input... */
+x    xtc.t_brkc = -1;		/* input delimiter (like nl) */
+x    
+x    xlc.t_suspc = CTRL(z);	/* stop process signal	*/
+x    xlc.t_dsuspc = -1;		/* delayed stop process signal	*/
+x    xlc.t_rprntc = -1;		/* reprint line */
+x    xlc.t_flushc = CTRL(o);	/* flush output */
+x    xlc.t_werasc = -1;		/* word erase */
+x    xlc.t_lnextc = -1;		/* literal next character */
+x
+x    if (T_HasMeta) {		/* if I have a meta key */
+x	xlb &= ~(LPRTERA | LLITOUT);
+x	xlb |= (LCRTBS | LCRTERA | LCRTKIL | LPASS8);
+x    } else {			/* if I may be running parity */
+x	xlb &= ~(LPRTERA | LLITOUT | LPASS8);
+x	xlb |= (LCRTBS | LCRTERA | LCRTKIL);
+x    }
+x#endif SVID
+x    havesetup = 1;
+x}
+x
+xstatic int
+xsetkey(tcp, ncp)
+xchar *tcp, *ncp;
+x{
+x    if ((*tcp & 0377) > 0 && (*tcp & 0377) < 0377) {
+x	if (*ncp != *tcp) {
+x	    *ncp = *tcp;
+x	    return 1;
+x	}
+x    } else {
+x	return 0;
+x    }
+x}
+x
+xint
+xRawmode()			/* used to check and re-init the line. */
+x{				/* set the terminal into 1charatatime mode. */
+x#ifdef SVID
+x    if (ioctl (SHIN, TCGETA, &testio) < 0)
+x	return (-1);		/* SHIN has been closed */
+x    if (testio.c_cflag != nio.c_cflag) { /* prob. changed speeds */
+x	nio.c_cflag = testio.c_cflag;
+x	xio.c_cflag = testio.c_cflag;
+x    }
+x    if ((testio.c_lflag != nio.c_lflag) &&
+x	(testio.c_lflag != xio.c_lflag)) {
+x
+x	nio.c_lflag = testio.c_lflag;
+x	nio.c_lflag &= ~(NOFLSH);
+x	nio.c_lflag |= (ISIG | ICANON | ECHO | ECHOE | ECHOK | ECHONL);
+x	xio.c_lflag = testio.c_lflag;
+x	xio.c_lflag &= ~(NOFLSH | ICANON | ECHO | ECHOE | ECHOK | ECHONL);
+x	xio.c_lflag |= (ISIG);
+x    }
+x    if (setkey(&testio.c_cc[VINTR], &nio.c_cc[VINTR]))
+x	setkey(&testio.c_cc[VINTR], &xio.c_cc[VINTR]);
+x    if (setkey(&testio.c_cc[VQUIT], &nio.c_cc[VQUIT]))
+x	setkey(&testio.c_cc[VQUIT], &xio.c_cc[VQUIT]);
+x    setkey(&testio.c_cc[VERASE], &nio.c_cc[VERASE]);
+x    setkey(&testio.c_cc[VKILL], &nio.c_cc[VKILL]);
+x    if (testio.c_cc[VEOF] != 1)	{ /* 'cause VEOL == VNUM, and 1 is raw mode */
+x	setkey(&testio.c_cc[VEOF], &nio.c_cc[VEOF]);
+x	setkey(&testio.c_cc[VEOL], &nio.c_cc[VEOL]);
+x    }
+x    if (setkey (&testio.c_cc[VSWTCH], &nio.c_cc[VSWTCH]))
+x	setkey (&testio.c_cc[VSWTCH], &xio.c_cc[VSWTCH]);
+x
+x# ifdef OREO
+x
+x    /* get and set the new local chars */
+x    ioctl (SHIN, TIOCGLTC, &testlc);
+x    if (setkey(&testlc.t_suspc, &nlc.t_suspc))
+x	xlc.t_suspc = nlc.t_suspc;
+x    setkey (&testlc.t_dsuspc, &nlc.t_dsuspc);
+x    setkey (&testlc.t_rprntc, &nlc.t_rprntc);
+x    if (setkey(&testlc.t_flushc, &nlc.t_flushc))
+x	xlc.t_flushc = nlc.t_flushc;
+x    setkey (&testlc.t_werasc, &nlc.t_werasc);
+x    setkey (&testlc.t_rprntc, &nlc.t_rprntc);
+x
+x    ioctl(SHIN, TIOCSLTC, &xlc);
+x# endif OREO
+x    ioctl(SHIN, TCSETAW, &xio);
+x
+x#else SVID			/* for BSD... */
+x
+x    if (ioctl(SHIN, TIOCGETP, &testsgb) < 0)	/* test the normal flags */
+x	return -1;		/* if the SHIN has been closed */
+x    if (testsgb.sg_ispeed != nb.sg_ispeed) {
+x	nb.sg_ispeed = testsgb.sg_ispeed;
+x	xb.sg_ispeed = testsgb.sg_ispeed;
+x    }
+x    if (testsgb.sg_ospeed != nb.sg_ospeed) {
+x	nb.sg_ospeed = testsgb.sg_ospeed;
+x	xb.sg_ospeed = testsgb.sg_ospeed;
+x    }
+x    if ((testsgb.sg_flags != nb.sg_flags) && 
+x	(testsgb.sg_flags != xb.sg_flags)) {
+x
+x	nb.sg_flags = testsgb.sg_flags;
+x	if (T_Tabs) {		/* order of &= and |= is important to XTABS */
+x	    nb.sg_flags &= ~(CBREAK | RAW | LCASE | XTABS | VTDELAY | ALLDELAY);
+x	    nb.sg_flags |= (ECHO | CRMOD | ANYP);
+x	} else {
+x	    nb.sg_flags &= ~(CBREAK | RAW | LCASE | VTDELAY | ALLDELAY);
+x	    nb.sg_flags |= (ECHO | CRMOD | XTABS | ANYP);
+x	}
+x 
+x	xb.sg_flags = testsgb.sg_flags;
+x	if (T_Tabs) {
+x	    xb.sg_flags &= ~(RAW| ECHO | LCASE | XTABS | VTDELAY | ALLDELAY);
+x	    xb.sg_flags |= (CBREAK | CRMOD | ANYP);
+x	} else {
+x	    xb.sg_flags &= ~(RAW | ECHO | LCASE | VTDELAY | ALLDELAY);
+x	    xb.sg_flags |= (CBREAK | CRMOD | ANYP | XTABS);
+x	}
+x    }
+x    setkey(&testsgb.sg_erase, &nb.sg_erase);
+x    setkey(&testsgb.sg_kill, &nb.sg_kill);
+x
+x    /* get and set the terminal characters */
+x    ioctl(SHIN, TIOCGETC, &testtc);
+x    if (setkey(&testtc.t_intrc, &ntc.t_intrc))
+x	xtc.t_intrc = ntc.t_intrc;
+x    if (setkey(&testtc.t_quitc, &ntc.t_quitc))
+x	xtc.t_quitc = ntc.t_quitc;
+x    if (setkey(&testtc.t_startc, &ntc.t_startc))
+x	xtc.t_startc = ntc.t_startc;
+x    if (setkey(&testtc.t_stopc, &ntc.t_stopc))
+x	xtc.t_stopc = ntc.t_stopc;
+x    setkey(&testtc.t_eofc, &ntc.t_eofc);
+x    setkey(&testtc.t_brkc, &ntc.t_brkc);
+x
+x    ioctl(SHIN, TIOCLGET, &testnlb);
+x    if ((testnlb != nlb) && (testnlb != xlb)) {
+x	nlb = testnlb;
+x	nlb &= ~(LPRTERA | LLITOUT | LPASS8);
+x	nlb |= (LCRTBS | LCRTERA | LCRTKIL);
+x
+x	xlb = testnlb;
+x
+x	xlb &= ~(LPRTERA | LLITOUT);
+x	xlb |= (LCRTBS | LCRTERA | LCRTKIL | LPASS8);
+x    }
+x
+x    /* get and set the new local chars */
+x    ioctl (SHIN, TIOCGLTC, &testlc);
+x    if (setkey(&testlc.t_suspc, &nlc.t_suspc))
+x	xlc.t_suspc = nlc.t_suspc;
+x    setkey (&testlc.t_dsuspc, &nlc.t_dsuspc);
+x    setkey (&testlc.t_rprntc, &nlc.t_rprntc);
+x    if (setkey(&testlc.t_flushc, &nlc.t_flushc))
+x	xlc.t_flushc = nlc.t_flushc;
+x    setkey (&testlc.t_werasc, &nlc.t_werasc);
+x    setkey (&testlc.t_rprntc, &nlc.t_rprntc);
+x
+x    ioctl(SHIN, TIOCSETN, &xb);
+x    ioctl(SHIN, TIOCSETC, &xtc);
+x    ioctl(SHIN, TIOCSLTC, &xlc);
+x    ioctl(SHIN, TIOCLSET, &xlb);
+x#endif SVID
+x    return 0;
+x}
+x
+xCookedmode()			/* set tty in normal setup */
+x{
+x    int orig_intr;
+x
+x/*NOSTRICT*/
+x    orig_intr = (int) signal(SIGINT, SIG_IGN);  /* hold this for reseting tty */
+x#ifdef SVID
+x    ioctl(SHIN, TCSETAW, &nio);
+x# ifdef OREO
+x    ioctl(SHIN, TIOCSLTC, &nlc);
+x# endif OREO
+x#else SVID			/* for BSD... */
+x    ioctl(SHIN, TIOCSETN, &nb);
+x    ioctl(SHIN, TIOCSETC, &ntc);
+x    ioctl(SHIN, TIOCSLTC, &nlc);
+x    ioctl(SHIN, TIOCLSET, &nlb);
+x
+x/*NOSTRICT*/
+x    signal(SIGINT, orig_intr);		/* take these again */
+x#endif SVID
+x}
+x
+xResetInLine()
+x{
+x    Cursor = InputBuf;	/* reset cursor */
+x    LastChar = InputBuf;
+x    InputLim = &InputBuf[INBUFSIZ-2];
+x    Mark = InputBuf;
+x    QuoteNext = 0;
+x    MetaNext = 0;
+x    StickyMeta = 0;
+x    Hist_num = 0;
+x    DoingArg = 0;
+x    Argument = 1;
+x    /* LastKill = KillBuf;		/* no kill buffer */
+x    LastCmd = F_UNASSIGNED;	/* previous command executed */
+x}
+\Rogue\Monster\
+else
+  echo "will not over write ./ed.init.c"
+fi
+if [ `wc -c ./ed.init.c | awk '{printf $1}'` -ne 11772 ]
+then
+echo `wc -c ./ed.init.c | awk '{print "Got " $1 ", Expected " 11772}'`
+fi
+if `test ! -s ./ed.inputl.c`
+then
+echo "writing ./ed.inputl.c"
+sed 's/^x//' > ./ed.inputl.c << '\Rogue\Monster\'
+x#ifndef lint
+xstatic char *RCSid = "$Header: ed.inputl.c,v 1.2 86/01/06 21:39:54 paul Exp $";
+x#endif
+x
+x#include "sh.h"
+x#include "ed.h"
+x#define MAKE_TWENEX		/* to get extra defines, etc. */
+x#define NO_INCL
+x#include "tw.h"			/* for twenex stuff */
+x
+x#define CHECK_ERRS
+x
+x/* ed.inputl -- routines to get a single line from the input. */
+x
+xchar *index();
+xextern bool tellwhat;
+x
+x/* CCRETVAL */
+xint
+xInputl()
+x{
+x    register int c;
+x    register char *cp;
+x    CCRETVAL retval, e_insert();
+x    KEYCMD cmdnum;
+x    extern KEYCMD NumFuns;
+x    unsigned char ch;		/* the place where read() goes */
+x    int num;			/* how many chars we have read at NL */
+x
+x    ClearDisp();		/* reset the display stuff */
+x    ResetInLine();		/* reset the input pointers */
+x    if (Rawmode() < 0)		/* make sure the tty is set up correctly */
+x	return 0;		/* oops: SHIN was closed */
+x
+x    GettingInput = 1;
+x    NeedsRedraw = 0;
+x    if (tellwhat) {
+x 	copyn(InputBuf, WhichBuf, INBUFSIZ);
+x	LastChar = InputBuf + (LastWhich - WhichBuf);
+x	Cursor = InputBuf + (CursWhich - WhichBuf);
+x	tellwhat = 0;
+x    }
+x    Refresh();			/* print the prompt */
+x
+x    for(;;) {			/* while still editing this line */
+x	if (read(SHIN, &ch, 1) != 1) {		/* if EOF or error */
+x	    Cookedmode();	/* make sure the tty is set up correctly */
+x	    GettingInput = 0;
+x	    return 0;
+x	}
+x
+x	c = ch & 0377;
+x
+x#ifdef CHECK_ERRS
+x	if (Cursor > LastChar)
+x	    printf("Cursor > LastChar\r\n");
+x	if (Cursor < InputBuf)
+x	    printf("Cursor < InputBuf\r\n");
+x	if (Cursor > InputLim)
+x	    printf ("Cursor > InputLim\r\n");
+x	if (LastChar > InputLim)
+x	    printf ("LastChar > InputLim\r\n");
+x	if (InputLim != &InputBuf[INBUFSIZ-2])
+x	    printf  ("InputLim != &InputBuf[INBUFSIZ-2]\r\n");
+x	if ((!DoingArg) && (Argument != 1))
+x	    printf ("(!DoingArg) && (Argument != 1)\r\n");
+x#endif
+x
+x	if (QuoteNext) {
+x	    QuoteNext = 0;
+x	    retval = e_insert(c);
+x	} else {		/* not quoteing next */
+x	    if (MetaNext) {
+x	    	MetaNext = 0;
+x		c |= 0200;		/* set the meta bit */
+x	    }
+x	    if (StickyMeta) {	/* for vi mode */
+x		c |= 0200;
+x	    }
+x
+x	    /* first indirection -- look in keymap */
+x	    cmdnum = CcKeyMap[c];
+x	    if (cmdnum < 0 || cmdnum >= NumFuns) { /* BUG CHECK command */
+x		printf ("ERROR: illegal command from key 0%o\r\n", c);
+x		continue;		/* try again */
+x	    }
+x	    /* now do the real command */
+x	    retval = (*CcFuncTbl[cmdnum])(c);
+x	}
+x	/* save the last command here */
+x	LastCmd = cmdnum;
+x
+x	/* use any return value */
+x	switch (retval) {
+x
+x	  case CC_NORM:		/* normal char */
+x	    break;		/* keep going... */
+x	    
+x	  case CC_EOF:		/* end of file typed */
+x	    Cookedmode();	/* make sure the tty is set up correctly */
+x	    GettingInput = 0;
+x	    PromptBuf[0] = '\0';
+x	    return 0;
+x
+x	  case CC_WHICH:	/* tell what this command does */
+x	    tellwhat = 1;
+x	    copyn(WhichBuf, InputBuf, INBUFSIZ);
+x	    LastWhich = WhichBuf + (LastChar - InputBuf);
+x	    CursWhich = WhichBuf + (Cursor - InputBuf);
+x	    *LastChar++ = '\n';	/* for the benifit of CSH */
+x	    Cookedmode();	/* make sure the tty is set up correctly */
+x	    Hist_num = 0;	/* for the history commands */
+x	    num = LastChar - InputBuf;
+x	    ResetInLine();	/* reset the input pointers */
+x	    GettingInput = 0;
+x	    return (num); /* return the number of chars read */
+x
+x	  case CC_NEWLINE:	/* normal end of line */
+x	    tellwhat = 0;	/* just in case */
+x	    Cookedmode();	/* make sure the tty is set up correctly */
+x	    Hist_num = 0;	/* for the history commands */
+x	    num = LastChar - InputBuf;
+x	    ResetInLine();	/* reset the input pointers */
+x	    GettingInput = 0;
+x	    PromptBuf[0] = '\0';
+x	    return (num); /* return the number of chars read */
+x
+x	  case CC_CORRECT:
+x	    if (tenematch (InputBuf, INBUFSIZ, Cursor-InputBuf,
+x			   SPELL) != 1)
+x		Beep ();	/* Beep = No match/ambiguous */
+x	    if (NeedsRedraw) {
+x		ClearLines();
+x		ClearDisp();
+x		NeedsRedraw = 0;
+x	    }
+x	    Refresh();
+x	    break;
+x
+x	  case CC_COMPLETE:
+x	    if (tenematch (InputBuf, INBUFSIZ, Cursor-InputBuf,
+x			   RECOGNIZE) != 1)
+x		Beep ();	/* Beep = No match/ambiguous */
+x	    if (NeedsRedraw) {
+x		ClearLines();
+x		ClearDisp();
+x		NeedsRedraw = 0;
+x	    }
+x	    Refresh();
+x	    break;
+x
+x	  case CC_LIST_CHOICES:
+x	    Cookedmode();	/* make sure the tty is set up correctly */
+x	    /* should catch ^C here... */
+x	    tenematch (InputBuf, INBUFSIZ, Cursor-InputBuf, LIST);
+x	    Rawmode();
+x	    Refresh();
+x	    break;
+x
+x	  case CC_UP_HIST:
+x	    gouphist();
+x	    Refresh();
+x	    break;
+x
+x	  case CC_DOWN_HIST:
+x	    godownhist();
+x	    Refresh();
+x	    break;
+x
+x	  case CC_UP_SEARCH_HIST:
+x	  case CC_DOWN_SEARCH_HIST:
+x	    break;
+x
+x	  case CC_HELPME:
+x	    Cookedmode();	/* make sure the tty is set up correctly */
+x	    putchar ('\n');
+x	    /* should catch ^C here... */
+x	    tenematch (InputBuf, INBUFSIZ, LastChar-InputBuf, PRINT_HELP);
+x	    Rawmode();
+x	    Refresh();
+x	    break;
+x
+x	  case CC_FATAL:	/* fatal error, reset to known state */
+x	    printf ("*** editor fatal ERROR ***\r\n\n");
+x	    			/* put (real) cursor in a known place */
+x	    ClearDisp();		/* reset the display stuff */
+x	    ResetInLine();		/* reset the input pointers */
+x	    Refresh();			/* print the prompt again */
+x	    break;
+x
+x	  case CC_ERROR:
+x	  default:		/* functions we don't know about */
+x	    DoingArg = 0;
+x	    Argument = 1;
+x	    Beep();
+x	    flush();
+x	    break;
+x	}
+x    }
+x/*NOTREACHED*/
+x}
+x
+xgouphist()
+x{
+x    struct Hist *hp;
+x    int hnumcntr;
+x
+x    if (Hist_num == 0) {
+x	copyn(HistBuf, InputBuf, INBUFSIZ);
+x	LastHist = HistBuf + (LastChar - InputBuf);
+x    }
+x
+x    hp = Histlist.Hnext;
+x    if (hp == (struct Hist *)0) {
+x	printf ("no hp\n");
+x	Beep();
+x	return;
+x    }
+x
+x    Hist_num++;
+x    for (hnumcntr = 1; hnumcntr < Hist_num; hnumcntr++) {
+x	if ((hp->Hnext) == (struct Hist *)0) {
+x	    Beep();
+x	    Hist_num--;
+x	    break;
+x	}
+x	hp = hp -> Hnext;
+x    }
+x
+x    sprlex (InputBuf, &hp->Hlex);
+x    LastChar = InputBuf + strlen(InputBuf);
+x    if (LastChar > InputBuf) {
+x	if (LastChar[-1] == '\n') LastChar--;
+x	if (LastChar[-1] == ' ') LastChar--;
+x	if (LastChar < InputBuf) LastChar = InputBuf;
+x    }
+x    Cursor = LastChar;
+x}
+x
+xgodownhist()
+x{
+x    struct Hist *hp;
+x    int hnumcntr;
+x
+x    if (Hist_num == 0) {
+x	Beep();
+x	return;
+x    }
+x
+x    if (Hist_num == 1) {
+x	copyn(InputBuf, HistBuf, INBUFSIZ);
+x	LastChar = InputBuf + (LastHist - HistBuf);
+x	Hist_num--;
+x	Cursor = LastChar;
+x	return;
+x    }
+x
+x    hp = Histlist.Hnext;
+x    if (hp == 0) {
+x	Beep();
+x	return;
+x    }
+x    Hist_num--;
+x    for (hnumcntr = 1; hnumcntr < Hist_num; hnumcntr++) {
+x	if ((hp->Hnext) == 0) break;
+x	hp = hp -> Hnext;
+x    }
+x
+x    sprlex (InputBuf, &hp->Hlex);
+x    LastChar = InputBuf + strlen(InputBuf);
+x    if (LastChar > InputBuf) {
+x	if (LastChar[-1] == '\n') LastChar--;
+x	if (LastChar[-1] == ' ') LastChar--;
+x	if (LastChar < InputBuf) LastChar = InputBuf;
+x    }
+x    Cursor = LastChar;
+x}
+\Rogue\Monster\
+else
+  echo "will not over write ./ed.inputl.c"
+fi
+if [ `wc -c ./ed.inputl.c | awk '{printf $1}'` -ne 6748 ]
+then
+echo `wc -c ./ed.inputl.c | awk '{print "Got " $1 ", Expected " 6748}'`
+fi
+if `test ! -s ./ed.defns.c`
+then
+echo "writing ./ed.defns.c"
+sed 's/^x//' > ./ed.defns.c << '\Rogue\Monster\'
+x#ifndef lint
+xstatic char *RCSid = "$Header: ed.defns.c,v 1.2 86/01/06 21:40:02 paul Exp $";
+x#endif
+x
+x#include "sh.h"
+x#define ED_DEFNS		/* hack to avoid problems with externs */
+x#include "ed.h"
+x
+x/* ed.defns -- CcFuncTbl and CcKeyMap defined */
+x
+xextern CCRETVAL
+x    e_unassigned(),
+x    e_insert(),
+x    e_newline(),
+x    e_delprev(),
+x    e_delnext(),
+x    e_list_delnext(),		/* for ^D */
+x    e_toend(),
+x    e_tobeg(),
+x    e_charback(),
+x    e_charfwd(),
+x    e_quote(),
+x    e_startover(),
+x    e_redisp(),
+x    e_wordback(),
+x    e_wordfwd(),
+x    e_cleardisp(),
+x    e_complete(),
+x    e_correct(),
+x    e_up_hist(),
+x    e_down_hist(),
+x    e_up_search_hist(),
+x    e_down_search_hist(),
+x    e_helpme(),
+x    e_list_choices(),
+x    e_delwordprev(),
+x    e_delwordnext(),
+x    e_digit(),
+x    e_argdigit(),
+x    e_killend(),
+x    e_killbeg(),
+x    e_metanext(),
+x    e_send_eof(),
+x    e_charswitch(),
+x    e_which(),
+x    e_yank_kill(),
+x    e_tty_dsusp(),
+x    e_tty_flusho(),
+x    e_tty_quit(),
+x    e_tty_tsusp(),
+x    e_tty_stopo(),
+x    e_tty_starto(),
+x    e_argfour(),
+x    e_set_mark(),
+x    e_exchange_mark(),
+x    e_last_item(),
+x    e_vi_cmd_mode(),
+x    e_vi_insert(),
+x    e_killregion(),
+x    e_copyregion(),
+x    e_tty_int();
+x
+xPFCmd CcFuncTbl[] = {	/* table of available commands */
+x    e_unassigned,
+x#define		F_UNASSIGNED	0
+x    e_insert,
+x#define		F_INSERT	1
+x    e_newline,
+x#define		F_NEWLINE	2
+x    e_delprev,
+x#define		F_DELPREV	3
+x    e_delnext,
+x#define		F_DELNEXT	4
+x    e_toend,
+x#define		F_TOEND		5
+x    e_tobeg,
+x#define		F_TOBEG		6
+x    e_charback,
+x#define		F_CHARBACK	7
+x    e_charfwd,
+x#define		F_CHARFWD	8
+x    e_quote,
+x#define		F_QUOTE		9
+x    e_startover,
+x#define		F_STARTOVER	10
+x    e_redisp,
+x#define		F_REDISP	11
+x    e_tty_int,
+x#define		F_TTY_INT	12
+x    e_wordback,
+x#define		F_WORDBACK	13
+x    e_wordfwd,
+x#define		F_WORDFWD	14
+x    e_cleardisp,
+x#define		F_CLEARDISP	15
+x    e_complete,
+x#define		F_COMPLETE	16
+x    e_correct,
+x#define		F_CORRECT	17
+x    e_up_hist,
+x#define		F_UP_HIST	18
+x    e_down_hist,
+x#define		F_DOWN_HIST	19
+x    e_up_search_hist,
+x#define		F_UP_SEARCH_HIST	20
+x    e_down_search_hist,
+x#define		F_DOWN_SEARCH_HIST	21
+x    e_helpme,
+x#define		F_HELPME	22
+x    e_list_choices,
+x#define		F_LIST_CHOICES	23
+x    e_delwordprev,
+x#define		F_DELWORDPREV	24
+x    e_delwordnext,
+x#define		F_DELWORDNEXT	25
+x    e_digit,
+x#define		F_DIGIT		26
+x    e_killend,
+x#define		F_KILLEND	27
+x    e_killbeg,
+x#define		F_KILLBEG	28
+x    e_metanext,
+x#define		F_METANEXT	29
+x    e_send_eof,
+x#define		F_SEND_EOF	30
+x    e_charswitch,
+x#define		F_CHARSWITCH	31
+x    e_which,
+x#define		F_WHICH		32
+x    e_yank_kill,
+x#define		F_YANK_KILL	33
+x    e_tty_dsusp,
+x#define		F_TTY_DSUSP	34
+x    e_tty_flusho,
+x#define		F_TTY_FLUSHO	35
+x    e_tty_quit,
+x#define		F_TTY_QUIT	36
+x    e_tty_tsusp,
+x#define		F_TTY_TSUSP	37
+x    e_tty_stopo,
+x#define		F_TTY_STOPO	38
+x    e_tty_starto,
+x#define		F_TTY_STARTO	39
+x    e_argfour,
+x#define		F_ARGFOUR	40
+x    e_set_mark,
+x#define		F_SET_MARK	41
+x    e_exchange_mark,
+x#define		F_EXCHANGE_MARK	42
+x    e_last_item,
+x#define		F_LAST_ITEM	43
+x    e_list_delnext,
+x#define		F_LIST_DELNEXT	44
+x    e_vi_cmd_mode,
+x#define		F_VI_CMD_MODE	45
+x    e_vi_insert,
+x#define		F_VI_INSERT	46
+x    e_argdigit,
+x#define		F_ARGDIGIT	47
+x    e_killregion,
+x#define		F_KILLREGION	48
+x    e_copyregion,
+x#define		F_COPYREGION	49
+x    0				/* DUMMY VALUE */
+x#define		F_NUM_FNS	50
+x};
+x
+xKEYCMD	NumFuns = F_NUM_FNS;
+x
+xKEYCMD CcKeyMap[256];		/* the real key map */
+x
+xKEYCMD CcEmacsMap[] = {
+x/* keymap table, each index into above tbl; should be 256*sizeof(KEYCMD)
+x   bytes long */
+x
+x    F_SET_MARK,			/* ^@ */
+x    F_TOBEG,			/* ^A */
+x    F_CHARBACK,			/* ^B */
+x    F_TTY_INT,			/* ^C */
+x    F_LIST_DELNEXT,		/* ^D */
+x    F_TOEND,			/* ^E */
+x    F_CHARFWD,			/* ^F */
+x    F_STARTOVER,		/* ^G */
+x    F_DELPREV,			/* ^H */
+x    F_COMPLETE,			/* ^I */
+x    F_NEWLINE,			/* ^J */
+x    F_KILLEND,			/* ^K */
+x    F_CLEARDISP,		/* ^L */
+x    F_NEWLINE,			/* ^M */
+x    F_DOWN_HIST,		/* ^N */
+x    F_TTY_FLUSHO,		/* ^O */
+x    F_UP_HIST,			/* ^P */
+x    F_TTY_STARTO,		/* ^Q */
+x    F_REDISP,			/* ^R */
+x    F_TTY_STOPO,		/* ^S */
+x    F_CHARSWITCH,		/* ^T */
+x    F_ARGFOUR,			/* ^U */
+x    F_QUOTE,			/* ^V */
+x    F_KILLREGION,		/* ^W */
+x    F_EXCHANGE_MARK,		/* ^X */
+x    F_YANK_KILL,		/* ^Y */
+x    F_TTY_TSUSP,		/* ^Z */
+x    F_METANEXT,			/* ^[ */
+x    F_TTY_QUIT,			/* ^\ */
+x    F_TTY_DSUSP,		/* ^] */
+x    F_UNASSIGNED,		/* ^^ */
+x    F_UNASSIGNED,		/* ^_ */
+x    F_INSERT,			/* SPACE */
+x    F_INSERT,			/* ! */
+x    F_INSERT,			/* " */
+x    F_INSERT,			/* # */
+x    F_INSERT,			/* $ */
+x    F_INSERT,			/* % */
+x    F_INSERT,			/* & */
+x    F_INSERT,			/* ' */
+x    F_INSERT,			/* ( */
+x    F_INSERT,			/* ) */
+x    F_INSERT,			/* * */
+x    F_INSERT,			/* + */
+x    F_INSERT,			/* , */
+x    F_INSERT,			/* - */
+x    F_INSERT,			/* . */
+x    F_INSERT,			/* / */
+x    F_DIGIT,			/* 0 */
+x    F_DIGIT,			/* 1 */
+x    F_DIGIT,			/* 2 */
+x    F_DIGIT,			/* 3 */
+x    F_DIGIT,			/* 4 */
+x    F_DIGIT,			/* 5 */
+x    F_DIGIT,			/* 6 */
+x    F_DIGIT,			/* 7 */
+x    F_DIGIT,			/* 8 */
+x    F_DIGIT,			/* 9 */
+x    F_INSERT,			/* : */
+x    F_INSERT,			/* ; */
+x    F_INSERT,			/* < */
+x    F_INSERT,			/* = */
+x    F_INSERT,			/* > */
+x    F_INSERT,			/* ? */
+x    F_INSERT,			/* @ */
+x    F_INSERT,			/* A */
+x    F_INSERT,			/* B */
+x    F_INSERT,			/* C */
+x    F_INSERT,			/* D */
+x    F_INSERT,			/* E */
+x    F_INSERT,			/* F */
+x    F_INSERT,			/* G */
+x    F_INSERT,			/* H */
+x    F_INSERT,			/* I */
+x    F_INSERT,			/* J */
+x    F_INSERT,			/* K */
+x    F_INSERT,			/* L */
+x    F_INSERT,			/* M */
+x    F_INSERT,			/* N */
+x    F_INSERT,			/* O */
+x    F_INSERT,			/* P */
+x    F_INSERT,			/* Q */
+x    F_INSERT,			/* R */
+x    F_INSERT,			/* S */
+x    F_INSERT,			/* T */
+x    F_INSERT,			/* U */
+x    F_INSERT,			/* V */
+x    F_INSERT,			/* W */
+x    F_INSERT,			/* X */
+x    F_INSERT,			/* Y */
+x    F_INSERT,			/* Z */
+x    F_INSERT,			/* [ */
+x    F_INSERT,			/* \ */
+x    F_INSERT,			/* ] */
+x    F_INSERT,			/* ^ */
+x    F_INSERT,			/* _ */
+x    F_INSERT,			/* ` */
+x    F_INSERT,			/* a */
+x    F_INSERT,			/* b */
+x    F_INSERT,			/* c */
+x    F_INSERT,			/* d */
+x    F_INSERT,			/* e */
+x    F_INSERT,			/* f */
+x    F_INSERT,			/* g */
+x    F_INSERT,			/* h */
+x    F_INSERT,			/* i */
+x    F_INSERT,			/* j */
+x    F_INSERT,			/* k */
+x    F_INSERT,			/* l */
+x    F_INSERT,			/* m */
+x    F_INSERT,			/* n */
+x    F_INSERT,			/* o */
+x    F_INSERT,			/* p */
+x    F_INSERT,			/* q */
+x    F_INSERT,			/* r */
+x    F_INSERT,			/* s */
+x    F_INSERT,			/* t */
+x    F_INSERT,			/* u */
+x    F_INSERT,			/* v */
+x    F_INSERT,			/* w */
+x    F_INSERT,			/* x */
+x    F_INSERT,			/* y */
+x    F_INSERT,			/* z */
+x    F_INSERT,			/* { */
+x    F_INSERT,			/* | */
+x    F_INSERT,			/* } */
+x    F_INSERT,			/* ~ */
+x    F_DELPREV,			/* ^? */
+x    F_UNASSIGNED,		/* M-^@ */
+x    F_UNASSIGNED,		/* M-^A */
+x    F_UNASSIGNED,		/* M-^B */
+x    F_UNASSIGNED,		/* M-^C */
+x    F_LIST_CHOICES,		/* M-^D */
+x    F_UNASSIGNED,		/* M-^E */
+x    F_UNASSIGNED,		/* M-^F */
+x    F_UNASSIGNED,		/* M-^G */
+x    F_DELWORDPREV,		/* M-^H */
+x    F_COMPLETE,			/* M-^I */
+x    F_UNASSIGNED,		/* M-^J */
+x    F_UNASSIGNED,		/* M-^K */
+x    F_CLEARDISP,		/* M-^L */
+x    F_UNASSIGNED,		/* M-^M */
+x    F_UNASSIGNED,		/* M-^N */
+x    F_UNASSIGNED,		/* M-^O */
+x    F_UNASSIGNED,		/* M-^P */
+x    F_UNASSIGNED,		/* M-^Q */
+x    F_UNASSIGNED,		/* M-^R */
+x    F_UNASSIGNED,		/* M-^S */
+x    F_UNASSIGNED,		/* M-^T */
+x    F_UNASSIGNED,		/* M-^U */
+x    F_UNASSIGNED,		/* M-^V */
+x    F_UNASSIGNED,		/* M-^W */
+x    F_UNASSIGNED,		/* M-^X */
+x    F_UNASSIGNED,		/* M-^Y */
+x    F_UNASSIGNED,		/* M-^Z */
+x    F_COMPLETE,			/* M-^[ */
+x    F_UNASSIGNED,		/* M-^\ */
+x    F_UNASSIGNED,		/* M-^] */
+x    F_UNASSIGNED,		/* M-^^ */
+x    F_UNASSIGNED,		/* M-^_ */
+x    F_UNASSIGNED,		/* M-SPACE */
+x    F_UNASSIGNED,		/* M-! */
+x    F_UNASSIGNED,		/* M-" */
+x    F_UNASSIGNED,		/* M-# */
+x    F_CORRECT,			/* M-$ */
+x    F_UNASSIGNED,		/* M-% */
+x    F_UNASSIGNED,		/* M-& */
+x    F_UNASSIGNED,		/* M-' */
+x    F_UNASSIGNED,		/* M-( */
+x    F_UNASSIGNED,		/* M-) */
+x    F_UNASSIGNED,		/* M-* */
+x    F_UNASSIGNED,		/* M-+ */
+x    F_UNASSIGNED,		/* M-, */
+x    F_UNASSIGNED,		/* M-- */
+x    F_UNASSIGNED,		/* M-. */
+x    F_UNASSIGNED,		/* M-/ */
+x    F_ARGDIGIT,			/* M-0 */
+x    F_ARGDIGIT,			/* M-1 */
+x    F_ARGDIGIT,			/* M-2 */
+x    F_ARGDIGIT,			/* M-3 */
+x    F_ARGDIGIT,			/* M-4 */
+x    F_ARGDIGIT,			/* M-5 */
+x    F_ARGDIGIT,			/* M-6 */
+x    F_ARGDIGIT,			/* M-7 */
+x    F_ARGDIGIT,			/* M-8 */
+x    F_ARGDIGIT,			/* M-9 */
+x    F_UNASSIGNED,		/* M-: */
+x    F_UNASSIGNED,		/* M-; */
+x    F_UNASSIGNED,		/* M-< */
+x    F_UNASSIGNED,		/* M-= */
+x    F_UNASSIGNED,		/* M-> */
+x    F_WHICH,			/* M-? */
+x    F_UNASSIGNED,		/* M-@ */
+x    F_UNASSIGNED,		/* M-A */
+x    F_WORDBACK,			/* M-B */
+x    F_UNASSIGNED,		/* M-C */
+x    F_DELWORDNEXT,		/* M-D */
+x    F_UNASSIGNED,		/* M-E */
+x    F_WORDFWD,			/* M-F */
+x    F_UNASSIGNED,		/* M-G */
+x    F_HELPME,			/* M-H */
+x    F_UNASSIGNED,		/* M-I */
+x    F_UNASSIGNED,		/* M-J */
+x    F_UNASSIGNED,		/* M-K */
+x    F_UNASSIGNED,		/* M-L */
+x    F_UNASSIGNED,		/* M-M */
+x    F_UNASSIGNED,		/* M-N */
+x    F_UNASSIGNED,		/* M-O */
+x    F_UNASSIGNED,		/* M-P */
+x    F_UNASSIGNED,		/* M-Q */
+x    F_UNASSIGNED,		/* M-R */
+x    F_CORRECT,			/* M-S */
+x    F_UNASSIGNED,		/* M-T */
+x    F_UNASSIGNED,		/* M-U */
+x    F_UNASSIGNED,		/* M-V */
+x    F_COPYREGION,		/* M-W */
+x    F_UNASSIGNED,		/* M-X */
+x    F_UNASSIGNED,		/* M-Y */
+x    F_UNASSIGNED,		/* M-Z */
+x    F_UNASSIGNED,		/* M-[ */
+x    F_UNASSIGNED,		/* M-\ */
+x    F_UNASSIGNED,		/* M-] */
+x    F_UNASSIGNED,		/* M-^ */
+x    F_UNASSIGNED,		/* M-_ */
+x    F_UNASSIGNED,		/* M-` */
+x    F_UNASSIGNED,		/* M-a */
+x    F_WORDBACK,			/* M-b */
+x    F_UNASSIGNED,		/* M-c */
+x    F_DELWORDNEXT,		/* M-d */
+x    F_UNASSIGNED,		/* M-e */
+x    F_WORDFWD,			/* M-f */
+x    F_UNASSIGNED,		/* M-g */
+x    F_HELPME,			/* M-h */
+x    F_UNASSIGNED,		/* M-i */
+x    F_UNASSIGNED,		/* M-j */
+x    F_UNASSIGNED,		/* M-k */
+x    F_UNASSIGNED,		/* M-l */
+x    F_UNASSIGNED,		/* M-m */
+x    F_UNASSIGNED,		/* M-n */
+x    F_UNASSIGNED,		/* M-o */
+x    F_UNASSIGNED,		/* M-p */
+x    F_UNASSIGNED,		/* M-q */
+x    F_UNASSIGNED,		/* M-r */
+x    F_CORRECT,			/* M-s */
+x    F_UNASSIGNED,		/* M-t */
+x    F_UNASSIGNED,		/* M-u */
+x    F_UNASSIGNED,		/* M-v */
+x    F_COPYREGION,		/* M-w */
+x    F_UNASSIGNED,		/* M-x */
+x    F_UNASSIGNED,		/* M-y */
+x    F_UNASSIGNED,		/* M-z */
+x    F_UNASSIGNED,		/* M-{ */
+x    F_UNASSIGNED,		/* M-| */
+x    F_UNASSIGNED,		/* M-} */
+x    F_UNASSIGNED,		/* M-~ */
+x    F_DELWORDPREV,		/* M-^? */
+x};
+x
+x#ifdef VI_MODE
+xKEYCMD CcViMap[] = {
+x/* keymap table, each index into above tbl; should be 256*sizeof(KEYCMD)
+x   bytes long */
+x
+x    F_SET_MARK,			/* ^@ */
+x    F_TOBEG,			/* ^A */
+x    F_UNASSIGNED,		/* ^B */
+x    F_TTY_INT,			/* ^C */
+x    F_LIST_DELNEXT,		/* ^D */
+x    F_TOEND,			/* ^E */
+x    F_UNASSIGNED,		/* ^F */
+x    F_STARTOVER,		/* ^G */
+x    F_DELPREV,			/* ^H */
+x    F_COMPLETE,			/* ^I */
+x    F_NEWLINE,			/* ^J */
+x    F_KILLEND,			/* ^K */
+x    F_REDISP,			/* ^L */
+x    F_NEWLINE,			/* ^M */
+x    F_UNASSIGNED,		/* ^N */
+x    F_TTY_FLUSHO,		/* ^O */
+x    F_UNASSIGNED,		/* ^P */
+x    F_TTY_STARTO,		/* ^Q */
+x    F_UP_SEARCH_HIST,		/* ^R */
+x    F_TTY_STOPO,		/* ^S */
+x    F_CHARSWITCH,		/* ^T */
+x    F_ARGFOUR,			/* ^U */
+x    F_QUOTE,			/* ^V */
+x    F_DELWORDPREV,		/* ^W */
+x    F_UNASSIGNED,		/* ^X */
+x    F_YANK_KILL,		/* ^Y */
+x    F_TTY_TSUSP,		/* ^Z */
+x    F_VI_CMD_MODE,		/* ^[ */
+x    F_TTY_QUIT,			/* ^\ */
+x    F_TTY_DSUSP,		/* ^] */
+x    F_UNASSIGNED,		/* ^^ */	/* empty for now, maybe ^P? */
+x    F_UNASSIGNED,		/* ^_ */	/* will become UNDO */
+x    F_INSERT,			/* SPACE */
+x    F_INSERT,			/* ! */
+x    F_INSERT,			/* " */
+x    F_INSERT,			/* # */
+x    F_INSERT,			/* $ */
+x    F_INSERT,			/* % */
+x    F_INSERT,			/* & */
+x    F_INSERT,			/* ' */
+x    F_INSERT,			/* ( */
+x    F_INSERT,			/* ) */
+x    F_INSERT,			/* * */
+x    F_INSERT,			/* + */
+x    F_INSERT,			/* , */
+x    F_INSERT,			/* - */
+x    F_INSERT,			/* . */
+x    F_INSERT,			/* / */
+x    F_INSERT,			/* 0 */
+x    F_INSERT,			/* 1 */
+x    F_INSERT,			/* 2 */
+x    F_INSERT,			/* 3 */
+x    F_INSERT,			/* 4 */
+x    F_INSERT,			/* 5 */
+x    F_INSERT,			/* 6 */
+x    F_INSERT,			/* 7 */
+x    F_INSERT,			/* 8 */
+x    F_INSERT,			/* 9 */
+x    F_INSERT,			/* : */
+x    F_INSERT,			/* ; */
+x    F_INSERT,			/* < */
+x    F_INSERT,			/* = */
+x    F_INSERT,			/* > */
+x    F_INSERT,			/* ? */
+x    F_INSERT,			/* @ */
+x    F_INSERT,			/* A */
+x    F_INSERT,			/* B */
+x    F_INSERT,			/* C */
+x    F_INSERT,			/* D */
+x    F_INSERT,			/* E */
+x    F_INSERT,			/* F */
+x    F_INSERT,			/* G */
+x    F_INSERT,			/* H */
+x    F_INSERT,			/* I */
+x    F_INSERT,			/* J */
+x    F_INSERT,			/* K */
+x    F_INSERT,			/* L */
+x    F_INSERT,			/* M */
+x    F_INSERT,			/* N */
+x    F_INSERT,			/* O */
+x    F_INSERT,			/* P */
+x    F_INSERT,			/* Q */
+x    F_INSERT,			/* R */
+x    F_INSERT,			/* S */
+x    F_INSERT,			/* T */
+x    F_INSERT,			/* U */
+x    F_INSERT,			/* V */
+x    F_INSERT,			/* W */
+x    F_INSERT,			/* X */
+x    F_INSERT,			/* Y */
+x    F_INSERT,			/* Z */
+x    F_INSERT,			/* [ */
+x    F_INSERT,			/* \ */
+x    F_INSERT,			/* ] */
+x    F_INSERT,			/* ^ */
+x    F_INSERT,			/* _ */
+x    F_INSERT,			/* ` */
+x    F_INSERT,			/* a */
+x    F_INSERT,			/* b */
+x    F_INSERT,			/* c */
+x    F_INSERT,			/* d */
+x    F_INSERT,			/* e */
+x    F_INSERT,			/* f */
+x    F_INSERT,			/* g */
+x    F_INSERT,			/* h */
+x    F_INSERT,			/* i */
+x    F_INSERT,			/* j */
+x    F_INSERT,			/* k */
+x    F_INSERT,			/* l */
+x    F_INSERT,			/* m */
+x    F_INSERT,			/* n */
+x    F_INSERT,			/* o */
+x    F_INSERT,			/* p */
+x    F_INSERT,			/* q */
+x    F_INSERT,			/* r */
+x    F_INSERT,			/* s */
+x    F_INSERT,			/* t */
+x    F_INSERT,			/* u */
+x    F_INSERT,			/* v */
+x    F_INSERT,			/* w */
+x    F_INSERT,			/* x */
+x    F_INSERT,			/* y */
+x    F_INSERT,			/* z */
+x    F_INSERT,			/* { */
+x    F_INSERT,			/* | */
+x    F_INSERT,			/* } */
+x    F_INSERT,			/* ~ */
+x    F_DELPREV,			/* ^? */
+x    F_UNASSIGNED,		/* M-^@ */
+x    F_UNASSIGNED,		/* M-^A */
+x    F_UNASSIGNED,		/* M-^B */
+x    F_UNASSIGNED,		/* M-^C */
+x    F_LIST_CHOICES,		/* M-^D */
+x    F_UNASSIGNED,		/* M-^E */
+x    F_UNASSIGNED,		/* M-^F */
+x    F_UNASSIGNED,		/* M-^G */
+x    F_DELWORDPREV,		/* M-^H */
+x    F_COMPLETE,			/* M-^I */
+x    F_UNASSIGNED,		/* M-^J */
+x    F_UNASSIGNED,		/* M-^K */
+x    F_CLEARDISP,		/* M-^L */
+x    F_UNASSIGNED,		/* M-^M */
+x    F_UNASSIGNED,		/* M-^N */
+x    F_UNASSIGNED,		/* M-^O */
+x    F_UNASSIGNED,		/* M-^P */
+x    F_UNASSIGNED,		/* M-^Q */
+x    F_UNASSIGNED,		/* M-^R */
+x    F_UNASSIGNED,		/* M-^S */
+x    F_UNASSIGNED,		/* M-^T */
+x    F_UNASSIGNED,		/* M-^U */
+x    F_UNASSIGNED,		/* M-^V */
+x    F_UNASSIGNED,		/* M-^W */
+x    F_EXCHANGE_MARK,		/* M-^X */
+x    F_UNASSIGNED,		/* M-^Y */
+x    F_UNASSIGNED,		/* M-^Z */
+x    F_UNASSIGNED,		/* M-^[ */
+x    F_UNASSIGNED,		/* M-^\ */
+x    F_UNASSIGNED,		/* M-^] */
+x    F_UNASSIGNED,		/* M-^^ */
+x    F_UNASSIGNED,		/* M-^_ */
+x    F_UNASSIGNED,		/* M-SPACE */
+x    F_UNASSIGNED,		/* M-! */
+x    F_UNASSIGNED,		/* M-" */
+x    F_UNASSIGNED,		/* M-# */
+x    F_UNASSIGNED,		/* M-$ */
+x    F_UNASSIGNED,		/* M-% */
+x    F_UNASSIGNED,		/* M-& */
+x    F_UNASSIGNED,		/* M-' */
+x    F_UNASSIGNED,		/* M-( */
+x    F_UNASSIGNED,		/* M-) */
+x    F_COMPLETE,			/* M-* */
+x    F_UNASSIGNED,		/* M-+ */
+x    F_UNASSIGNED,		/* M-, */
+x    F_UNASSIGNED,		/* M-- */
+x    F_UNASSIGNED,		/* M-. */
+x    F_UNASSIGNED,		/* M-/ */
+x    F_ARGDIGIT,			/* M-0 */
+x    F_ARGDIGIT,			/* M-1 */
+x    F_ARGDIGIT,			/* M-2 */
+x    F_ARGDIGIT,			/* M-3 */
+x    F_ARGDIGIT,			/* M-4 */
+x    F_ARGDIGIT,			/* M-5 */
+x    F_ARGDIGIT,			/* M-6 */
+x    F_ARGDIGIT,			/* M-7 */
+x    F_ARGDIGIT,			/* M-8 */
+x    F_ARGDIGIT,			/* M-9 */
+x    F_UNASSIGNED,		/* M-: */
+x    F_UNASSIGNED,		/* M-; */
+x    F_UNASSIGNED,		/* M-< */
+x    F_UNASSIGNED,		/* M-= */
+x    F_UNASSIGNED,		/* M-> */
+x    F_HELPME,			/* M-? */
+x    F_UNASSIGNED,		/* M-@ */
+x    F_UNASSIGNED,		/* M-A */
+x    F_WORDBACK,			/* M-B */
+x    F_UNASSIGNED,		/* M-C */
+x    F_DELWORDNEXT,		/* M-D */
+x    F_UNASSIGNED,		/* M-E */
+x    F_WORDFWD,			/* M-F */
+x    F_UNASSIGNED,		/* M-G */
+x    F_HELPME,			/* M-H */
+x    F_UNASSIGNED,		/* M-I */
+x    F_UNASSIGNED,		/* M-J */
+x    F_UNASSIGNED,		/* M-K */
+x    F_UNASSIGNED,		/* M-L */
+x    F_UNASSIGNED,		/* M-M */
+x    F_UNASSIGNED,		/* M-N */
+x    F_UNASSIGNED,		/* M-O */
+x    F_UNASSIGNED,		/* M-P */
+x    F_UNASSIGNED,		/* M-Q */
+x    F_UNASSIGNED,		/* M-R */
+x    F_UNASSIGNED,		/* M-S */
+x    F_UNASSIGNED,		/* M-T */
+x    F_UNASSIGNED,		/* M-U */
+x    F_UNASSIGNED,		/* M-V */
+x    F_UNASSIGNED,		/* M-W */
+x    F_UNASSIGNED,		/* M-X */
+x    F_UNASSIGNED,		/* M-Y */
+x    F_UNASSIGNED,		/* M-Z */
+x    F_UNASSIGNED,		/* M-[ */
+x    F_UNASSIGNED,		/* M-\ */
+x    F_UNASSIGNED,		/* M-] */
+x    F_UNASSIGNED,		/* M-^ */
+x    F_UNASSIGNED,		/* M-_ */
+x    F_UNASSIGNED,		/* M-` */
+x    F_UNASSIGNED,		/* M-a */
+x    F_WORDBACK,			/* M-b */
+x    F_UNASSIGNED,		/* M-c */
+x    F_DELWORDNEXT,		/* M-d */
+x    F_UNASSIGNED,		/* M-e */
+x    F_WORDFWD,			/* M-f */
+x    F_UNASSIGNED,		/* M-g */
+x    F_CHARBACK,			/* M-h */
+x    F_VI_INSERT,		/* M-i */
+x    F_DOWN_HIST,		/* M-j */
+x    F_UP_HIST,			/* M-k */
+x    F_CHARFWD,			/* M-l */
+x    F_UNASSIGNED,		/* M-m */
+x    F_UNASSIGNED,		/* M-n */
+x    F_UNASSIGNED,		/* M-o */
+x    F_UNASSIGNED,		/* M-p */
+x    F_UNASSIGNED,		/* M-q */
+x    F_UNASSIGNED,		/* M-r */
+x    F_UNASSIGNED,		/* M-s */
+x    F_UNASSIGNED,		/* M-t */
+x    F_UNASSIGNED,		/* M-u */
+x    F_UNASSIGNED,		/* M-v */
+x    F_UNASSIGNED,		/* M-w */
+x    F_UNASSIGNED,		/* M-x */
+x    F_UNASSIGNED,		/* M-y */
+x    F_UNASSIGNED,		/* M-z */
+x    F_UNASSIGNED,		/* M-{ */
+x    F_UNASSIGNED,		/* M-| */
+x    F_UNASSIGNED,		/* M-} */
+x    F_UNASSIGNED,		/* M-~ */
+x    F_DELWORDPREV,		/* M-^? */
+x};
+x#endif
+x
+xstruct KeyFuncs FuncNames[] = {
+x    "backward-char",		F_CHARBACK,
+x    "backward-delete-char",	F_DELPREV,
+x    "backward-delete-word",	F_DELWORDPREV,
+x    "backward-kill-line",	F_KILLBEG,
+x    "backward-word",		F_WORDBACK,
+x    "beginning-of-line",	F_TOBEG,
+x    "clear-screen",		F_CLEARDISP,
+x    "complete-word",		F_COMPLETE,
+x    "copy-region-as-kill",	F_COPYREGION,
+x    "delete-char",		F_DELNEXT,
+x    "delete-char-or-list",	F_LIST_DELNEXT,
+x    "delete-word",		F_DELWORDNEXT,
+x    "digit",			F_DIGIT,
+x    "digit-argument",		F_ARGDIGIT,
+x    "down-history",		F_DOWN_HIST,
+x    "end-of-file",		F_SEND_EOF,
+x    "end-of-line",		F_TOEND,
+x    "exchange-point-and-mark",	F_EXCHANGE_MARK,
+x    "forward-char",		F_CHARFWD,
+x    "forward-word",		F_WORDFWD,
+x    "history-search-backward",	F_UP_SEARCH_HIST,
+x    "history-search-forward",	F_DOWN_SEARCH_HIST,
+x    "insert-last-word",		F_LAST_ITEM,
+x    "keyboard-quit",		F_STARTOVER,
+x    "kill-line",		F_KILLEND,
+x    "kill-region",		F_KILLREGION,
+x    "list-choices",		F_LIST_CHOICES,
+x    "newline",			F_NEWLINE,
+x    "prefix-meta",		F_METANEXT,
+x    "quoted-insert",		F_QUOTE,
+x    "redisplay",		F_REDISP,
+x    "run-help",			F_HELPME,
+x    "self-insert-command",	F_INSERT,
+x    "set-mark-command",		F_SET_MARK,
+x    "spell-word",		F_CORRECT,
+x    "transpose-chars",		F_CHARSWITCH,
+x    "tty-dsusp",		F_TTY_DSUSP,
+x    "tty-flush-output",		F_TTY_FLUSHO,
+x    "tty-sigintr",		F_TTY_INT,
+x    "tty-sigquit",		F_TTY_QUIT,
+x    "tty-sigtsusp",		F_TTY_TSUSP,
+x    "tty-start-output",		F_TTY_STOPO,
+x    "tty-stop-output",		F_TTY_STARTO,
+x    "undefined-key",		F_UNASSIGNED,
+x    "universal-argument",	F_ARGFOUR,
+x    "up-history",		F_UP_HIST,
+x    "vi-cmd-mode",		F_VI_CMD_MODE,
+x    "vi-insert",		F_VI_INSERT,
+x    "which-command",		F_WHICH,			
+x    "yank",			F_YANK_KILL,
+x    0,				0
+x};
+x
+xCheckMaps()			/* check the size of the key maps */
+x{
+x    if ((sizeof(CcKeyMap)) != (256 * sizeof(KEYCMD)))
+x	printf ("CcKeyMap should be 256 entries, but is %d.\r\n",
+x		 (sizeof(CcKeyMap) / sizeof(KEYCMD)));
+x    if ((sizeof(CcEmacsMap)) != (256 * sizeof(KEYCMD)))
+x	printf ("CcKeyMap should be 256 entries, but is %d.\r\n",
+x		 (sizeof(CcKeyMap) / sizeof(KEYCMD)));
+x#ifdef VI_MODE
+x    if ((sizeof(CcViMap)) != (256 * sizeof(KEYCMD)))
+x	printf ("CcKeyMap should be 256 entries, but is %d.\r\n",
+x		 (sizeof(CcKeyMap) / sizeof(KEYCMD)));
+x#endif
+x}
+x
+xed_InitMaps()
+x{
+x    register int i;
+x
+x    for (i = 0; i < 256; i++)
+x	CcKeyMap[i] = CcEmacsMap[i];
+x}
+\Rogue\Monster\
+else
+  echo "will not over write ./ed.defns.c"
+fi
+if [ `wc -c ./ed.defns.c | awk '{printf $1}'` -ne 19900 ]
+then
+echo `wc -c ./ed.defns.c | awk '{print "Got " $1 ", Expected " 19900}'`
+fi
+echo "Finished archive 2 of 6"
+# if you want to concatenate archives, remove anything after this line
+exit
+
+-- 
+
+Rich $alz
+Cronus Project, BBN Labs			rsalz@bbn.com
+Moderator, comp.sources.unix			sources@uunet.uu.net

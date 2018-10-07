@@ -1,0 +1,1456 @@
+From: rsalz@bbn.com (Rich Salz)
+Newsgroups: comp.sources.unix
+Subject: v22i088:  GNU AWK, version 2.11, Part02/16
+Message-ID: <2621@litchi.bbn.com>
+Date: 6 Jun 90 16:36:10 GMT
+Approved: rsalz@uunet.UU.NET
+
+Submitted-by: "Arnold D. Robbins" <arnold@unix.cc.emory.edu>
+Posting-number: Volume 22, Issue 88
+Archive-name: gawk2.11/part02
+
+#! /bin/sh
+# This is a shell archive.  Remove anything before this line, then feed it
+# into a shell via "sh file" or similar.  To overwrite existing files,
+# type "sh file -c".
+# The tool that generated this appeared in the comp.sources.unix newsgroup;
+# send mail to comp-sources-unix@uunet.uu.net if you want that tool.
+# Contents:  ./gawk.texinfo.01 ./msg.c
+# Wrapped by rsalz@litchi.bbn.com on Wed Jun  6 12:24:46 1990
+PATH=/bin:/usr/bin:/usr/ucb ; export PATH
+echo If this archive is complete, you will see the following message:
+echo '          "shar: End of archive 2 (of 16)."'
+if test -f './gawk.texinfo.01' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'./gawk.texinfo.01'\"
+else
+  echo shar: Extracting \"'./gawk.texinfo.01'\" \(49676 characters\)
+  sed "s/^X//" >'./gawk.texinfo.01' <<'END_OF_FILE'
+X\input texinfo   @c -*-texinfo-*-
+X@c %**start of header (This is for running Texinfo on a region.)
+X@setfilename gawk-info
+X@settitle The GAWK Manual
+X@c %**end of header (This is for running Texinfo on a region.)
+X@syncodeindex fn cp
+X@syncodeindex vr cp
+X
+X@iftex
+X@finalout
+X@end iftex
+X
+X@ifinfo
+XThis file documents @code{awk}, a program that you can use to select
+Xparticular records in a file and perform operations upon them.
+X
+XCopyright (C) 1989 Free Software Foundation, Inc.
+X
+XPermission is granted to make and distribute verbatim copies of
+Xthis manual provided the copyright notice and this permission notice
+Xare preserved on all copies.
+X
+X@ignore
+XPermission is granted to process this file through TeX and print the
+Xresults, provided the printed document carries copying permission
+Xnotice identical to this one except for the removal of this paragraph
+X(this paragraph not being relevant to the printed manual).
+X
+X@end ignore
+XPermission is granted to copy and distribute modified versions of this
+Xmanual under the conditions for verbatim copying, provided that the entire
+Xresulting derived work is distributed under the terms of a permission
+Xnotice identical to this one.
+X
+XPermission is granted to copy and distribute translations of this manual
+Xinto another language, under the above conditions for modified versions,
+Xexcept that this permission notice may be stated in a translation approved
+Xby the Foundation.
+X@end ifinfo
+X
+X@c @smallbook
+X@c For printing as a small manual, uncomment the above line.  Then change
+X@c every `@example' to `@smallexample' and every `@end example' to
+X@c `@end smallexample'.  That's all.
+X
+X@setchapternewpage odd
+X@titlepage
+X@sp 11
+X@center @titlefont{The GAWK Manual}
+X@sp 4
+X@center by
+X@center Diane Barlow Close
+X@center Arnold D. Robbins
+X@center Paul H. Rubin
+X@center Richard Stallman
+X@sp 2
+X@center Edition 0.11 Beta
+X@sp 2
+X@center October 1989
+X
+X@c Include the Distribution inside the titlepage environment so
+X@c that headings are turned off.  Headings on and off do not work.
+X
+X@page
+X@vskip 0pt plus 1filll
+XCopyright @copyright{} 1989 Free Software Foundation, Inc.
+X@sp 2
+X
+XThis is Edition 0.11 Beta of @cite{The GAWK Manual}, @*
+Xfor the 2.11.1 version of the GNU implementation @*
+Xof AWK.
+X
+X@sp 2
+XPublished by the Free Software Foundation @*
+X675 Massachusetts Avenue, @*
+XCambridge, MA 02139 USA @*
+XPrinted copies are available for $10 each.
+X
+XPermission is granted to make and distribute verbatim copies of
+Xthis manual provided the copyright notice and this permission notice
+Xare preserved on all copies.
+X
+XPermission is granted to copy and distribute modified versions of this
+Xmanual under the conditions for verbatim copying, provided that the entire
+Xresulting derived work is distributed under the terms of a permission
+Xnotice identical to this one.
+X
+XPermission is granted to copy and distribute translations of this manual
+Xinto another language, under the above conditions for modified versions,
+Xexcept that this permission notice may be stated in a translation approved
+Xby the Foundation.
+X@end titlepage
+X
+X@node Top, Preface, (dir), (dir)
+X@comment  node-name,  next,  previous,  up
+X@c Preface or Licensing nodes should come right after the Top
+X@c node, in `unnumbered' sections, then the chapter, `What is gawk'.
+X
+X@ifinfo
+XThis file documents @code{awk}, a program that you can use to select
+Xparticular records in a file and perform operations upon them; it
+Xcontains the following chapters:
+X@end ifinfo
+X
+X@menu
+X* Preface::            What you can do with @code{awk}; brief history
+X                       and acknowledgements.
+X
+X* Copying::            Your right to copy and distribute @code{gawk}.
+X
+X* This Manual::        Using this manual. 
+X                       Includes sample input files that you can use.
+X* Getting Started::    A basic introduction to using @code{awk}.
+X                       How to run an @code{awk} program.  Command line syntax.
+X
+X* Reading Files::      How to read files and manipulate fields.
+X
+X* Printing::           How to print using @code{awk}.  Describes the
+X                       @code{print} and @code{printf} statements.  
+X                       Also describes redirection of output.
+X
+X* One-liners::         Short, sample @code{awk} programs.
+X
+X* Patterns::           The various types of patterns explained in detail.
+X
+X* Actions::            The various types of actions are introduced here.
+X                       Describes expressions and the various operators in
+X                       detail.  Also describes comparison expressions.
+X
+X* Expressions::        Expressions are the basic building blocks of statements.
+X
+X* Statements::         The various control statements are described in
+X                       detail.
+X
+X* Arrays::             The description and use of arrays.  Also includes
+X                       array-oriented control statements.
+X
+X* Built-in::           The built-in functions are summarized here.
+X
+X* User-defined::       User-defined functions are described in detail.
+X
+X* Var: Built-in Variables.  The built-in variables are summarized here.
+X
+X* Command Line::       How to run @code{gawk}.
+X
+X* Language History::   The evolution of the @code{awk} language.
+X
+X* Gawk Summary::       @code{gawk} Options and Language Summary.
+X
+X* Sample Program::     A sample @code{awk} program with a complete explanation.
+X
+X* Notes::              Something about the implementation of @code{gawk}.
+X
+X* Glossary::           An explanation of some unfamiliar terms.
+X
+X* Index::
+X@end menu
+X
+X@node Preface, Copying, Top , Top
+X@comment  node-name,  next,  previous,  up
+X@unnumbered Preface
+X
+X@c @cindex what is @code{awk}
+XIf you are like many computer users, you frequently would like to make
+Xchanges in various text files wherever certain patterns appear, or
+Xextract data from parts of certain lines while discarding the rest.  To
+Xwrite a program to do this in a language such as C or Pascal is a
+Xtime-consuming inconvenience that may take many lines of code.  The job
+Xmay be easier with @code{awk}.
+X
+XThe @code{awk} utility interprets a special-purpose programming language
+Xthat makes it possible to handle simple data-reformatting jobs easily
+Xwith just a few lines of code.
+X
+XThe GNU implementation of @code{awk} is called @code{gawk}; it is fully
+Xupward compatible with the System V Release 3.1 and later
+Xversion of @code{awk}.  All properly written
+X@code{awk} programs should work with @code{gawk}.  So we usually don't
+Xdistinguish between @code{gawk} and other @code{awk} implementations in
+Xthis manual.@refill
+X
+X@cindex uses of @code{awk}
+XThis manual teaches you what @code{awk} does and how you can use
+X@code{awk} effectively.  You should already be familiar with basic
+Xsystem commands such as @code{ls}.  Using @code{awk} you can: @refill
+X
+X@itemize @bullet
+X@item
+Xmanage small, personal databases,
+X
+X@item
+Xgenerate reports,
+X
+X@item
+Xvalidate data,
+X@item
+Xproduce indexes, and perform other document preparation tasks,
+X
+X@item
+Xeven experiment with algorithms that can be adapted later to other computer
+Xlanguages!
+X@end itemize
+X
+X@menu
+X* History::  The history of @code{gawk} and @code{awk}.  Acknowledgements.
+X@end menu
+X
+X@node History, , Preface, Preface
+X@comment  node-name,  next,  previous,  up
+X@unnumberedsec History of @code{awk} and @code{gawk}
+X
+X@cindex acronym
+X@cindex history of @code{awk}
+XThe name @code{awk} comes from the initials of its designers: Alfred V.
+XAho, Peter J. Weinberger, and Brian W. Kernighan.  The original version of
+X@code{awk} was written in 1977.  In 1985 a new version made the programming
+Xlanguage more powerful, introducing user-defined functions, multiple input
+Xstreams, and computed regular expressions.
+XThis new version became generally available with System V Release 3.1.
+XThe version in System V Release 4 added some new features and also cleaned
+Xup the behaviour in some of the ``dark corners'' of the language.@refill
+X@comment We don't refer people to non-free information
+X@comment  In 1988, the original authors
+X@comment published @cite{The AWK Programming Language} (Addison-Wesley, ISBN
+X@comment 0-201-07981-X), as a definitive description of the @code{awk} language.
+X
+XThe GNU implementation, @code{gawk}, was written in 1986 by Paul Rubin
+Xand Jay Fenlason, with advice from Richard Stallman.  John Woods
+Xcontributed parts of the code as well.  In 1988 and 1989, David Trueman, with
+Xhelp from Arnold Robbins, thoroughly reworked @code{gawk} for compatibility
+Xwith the newer @code{awk}.
+X
+XMany people need to be thanked for their assistance in producing this
+Xmanual.  Jay Fenlason contributed many ideas and sample programs.  Richard
+XMlynarik and Robert Chassell gave helpful comments on drafts of this
+Xmanual.  The paper @cite{A Supplemental Document for @code{awk}} by John W.
+XPierce of the Chemistry Department at UC San Diego, pinpointed several
+Xissues relevant both to @code{awk} implementation and to this manual, that
+Xwould otherwise have escaped us.
+X
+XFinally, we would like to thank Brian Kernighan of Bell Labs for invaluable
+Xassistance during the testing and debugging of @code{gawk}, and for
+Xhelp in clarifying several points about the language.@refill
+X
+X@node Copying, This Manual, Preface, Top
+X@unnumbered GNU General Public License
+X@center Version 1, February 1989
+X
+X@display
+XCopyright @copyright{} 1989 Free Software Foundation, Inc.
+X675 Mass Ave, Cambridge, MA 02139, USA
+X
+XEveryone is permitted to copy and distribute verbatim copies
+Xof this license document, but changing it is not allowed.
+X@end display
+X
+X@c fakenode - this is for prepinfo.
+X@unnumberedsec Preamble
+X
+X  The license agreements of most software companies try to keep users
+Xat the mercy of those companies.  By contrast, our General Public
+XLicense is intended to guarantee your freedom to share and change free
+Xsoftware---to make sure the software is free for all its users.  The
+XGeneral Public License applies to the Free Software Foundation's
+Xsoftware and to any other program whose authors commit to using it.
+XYou can use it for your programs, too.
+X
+X  When we speak of free software, we are referring to freedom, not
+Xprice.  Specifically, the General Public License is designed to make
+Xsure that you have the freedom to give away or sell copies of free
+Xsoftware, that you receive source code or can get it if you want it,
+Xthat you can change the software or use pieces of it in new free
+Xprograms; and that you know you can do these things.
+X
+X  To protect your rights, we need to make restrictions that forbid
+Xanyone to deny you these rights or to ask you to surrender the rights.
+XThese restrictions translate to certain responsibilities for you if you
+Xdistribute copies of the software, or if you modify it.
+X
+X  For example, if you distribute copies of a such a program, whether
+Xgratis or for a fee, you must give the recipients all the rights that
+Xyou have.  You must make sure that they, too, receive or can get the
+Xsource code.  And you must tell them their rights.
+X
+X  We protect your rights with two steps: (1) copyright the software, and
+X(2) offer you this license which gives you legal permission to copy,
+Xdistribute and/or modify the software.
+X
+X  Also, for each author's protection and ours, we want to make certain
+Xthat everyone understands that there is no warranty for this free
+Xsoftware.  If the software is modified by someone else and passed on, we
+Xwant its recipients to know that what they have is not the original, so
+Xthat any problems introduced by others will not reflect on the original
+Xauthors' reputations.
+X
+X  The precise terms and conditions for copying, distribution and
+Xmodification follow.
+X
+X@iftex
+X@c fakenode -- this is for prepinfo.
+X@unnumberedsec TERMS AND CONDITIONS
+X@end iftex
+X@ifinfo
+X@center TERMS AND CONDITIONS
+X@end ifinfo
+X
+X@enumerate
+X@item
+XThis License Agreement applies to any program or other work which
+Xcontains a notice placed by the copyright holder saying it may be
+Xdistributed under the terms of this General Public License.  The
+X``Program'', below, refers to any such program or work, and a ``work based
+Xon the Program'' means either the Program or any work containing the
+XProgram or a portion of it, either verbatim or with modifications.  Each
+Xlicensee is addressed as ``you''.
+X
+X@item
+XYou may copy and distribute verbatim copies of the Program's source
+Xcode as you receive it, in any medium, provided that you conspicuously and
+Xappropriately publish on each copy an appropriate copyright notice and
+Xdisclaimer of warranty; keep intact all the notices that refer to this
+XGeneral Public License and to the absence of any warranty; and give any
+Xother recipients of the Program a copy of this General Public License
+Xalong with the Program.  You may charge a fee for the physical act of
+Xtransferring a copy.
+X
+X@item
+XYou may modify your copy or copies of the Program or any portion of
+Xit, and copy and distribute such modifications under the terms of Paragraph
+X1 above, provided that you also do the following:
+X
+X@itemize @bullet
+X@item
+Xcause the modified files to carry prominent notices stating that
+Xyou changed the files and the date of any change; and
+X
+X@item
+Xcause the whole of any work that you distribute or publish, that
+Xin whole or in part contains the Program or any part thereof, either
+Xwith or without modifications, to be licensed at no charge to all
+Xthird parties under the terms of this General Public License (except
+Xthat you may choose to grant warranty protection to some or all
+Xthird parties, at your option).
+X
+X@item
+XIf the modified program normally reads commands interactively when
+Xrun, you must cause it, when started running for such interactive use
+Xin the simplest and most usual way, to print or display an
+Xannouncement including an appropriate copyright notice and a notice
+Xthat there is no warranty (or else, saying that you provide a
+Xwarranty) and that users may redistribute the program under these
+Xconditions, and telling the user how to view a copy of this General
+XPublic License.
+X
+X@item
+XYou may charge a fee for the physical act of transferring a
+Xcopy, and you may at your option offer warranty protection in
+Xexchange for a fee.
+X@end itemize
+X
+XMere aggregation of another independent work with the Program (or its
+Xderivative) on a volume of a storage or distribution medium does not bring
+Xthe other work under the scope of these terms.
+X
+X@item
+XYou may copy and distribute the Program (or a portion or derivative of
+Xit, under Paragraph 2) in object code or executable form under the terms of
+XParagraphs 1 and 2 above provided that you also do one of the following:
+X
+X@itemize @bullet
+X@item
+Xaccompany it with the complete corresponding machine-readable
+Xsource code, which must be distributed under the terms of
+XParagraphs 1 and 2 above; or,
+X
+X@item
+Xaccompany it with a written offer, valid for at least three
+Xyears, to give any third party free (except for a nominal charge
+Xfor the cost of distribution) a complete machine-readable copy of the
+Xcorresponding source code, to be distributed under the terms of
+XParagraphs 1 and 2 above; or,
+X
+X@item
+Xaccompany it with the information you received as to where the
+Xcorresponding source code may be obtained.  (This alternative is
+Xallowed only for noncommercial distribution and only if you
+Xreceived the program in object code or executable form alone.)
+X@end itemize
+X
+XSource code for a work means the preferred form of the work for making
+Xmodifications to it.  For an executable file, complete source code means
+Xall the source code for all modules it contains; but, as a special
+Xexception, it need not include source code for modules which are standard
+Xlibraries that accompany the operating system on which the executable
+Xfile runs, or for standard header files or definitions files that
+Xaccompany that operating system.
+X
+X@item
+XYou may not copy, modify, sublicense, distribute or transfer the
+XProgram except as expressly provided under this General Public License.
+XAny attempt otherwise to copy, modify, sublicense, distribute or transfer
+Xthe Program is void, and will automatically terminate your rights to use
+Xthe Program under this License.  However, parties who have received
+Xcopies, or rights to use copies, from you under this General Public
+XLicense will not have their licenses terminated so long as such parties
+Xremain in full compliance.
+X
+X@item
+XBy copying, distributing or modifying the Program (or any work based
+Xon the Program) you indicate your acceptance of this license to do so,
+Xand all its terms and conditions.
+X
+X@item
+XEach time you redistribute the Program (or any work based on the
+XProgram), the recipient automatically receives a license from the original
+Xlicensor to copy, distribute or modify the Program subject to these
+Xterms and conditions.  You may not impose any further restrictions on the
+Xrecipients' exercise of the rights granted herein.
+X
+X@item
+XThe Free Software Foundation may publish revised and/or new versions
+Xof the General Public License from time to time.  Such new versions will
+Xbe similar in spirit to the present version, but may differ in detail to
+Xaddress new problems or concerns.
+X
+XEach version is given a distinguishing version number.  If the Program
+Xspecifies a version number of the license which applies to it and ``any
+Xlater version'', you have the option of following the terms and conditions
+Xeither of that version or of any later version published by the Free
+XSoftware Foundation.  If the Program does not specify a version number of
+Xthe license, you may choose any version ever published by the Free Software
+XFoundation.
+X
+X@item
+XIf you wish to incorporate parts of the Program into other free
+Xprograms whose distribution conditions are different, write to the author
+Xto ask for permission.  For software which is copyrighted by the Free
+XSoftware Foundation, write to the Free Software Foundation; we sometimes
+Xmake exceptions for this.  Our decision will be guided by the two goals
+Xof preserving the free status of all derivatives of our free software and
+Xof promoting the sharing and reuse of software generally.
+X
+X@iftex
+X@c fakenode -- this is for prepinfo.
+X@heading NO WARRANTY
+X@end iftex
+X@ifinfo
+X@center NO WARRANTY
+X@end ifinfo
+X
+X@item
+XBECAUSE THE PROGRAM IS LICENSED FREE OF CHARGE, THERE IS NO WARRANTY
+XFOR THE PROGRAM, TO THE EXTENT PERMITTED BY APPLICABLE LAW.  EXCEPT WHEN
+XOTHERWISE STATED IN WRITING THE COPYRIGHT HOLDERS AND/OR OTHER PARTIES
+XPROVIDE THE PROGRAM ``AS IS'' WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED
+XOR IMPLIED, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+XMERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.  THE ENTIRE RISK AS
+XTO THE QUALITY AND PERFORMANCE OF THE PROGRAM IS WITH YOU.  SHOULD THE
+XPROGRAM PROVE DEFECTIVE, YOU ASSUME THE COST OF ALL NECESSARY SERVICING,
+XREPAIR OR CORRECTION.
+X
+X@item
+XIN NO EVENT UNLESS REQUIRED BY APPLICABLE LAW OR AGREED TO IN WRITING WILL
+XANY COPYRIGHT HOLDER, OR ANY OTHER PARTY WHO MAY MODIFY AND/OR
+XREDISTRIBUTE THE PROGRAM AS PERMITTED ABOVE, BE LIABLE TO YOU FOR DAMAGES,
+XINCLUDING ANY GENERAL, SPECIAL, INCIDENTAL OR CONSEQUENTIAL DAMAGES
+XARISING OUT OF THE USE OR INABILITY TO USE THE PROGRAM (INCLUDING BUT NOT
+XLIMITED TO LOSS OF DATA OR DATA BEING RENDERED INACCURATE OR LOSSES
+XSUSTAINED BY YOU OR THIRD PARTIES OR A FAILURE OF THE PROGRAM TO OPERATE
+XWITH ANY OTHER PROGRAMS), EVEN IF SUCH HOLDER OR OTHER PARTY HAS BEEN
+XADVISED OF THE POSSIBILITY OF SUCH DAMAGES.
+X@end enumerate
+X
+X@iftex
+X@c fakenode -- this is for prepinfo.
+X@heading END OF TERMS AND CONDITIONS
+X@end iftex
+X@ifinfo
+X@center END OF TERMS AND CONDITIONS
+X@end ifinfo
+X
+X@page
+X@c fakenode -- this is for prepinfo.
+X@unnumberedsec Appendix: Using These Terms in New Programs
+X
+X  If you develop a new program, and you want it to be of the greatest
+Xpossible use to humanity, the best way to achieve this is to make it
+Xfree software which everyone can redistribute and change under these
+Xterms.
+X
+X  To do so, attach the following notices to the program.  It is safest to
+Xattach them to the start of each source file to most effectively convey
+Xthe exclusion of warranty; and each file should have at least the
+X``copyright'' line and a pointer to where the full notice is found.
+X
+X@smallexample
+X@var{one line to give the program's name and a brief idea of what it does.}
+XCopyright (C) 19@var{yy}  @var{name of author}
+X
+XThis program is free software; you can redistribute it and/or modify
+Xit under the terms of the GNU General Public License as published by
+Xthe Free Software Foundation; either version 1, or (at your option)
+Xany later version.
+X
+XThis program is distributed in the hope that it will be useful,
+Xbut WITHOUT ANY WARRANTY; without even the implied warranty of
+XMERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+XGNU General Public License for more details.
+X
+XYou should have received a copy of the GNU General Public License
+Xalong with this program; if not, write to the Free Software
+XFoundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+X@end smallexample
+X
+XAlso add information on how to contact you by electronic and paper mail.
+X
+XIf the program is interactive, make it output a short notice like this
+Xwhen it starts in an interactive mode:
+X
+X@smallexample
+XGnomovision version 69, Copyright (C) 19@var{yy} @var{name of author}
+XGnomovision comes with ABSOLUTELY NO WARRANTY; for details type `show w'.
+XThis is free software, and you are welcome to redistribute it
+Xunder certain conditions; type `show c' for details.
+X@end smallexample
+X
+XThe hypothetical commands `show w' and `show c' should show the
+Xappropriate parts of the General Public License.  Of course, the
+Xcommands you use may be called something other than `show w' and `show
+Xc'; they could even be mouse-clicks or menu items---whatever suits your
+Xprogram.
+X
+XYou should also get your employer (if you work as a programmer) or your
+Xschool, if any, to sign a ``copyright disclaimer'' for the program, if
+Xnecessary.  Here a sample; alter the names:
+X
+X@example
+XYoyodyne, Inc., hereby disclaims all copyright interest in the
+Xprogram `Gnomovision' (a program to direct compilers to make passes
+Xat assemblers) written by James Hacker.
+X
+X@var{signature of Ty Coon}, 1 April 1989
+XTy Coon, President of Vice
+X@end example
+X
+XThat's all there is to it!
+X
+X@node This Manual, Getting Started, Copying, Top
+X@chapter Using This Manual
+X@cindex manual, using this
+X@cindex using this manual
+X@cindex language, @code{awk}
+X@cindex program, @code{awk}
+X@cindex @code{awk} language
+X@cindex @code{awk} program
+X
+XThe term @code{gawk} refers to a particular program (a version of
+X@code{awk}, developed as part the GNU project), and to the language you
+Xuse to tell this program what to do.  When we need to be careful, we
+Xcall the program ``the @code{awk} utility'' and the language ``the
+X@code{awk} language''.  The purpose of this manual is to explain the
+X@code{awk} language and how to run the @code{awk} utility.
+X
+XThe term @dfn{@code{awk} program} refers to a program written by you in
+Xthe @code{awk} programming language.@refill
+X
+X@xref{Getting Started}, for the bare essentials you need to know to
+Xstart using @code{awk}.  
+X
+XSome useful ``one-liners'' are included to give you a feel for the
+X@code{awk} language (@pxref{One-liners}).
+X
+X@ignore
+X@strong{I deleted four paragraphs here because they would confuse the
+Xbeginner more than help him.  They mention terms such as ``field'',
+X``pattern'', ``action'', ``built-in function'' which the beginner
+Xdoesn't know.}
+X
+X@strong{If you can find a way to introduce several of these concepts here,
+Xenough to give the reader a map of what is to follow, that might
+Xbe useful.  I'm not sure that can be done without taking up more
+Xspace than ought to be used here.  There may be no way to win.}
+X
+X@strong{ADR: I'd like to tackle this in phase 2 of my editing.}
+X@end ignore
+X
+XA sizable sample @code{awk} program has been provided for you (@pxref{Sample
+XProgram}).@refill
+X
+XIf you find terms that you aren't familiar with, try looking them
+Xup in the glossary (@pxref{Glossary}).@refill
+X
+XMost of the time complete @code{awk} programs are used as examples, but in
+Xsome of the more advanced sections, only the part of the @code{awk} program
+Xthat illustrates the concept being described is shown.@refill
+X
+X@menu
+XThis chapter contains the following sections:
+X
+X* Sample Data Files::  Sample data files for use in the @code{awk} programs
+X                       illustrated in this manual.
+X@end menu
+X
+X@node Sample Data Files, , This Manual, This Manual
+X@section Data Files for the Examples
+X
+X@cindex input file, sample
+X@cindex sample input file
+X@cindex @file{BBS-list} file
+XMany of the examples in this manual take their input from two sample
+Xdata files.  The first, called @file{BBS-list}, represents a list of
+Xcomputer bulletin board systems and information about those systems.
+XThe second data file, called @file{inventory-shipped}, contains
+Xinformation about shipments on a monthly basis.  Each line of these
+Xfiles is one @dfn{record}.
+X
+XIn the file @file{BBS-list}, each record contains the name of a computer
+Xbulletin board, its phone number, the board's baud rate, and a code for
+Xthe number of hours it is operational.  An @samp{A} in the last column
+Xmeans the board operates 24 hours all week.  A @samp{B} in the last
+Xcolumn means the board operates evening and weekend hours, only.  A
+X@samp{C} means the board operates only on weekends.
+X
+X@group
+X@example
+Xaardvark     555-5553     1200/300          B
+Xalpo-net     555-3412     2400/1200/300     A
+Xbarfly       555-7685     1200/300          A
+Xbites        555-1675     2400/1200/300     A
+Xcamelot      555-0542     300               C
+Xcore         555-2912     1200/300          C
+Xfooey        555-1234     2400/1200/300     B
+Xfoot         555-6699     1200/300          B
+Xmacfoo       555-6480     1200/300          A
+Xsdace        555-3430     2400/1200/300     A
+Xsabafoo      555-2127     1200/300          C
+X@end example
+X@end group
+X
+X@cindex @file{inventory-shipped} file
+XThe second data file, called @file{inventory-shipped}, represents
+Xinformation about shipments during the year.  Each line of this file is
+Xalso one record.  Each record contains the month of the year, the number
+Xof green crates shipped, the number of red boxes shipped, the number of
+Xorange bags shipped, and the number of blue packages shipped,
+Xrespectively.  There are 16 entries, covering the 12 months of one year
+Xand 4 months of the next year.
+X
+X@group
+X@example
+XJan  13  25  15 115
+XFeb  15  32  24 226
+XMar  15  24  34 228
+XApr  31  52  63 420
+XMay  16  34  29 208
+XJun  31  42  75 492
+XJul  24  34  67 436
+XAug  15  34  47 316
+XSep  13  55  37 277
+XOct  29  54  68 525
+XNov  20  87  82 577
+XDec  17  35  61 401
+X
+XJan  21  36  64 620
+XFeb  26  58  80 652
+XMar  24  75  70 495
+XApr  21  70  74 514
+X@end example
+X@end group
+X
+X@ifinfo
+XIf you are reading this in GNU Emacs using Info, you can copy the regions
+Xof text showing these sample files into your own test files.  This way you
+Xcan try out the examples shown in the remainder of this document.  You do
+Xthis by using the command @kbd{M-x write-region} to copy text from the Info
+Xfile into a file for use with @code{awk} (see your @cite{GNU Emacs Manual}
+Xfor more information).  Using this information, create your own
+X@file{BBS-list} and @file{inventory-shipped} files, and practice what you
+Xlearn in this manual.
+X@end ifinfo
+X
+X@node Getting Started, Reading Files, This Manual, Top
+X@chapter Getting Started With @code{awk}
+X@cindex script, definition of
+X@cindex rule, definition of
+X@cindex program, definition of
+X@cindex basic function of @code{gawk}
+X
+XThe basic function of @code{awk} is to search files for lines (or other
+Xunits of text) that contain certain patterns.  When a line matches one
+Xof the patterns, @code{awk} performs specified actions on that line.
+X@code{awk} keeps processing input lines in this way until the end of the
+Xinput file is reached.@refill
+X
+XWhen you run @code{awk}, you specify an @code{awk} @dfn{program} which
+Xtells @code{awk} what to do.  The program consists of a series of
+X@dfn{rules}.  (It may also contain @dfn{function definitions}, but that
+Xis an advanced feature, so let's ignore it for now.
+X@xref{User-defined}.)  Each rule specifies one pattern to search for,
+Xand one action to perform when that pattern is found.
+X
+XSyntactically, a rule consists of a pattern followed by an action.  The
+Xaction is enclosed in curly braces to separate it from the pattern.
+XRules are usually separated by newlines.  Therefore, an @code{awk}
+Xprogram looks like this:
+X
+X@example
+X@var{pattern} @{ @var{action} @}
+X@var{pattern} @{ @var{action} @}
+X@dots{}
+X@end example
+X
+X@menu
+X* Very Simple::      A very simple example.
+X* Two Rules::        A less simple one-line example with two rules.
+X* More Complex::     A more complex example.
+X* Running gawk::     How to run @code{gawk} programs; includes command line syntax.
+X* Comments::         Adding documentation to @code{gawk} programs.
+X* Statements/Lines:: Subdividing or combining statements into lines.
+X* When::             When to use @code{gawk} and when to use other things.
+X@end menu
+X
+X@node Very Simple, Two Rules, Getting Started, Getting Started
+X@section A Very Simple Example
+X
+X@cindex @samp{print $0}
+XThe following command runs a simple @code{awk} program that searches the
+Xinput file @file{BBS-list} for the string of characters: @samp{foo}.  (A
+Xstring of characters is usually called, quite simply, a @dfn{string}.
+XThe term @dfn{string} is perhaps based on similar usage in English, such
+Xas ``a string of pearls,'' or, ``a string of cars in a train.'')
+X
+X@example
+Xawk '/foo/ @{ print $0 @}' BBS-list
+X@end example
+X
+X@noindent
+XWhen lines containing @samp{foo} are found, they are printed, because
+X@w{@samp{print $0}} means print the current line.  (Just @samp{print} by
+Xitself also means the same thing, so we could have written that
+Xinstead.)
+X
+XYou will notice that slashes, @samp{/}, surround the string @samp{foo}
+Xin the actual @code{awk} program.  The slashes indicate that @samp{foo}
+Xis a pattern to search for.  This type of pattern is called a
+X@dfn{regular expression}, and is covered in more detail later
+X(@pxref{Regexp}).  There are single-quotes around the @code{awk} program
+Xso that the shell won't interpret any of it as special shell
+Xcharacters.@refill
+X
+XHere is what this program prints:
+X
+X@example
+Xfooey        555-1234     2400/1200/300     B
+Xfoot         555-6699     1200/300          B
+Xmacfoo       555-6480     1200/300          A
+Xsabafoo      555-2127     1200/300          C
+X@end example
+X
+X@cindex action, default
+X@cindex pattern, default
+X@cindex default action
+X@cindex default pattern
+XIn an @code{awk} rule, either the pattern or the action can be omitted,
+Xbut not both.  If the pattern is omitted, then the action is performed
+Xfor @emph{every} input line.  If the action is omitted, the default
+Xaction is to print all lines that match the pattern.
+X
+XThus, we could leave out the action (the @code{print} statement and the curly
+Xbraces) in the above example, and the result would be the same: all
+Xlines matching the pattern @samp{foo} would be printed.  By comparison,
+Xomitting the @code{print} statement but retaining the curly braces makes an
+Xempty action that does nothing; then no lines would be printed.
+X
+X@node Two Rules, More Complex, Very Simple, Getting Started
+X@section An Example with Two Rules
+X@cindex how @code{awk} works
+X
+XThe @code{awk} utility reads the input files one line at a
+Xtime.  For each line, @code{awk} tries the patterns of all the rules.
+XIf several patterns match then several actions are run, in the order in
+Xwhich they appear in the @code{awk} program.  If no patterns match, then
+Xno actions are run.
+X
+XAfter processing all the rules (perhaps none) that match the line,
+X@code{awk} reads the next line (however, @pxref{Next Statement}).
+XThis continues until the end of the file is reached.@refill
+X
+XFor example, the @code{awk} program:
+X
+X@example
+X/12/  @{ print $0 @}
+X/21/  @{ print $0 @}
+X@end example
+X
+X@noindent
+Xcontains two rules.  The first rule has the string @samp{12} as the
+Xpattern and @samp{print $0} as the action.  The second rule has the
+Xstring @samp{21} as the pattern and also has @samp{print $0} as the
+Xaction.  Each rule's action is enclosed in its own pair of braces.
+X
+XThis @code{awk} program prints every line that contains the string
+X@samp{12} @emph{or} the string @samp{21}.  If a line contains both
+Xstrings, it is printed twice, once by each rule.
+X
+XIf we run this program on our two sample data files, @file{BBS-list} and
+X@file{inventory-shipped}, as shown here:
+X
+X@example
+Xawk '/12/ @{ print $0 @}
+X     /21/ @{ print $0 @}' BBS-list inventory-shipped
+X@end example
+X
+X@noindent
+Xwe get the following output:
+X
+X@example
+Xaardvark     555-5553     1200/300          B
+Xalpo-net     555-3412     2400/1200/300     A
+Xbarfly       555-7685     1200/300          A
+Xbites        555-1675     2400/1200/300     A
+Xcore         555-2912     1200/300          C
+Xfooey        555-1234     2400/1200/300     B
+Xfoot         555-6699     1200/300          B
+Xmacfoo       555-6480     1200/300          A
+Xsdace        555-3430     2400/1200/300     A
+Xsabafoo      555-2127     1200/300          C
+Xsabafoo      555-2127     1200/300          C
+XJan  21  36  64 620
+XApr  21  70  74 514
+X@end example
+X
+X@noindent
+XNote how the line in @file{BBS-list} beginning with @samp{sabafoo}
+Xwas printed twice, once for each rule.
+X
+X@node More Complex, Running gawk, Two Rules, Getting Started
+X@comment  node-name,  next,  previous,  up
+X@section A More Complex Example
+X
+XHere is an example to give you an idea of what typical @code{awk}
+Xprograms do.  This example shows how @code{awk} can be used to
+Xsummarize, select, and rearrange the output of another utility.  It uses
+Xfeatures that haven't been covered yet, so don't worry if you don't
+Xunderstand all the details.
+X
+X@example
+Xls -l | awk '$5 == "Nov" @{ sum += $4 @}
+X             END @{ print sum @}'
+X@end example
+X
+XThis command prints the total number of bytes in all the files in the
+Xcurrent directory that were last modified in November (of any year).
+X(In the C shell you would need to type a semicolon and then a backslash
+Xat the end of the first line; in the Bourne shell or the Bourne-Again
+Xshell, you can type the example as shown.)
+X
+XThe @w{@samp{ls -l}} part of this example is a command that gives you a full
+Xlisting of all the files in a directory, including file size and date.
+XIts output looks like this:
+X
+X@example
+X-rw-r--r--  1 close        1933 Nov  7 13:05 Makefile
+X-rw-r--r--  1 close       10809 Nov  7 13:03 gawk.h
+X-rw-r--r--  1 close         983 Apr 13 12:14 gawk.tab.h
+X-rw-r--r--  1 close       31869 Jun 15 12:20 gawk.y
+X-rw-r--r--  1 close       22414 Nov  7 13:03 gawk1.c
+X-rw-r--r--  1 close       37455 Nov  7 13:03 gawk2.c
+X-rw-r--r--  1 close       27511 Dec  9 13:07 gawk3.c
+X-rw-r--r--  1 close        7989 Nov  7 13:03 gawk4.c
+X@end example
+X
+X@noindent
+XThe first field contains read-write permissions, the second field contains
+Xthe number of links to the file, and the third field identifies the owner of
+Xthe file.  The fourth field contains the size of the file in bytes.  The
+Xfifth, sixth, and seventh fields contain the month, day, and time,
+Xrespectively, that the file was last modified.  Finally, the eighth field
+Xcontains the name of the file.
+X
+XThe @code{$5 == "Nov"} in our @code{awk} program is an expression that
+Xtests whether the fifth field of the output from @w{@samp{ls -l}}
+Xmatches the string @samp{Nov}.  Each time a line has the string
+X@samp{Nov} in its fifth field, the action @samp{@{ sum += $4 @}} is
+Xperformed.  This adds the fourth field (the file size) to the variable
+X@code{sum}.  As a result, when @code{awk} has finished reading all the
+Xinput lines, @code{sum} is the sum of the sizes of files whose
+Xlines matched the pattern.@refill
+X
+XAfter the last line of output from @code{ls} has been processed, the
+X@code{END} rule is executed, and the value of @code{sum} is
+Xprinted.  In this example, the value of @code{sum} would be 80600.@refill
+X
+XThese more advanced @code{awk} techniques are covered in later sections
+X(@pxref{Actions}).  Before you can move on to more advanced @code{awk}
+Xprogramming, you have to know how @code{awk} interprets your input and
+Xdisplays your output.  By manipulating fields and using @code{print}
+Xstatements, you can produce some very useful and spectacular looking
+Xreports.@refill
+X
+X
+X@node Running gawk, Comments, More Complex, Getting Started
+X@section How to Run @code{awk} Programs
+X
+X@cindex command line formats
+X@cindex running @code{awk} programs
+XThere are several ways to run an @code{awk} program.  If the program is
+Xshort, it is easiest to include it in the command that runs @code{awk},
+Xlike this:
+X
+X@example
+Xawk '@var{program}' @var{input-file1} @var{input-file2} @dots{}
+X@end example
+X
+X@noindent
+Xwhere @var{program} consists of a series of patterns and actions, as
+Xdescribed earlier.
+X
+XWhen the program is long, you would probably prefer to put it in a file
+Xand run it with a command like this:
+X
+X@example
+Xawk -f @var{program-file} @var{input-file1} @var{input-file2} @dots{}
+X@end example
+X
+X@menu
+X* One-shot::            Running a short throw-away @code{awk} program.
+X* Read Terminal::       Using no input files (input from terminal instead).
+X* Long::                Putting permanent @code{awk} programs in files.
+X* Executable Scripts::  Making self-contained @code{awk} programs.
+X@end menu
+X
+X@node One-shot, Read Terminal, Running gawk, Running gawk
+X@subsection One-shot Throw-away @code{awk} Programs
+X
+XOnce you are familiar with @code{awk}, you will often type simple
+Xprograms at the moment you want to use them.  Then you can write the
+Xprogram as the first argument of the @code{awk} command, like this:
+X
+X@example
+Xawk '@var{program}' @var{input-file1} @var{input-file2} @dots{}
+X@end example
+X
+X@noindent
+Xwhere @var{program} consists of a series of @var{patterns} and
+X@var{actions}, as described earlier.
+X
+X@cindex single quotes, why needed
+XThis command format tells the shell to start @code{awk} and use the
+X@var{program} to process records in the input file(s).  There are single
+Xquotes around the @var{program} so that the shell doesn't interpret any
+X@code{awk} characters as special shell characters.  They cause the
+Xshell to treat all of @var{program} as a single argument for
+X@code{awk}.  They also allow @var{program} to be more than one line
+Xlong.@refill
+X
+XThis format is also useful for running short or medium-sized @code{awk}
+Xprograms from shell scripts, because it avoids the need for a separate
+Xfile for the @code{awk} program.  A self-contained shell script is more
+Xreliable since there are no other files to misplace.
+X
+X@node Read Terminal, Long, One-shot, Running gawk
+X@subsection Running @code{awk} without Input Files
+X
+X@cindex standard input
+X@cindex input, standard
+XYou can also use @code{awk} without any input files.  If you type the
+Xcommand line:@refill
+X
+X@example
+Xawk '@var{program}'
+X@end example
+X
+X@noindent
+Xthen @code{awk} applies the @var{program} to the @dfn{standard input},
+Xwhich usually means whatever you type on the terminal.  This continues
+Xuntil you indicate end-of-file by typing @kbd{Control-d}.
+X
+XFor example, if you execute this command:
+X
+X@example
+Xawk '/th/'
+X@end example
+X
+X@noindent
+Xwhatever you type next is taken as data for that @code{awk}
+Xprogram.  If you go on to type the following data:
+X
+X@example
+XKathy
+XBen
+XTom
+XBeth
+XSeth
+XKaren
+XThomas
+X@kbd{Control-d}
+X@end example
+X
+X@noindent
+Xthen @code{awk} prints this output:
+X
+X@example
+XKathy
+XBeth
+XSeth
+X@end example
+X
+X@noindent
+X@cindex case sensitivity
+X@cindex pattern, case sensitive
+Xas matching the pattern @samp{th}.  Notice that it did not recognize
+X@samp{Thomas} as matching the pattern.  The @code{awk} language is
+X@dfn{case sensitive}, and matches patterns exactly.  (However, you can
+Xoverride this with the variable @code{IGNORECASE}.
+X@xref{Case-sensitivity}.)
+X
+X@node Long, Executable Scripts, Read Terminal, Running gawk
+X@subsection Running Long Programs
+X
+X@cindex running long programs
+X@cindex @samp{-f} option
+X@cindex program file
+X@cindex file, @code{awk} program
+XSometimes your @code{awk} programs can be very long.  In this case it is
+Xmore convenient to put the program into a separate file.  To tell
+X@code{awk} to use that file for its program, you type:@refill
+X
+X@example
+Xawk -f @var{source-file} @var{input-file1} @var{input-file2} @dots{}
+X@end example
+X
+XThe @samp{-f} tells the @code{awk} utility to get the @code{awk} program
+Xfrom the file @var{source-file}.  Any file name can be used for
+X@var{source-file}.  For example, you could put the program:@refill
+X
+X@example
+X/th/
+X@end example
+X
+X@noindent
+Xinto the file @file{th-prog}.  Then this command:
+X
+X@example
+Xawk -f th-prog
+X@end example
+X
+X@noindent
+Xdoes the same thing as this one:
+X
+X@example
+Xawk '/th/'
+X@end example
+X
+X@noindent
+Xwhich was explained earlier (@pxref{Read Terminal}).  Note that you
+Xdon't usually need single quotes around the file name that you specify
+Xwith @samp{-f}, because most file names don't contain any of the shell's
+Xspecial characters.
+X
+XIf you want to identify your @code{awk} program files clearly as such,
+Xyou can add the extension @file{.awk} to the file name.  This doesn't
+Xaffect the execution of the @code{awk} program, but it does make
+X``housekeeping'' easier.
+X
+X@node Executable Scripts,  , Long, Running gawk
+X@c node-name, next, previous, up
+X@subsection Executable @code{awk} Programs
+X@cindex executable scripts
+X@cindex scripts, executable
+X@cindex self contained programs
+X@cindex program, self contained
+X@cindex @samp{#!}
+X
+XOnce you have learned @code{awk}, you may want to write self-contained
+X@code{awk} scripts, using the @samp{#!} script mechanism.  You can do
+Xthis on BSD Unix systems and (someday) on GNU.
+X
+XFor example, you could create a text file named @file{hello}, containing
+Xthe following (where @samp{BEGIN} is a feature we have not yet
+Xdiscussed):
+X
+X@example
+X#! /bin/awk -f
+X
+X# a sample awk program
+XBEGIN    @{ print "hello, world" @}
+X@end example
+X
+X@noindent
+XAfter making this file executable (with the @code{chmod} command), you
+Xcan simply type:
+X
+X@example
+Xhello
+X@end example
+X
+X@noindent
+Xat the shell, and the system will arrange to run @code{awk} as if you
+Xhad typed:
+X
+X@example
+Xawk -f hello
+X@end example
+X
+X@noindent
+XSelf-contained @code{awk} scripts are useful when you want to write a
+Xprogram which users can invoke without knowing that the program is
+Xwritten in @code{awk}.
+X
+X@cindex shell scripts
+X@cindex scripts, shell
+XIf your system does not support the @samp{#!} mechanism, you can get a
+Xsimilar effect using a regular shell script.  It would look something
+Xlike this:
+X
+X@example
+X: The colon makes sure this script is executed by the Bourne shell.
+Xawk '@var{program}' "$@@"
+X@end example
+X
+XUsing this technique, it is @emph{vital} to enclose the @var{program} in
+Xsingle quotes to protect it from interpretation by the shell.  If you
+Xomit the quotes, only a shell wizard can predict the result.
+X
+XThe @samp{"$@@"} causes the shell to forward all the command line
+Xarguments to the @code{awk} program, without interpretation.  The first
+Xline, which starts with a colon, is used so that this shell script will
+Xwork even if invoked by a user who uses the C shell.
+X@c Someday: (See @cite{The Bourne Again Shell}, by ??.)
+X
+X@c We don't refer to hoarded information.
+X@c  (See
+X@c @cite{The UNIX Programming Environment} by Brian Kernighan and Rob Pike,
+X@c Prentice-Hall, 1984, for more information on writing shell programs that
+X@c use the Unix utilities.  The most powerful version of the shell is the
+X@c Korn shell.  A detailed description of the Korn shell can be found in
+X@c @cite{The KornShell Command and Programming Language} by Morris Bolsky
+X@c and David Korn, Prentice-Hall, 1989.)
+X
+X@node Comments, Statements/Lines, Running gawk, Getting Started
+X@section Comments in @code{awk} Programs
+X@cindex comments
+X@cindex use of comments
+X@cindex documenting @code{awk} programs
+X@cindex programs, documenting
+X
+XA @dfn{comment} is some text that is included in a program for the sake
+Xof human readers, and that is not really part of the program.  Comments
+Xcan explain what the program does, and how it works.  Nearly all
+Xprogramming languages have provisions for comments, because programs are
+Xhard to understand without their extra help.
+X
+XIn the @code{awk} language, a comment starts with the sharp sign
+Xcharacter, @samp{#}, and continues to the end of the line.  The
+X@code{awk} language ignores the rest of a line following a sharp sign.
+XFor example, we could have put the following into @file{th-prog}:@refill
+X
+X@example
+X# This program finds records containing the pattern @samp{th}.  This is how
+X# you continue comments on additional lines.
+X/th/
+X@end example
+X
+XYou can put comment lines into keyboard-composed throw-away @code{awk}
+Xprograms also, but this usually isn't very useful; the purpose of a
+Xcomment is to help you or another person understand the program at
+Xanother time.
+X
+X@node Statements/Lines, When, Comments, Getting Started
+X@section @code{awk} Statements versus Lines
+X
+XMost often, each line in an @code{awk} program is a separate statement or
+Xseparate rule, like this:
+X
+X@example
+Xawk '/12/  @{ print $0 @}
+X     /21/  @{ print $0 @}' BBS-list inventory-shipped
+X@end example
+X
+XBut sometimes statements can be more than one line, and lines can
+Xcontain several statements.  You can split a statement into multiple
+Xlines by inserting a newline after any of the following:
+X
+X@example
+X,    @{    ?    :    ||    &&    do    else
+X@end example
+X
+X@noindent
+XA newline at any other point is considered the end of the statement.
+X
+X@cindex backslash continuation
+X@cindex continuation of lines
+XIf you would like to split a single statement into two lines at a point
+Xwhere a newline would terminate it, you can @dfn{continue} it by ending the
+Xfirst line with a backslash character, @samp{\}.  This is allowed
+Xabsolutely anywhere in the statement, even in the middle of a string or
+Xregular expression.  For example:
+X
+X@example
+Xawk '/This program is too long, so continue it\
+X on the next line/ @{ print $1 @}'
+X@end example
+X
+X@noindent
+XWe have generally not used backslash continuation in the sample programs in
+Xthis manual.  Since there is no limit on the length of a line, it is never
+Xstrictly necessary; it just makes programs prettier.  We have preferred to
+Xmake them even more pretty by keeping the statements short.  Backslash
+Xcontinuation is most useful when your @code{awk} program is in a separate
+Xsource file, instead of typed in on the command line.
+X
+X@strong{Warning: backslash continuation does not work as described above
+Xwith the C shell.}  Continuation with backslash works for @code{awk}
+Xprograms in files, and also for one-shot programs @emph{provided} you
+Xare using the Bourne shell or the Bourne-again shell.  But the C shell
+Xused on Berkeley Unix behaves differently!  There, you must use two
+Xbackslashes in a row, followed by a newline.@refill
+X
+X@cindex multiple statements on one line
+XWhen @code{awk} statements within one rule are short, you might want to put
+Xmore than one of them on a line.  You do this by separating the statements
+Xwith semicolons, @samp{;}.
+XThis also applies to the rules themselves.
+XThus, the above example program could have been written:@refill
+X
+X@example
+X/12/ @{ print $0 @} ; /21/ @{ print $0 @}
+X@end example
+X
+X@noindent
+X@strong{Note:} the requirement that rules on the same line must be
+Xseparated with a semicolon is a recent change in the @code{awk}
+Xlanguage; it was done for consistency with the treatment of statements
+Xwithin an action.
+X
+X@node When, , Statements/Lines, Getting Started
+X@section When to Use @code{awk}
+X
+X@cindex when to use @code{awk}
+X@cindex applications of @code{awk}
+XWhat use is all of this to me, you might ask?  Using additional utility
+Xprograms, more advanced patterns, field separators, arithmetic
+Xstatements, and other selection criteria, you can produce much more
+Xcomplex output.  The @code{awk} language is very useful for producing
+Xreports from large amounts of raw data, such as summarizing information
+Xfrom the output of other utility programs such as @code{ls}.
+X(@xref{More Complex, , A More Complex Example}.)
+X
+XPrograms written with @code{awk} are usually much smaller than they would
+Xbe in other languages.  This makes @code{awk} programs easy to compose and
+Xuse.  Often @code{awk} programs can be quickly composed at your terminal,
+Xused once, and thrown away.  Since @code{awk} programs are interpreted, you
+Xcan avoid the usually lengthy edit-compile-test-debug cycle of software
+Xdevelopment.
+X
+XComplex programs have been written in @code{awk}, including a complete
+Xretargetable assembler for 8-bit microprocessors (@pxref{Glossary}, for
+Xmore information) and a microcode assembler for a special purpose Prolog
+Xcomputer.  However, @code{awk}'s capabilities are strained by tasks of
+Xsuch complexity.
+X
+XIf you find yourself writing @code{awk} scripts of more than, say, a few
+Xhundred lines, you might consider using a different programming
+Xlanguage.  Emacs Lisp is a good choice if you need sophisticated string
+Xor pattern matching capabilities.  The shell is also good at string and
+Xpattern matching; in addition, it allows powerful use of the system
+Xutilities.  More conventional languages, such as C, C++, and Lisp, offer
+Xbetter facilities for system programming and for managing the complexity
+Xof large programs.  Programs in these languages may require more lines
+Xof source code than the equivalent @code{awk} programs, but they are
+Xeasier to maintain and usually run more efficiently.@refill
+X
+X@node Reading Files, Printing, Getting Started, Top
+X@chapter Reading Input Files
+X
+X@cindex reading files
+X@cindex input
+X@cindex standard input
+X@vindex FILENAME
+XIn the typical @code{awk} program, all input is read either from the
+Xstandard input (usually the keyboard) or from files whose names you
+Xspecify on the @code{awk} command line.  If you specify input files,
+X@code{awk} reads data from the first one until it reaches the end; then
+Xit reads the second file until it reaches the end, and so on.  The name
+Xof the current input file can be found in the built-in variable
+X@code{FILENAME} (@pxref{Built-in Variables}).@refill
+X
+END_OF_FILE
+  if test 49676 -ne `wc -c <'./gawk.texinfo.01'`; then
+    echo shar: \"'./gawk.texinfo.01'\" unpacked with wrong size!
+  fi
+  # end of './gawk.texinfo.01'
+fi
+if test -f './msg.c' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'./msg.c'\"
+else
+  echo shar: Extracting \"'./msg.c'\" \(2168 characters\)
+  sed "s/^X//" >'./msg.c' <<'END_OF_FILE'
+X/*
+X * msg.c - routines for error messages
+X */
+X
+X/* 
+X * Copyright (C) 1986, 1988, 1989 the Free Software Foundation, Inc.
+X * 
+X * This file is part of GAWK, the GNU implementation of the
+X * AWK Progamming Language.
+X * 
+X * GAWK is free software; you can redistribute it and/or modify
+X * it under the terms of the GNU General Public License as published by
+X * the Free Software Foundation; either version 1, or (at your option)
+X * any later version.
+X * 
+X * GAWK is distributed in the hope that it will be useful,
+X * but WITHOUT ANY WARRANTY; without even the implied warranty of
+X * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+X * GNU General Public License for more details.
+X * 
+X * You should have received a copy of the GNU General Public License
+X * along with GAWK; see the file COPYING.  If not, write to
+X * the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
+X */
+X
+X#include "awk.h"
+X
+Xint sourceline = 0;
+Xchar *source = NULL;
+X
+X/* VARARGS2 */
+Xstatic void
+Xerr(s, msg, argp)
+Xchar *s;
+Xchar *msg;
+Xva_list *argp;
+X{
+X	int line;
+X	char *file;
+X
+X	(void) fprintf(stderr, "%s: %s ", myname, s);
+X	vfprintf(stderr, msg, *argp);
+X	(void) fprintf(stderr, "\n");
+X	line = (int) FNR_node->var_value->numbr;
+X	if (line) {
+X		(void) fprintf(stderr, " input line number %d", line);
+X		file = FILENAME_node->var_value->stptr;
+X		if (file && !STREQ(file, "-"))
+X			(void) fprintf(stderr, ", file `%s'", file);
+X		(void) fprintf(stderr, "\n");
+X	}
+X	if (sourceline) {
+X		(void) fprintf(stderr, " source line number %d", sourceline);
+X		if (source)
+X			(void) fprintf(stderr, ", file `%s'", source);
+X		(void) fprintf(stderr, "\n");
+X	}
+X}
+X
+X/*VARARGS0*/
+Xvoid
+Xmsg(va_alist)
+Xva_dcl
+X{
+X	va_list args;
+X	char *mesg;
+X
+X	va_start(args);
+X	mesg = va_arg(args, char *);
+X	err("", mesg, &args);
+X	va_end(args);
+X}
+X
+X/*VARARGS0*/
+Xvoid
+Xwarning(va_alist)
+Xva_dcl
+X{
+X	va_list args;
+X	char *mesg;
+X
+X	va_start(args);
+X	mesg = va_arg(args, char *);
+X	err("warning:", mesg, &args);
+X	va_end(args);
+X}
+X
+X/*VARARGS0*/
+Xvoid
+Xfatal(va_alist)
+Xva_dcl
+X{
+X	va_list args;
+X	char *mesg;
+X
+X	va_start(args);
+X	mesg = va_arg(args, char *);
+X	err("fatal error:", mesg, &args);
+X	va_end(args);
+X#ifdef DEBUG
+X	abort();
+X#endif
+X	exit(1);
+X}
+END_OF_FILE
+  if test 2168 -ne `wc -c <'./msg.c'`; then
+    echo shar: \"'./msg.c'\" unpacked with wrong size!
+  fi
+  # end of './msg.c'
+fi
+echo shar: End of archive 2 \(of 16\).
+cp /dev/null ark2isdone
+MISSING=""
+for I in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 ; do
+    if test ! -f ark${I}isdone ; then
+	MISSING="${MISSING} ${I}"
+    fi
+done
+if test "${MISSING}" = "" ; then
+    echo You have unpacked all 16 archives.
+    rm -f ark[1-9]isdone ark[1-9][0-9]isdone
+else
+    echo You still must unpack the following archives:
+    echo "        " ${MISSING}
+fi
+exit 0
+exit 0 # Just in case...
+-- 
+Please send comp.sources.unix-related mail to rsalz@uunet.uu.net.
+Use a domain-based address or give alternate paths, or you may lose out.

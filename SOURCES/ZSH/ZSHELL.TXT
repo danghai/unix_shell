@@ -1,0 +1,48 @@
+                                 tool: zsh
+
+---------------------------------------------------------------------------
+ Language:    Z-shell
+ Version:     2.5.0
+ Parts:       interpreter
+ Author:      Paul Falstad <pf@ttisms.com>
+              ftp://carlo.phys.uva.nl/pub/bas/zsh/zsh-*.tar.z
+ Location:    comp.sources.misc (v43i089)
+              http://mal9000.bevc.blacksburg.va.us/zsh/zsh_home.shtml
+
+ Description: zsh is most similar to ksh, while many of the additions are
+              to please csh users.
+                 * multi-line commands editable as a single buffer,
+                 * variable editing (vared),
+                 * command buffer stack,
+ Features:       * recursive globbing,
+                 * manipulation of arrays,
+                 * spelling correction.
+
+ Ports:       Berkeley-based Unix, SVR4-based Unix
+ Discussion:  zsh-request@cs.uow.edu.au
+ Contact:     zsh-list@cs.uow.edu.au
+ Updated:     July 13th, 1994
+
+---------------------------------------------------------------------------
+
+                               Related Items
+
+category: command shells summary, or expanded.
+
+category: glue summary, or expanded.
+
+category: scripting languages summary, or expanded.
+
+---------------------------------------------------------------------------
+---------------------------------------------------------------------------
+This work supported by Idiom Consulting. Idiom Consulting         [ aqui ]
+provides Internet access and perl programming in the SF Bay
+Area.
+
+Please send updates to free-compilers@idiom.com
+
+The HTML is maintained by David Muir Sharnoff and the entries themselves
+are maintained by Steve Robenalt.
+
+Copyright (c) 1992, 1993, 1994, David Muir Sharnoff, All Rights Reserved
+Copyright (c) 1994, 1995, 1996, Steven Allen Robenalt, All Rights Reserved

@@ -1,0 +1,102 @@
+ MS-DOS Shell Version 2.2	Patch.Lib			Decmeber 1993
+
+ MS-DOS SHELL - Copyright (c) 1990,3 Data Logic Limited and Charles Forsyth
+
+ This code is based on (in part) the shell program written by Charles
+ Forsyth and is subject to the following copyright restrictions:
+
+ 1.  Redistribution and use in source and binary forms are permitted
+     provided that the above copyright notice is duplicated in the
+     source form and the copyright notice in file sh6.c is displayed
+     on entry to the program.
+
+ 2.  The sources (or parts thereof) or objects generated from the
+     sources (or parts of sources) cannot be sold under any circumstances.
+
+    $Header: /usr/users/istewart/shell/sh2.3/Release/RCS/Patch.lib,v 2.2 1993/12/03 13:32:52 istewart Exp $
+
+    $Log: Patch.lib,v $
+	Revision 2.2  1993/12/03  13:32:52  istewart
+	Release 2.2
+
+	Revision 2.1  1992/12/14  11:13:55  istewart
+	BETA 215 Fixes and 2.1 Release
+
+	Revision 2.0  1992/04/13  17:40:33  Ian_Stewartson
+	MS-Shell 2.0 Baseline release
+
+	
+________________________________________________________________________________
+
+This document provides a set of instructions for modifying the Microsoft C
+v5.1 Library function open so that the O_NOINHERIT flag is passed to MSDOS.
+The CodeView commands are given where appropriate.
+
+1.  Using CodeView (or a similar debugger), set a breakpoint on the call to
+    open in S_open.
+
+    - v S_open
+    move cursor to open
+    - <F9>
+
+2.  Execute to the break point.  You may have to enter a command which opens
+    a file.
+
+    - g
+
+3.  Display the Assembly listing
+
+    - <F3>
+
+4.  Single step the debugger into the open function
+
+    - <F8> (5 times on my system)
+
+5.  Page through the assembler listing until you find the Interrupt 21 call.
+    In my version, this is about 16 assembler instructions into the open
+    function.  The call sequence is:
+
+    mov		byte ptr [bp - 4], 80H
+    push	ds
+    lds		dx, dword ptr [bp + 6]
+    and		al, 03
+    or		al, bh
+    mov		ah, 3d
+    int		21H
+
+6.  Record the machine code values for this sequence (especially the last 4
+    instructions).  On my system these are:
+
+    2403	and		al, 03
+    0AC7	or		al, bh
+    B43D	mov		ah, 3d
+    CD21	int		21H
+
+7.  Exit CodeView
+
+8.  Extract the module open.obj from your library.
+
+    lib llibce "*open.obj;"
+
+9.  Using an appropriate binary editor (or hex dump program) look for the
+    sequence of machine code values leading up to the interrupt (see step 6
+    above).  In my version of open.obj, it starts at offset 0x0f2 in the
+    file.  Change the AND AL, 03 instruction to AND AL, 83 by changing 24
+    03 to 24 83.
+
+    You may have to write a little program to open the file in binary mode,
+    seek to the appropriate location and write 0x83 to the file and close
+    it.
+
+10. Re-load the module in the library (you may want to keep a copy of the
+    original module/library in case of problems).
+
+    lib llibce "-+open.obj;"
+
+11. Re-link the shell
+
+12. Check that the AND AL, 03 has become an AND AL, 83 using steps 1 to 5.
+
+Note:
+    Microsoft, MSDOS and CodeView are registered trademarks of Microsoft
+    Corporation
